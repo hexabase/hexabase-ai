@@ -62,13 +62,14 @@ func SetupRoutes(router *gin.Engine, handlers *Handlers) {
 		// Groups
 		groups := workspaceScoped.Group("/groups")
 		{
-			groups.POST("/", handlers.Workspaces.CreateGroup)
-			groups.GET("/", handlers.Workspaces.ListGroups)
-			groups.GET("/:groupId", handlers.Workspaces.GetGroup)
-			groups.PUT("/:groupId", handlers.Workspaces.UpdateGroup)
-			groups.DELETE("/:groupId", handlers.Workspaces.DeleteGroup)
-			groups.POST("/:groupId/members", handlers.Workspaces.AddGroupMember)
-			groups.DELETE("/:groupId/members/:userId", handlers.Workspaces.RemoveGroupMember)
+			groups.POST("/", handlers.Groups.CreateGroup)
+			groups.GET("/", handlers.Groups.ListGroups)
+			groups.GET("/:groupId", handlers.Groups.GetGroup)
+			groups.PUT("/:groupId", handlers.Groups.UpdateGroup)
+			groups.DELETE("/:groupId", handlers.Groups.DeleteGroup)
+			groups.POST("/:groupId/members", handlers.Groups.AddGroupMember)
+			groups.DELETE("/:groupId/members/:userId", handlers.Groups.RemoveGroupMember)
+			groups.GET("/:groupId/members", handlers.Groups.ListGroupMembers)
 		}
 		
 		// Projects
