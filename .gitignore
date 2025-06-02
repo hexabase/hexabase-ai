@@ -1,0 +1,169 @@
+# Hexabase KaaS - Git Ignore Rules
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+api/bin/
+api/api
+api/worker
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.crt
+
+# Configuration files with secrets
+config.yaml
+config.yml
+config.local.yaml
+config.local.yml
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+logs/
+
+# Docker volumes and data
+docker-data/
+postgres-data/
+redis-data/
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+dist/
+build/
+
+# Node.js (for future UI development)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# Next.js (for future UI development)
+.next/
+out/
+.vercel
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes config files with secrets
+kubeconfig
+*.kubeconfig
+
+# Testing artifacts
+hexabase_test
+
+# Local development overrides
+docker-compose.override.yml
+Makefile.local
+
+# Backup files
+*.bak
+*.backup
+
+# API documentation generated files
+docs/api/
+
+# Certificates and keys
+certs/
+keys/
+ssl/
+
+# Local scripts
+scripts/local/
+
+# Performance profiling files
+*.prof
+*.pprof
+
+# Go module cache
+/go/pkg/mod/
+
+# Air live reload (if used)
+.air.toml
+tmp/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+Session.vim
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Local environment configuration
+.envrc
