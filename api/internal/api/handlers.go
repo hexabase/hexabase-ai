@@ -17,6 +17,7 @@ type Handlers struct {
 	Organizations *OrganizationHandler
 	Workspaces    *WorkspaceHandler
 	Projects      *ProjectHandler
+	Groups        *GroupHandler
 	Webhooks      *WebhookHandler
 }
 
@@ -33,6 +34,7 @@ func NewHandlers(db *gorm.DB, cfg *config.Config, logger *zap.Logger) *Handlers 
 	h.Organizations = NewOrganizationHandler(db, cfg, logger)
 	h.Workspaces = NewWorkspaceHandler(db, cfg, logger)
 	h.Projects = NewProjectHandler(db, cfg, logger)
+	h.Groups = NewGroupHandler(db, cfg, logger)
 	h.Webhooks = NewWebhookHandler(db, cfg, logger)
 
 	return h

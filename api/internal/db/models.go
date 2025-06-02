@@ -107,13 +107,16 @@ func (w *Workspace) BeforeCreate(tx *gorm.DB) error {
 
 // Project represents a Namespace within a vCluster
 type Project struct {
-	ID               string    `gorm:"primaryKey" json:"id"`
-	WorkspaceID      string    `gorm:"not null;index" json:"workspace_id"`
-	Name             string    `gorm:"not null" json:"name"`
-	ParentProjectID  *string   `json:"parent_project_id,omitempty"` // Self-referencing for HNC
-	HNCanchorName    *string   `json:"hnc_anchor_name,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID                   string    `gorm:"primaryKey" json:"id"`
+	WorkspaceID          string    `gorm:"not null;index" json:"workspace_id"`
+	Name                 string    `gorm:"not null" json:"name"`
+	Description          string    `json:"description"`
+	ParentProjectID      *string   `json:"parent_project_id,omitempty"` // Self-referencing for HNC
+	HNCanchorName        *string   `json:"hnc_anchor_name,omitempty"`
+	NamespaceStatus      string    `gorm:"not null;default:'PENDING_CREATION';check:namespace_status IN ('PENDING_CREATION','ACTIVE','DELETING','ERROR')" json:"namespace_status"`
+	KubernetesNamespace  *string   `json:"kubernetes_namespace,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 	
 	// Associations
 	Workspace      Workspace  `json:"workspace,omitempty"`
@@ -168,6 +171,7 @@ type Role struct {
 	ID          string    `gorm:"primaryKey" json:"id"`
 	ProjectID   *string   `json:"project_id,omitempty"` // Null for ClusterRoles
 	Name        string    `gorm:"not null" json:"name"`
+	Description string    `json:"description"`
 	Rules       string    `gorm:"type:jsonb;not null" json:"rules"` // JSON array of RBAC rules
 	IsCustom    bool      `gorm:"default:true" json:"is_custom"`
 	CreatedAt   time.Time `json:"created_at"`

@@ -73,20 +73,20 @@ export default function EditOrganizationDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-slide-in">
+        <div className="px-6 py-5 border-b border-gray-100">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-xl font-semibold text-gray-900">
               Edit Organization
             </h3>
             <button
               onClick={handleClose}
               disabled={isLoading}
-              className="text-gray-400 hover:text-gray-500 disabled:opacity-50"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all disabled:opacity-50"
             >
               <svg
-                className="h-6 w-6"
+                className="h-5 w-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -103,8 +103,8 @@ export default function EditOrganizationDialog({
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-4">
-            <div className="mb-4">
+          <div className="px-6 py-6">
+            <div className="mb-5">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 Organization Name
               </label>
@@ -114,33 +114,41 @@ export default function EditOrganizationDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all disabled:opacity-50 disabled:bg-gray-50"
                 placeholder="Enter organization name"
                 maxLength={100}
+                autoFocus
               />
               {error && (
-                <p className="mt-2 text-sm text-red-600">{error}</p>
+                <p className="mt-2 text-sm text-danger-600 flex items-center">
+                  <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </p>
               )}
             </div>
 
-            <div className="text-sm text-gray-600">
-              <p>Organization ID: <code className="bg-gray-100 px-1 rounded">{organization.id}</code></p>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <p className="text-sm text-gray-600 font-medium">Organization ID</p>
+              <p className="text-xs text-gray-500 mt-1 font-mono">{organization.id}</p>
             </div>
           </div>
 
-          <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+          <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
             <Button
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              variant="outline"
+              variant="secondary"
+              className="rounded-lg"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isLoading || !name.trim() || name.trim() === organization.name}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="rounded-lg shadow-md hover:shadow-lg"
             >
               {isLoading ? (
                 <>

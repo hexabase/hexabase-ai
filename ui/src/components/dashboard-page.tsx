@@ -69,13 +69,13 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+              <div className="h-10 w-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center mr-3 shadow-lg">
                 <svg
-                  className="h-5 w-5 text-white"
+                  className="h-6 w-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -88,18 +88,27 @@ export default function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">Hexabase KaaS</h1>
+              <h1 className="text-xl font-bold text-gray-900">Hexabase KaaS</h1>
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.name || user?.email}
-              </span>
+              <div className="hidden sm:flex items-center space-x-1 bg-gray-100 rounded-lg px-3 py-1.5">
+                <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-700">
+                  {user?.name || user?.email}
+                </span>
+              </div>
               <Button
                 onClick={logout}
-                variant="outline"
+                variant="secondary"
                 size="sm"
+                className="rounded-lg"
               >
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 Sign Out
               </Button>
             </div>
@@ -108,91 +117,102 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Organizations</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Manage your organizations and access your Kubernetes workspaces
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <svg
-                className="h-4 w-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              New Organization
-            </Button>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <svg
-                className="h-5 w-5 text-red-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-              <div className="ml-auto pl-3">
+      <main className="px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Page Header */}
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Organizations</h2>
+                  <p className="mt-2 text-base text-gray-600">
+                    Manage your organizations and access your Kubernetes workspaces
+                  </p>
+                </div>
                 <Button
-                  onClick={() => setError(null)}
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-400 hover:text-red-500"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="rounded-lg shadow-md hover:shadow-lg"
+                  size="lg"
                 >
-                  ×
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  New Organization
                 </Button>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Organizations List */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner size="lg" className="mr-3" />
-            <span className="text-gray-600">Loading organizations...</span>
-          </div>
-        ) : (
-          <OrganizationsList
-            organizations={organizations}
-            onDelete={handleDeleteOrganization}
-            onUpdate={handleUpdateOrganization}
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 bg-danger-50 border border-danger-200 rounded-xl p-4 animate-slide-in">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-danger-500 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-danger-800">{error}</p>
+                </div>
+                <div className="ml-auto pl-3">
+                  <button
+                    onClick={() => setError(null)}
+                    className="inline-flex rounded-lg p-1.5 text-danger-500 hover:bg-danger-100 focus:outline-none focus:ring-2 focus:ring-danger-600 focus:ring-offset-2"
+                  >
+                    <span className="sr-only">Dismiss</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Organizations List */}
+          {isLoading ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12">
+              <div className="flex flex-col items-center justify-center">
+                <LoadingSpinner size="lg" className="mb-4" />
+                <span className="text-gray-600 font-medium">Loading organizations...</span>
+              </div>
+            </div>
+          ) : (
+            <OrganizationsList
+              organizations={organizations}
+              onDelete={handleDeleteOrganization}
+              onUpdate={handleUpdateOrganization}
+            />
+          )}
+
+          {/* Create Organization Dialog */}
+          <CreateOrganizationDialog
+            isOpen={isCreateDialogOpen}
+            onClose={() => setIsCreateDialogOpen(false)}
+            onCreate={handleCreateOrganization}
           />
-        )}
-
-        {/* Create Organization Dialog */}
-        <CreateOrganizationDialog
-          isOpen={isCreateDialogOpen}
-          onClose={() => setIsCreateDialogOpen(false)}
-          onCreate={handleCreateOrganization}
-        />
+        </div>
       </main>
     </div>
   );

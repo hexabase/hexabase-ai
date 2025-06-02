@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "type": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      }
+    },
+    "figma-developer-mcp": {
+      "command": "npx",
+      "type": "stdio",
+      "args": ["-y", "figma-developer-mcp", "--stdio"],
+      "env": {
+        "FIGMA_API_KEY": "figd_6KrM2fmuHTaGKmOGrQ8A2UVWhBGslI6fHUH7Uzs4"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "type": "stdio",
+      "args": ["-y", "@automatalabs/mcp-server-playwright"]
+    },
+    "slack": {
+      "command": "npx",
+      "type": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xapp-1-A08UK1B3SSK-8986066517874-0a9d136faec3b0eca44f24a351ac51b530b39e96f011cf21c57947eb451135d5",
+        "SLACK_TEAM_ID": "T0ADRUFDX"
+      }
+    }
+  }
+}
