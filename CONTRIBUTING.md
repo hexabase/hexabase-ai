@@ -15,7 +15,7 @@ Thank you for your interest in contributing to Hexabase KaaS! This document prov
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/b-eee/hexabase-kaas.git
+   git clone https://github.com/hexabase/hexabase-kaas.git
    cd hexabase-kaas
    ```
 
