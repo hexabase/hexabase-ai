@@ -9,6 +9,8 @@ import { LoadingSpinner } from '@/components/ui/loading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Building2, Users, Package, CreditCard } from 'lucide-react';
 import { WorkspaceList } from '@/components/workspaces/workspace-list';
+import { ProjectList } from '@/components/projects/project-list';
+import BillingOverview from '@/components/billing/billing-overview';
 
 export default function OrganizationDashboardPage() {
   const params = useParams();
@@ -17,6 +19,7 @@ export default function OrganizationDashboardPage() {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'workspaces' | 'projects' | 'members' | 'billing'>('workspaces');
 
   const orgId = params.orgId as string;
 
@@ -186,33 +189,101 @@ export default function OrganizationDashboardPage() {
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6" aria-label="Tabs">
                 <button 
-                  className="border-transparent text-primary-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-primary-500"
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'workspaces' 
+                      ? 'border-primary-500 text-primary-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('workspaces')}
                   data-testid="workspaces-tab"
                 >
                   Workspaces
                 </button>
-                <button className="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'projects' 
+                      ? 'border-primary-500 text-primary-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('projects')}
+                  data-testid="projects-tab"
+                >
                   Projects
                 </button>
-                <button className="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'members' 
+                      ? 'border-primary-500 text-primary-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('members')}
+                  data-testid="members-tab"
+                >
                   Members
                 </button>
-                <button className="border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'billing' 
+                      ? 'border-primary-500 text-primary-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('billing')}
+                  data-testid="billing-tab"
+                >
                   Billing
                 </button>
               </nav>
             </div>
 
-            {/* Workspaces Section */}
-            <div className="p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Kubernetes Workspaces</h3>
-                <p className="text-sm text-gray-600">
-                  Manage your isolated Kubernetes environments with vCluster technology
-                </p>
-              </div>
-              
-              <WorkspaceList organizationId={orgId} />
+            {/* Tab Content */}
+            <div className="p-6" data-testid={`${activeTab}-section`}>
+              {activeTab === 'workspaces' && (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Kubernetes Workspaces</h3>
+                    <p className="text-sm text-gray-600">
+                      Manage your isolated Kubernetes environments with vCluster technology
+                    </p>
+                  </div>
+                  <WorkspaceList organizationId={orgId} />
+                </>
+              )}
+
+              {activeTab === 'projects' && (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Projects</h3>
+                    <p className="text-sm text-gray-600">
+                      Organize your applications and services within Kubernetes namespaces
+                    </p>
+                  </div>
+                  <ProjectList organizationId={orgId} />
+                </>
+              )}
+
+              {activeTab === 'members' && (
+                <div className="text-center py-12">
+                  <Users className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Members Management</h3>
+                  <p className="mt-1 text-sm text-gray-500">Coming soon - manage organization members and permissions</p>
+                </div>
+              )}
+
+              {activeTab === 'billing' && (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Billing & Subscriptions</h3>
+                    <p className="text-sm text-gray-600">
+                      Manage your subscription plans, payment methods, and billing history
+                    </p>
+                  </div>
+                  <BillingOverview 
+                    orgId={orgId}
+                    onUpgradePlan={() => router.push(`/dashboard/organizations/${orgId}/billing`)}
+                    onManagePayment={() => router.push(`/dashboard/organizations/${orgId}/billing`)}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
