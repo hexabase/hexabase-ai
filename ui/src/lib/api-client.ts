@@ -251,3 +251,340 @@ export const authApi = {
     return response.data;
   },
 };
+
+// Project types
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  workspace_id: string;
+  workspace_name?: string;
+  status: 'active' | 'inactive' | 'archived';
+  namespace_count: number;
+  created_at: string;
+  updated_at: string;
+  resource_usage?: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  };
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  workspace_id: string;
+}
+
+export interface Namespace {
+  id: string;
+  name: string;
+  description?: string;
+  project_id: string;
+  status: 'active' | 'inactive';
+  resource_quota: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  };
+  resource_usage: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateNamespaceRequest {
+  name: string;
+  description?: string;
+  resource_quota?: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  };
+}
+
+// Projects API functions
+export const projectsApi = {
+  // List projects for organization
+  list: async (orgId: string, params?: { workspace_id?: string; status?: string; search?: string }): Promise<{ projects: Project[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/?${searchParams}`);
+    return response.data;
+  },
+
+  // Get project by ID
+  get: async (orgId: string, projectId: string): Promise<Project> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}`);
+    return response.data;
+  },
+
+  // Create new project
+  create: async (orgId: string, data: CreateProjectRequest): Promise<Project> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/projects/`, data);
+    return response.data;
+  },
+
+  // Update project
+  update: async (orgId: string, projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/projects/${projectId}`, data);
+    return response.data;
+  },
+
+  // Delete project
+  delete: async (orgId: string, projectId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/projects/${projectId}`);
+  },
+
+  // Get project statistics
+  getStats: async (orgId: string, projectId: string): Promise<{ namespaces: number; pods: number; cpu_usage: string; memory_usage: string }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/stats`);
+    return response.data;
+  },
+};
+
+// Namespaces API functions
+export const namespacesApi = {
+  // List namespaces for project
+  list: async (orgId: string, projectId: string): Promise<{ namespaces: Namespace[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/`);
+    return response.data;
+  },
+
+  // Get namespace by ID
+  get: async (orgId: string, projectId: string, namespaceId: string): Promise<Namespace> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}`);
+    return response.data;
+  },
+
+  // Create new namespace
+  create: async (orgId: string, projectId: string, data: CreateNamespaceRequest): Promise<Namespace> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/`, data);
+    return response.data;
+  },
+
+  // Update namespace
+  update: async (orgId: string, projectId: string, namespaceId: string, data: Partial<CreateNamespaceRequest>): Promise<Namespace> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}`, data);
+    return response.data;
+  },
+
+  // Delete namespace
+  delete: async (orgId: string, projectId: string, namespaceId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}`);
+  },
+
+  // Get namespace resource usage
+  getUsage: async (orgId: string, projectId: string, namespaceId: string): Promise<{ cpu: string; memory: string; pods: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}/usage`);
+    return response.data;
+  },
+};
+
+// Billing & Subscription Interfaces
+export interface Subscription {
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: 'active' | 'canceled' | 'past_due' | 'unpaid';
+  billing_cycle: 'monthly' | 'yearly';
+  current_period_start: string;
+  current_period_end: string;
+  price_per_month: number;
+  price_per_year: number;
+  features: string[];
+  limits: {
+    workspaces: number;
+    storage_gb: number;
+    bandwidth_gb: number;
+    support_level: string;
+  };
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price_monthly: number;
+  price_yearly: number;
+  yearly_discount_percentage: number;
+  features: string[];
+  limits: {
+    workspaces: number;
+    storage_gb: number;
+    bandwidth_gb: number;
+    support_level: string;
+  };
+  popular: boolean;
+}
+
+export interface PaymentMethod {
+  id: string;
+  type: 'card' | 'bank_account';
+  last_four: string;
+  brand?: string;
+  expiry_month?: number;
+  expiry_year?: number;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  organization_id: string;
+  subscription_id: string;
+  amount_due: number;
+  amount_paid: number;
+  currency: string;
+  status: 'draft' | 'open' | 'paid' | 'void' | 'uncollectible';
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  invoice_pdf?: string;
+  created_at: string;
+  line_items: InvoiceLineItem[];
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  amount: number;
+  quantity: number;
+  unit_price: number;
+  period_start: string;
+  period_end: string;
+}
+
+export interface UsageMetrics {
+  organization_id: string;
+  period_start: string;
+  period_end: string;
+  workspaces_count: number;
+  workspaces_limit: number;
+  storage_used_gb: number;
+  storage_limit_gb: number;
+  bandwidth_used_gb: number;
+  bandwidth_limit_gb: number;
+  overage_charges: {
+    storage: number;
+    bandwidth: number;
+    total: number;
+  };
+}
+
+export interface BillingForecast {
+  organization_id: string;
+  projected_amount: number;
+  projected_period_end: string;
+  usage_trend: 'increasing' | 'stable' | 'decreasing';
+  recommendations: string[];
+}
+
+// Billing API functions
+export const billingApi = {
+  // Get current subscription
+  getSubscription: async (orgId: string): Promise<Subscription> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/subscription`);
+    return response.data;
+  },
+
+  // Get available subscription plans
+  getPlans: async (): Promise<{ plans: SubscriptionPlan[]; total: number }> => {
+    const response = await apiClient.get('/api/v1/billing/plans');
+    return response.data;
+  },
+
+  // Upgrade/downgrade subscription
+  updateSubscription: async (orgId: string, data: { plan_id: string; billing_cycle: 'monthly' | 'yearly' }): Promise<Subscription> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/billing/subscription`, data);
+    return response.data;
+  },
+
+  // Cancel subscription
+  cancelSubscription: async (orgId: string): Promise<{ message: string; effective_date: string }> => {
+    const response = await apiClient.delete(`/api/v1/organizations/${orgId}/billing/subscription`);
+    return response.data;
+  },
+
+  // Get payment methods
+  getPaymentMethods: async (orgId: string): Promise<{ payment_methods: PaymentMethod[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/payment-methods`);
+    return response.data;
+  },
+
+  // Add payment method
+  addPaymentMethod: async (orgId: string, data: { token: string; is_default?: boolean }): Promise<PaymentMethod> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/billing/payment-methods`, data);
+    return response.data;
+  },
+
+  // Update payment method
+  updatePaymentMethod: async (orgId: string, methodId: string, data: { is_default?: boolean }): Promise<PaymentMethod> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/billing/payment-methods/${methodId}`, data);
+    return response.data;
+  },
+
+  // Delete payment method
+  deletePaymentMethod: async (orgId: string, methodId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/billing/payment-methods/${methodId}`);
+  },
+
+  // Get invoices
+  getInvoices: async (orgId: string, params?: { status?: string; limit?: number; starting_after?: string }): Promise<{ invoices: Invoice[]; total: number; has_more: boolean }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.starting_after) searchParams.append('starting_after', params.starting_after);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/invoices?${searchParams}`);
+    return response.data;
+  },
+
+  // Get invoice by ID
+  getInvoice: async (orgId: string, invoiceId: string): Promise<Invoice> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/invoices/${invoiceId}`);
+    return response.data;
+  },
+
+  // Download invoice PDF
+  downloadInvoicePdf: async (orgId: string, invoiceId: string): Promise<Blob> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/invoices/${invoiceId}/pdf`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Get usage metrics
+  getUsageMetrics: async (orgId: string, params?: { period?: string }): Promise<UsageMetrics> => {
+    const searchParams = new URLSearchParams();
+    if (params?.period) searchParams.append('period', params.period);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/usage?${searchParams}`);
+    return response.data;
+  },
+
+  // Get billing forecast
+  getBillingForecast: async (orgId: string): Promise<BillingForecast> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/forecast`);
+    return response.data;
+  },
+
+  // Update billing settings
+  updateBillingSettings: async (orgId: string, data: { usage_threshold?: number; email_notifications?: boolean; slack_webhook?: string }): Promise<{ message: string }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/billing/settings`, data);
+    return response.data;
+  },
+
+  // Get billing settings
+  getBillingSettings: async (orgId: string): Promise<{ usage_threshold: number; email_notifications: boolean; slack_webhook?: string }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/settings`);
+    return response.data;
+  },
+};

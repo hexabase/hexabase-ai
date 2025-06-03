@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 2
+      "actualWorkers": 1
     },
     "preserveOutput": "always",
     "reporter": [
@@ -43,106 +43,10 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "firefox",
-        "name": "firefox",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "webkit",
-        "name": "webkit",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "Mobile Chrome",
-        "name": "Mobile Chrome",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "Mobile Safari",
-        "name": "Mobile Safari",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "Microsoft Edge",
-        "name": "Microsoft Edge",
-        "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
-        "testIgnore": [],
-        "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
-        ],
-        "timeout": 30000
-      },
-      {
-        "outputDir": "/Users/hi/src/hexabase-kaas/ui/test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "id": "Google Chrome",
-        "name": "Google Chrome",
         "testDir": "/Users/hi/src/hexabase-kaas/ui/tests",
         "testIgnore": [],
         "testMatch": [
@@ -156,29 +60,25 @@
     "updateSourceMethod": "patch",
     "version": "1.52.0",
     "workers": 8,
-    "webServer": {
-      "command": "npm run dev",
-      "url": "http://localhost:3002",
-      "reuseExistingServer": true
-    }
+    "webServer": null
   },
   "suites": [
     {
-      "title": "workspace-success-demo.spec.ts",
-      "file": "workspace-success-demo.spec.ts",
+      "title": "billing-direct-test.spec.ts",
+      "file": "billing-direct-test.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Workspace Management Success Demo",
-          "file": "workspace-success-demo.spec.ts",
+          "title": "Billing Direct Test",
+          "file": "billing-direct-test.spec.ts",
           "line": 3,
           "column": 6,
           "specs": [
             {
-              "title": "should demonstrate successful workspace detail page",
-              "ok": true,
+              "title": "should demonstrate billing components working",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -191,80 +91,63 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 863,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "✅ Workspace Detail Page: ALL TESTS PASSED!\n"
+                      "status": "failed",
+                      "duration": 310,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3004/test-billing\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3004/test-billing\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3004/test-billing\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3004/test-billing\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-kaas/ui/tests/billing-direct-test.spec.ts:7:16",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-kaas/ui/tests/billing-direct-test.spec.ts",
+                          "column": 16,
+                          "line": 7
                         },
+                        "snippet": "   5 |   test('should demonstrate billing components working', async ({ page }) => {\n   6 |     // Navigate directly to the test page\n>  7 |     await page.goto('http://localhost:3004/test-billing');\n     |                ^\n   8 |     \n   9 |     // Wait for the billing overview to load\n  10 |     await page.waitForSelector('[data-testid=\"billing-overview\"]', { timeout: 10000 });"
+                      },
+                      "errors": [
                         {
-                          "text": "🎯 TDD Implementation: Components created to satisfy test requirements\n"
-                        },
-                        {
-                          "text": "📸 Screenshot saved: workspace-management-success.png\n"
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-kaas/ui/tests/billing-direct-test.spec.ts",
+                            "column": 16,
+                            "line": 7
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3004/test-billing\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3004/test-billing\", waiting until \"load\"\u001b[22m\n\n\n   5 |   test('should demonstrate billing components working', async ({ page }) => {\n   6 |     // Navigate directly to the test page\n>  7 |     await page.goto('http://localhost:3004/test-billing');\n     |                ^\n   8 |     \n   9 |     // Wait for the billing overview to load\n  10 |     await page.waitForSelector('[data-testid=\"billing-overview\"]', { timeout: 10000 });\n    at /Users/hi/src/hexabase-kaas/ui/tests/billing-direct-test.spec.ts:7:16"
                         }
                       ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-06-03T16:15:26.534Z",
+                      "startTime": "2025-06-03T23:52:27.604Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-kaas/ui/test-results/billing-direct-test-Billin-9c983--billing-components-working-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-kaas/ui/test-results/billing-direct-test-Billin-9c983--billing-components-working-chromium/video.webm"
+                        },
+                        {
+                          "name": "_error-context-0",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-kaas/ui/test-results/billing-direct-test-Billin-9c983--billing-components-working-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-kaas/ui/tests/billing-direct-test.spec.ts",
+                        "column": 16,
+                        "line": 7
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "882a9c82042e94aa9afb-a94934569e13448e3f97",
-              "file": "workspace-success-demo.spec.ts",
+              "id": "db71d2afc17ec1163ab7-d8868b03d30ab97b2544",
+              "file": "billing-direct-test.spec.ts",
               "line": 5,
-              "column": 7
-            },
-            {
-              "title": "should demonstrate workspace actions working",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 914,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "✅ Workspace Actions: ALL INTERACTIONS WORKING!\n"
-                        },
-                        {
-                          "text": "🔧 Download Kubeconfig: Functional\n"
-                        },
-                        {
-                          "text": "🔄 Refresh Health: Functional\n"
-                        },
-                        {
-                          "text": "⏹️  Stop vCluster: Button Available\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-06-03T16:15:26.533Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "882a9c82042e94aa9afb-d7f2e2894c23cb844eab",
-              "file": "workspace-success-demo.spec.ts",
-              "line": 33,
               "column": 7
             }
           ]
@@ -274,11 +157,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-06-03T16:15:26.066Z",
-    "duration": 1659.6699999999998,
-    "expected": 2,
+    "startTime": "2025-06-03T23:52:27.274Z",
+    "duration": 935.145,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }
