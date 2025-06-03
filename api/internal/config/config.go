@@ -9,13 +9,14 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	NATS     NATSConfig     `mapstructure:"nats"`
-	Auth     AuthConfig     `mapstructure:"auth"`
-	Stripe   StripeConfig   `mapstructure:"stripe"`
-	K8s      K8sConfig      `mapstructure:"k8s"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Redis      RedisConfig      `mapstructure:"redis"`
+	NATS       NATSConfig       `mapstructure:"nats"`
+	Auth       AuthConfig       `mapstructure:"auth"`
+	Stripe     StripeConfig     `mapstructure:"stripe"`
+	K8s        K8sConfig        `mapstructure:"k8s"`
+	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 }
 
 // ServerConfig holds HTTP server configuration
@@ -73,9 +74,12 @@ type OAuthProvider struct {
 
 // StripeConfig holds Stripe configuration
 type StripeConfig struct {
-	SecretKey      string `mapstructure:"secret_key"`
-	PublishableKey string `mapstructure:"publishable_key"`
-	WebhookSecret  string `mapstructure:"webhook_secret"`
+	SecretKey         string `mapstructure:"secret_key"`
+	PublishableKey    string `mapstructure:"publishable_key"`
+	WebhookSecret     string `mapstructure:"webhook_secret"`
+	PriceIDBasic      string `mapstructure:"price_id_basic"`
+	PriceIDPro        string `mapstructure:"price_id_pro"`
+	PriceIDEnterprise string `mapstructure:"price_id_enterprise"`
 }
 
 // K8sConfig holds Kubernetes configuration
@@ -83,6 +87,19 @@ type K8sConfig struct {
 	ConfigPath        string `mapstructure:"config_path"`
 	InCluster         bool   `mapstructure:"in_cluster"`
 	VClusterNamespace string `mapstructure:"vcluster_namespace"`
+}
+
+// MonitoringConfig holds monitoring and metrics configuration
+type MonitoringConfig struct {
+	PrometheusURL       string `mapstructure:"prometheus_url"`
+	MetricsPort         string `mapstructure:"metrics_port"`
+	MetricsPath         string `mapstructure:"metrics_path"`
+	ScrapeInterval      string `mapstructure:"scrape_interval"`
+	RetentionPeriod     string `mapstructure:"retention_period"`
+	EnableMetrics       bool   `mapstructure:"enable_metrics"`
+	EnableAlerts        bool   `mapstructure:"enable_alerts"`
+	AlertmanagerURL     string `mapstructure:"alertmanager_url"`
+	DefaultAlertRules   []string `mapstructure:"default_alert_rules"`
 }
 
 // Load loads configuration from file and environment variables
@@ -156,6 +173,17 @@ func setDefaults() {
 	// K8s defaults
 	viper.SetDefault("k8s.in_cluster", false)
 	viper.SetDefault("k8s.vcluster_namespace", "vcluster")
+
+	// Monitoring defaults
+	viper.SetDefault("monitoring.prometheus_url", "http://localhost:9090")
+	viper.SetDefault("monitoring.metrics_port", "2112")
+	viper.SetDefault("monitoring.metrics_path", "/metrics")
+	viper.SetDefault("monitoring.scrape_interval", "15s")
+	viper.SetDefault("monitoring.retention_period", "15d")
+	viper.SetDefault("monitoring.enable_metrics", true)
+	viper.SetDefault("monitoring.enable_alerts", true)
+	viper.SetDefault("monitoring.alertmanager_url", "http://localhost:9093")
+	viper.SetDefault("monitoring.default_alert_rules", []string{"high_cpu", "high_memory", "pod_restarts"})
 }
 
 // Validate validates the configuration
