@@ -18,7 +18,11 @@ type Handlers struct {
 	Workspaces    *WorkspaceHandler
 	Projects      *ProjectHandler
 	Groups        *GroupHandler
+	Billing       *BillingHandler
 	Webhooks      *WebhookHandler
+	Monitoring    *MonitoringHandler
+	RBAC          *RBACHandler
+	VCluster      *VClusterHandler
 }
 
 // NewHandlers creates a new handlers instance
@@ -35,7 +39,11 @@ func NewHandlers(db *gorm.DB, cfg *config.Config, logger *zap.Logger) *Handlers 
 	h.Workspaces = NewWorkspaceHandler(db, cfg, logger)
 	h.Projects = NewProjectHandler(db, cfg, logger)
 	h.Groups = NewGroupHandler(db, cfg, logger)
+	h.Billing = NewBillingHandler(db, cfg, logger)
 	h.Webhooks = NewWebhookHandler(db, cfg, logger)
+	h.Monitoring = NewMonitoringHandler(db, cfg, logger)
+	h.RBAC = NewRBACHandler(db, cfg, logger)
+	h.VCluster = NewVClusterHandler(db, cfg, logger)
 
 	return h
 }

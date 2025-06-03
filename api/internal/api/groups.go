@@ -20,7 +20,8 @@ type CreateGroupRequest struct {
 
 // UpdateGroupRequest represents the request payload for updating a group
 type UpdateGroupRequest struct {
-	Name *string `json:"name,omitempty"`
+	Name          *string `json:"name,omitempty"`
+	ParentGroupID *string `json:"parent_group_id,omitempty"`
 }
 
 // AddGroupMemberRequest represents the request payload for adding a member to a group
@@ -292,6 +293,34 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		}
 
 		updates["name"] = strings.TrimSpace(*req.Name)
+	}
+
+	// Update parent group if provided
+	if req.ParentGroupID != nil {
+		if *req.ParentGroupID != "" {
+			// Verify parent group exists and belongs to the same workspace
+			var parentGroup db.Group
+			if err := h.db.First(&parentGroup, "id = ? AND workspace_id = ?", *req.ParentGroupID, wsID).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "parent group not found"})
+				} else {
+					h.logger.Error("Failed to get parent group", zap.Error(err))
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get parent group"})
+				}
+				return
+			}
+
+			// Check for circular reference
+			if h.wouldCreateCircularReference(*req.ParentGroupID, &group) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "circular reference detected"})
+				return
+			}
+
+			updates["parent_group_id"] = *req.ParentGroupID
+		} else {
+			// Setting to empty string means removing parent (making it root)
+			updates["parent_group_id"] = nil
+		}
 	}
 
 	// Apply updates if any

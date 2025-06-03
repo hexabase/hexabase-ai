@@ -683,6 +683,115 @@ func (suite *GroupTestSuite) TestAddGroupMember() {
 	}
 }
 
+func (suite *GroupTestSuite) TestRemoveGroupMember() {
+	// Create test group
+	group := &db.Group{
+		ID:          "grp-remove-member",
+		WorkspaceID: suite.testWs.ID,
+		Name:        "test-group",
+	}
+	suite.Require().NoError(suite.db.Create(group).Error)
+
+	// Create another user in the organization
+	member := &db.User{
+		ID:          "member-to-remove",
+		ExternalID:  "google-888",
+		Provider:    "google",
+		Email:       "remove@example.com",
+		DisplayName: "Remove User",
+	}
+	suite.Require().NoError(suite.db.Create(member).Error)
+
+	orgUser := &db.OrganizationUser{
+		OrganizationID: suite.authOrg.ID,
+		UserID:         member.ID,
+		Role:           "member",
+		JoinedAt:       time.Now(),
+	}
+	suite.Require().NoError(suite.db.Create(orgUser).Error)
+
+	tests := []struct {
+		name           string
+		groupID        string
+		userID         string
+		expectedStatus int
+		expectedError  string
+		setup          func()
+	}{
+		{
+			name:           "successful remove member",
+			groupID:        "grp-remove-member",
+			userID:         "member-to-remove",
+			expectedStatus: http.StatusOK,
+			setup: func() {
+				membership := &db.GroupMembership{
+					GroupID:  group.ID,
+					UserID:   member.ID,
+					JoinedAt: time.Now(),
+				}
+				suite.Require().NoError(suite.db.Create(membership).Error)
+			},
+		},
+		{
+			name:           "user not in group",
+			groupID:        "grp-remove-member",
+			userID:         "member-to-remove",
+			expectedStatus: http.StatusNotFound,
+			expectedError:  "user not found in group",
+		},
+		{
+			name:           "group not found",
+			groupID:        "grp-nonexistent",
+			userID:         "member-to-remove",
+			expectedStatus: http.StatusNotFound,
+			expectedError:  "group not found",
+		},
+		{
+			name:           "workspace not found",
+			groupID:        "grp-remove-member",
+			userID:         "member-to-remove",
+			expectedStatus: http.StatusNotFound,
+			expectedError:  "workspace not found",
+			setup: func() {
+				// We'll use a different workspace ID in the URL
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			if tt.setup != nil {
+				tt.setup()
+			}
+
+			wsID := suite.testWs.ID
+			if tt.name == "workspace not found" {
+				wsID = "ws-nonexistent"
+			}
+
+			req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/organizations/%s/workspaces/%s/groups/%s/members/%s", suite.authOrg.ID, wsID, tt.groupID, tt.userID), nil)
+			req.Header.Set("Authorization", suite.authToken)
+
+			w := httptest.NewRecorder()
+			suite.router.ServeHTTP(w, req)
+
+			suite.Equal(tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				suite.NoError(err)
+				suite.Contains(response["error"], tt.expectedError)
+			} else {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				suite.NoError(err)
+				suite.Contains(response["message"], "removed from group successfully")
+			}
+		})
+	}
+}
+
 func (suite *GroupTestSuite) TestListGroupMembers() {
 	// Create test group
 	group := &db.Group{
@@ -784,6 +893,119 @@ func (suite *GroupTestSuite) TestGroupAuthorization() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	suite.NoError(err)
 	suite.Contains(response["error"], "not authorized")
+}
+
+func (suite *GroupTestSuite) TestCircularReferenceDetection() {
+	// Create a hierarchy: A -> B -> C
+	groupA := &db.Group{
+		ID:          "grp-a",
+		WorkspaceID: suite.testWs.ID,
+		Name:        "group-a",
+	}
+	suite.Require().NoError(suite.db.Create(groupA).Error)
+
+	groupB := &db.Group{
+		ID:            "grp-b",
+		WorkspaceID:   suite.testWs.ID,
+		Name:          "group-b",
+		ParentGroupID: &groupA.ID,
+	}
+	suite.Require().NoError(suite.db.Create(groupB).Error)
+
+	groupC := &db.Group{
+		ID:            "grp-c",
+		WorkspaceID:   suite.testWs.ID,
+		Name:          "group-c",
+		ParentGroupID: &groupB.ID,
+	}
+	suite.Require().NoError(suite.db.Create(groupC).Error)
+
+	tests := []struct {
+		name                string
+		groupID             string
+		newParentID         string
+		expectedStatus      int
+		expectedError       string
+		shouldCreateCircular bool
+	}{
+		{
+			name:                "attempt to create circular reference A -> B -> A",
+			groupID:             "grp-a",
+			newParentID:         "grp-b",
+			expectedStatus:      http.StatusBadRequest,
+			expectedError:       "circular reference detected",
+			shouldCreateCircular: true,
+		},
+		{
+			name:                "attempt to create circular reference A -> C -> A",
+			groupID:             "grp-a",
+			newParentID:         "grp-c",
+			expectedStatus:      http.StatusBadRequest,
+			expectedError:       "circular reference detected",
+			shouldCreateCircular: true,
+		},
+		{
+			name:                "attempt to make C parent of B (would create B -> C -> B)",
+			groupID:             "grp-b",
+			newParentID:         "grp-c",
+			expectedStatus:      http.StatusBadRequest,
+			expectedError:       "circular reference detected",
+			shouldCreateCircular: true,
+		},
+		{
+			name:           "valid parent assignment (no circular reference)",
+			groupID:        "grp-c",
+			newParentID:    "grp-a",
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			payload := map[string]interface{}{
+				"parent_group_id": tt.newParentID,
+			}
+			body, _ := json.Marshal(payload)
+			req := httptest.NewRequest("PUT", fmt.Sprintf("/api/v1/organizations/%s/workspaces/%s/groups/%s", suite.authOrg.ID, suite.testWs.ID, tt.groupID), bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", suite.authToken)
+
+			w := httptest.NewRecorder()
+			suite.router.ServeHTTP(w, req)
+
+			suite.Equal(tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				suite.NoError(err)
+				suite.Contains(response["error"], tt.expectedError)
+			}
+		})
+	}
+
+	// Test the circular reference detection function directly
+	suite.Run("direct circular reference detection tests", func() {
+		// Test that wouldCreateCircularReference works correctly
+		// This tests the helper function directly
+		handler := suite.handlers.Groups
+
+		// Test circular reference detection: A -> B -> A should be detected
+		result := handler.wouldCreateCircularReference(groupB.ID, groupA)
+		suite.True(result, "Should detect circular reference A -> B -> A")
+
+		// Test circular reference detection: A -> C -> A should be detected  
+		result = handler.wouldCreateCircularReference(groupC.ID, groupA)
+		suite.True(result, "Should detect circular reference A -> C -> A")
+
+		// Test valid parent assignment: C -> A should not be circular
+		result = handler.wouldCreateCircularReference(groupA.ID, groupC)
+		suite.False(result, "Should not detect circular reference C -> A")
+
+		// Test non-existent parent
+		result = handler.wouldCreateCircularReference("nonexistent", groupA)
+		suite.False(result, "Should not detect circular reference with nonexistent parent")
+	})
 }
 
 // testAuthMiddleware creates a mock auth middleware for testing
