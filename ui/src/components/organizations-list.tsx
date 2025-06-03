@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { type Organization } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
@@ -17,6 +18,7 @@ export default function OrganizationsList({
   onDelete,
   onUpdate,
 }: OrganizationsListProps) {
+  const router = useRouter();
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -119,6 +121,27 @@ export default function OrganizationsList({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                onClick={() => router.push(`/dashboard/organizations/${org.id}`)}
+                className="rounded-lg"
+                data-testid={`open-organization-${org.id}`}
+              >
+                <svg
+                  className="h-4 w-4 mr-1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+                Open
+              </Button>
+
               <Button
                 onClick={() => handleEdit(org)}
                 variant="secondary"
