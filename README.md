@@ -21,7 +21,7 @@ hexabase-kaas/
 │   ├── cmd/               # Entry points (api, worker)
 │   ├── internal/          # Internal packages
 │   │   ├── api/          # HTTP handlers
-│   │   ├── auth/         # Authentication & OIDC
+│   │   ├── auth/         # OAuth2/OIDC with enhanced security
 │   │   ├── billing/      # Stripe integration
 │   │   ├── config/       # Configuration management
 │   │   ├── db/           # Database models & repos
@@ -33,9 +33,22 @@ hexabase-kaas/
 ├── ui/                    # Next.js frontend (planned)
 ├── deployments/           # IaC and deployment configs
 ├── docs/                  # Documentation
+│   ├── 01_concept.md     # Platform concept
+│   ├── 02_base_design.md # Architecture design
+│   ├── 03_oauth_security_specification.md # OAuth security spec
+│   └── 04_oauth_implementation_summary.md # Implementation details
 ├── docker-compose.yml     # Development environment
 └── Makefile              # Development commands
 ```
+
+## Key Features
+
+- **Enhanced OAuth2/OIDC Authentication**: Production-grade auth with PKCE, JWT fingerprinting, and comprehensive security features
+- **Multi-tenant Kubernetes**: Isolated environments using vCluster
+- **Hierarchical Access Control**: Organizations, workspaces, projects, and groups
+- **Integrated Billing**: Stripe integration for subscription management
+- **Real-time Monitoring**: Prometheus, Grafana, and custom metrics
+- **Security First**: Rate limiting, audit logging, session management
 
 ## Quick Start
 

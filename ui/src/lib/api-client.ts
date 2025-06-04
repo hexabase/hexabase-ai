@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import Cookies from 'js-cookie';
 
 // Create axios instance with base configuration
@@ -13,7 +13,8 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('hexabase_token');
+    // Use new token name, fallback to legacy
+    const token = Cookies.get('hexabase_access_token') || Cookies.get('hexabase_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,17 +25,52 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor for error handling and token refresh
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      Cookies.remove('hexabase_token');
-      window.location.href = '/';
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      const refreshToken = Cookies.get('hexabase_refresh_token');
+      if (refreshToken) {
+        try {
+          // Try to refresh the token
+          const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/auth/refresh`, {
+            refresh_token: refreshToken
+          });
+          
+          const { access_token, refresh_token: newRefreshToken, expires_in } = response.data;
+          const expiresAt = Date.now() + (expires_in * 1000);
+          
+          // Update cookies
+          Cookies.set('hexabase_access_token', access_token, { expires: 7, secure: true, sameSite: 'strict' });
+          Cookies.set('hexabase_refresh_token', newRefreshToken, { expires: 7, secure: true, sameSite: 'strict' });
+          Cookies.set('hexabase_token_expires', expiresAt.toString(), { expires: 7, secure: true, sameSite: 'strict' });
+          
+          // Update the authorization header and retry
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          // Refresh failed, clear auth and redirect
+          Cookies.remove('hexabase_access_token');
+          Cookies.remove('hexabase_refresh_token');
+          Cookies.remove('hexabase_token_expires');
+          Cookies.remove('hexabase_token'); // Legacy
+          window.location.href = '/';
+        }
+      } else {
+        // No refresh token, clear auth and redirect
+        Cookies.remove('hexabase_access_token');
+        Cookies.remove('hexabase_token'); // Legacy
+        window.location.href = '/';
+      }
     }
+    
     return Promise.reject(error);
   }
 );
@@ -239,15 +275,27 @@ export const authApi = {
     return response.data;
   },
 
-  // Initiate OAuth login
-  login: async (provider: 'google' | 'github') => {
-    const response = await apiClient.post(`/auth/login/${provider}`);
+  // Initiate OAuth login with PKCE
+  login: async (provider: 'google' | 'github', pkceParams?: { code_challenge: string; code_challenge_method: string }) => {
+    const response = await apiClient.post(`/auth/login/${provider}`, pkceParams);
+    return response.data;
+  },
+  
+  // Exchange authorization code for tokens
+  callback: async (params: { code: string; state: string; code_verifier: string }) => {
+    const response = await apiClient.post('/auth/callback', params);
+    return response.data;
+  },
+  
+  // Refresh access token
+  refresh: async (refreshToken: string) => {
+    const response = await apiClient.post('/auth/refresh', { refresh_token: refreshToken });
     return response.data;
   },
 
-  // Logout
-  logout: async () => {
-    const response = await apiClient.post('/auth/logout');
+  // Logout with token revocation
+  logout: async (refreshToken?: string) => {
+    const response = await apiClient.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
     return response.data;
   },
 };
