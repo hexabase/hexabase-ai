@@ -26,6 +26,21 @@ func (m *MockRedisClient) GetDel(ctx context.Context, key string) (string, error
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockRedisClient) Get(ctx context.Context, key string) (string, error) {
+	args := m.Called(ctx, key)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockRedisClient) Delete(ctx context.Context, keys ...string) error {
+	args := m.Called(ctx, keys)
+	return args.Error(0)
+}
+
+func (m *MockRedisClient) Exists(ctx context.Context, keys ...string) (int64, error) {
+	args := m.Called(ctx, keys)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 func TestOAuthClient_GenerateAndStoreState(t *testing.T) {
 	cfg := &config.Config{}
 	mockRedis := new(MockRedisClient)
