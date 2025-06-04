@@ -588,3 +588,230 @@ export const billingApi = {
     return response.data;
   },
 };
+
+// Monitoring & Observability Interfaces
+export interface ClusterHealth {
+  status: 'healthy' | 'degraded' | 'critical';
+  uptime_seconds: number;
+  last_check: string;
+  nodes_total: number;
+  nodes_healthy: number;
+  nodes_unhealthy: number;
+  services_total: number;
+  services_healthy: number;
+}
+
+export interface ResourceMetrics {
+  timestamp: string;
+  cpu: {
+    usage_percentage: number;
+    cores_used: number;
+    cores_total: number;
+  };
+  memory: {
+    usage_percentage: number;
+    used_gb: number;
+    total_gb: number;
+  };
+  storage: {
+    usage_percentage: number;
+    used_gb: number;
+    total_gb: number;
+  };
+  network: {
+    ingress_mbps: number;
+    egress_mbps: number;
+  };
+}
+
+export interface WorkspaceMetrics {
+  workspace_id: string;
+  workspace_name: string;
+  cpu_usage: number;
+  memory_usage: number;
+  storage_usage: number;
+  pod_count: number;
+  namespace_count: number;
+  status: 'healthy' | 'warning' | 'critical';
+  metrics_history?: ResourceMetrics[];
+}
+
+export interface Alert {
+  id: string;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  title: string;
+  description: string;
+  workspace_id?: string;
+  workspace_name?: string;
+  resource_type: string;
+  resource_name: string;
+  metric_name: string;
+  current_value: number;
+  threshold_value: number;
+  triggered_at: string;
+  resolved_at?: string;
+  status: 'active' | 'resolved' | 'acknowledged';
+}
+
+export interface LogEntry {
+  timestamp: string;
+  level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+  workspace_id: string;
+  namespace: string;
+  pod: string;
+  container: string;
+  message: string;
+  metadata?: Record<string, any>;
+}
+
+export interface PerformanceInsight {
+  id: string;
+  type: 'optimization' | 'bottleneck' | 'cost_saving';
+  severity: 'low' | 'medium' | 'high';
+  title: string;
+  description: string;
+  recommendation: string;
+  potential_savings?: number;
+  affected_resources: string[];
+  created_at: string;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  description?: string;
+  metric: string;
+  condition: 'above' | 'below' | 'equals';
+  threshold: number;
+  duration_minutes: number;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  enabled: boolean;
+  notification_channels: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Monitoring API functions
+export const monitoringApi = {
+  // Get cluster health
+  getClusterHealth: async (orgId: string): Promise<ClusterHealth> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/health`);
+    return response.data;
+  },
+
+  // Get resource metrics
+  getResourceMetrics: async (orgId: string, params?: { time_range?: string; interval?: string }): Promise<ResourceMetrics[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.time_range) searchParams.append('time_range', params.time_range);
+    if (params?.interval) searchParams.append('interval', params.interval);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/metrics?${searchParams}`);
+    return response.data;
+  },
+
+  // Get workspace metrics
+  getWorkspaceMetrics: async (orgId: string): Promise<{ workspaces: WorkspaceMetrics[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/workspaces`);
+    return response.data;
+  },
+
+  // Get workspace details
+  getWorkspaceDetails: async (orgId: string, workspaceId: string, params?: { time_range?: string }): Promise<WorkspaceMetrics> => {
+    const searchParams = new URLSearchParams();
+    if (params?.time_range) searchParams.append('time_range', params.time_range);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/workspaces/${workspaceId}?${searchParams}`);
+    return response.data;
+  },
+
+  // Get alerts
+  getAlerts: async (orgId: string, params?: { status?: string; severity?: string; workspace_id?: string }): Promise<{ alerts: Alert[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.severity) searchParams.append('severity', params.severity);
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/alerts?${searchParams}`);
+    return response.data;
+  },
+
+  // Acknowledge alert
+  acknowledgeAlert: async (orgId: string, alertId: string): Promise<Alert> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/monitoring/alerts/${alertId}/acknowledge`);
+    return response.data;
+  },
+
+  // Get logs
+  getLogs: async (orgId: string, params?: { 
+    workspace_id?: string; 
+    namespace?: string; 
+    pod?: string; 
+    level?: string; 
+    search?: string; 
+    start_time?: string; 
+    end_time?: string;
+    limit?: number;
+  }): Promise<{ logs: LogEntry[]; total: number; has_more: boolean }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.namespace) searchParams.append('namespace', params.namespace);
+    if (params?.pod) searchParams.append('pod', params.pod);
+    if (params?.level) searchParams.append('level', params.level);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.start_time) searchParams.append('start_time', params.start_time);
+    if (params?.end_time) searchParams.append('end_time', params.end_time);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/logs?${searchParams}`);
+    return response.data;
+  },
+
+  // Stream logs (WebSocket endpoint)
+  streamLogs: (orgId: string, params?: { workspace_id?: string; namespace?: string; pod?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.namespace) searchParams.append('namespace', params.namespace);
+    if (params?.pod) searchParams.append('pod', params.pod);
+    
+    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'}/api/v1/organizations/${orgId}/monitoring/logs/stream?${searchParams}`;
+    return new WebSocket(wsUrl);
+  },
+
+  // Get performance insights
+  getInsights: async (orgId: string): Promise<{ insights: PerformanceInsight[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/insights`);
+    return response.data;
+  },
+
+  // Get alert rules
+  getAlertRules: async (orgId: string): Promise<{ rules: AlertRule[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/alert-rules`);
+    return response.data;
+  },
+
+  // Create alert rule
+  createAlertRule: async (orgId: string, data: Omit<AlertRule, 'id' | 'created_at' | 'updated_at'>): Promise<AlertRule> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/monitoring/alert-rules`, data);
+    return response.data;
+  },
+
+  // Update alert rule
+  updateAlertRule: async (orgId: string, ruleId: string, data: Partial<Omit<AlertRule, 'id' | 'created_at' | 'updated_at'>>): Promise<AlertRule> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/monitoring/alert-rules/${ruleId}`, data);
+    return response.data;
+  },
+
+  // Delete alert rule
+  deleteAlertRule: async (orgId: string, ruleId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/monitoring/alert-rules/${ruleId}`);
+  },
+
+  // Export logs
+  exportLogs: async (orgId: string, params: { format: 'csv' | 'json'; start_time: string; end_time: string }): Promise<Blob> => {
+    const searchParams = new URLSearchParams(params);
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/logs/export?${searchParams}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+};

@@ -7,7 +7,7 @@ import { organizationsApi, type Organization } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Building2, Users, Package, CreditCard } from 'lucide-react';
+import { ArrowLeft, Building2, Users, Package, CreditCard, Activity } from 'lucide-react';
 import { WorkspaceList } from '@/components/workspaces/workspace-list';
 import { ProjectList } from '@/components/projects/project-list';
 import BillingOverview from '@/components/billing/billing-overview';
@@ -19,7 +19,7 @@ export default function OrganizationDashboardPage() {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'workspaces' | 'projects' | 'members' | 'billing'>('workspaces');
+  const [activeTab, setActiveTab] = useState<'workspaces' | 'projects' | 'members' | 'billing' | 'monitoring'>('workspaces');
 
   const orgId = params.orgId as string;
 
@@ -232,6 +232,17 @@ export default function OrganizationDashboardPage() {
                 >
                   Billing
                 </button>
+                <button 
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'monitoring' 
+                      ? 'border-primary-500 text-primary-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('monitoring')}
+                  data-testid="monitoring-tab"
+                >
+                  Monitoring
+                </button>
               </nav>
             </div>
 
@@ -283,6 +294,20 @@ export default function OrganizationDashboardPage() {
                     onManagePayment={() => router.push(`/dashboard/organizations/${orgId}/billing`)}
                   />
                 </>
+              )}
+
+              {activeTab === 'monitoring' && (
+                <div className="text-center py-12">
+                  <Activity className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">Monitoring & Observability</h3>
+                  <p className="mt-1 text-sm text-gray-500 mb-4">Real-time cluster monitoring and performance insights</p>
+                  <Button 
+                    onClick={() => router.push(`/dashboard/organizations/${orgId}/monitoring`)}
+                    className="mt-4"
+                  >
+                    Go to Monitoring Dashboard
+                  </Button>
+                </div>
               )}
             </div>
           </div>
