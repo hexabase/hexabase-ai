@@ -26,6 +26,9 @@ type OAuthClient struct {
 type RedisClient interface {
 	SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) error
 	GetDel(ctx context.Context, key string) (string, error)
+	Get(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, keys ...string) error
+	Exists(ctx context.Context, keys ...string) (int64, error)
 }
 
 // UserInfo represents user information from OAuth providers
