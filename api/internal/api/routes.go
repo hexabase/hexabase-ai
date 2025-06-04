@@ -16,9 +16,23 @@ func SetupRoutes(router *gin.Engine, handlers *Handlers) {
 	{
 		auth.POST("/login/:provider", handlers.Auth.LoginProvider)
 		auth.GET("/callback/:provider", handlers.Auth.CallbackProvider)
-		auth.POST("/logout", handlers.Auth.Logout)
+		auth.POST("/callback", handlers.Auth.CallbackProvider) // For PKCE flow
+		auth.POST("/refresh", handlers.Auth.RefreshToken)
+		auth.POST("/logout", handlers.Auth.AuthMiddleware(), handlers.Auth.Logout)
 		auth.GET("/me", handlers.Auth.AuthMiddleware(), handlers.Auth.GetCurrentUser)
+		
+		// Session management
+		auth.GET("/sessions", handlers.Auth.AuthMiddleware(), handlers.Auth.GetSessions)
+		auth.DELETE("/sessions/:session_id", handlers.Auth.AuthMiddleware(), handlers.Auth.RevokeSession)
+		auth.POST("/sessions/revoke-all", handlers.Auth.AuthMiddleware(), handlers.Auth.RevokeAllSessions)
+		
+		// Security logs
+		auth.GET("/security-logs", handlers.Auth.AuthMiddleware(), handlers.Auth.GetSecurityLogs)
 	}
+	
+	// OIDC Discovery endpoints (public)
+	router.GET("/.well-known/openid-configuration", handlers.Auth.OIDCDiscovery)
+	router.GET("/.well-known/jwks.json", handlers.Auth.JWKS)
 
 	// Protected routes (require authentication)
 	protected := v1.Group("")
