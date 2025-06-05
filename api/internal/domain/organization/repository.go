@@ -42,6 +42,16 @@ type Repository interface {
 	GetWorkspaceCount(ctx context.Context, orgID string) (total int, active int, err error)
 	GetProjectCount(ctx context.Context, orgID string) (int, error)
 	GetResourceUsage(ctx context.Context, orgID string) (*Usage, error)
+	
+	// Workspace operations
+	ListWorkspaces(ctx context.Context, orgID string) ([]*WorkspaceInfo, error)
+	
+	// Activity operations
+	CreateActivity(ctx context.Context, activity *Activity) error
+	ListActivities(ctx context.Context, filter ActivityFilter) ([]*Activity, error)
+	
+	// Member role operations
+	UpdateMemberRole(ctx context.Context, orgID, userID, role string) error
 }
 
 // User represents a user in the system
@@ -54,4 +64,27 @@ type User struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+}
+
+// AuthRepository defines auth operations required by organization service
+type AuthRepository interface {
+	GetUser(ctx context.Context, userID string) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	GetUserOrganizations(ctx context.Context, userID string) ([]string, error)
+}
+
+// BillingRepository defines billing operations required by organization service
+type BillingRepository interface {
+	CreateCustomer(ctx context.Context, org *Organization) (string, error)
+	DeleteCustomer(ctx context.Context, customerID string) error
+	GetOrganizationSubscription(ctx context.Context, orgID string) (*Subscription, error)
+	CancelSubscription(ctx context.Context, orgID string) error
+}
+
+// Subscription represents a billing subscription for BillingRepository
+type Subscription struct {
+	PlanID           string     `json:"plan_id"`
+	PlanName         string     `json:"plan_name"`
+	Status           string     `json:"status"`
+	CurrentPeriodEnd time.Time  `json:"current_period_end"`
 }

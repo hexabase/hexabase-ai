@@ -49,19 +49,19 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		orgs.DELETE("/:orgId", app.OrganizationHandler.DeleteOrganization)
 
 		// Organization members
-		orgs.POST("/:orgId/members", app.OrganizationHandler.AddMember)
+		// orgs.POST("/:orgId/members", app.OrganizationHandler.AddMember) // Removed - use invitations instead
 		orgs.GET("/:orgId/members", app.OrganizationHandler.ListMembers)
 		orgs.DELETE("/:orgId/members/:userId", app.OrganizationHandler.RemoveMember)
 		orgs.PUT("/:orgId/members/:userId/role", app.OrganizationHandler.UpdateMemberRole)
 
 		// Organization invitations
-		orgs.POST("/:orgId/invitations", app.OrganizationHandler.CreateInvitation)
-		orgs.GET("/:orgId/invitations", app.OrganizationHandler.ListInvitations)
-		orgs.POST("/invitations/:invitationId/accept", app.OrganizationHandler.AcceptInvitation)
-		orgs.DELETE("/:orgId/invitations/:invitationId", app.OrganizationHandler.RevokeInvitation)
+		orgs.POST("/:orgId/invitations", app.OrganizationHandler.InviteUser)
+		orgs.GET("/:orgId/invitations", app.OrganizationHandler.ListPendingInvitations)
+		orgs.POST("/invitations/:token/accept", app.OrganizationHandler.AcceptInvitation)
+		orgs.DELETE("/invitations/:invitationId", app.OrganizationHandler.CancelInvitation)
 
 		// Organization activity
-		orgs.GET("/:orgId/activity", app.OrganizationHandler.GetActivityLogs)
+		orgs.GET("/:orgId/stats", app.OrganizationHandler.GetOrganizationStats)
 
 		// Billing under organizations
 		billing := orgs.Group("/:orgId/billing")
