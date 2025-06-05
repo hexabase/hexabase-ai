@@ -226,42 +226,70 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		PriceDiff:   targetPlan.Price - currentPlan.Price,
 	}
 
-	// Compare features
-	for feature, currentLimit := range currentPlan.Features {
-		targetLimit, exists := targetPlan.Features[feature]
-		if !exists {
-			comparison.Changes[feature] = billing.ComparisonItem{
-				Feature: feature,
-				Current: currentLimit,
-				Target:  nil,
-				Change:  "removed",
-			}
-		} else {
-			change := "same"
-			if targetLimit.(float64) > currentLimit.(float64) {
-				change = "increase"
-			} else if targetLimit.(float64) < currentLimit.(float64) {
-				change = "decrease"
-			}
-
-			comparison.Changes[feature] = billing.ComparisonItem{
-				Feature: feature,
-				Current: currentLimit,
-				Target:  targetLimit,
-				Change:  change,
-			}
+	// Compare limits
+	if currentPlan.Limits != nil && targetPlan.Limits != nil {
+		// Compare workspaces
+		comparison.Changes["workspaces"] = billing.ComparisonItem{
+			Feature: "workspaces",
+			Current: currentPlan.Limits.Workspaces,
+			Target:  targetPlan.Limits.Workspaces,
+			Change:  getChangeType(currentPlan.Limits.Workspaces, targetPlan.Limits.Workspaces),
 		}
-	}
 
-	// Check for new features
-	for feature, targetLimit := range targetPlan.Features {
-		if _, exists := currentPlan.Features[feature]; !exists {
-			comparison.Changes[feature] = billing.ComparisonItem{
-				Feature: feature,
-				Current: nil,
-				Target:  targetLimit,
-				Change:  "new",
-			}
+		// Compare projects
+		comparison.Changes["projects"] = billing.ComparisonItem{
+			Feature: "projects",
+			Current: currentPlan.Limits.Projects,
+			Target:  targetPlan.Limits.Projects,
+			Change:  getChangeType(currentPlan.Limits.Projects, targetPlan.Limits.Projects),
+		}
+
+		// Compare users
+		comparison.Changes["users"] = billing.ComparisonItem{
+			Feature: "users",
+			Current: currentPlan.Limits.Users,
+			Target:  targetPlan.Limits.Users,
+			Change:  getChangeType(currentPlan.Limits.Users, targetPlan.Limits.Users),
+		}
+
+		// Compare CPU cores
+		comparison.Changes["cpu_cores"] = billing.ComparisonItem{
+			Feature: "cpu_cores",
+			Current: currentPlan.Limits.CPUCores,
+			Target:  targetPlan.Limits.CPUCores,
+			Change:  getChangeType(currentPlan.Limits.CPUCores, targetPlan.Limits.CPUCores),
+		}
+
+		// Compare memory
+		comparison.Changes["memory_gb"] = billing.ComparisonItem{
+			Feature: "memory_gb",
+			Current: currentPlan.Limits.MemoryGB,
+			Target:  targetPlan.Limits.MemoryGB,
+			Change:  getChangeType(currentPlan.Limits.MemoryGB, targetPlan.Limits.MemoryGB),
+		}
+
+		// Compare storage
+		comparison.Changes["storage_gb"] = billing.ComparisonItem{
+			Feature: "storage_gb",
+			Current: currentPlan.Limits.StorageGB,
+			Target:  targetPlan.Limits.StorageGB,
+			Change:  getChangeType(currentPlan.Limits.StorageGB, targetPlan.Limits.StorageGB),
+		}
+
+		// Compare bandwidth
+		comparison.Changes["bandwidth_gb"] = billing.ComparisonItem{
+			Feature: "bandwidth_gb",
+			Current: currentPlan.Limits.BandwidthGB,
+			Target:  targetPlan.Limits.BandwidthGB,
+			Change:  getChangeType(currentPlan.Limits.BandwidthGB, targetPlan.Limits.BandwidthGB),
+		}
+
+		// Compare support level
+		comparison.Changes["support_level"] = billing.ComparisonItem{
+			Feature: "support_level",
+			Current: currentPlan.Limits.SupportLevel,
+			Target:  targetPlan.Limits.SupportLevel,
+			Change:  getChangeTypeString(currentPlan.Limits.SupportLevel, targetPlan.Limits.SupportLevel),
 		}
 	}
 
@@ -484,25 +512,46 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 		OrganizationID: orgID,
 		PeriodStart:    sub.CurrentPeriodStart,
 		PeriodEnd:      sub.CurrentPeriodEnd,
-		Usage:          make(map[string]*billing.ResourceUsage),
+		Usage:          usage,
+		ResourceUsage:  make(map[string]billing.Usage),
 	}
 
-	// Calculate usage percentages
-	for resource, used := range usage {
-		limit, ok := plan.Features[resource].(float64)
-		if !ok {
-			continue
+	// Calculate usage based on plan limits
+	if plan.Limits != nil {
+		// CPU usage
+		if cpuUsed, ok := usage["cpu_cores"]; ok {
+			currentUsage.ResourceUsage["cpu_cores"] = billing.Usage{
+				Used:  cpuUsed,
+				Limit: float64(plan.Limits.CPUCores),
+				Unit:  "cores",
+			}
 		}
 
-		percentage := (used / limit) * 100
-		if percentage > 100 {
-			percentage = 100
+		// Memory usage
+		if memUsed, ok := usage["memory_gb"]; ok {
+			currentUsage.ResourceUsage["memory_gb"] = billing.Usage{
+				Used:  memUsed,
+				Limit: float64(plan.Limits.MemoryGB),
+				Unit:  "GB",
+			}
 		}
 
-		currentUsage.Usage[resource] = &billing.ResourceUsage{
-			Used:       used,
-			Limit:      limit,
-			Percentage: percentage,
+		// Storage usage
+		if storageUsed, ok := usage["storage_gb"]; ok {
+			currentUsage.ResourceUsage["storage_gb"] = billing.Usage{
+				Used:  storageUsed,
+				Limit: float64(plan.Limits.StorageGB),
+				Unit:  "GB",
+			}
+		}
+
+		// Workspace usage
+		if wsUsed, ok := usage["workspaces"]; ok {
+			currentUsage.ResourceUsage["workspaces"] = billing.Usage{
+				Used:  wsUsed,
+				Limit: float64(plan.Limits.Workspaces),
+				Unit:  "count",
+			}
 		}
 	}
 
@@ -540,28 +589,66 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 		TotalCost:      0,
 	}
 
-	// Calculate overages
-	for resource, used := range usage {
-		limit, ok := plan.Features[resource].(float64)
-		if !ok {
-			continue
+	// Calculate overages based on plan limits
+	if plan.Limits != nil && plan.UsageRates != nil {
+		// Check CPU overage
+		if cpuUsed, ok := usage["cpu_cores"]; ok {
+			limit := float64(plan.Limits.CPUCores)
+			if cpuUsed > limit {
+				overage := cpuUsed - limit
+				rate := plan.UsageRates["cpu_cores"]
+				cost := overage * rate
+
+				report.Overages["cpu_cores"] = &billing.OverageDetail{
+					ResourceType: "cpu_cores",
+					Used:         cpuUsed,
+					Limit:        limit,
+					Overage:      overage,
+					Rate:         rate,
+					Cost:         cost,
+				}
+				report.TotalCost += cost
+			}
 		}
 
-		if used > limit {
-			overage := used - limit
-			rate := plan.UsageRates[resource]
-			cost := overage * rate
+		// Check Memory overage
+		if memUsed, ok := usage["memory_gb"]; ok {
+			limit := float64(plan.Limits.MemoryGB)
+			if memUsed > limit {
+				overage := memUsed - limit
+				rate := plan.UsageRates["memory_gb"]
+				cost := overage * rate
 
-			report.Overages[resource] = &billing.OverageDetail{
-				ResourceType: resource,
-				Used:         used,
-				Limit:        limit,
-				Overage:      overage,
-				Rate:         rate,
-				Cost:         cost,
+				report.Overages["memory_gb"] = &billing.OverageDetail{
+					ResourceType: "memory_gb",
+					Used:         memUsed,
+					Limit:        limit,
+					Overage:      overage,
+					Rate:         rate,
+					Cost:         cost,
+				}
+				report.TotalCost += cost
 			}
+		}
 
-			report.TotalCost += cost
+		// Check Storage overage
+		if storageUsed, ok := usage["storage_gb"]; ok {
+			limit := float64(plan.Limits.StorageGB)
+			if storageUsed > limit {
+				overage := storageUsed - limit
+				rate := plan.UsageRates["storage_gb"]
+				cost := overage * rate
+
+				report.Overages["storage_gb"] = &billing.OverageDetail{
+					ResourceType: "storage_gb",
+					Used:         storageUsed,
+					Limit:        limit,
+					Overage:      overage,
+					Rate:         rate,
+					Cost:         cost,
+				}
+				report.TotalCost += cost
+			}
 		}
 	}
 
@@ -717,17 +804,38 @@ func (s *service) ValidatePlanChange(ctx context.Context, orgID, newPlanID strin
 	}
 
 	// Check if downgrade is allowed
-	if newPlan.Price < currentPlan.Price {
+	if newPlan.Price < currentPlan.Price && newPlan.Limits != nil {
 		// Check current usage against new plan limits
 		usage, err := s.repo.SummarizeUsage(ctx, orgID, sub.CurrentPeriodStart, time.Now())
 		if err != nil {
 			return fmt.Errorf("failed to check usage: %w", err)
 		}
 
-		for resource, used := range usage {
-			limit, ok := newPlan.Features[resource].(float64)
-			if ok && used > limit {
-				return fmt.Errorf("current %s usage (%.2f) exceeds new plan limit (%.2f)", resource, used, limit)
+		// Check CPU usage
+		if cpuUsed, ok := usage["cpu_cores"]; ok {
+			if cpuUsed > float64(newPlan.Limits.CPUCores) {
+				return fmt.Errorf("current CPU usage (%.2f cores) exceeds new plan limit (%d cores)", cpuUsed, newPlan.Limits.CPUCores)
+			}
+		}
+
+		// Check Memory usage
+		if memUsed, ok := usage["memory_gb"]; ok {
+			if memUsed > float64(newPlan.Limits.MemoryGB) {
+				return fmt.Errorf("current memory usage (%.2f GB) exceeds new plan limit (%d GB)", memUsed, newPlan.Limits.MemoryGB)
+			}
+		}
+
+		// Check Storage usage
+		if storageUsed, ok := usage["storage_gb"]; ok {
+			if storageUsed > float64(newPlan.Limits.StorageGB) {
+				return fmt.Errorf("current storage usage (%.2f GB) exceeds new plan limit (%d GB)", storageUsed, newPlan.Limits.StorageGB)
+			}
+		}
+
+		// Check Workspace count
+		if wsCount, ok := usage["workspaces"]; ok {
+			if wsCount > float64(newPlan.Limits.Workspaces) {
+				return fmt.Errorf("current workspace count (%.0f) exceeds new plan limit (%d)", wsCount, newPlan.Limits.Workspaces)
 			}
 		}
 	}
@@ -761,38 +869,78 @@ func (s *service) CheckUsageLimits(ctx context.Context, orgID string) (*billing.
 		Limits:       make(map[string]float64),
 	}
 
-	// Check each resource
-	for resource, limit := range plan.Features {
-		limitValue, ok := limit.(float64)
-		if !ok {
-			continue
-		}
-
-		result.Limits[resource] = limitValue
-
-		used := usage[resource]
-		percentage := (used / limitValue) * 100
-
-		if used > limitValue {
-			result.WithinLimits = false
-			result.Violations = append(result.Violations, &billing.LimitViolation{
-				ResourceType: resource,
-				Current:      used,
-				Limit:        limitValue,
-				Percentage:   percentage,
-				Message:      fmt.Sprintf("%s usage exceeds limit", resource),
-			})
-		} else if percentage > 80 {
-			// Warning for high usage
-			result.Violations = append(result.Violations, &billing.LimitViolation{
-				ResourceType: resource,
-				Current:      used,
-				Limit:        limitValue,
-				Percentage:   percentage,
-				Message:      fmt.Sprintf("%s usage is at %.0f%% of limit", resource, percentage),
-			})
-		}
+	// Check each resource limit
+	if plan.Limits != nil {
+		// Check CPU cores
+		checkLimit(result, "cpu_cores", usage["cpu_cores"], float64(plan.Limits.CPUCores))
+		
+		// Check memory
+		checkLimit(result, "memory_gb", usage["memory_gb"], float64(plan.Limits.MemoryGB))
+		
+		// Check storage
+		checkLimit(result, "storage_gb", usage["storage_gb"], float64(plan.Limits.StorageGB))
+		
+		// Check workspaces
+		checkLimit(result, "workspaces", usage["workspaces"], float64(plan.Limits.Workspaces))
+		
+		// Check projects
+		checkLimit(result, "projects", usage["projects"], float64(plan.Limits.Projects))
+		
+		// Check users
+		checkLimit(result, "users", usage["users"], float64(plan.Limits.Users))
+		
+		// Check bandwidth
+		checkLimit(result, "bandwidth_gb", usage["bandwidth_gb"], float64(plan.Limits.BandwidthGB))
 	}
 
 	return result, nil
+}
+
+// getChangeType compares two integer values and returns the change type
+func getChangeType(current, target int) string {
+	if target > current {
+		return "increase"
+	} else if target < current {
+		return "decrease"
+	}
+	return "same"
+}
+
+// getChangeTypeString compares two string values and returns the change type
+func getChangeTypeString(current, target string) string {
+	if current != target {
+		return "change"
+	}
+	return "same"
+}
+
+// checkLimit checks if a resource usage exceeds its limit
+func checkLimit(result *billing.LimitCheckResult, resource string, used, limit float64) {
+	result.Limits[resource] = limit
+	
+	if limit <= 0 {
+		return // No limit set
+	}
+	
+	percentage := (used / limit) * 100
+	
+	if used > limit {
+		result.WithinLimits = false
+		result.Violations = append(result.Violations, &billing.LimitViolation{
+			ResourceType: resource,
+			Current:      used,
+			Limit:        limit,
+			Percentage:   percentage,
+			Message:      fmt.Sprintf("%s usage exceeds limit", resource),
+		})
+	} else if percentage > 80 {
+		// Warning for high usage
+		result.Violations = append(result.Violations, &billing.LimitViolation{
+			ResourceType: resource,
+			Current:      used,
+			Limit:        limit,
+			Percentage:   percentage,
+			Message:      fmt.Sprintf("%s usage is at %.0f%% of limit", resource, percentage),
+		})
+	}
 }

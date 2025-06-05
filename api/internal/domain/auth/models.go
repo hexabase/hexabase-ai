@@ -2,6 +2,8 @@ package auth
 
 import (
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // User represents an authenticated user
@@ -38,11 +40,10 @@ type Claims struct {
 
 // WorkspaceClaims represents JWT claims for workspace access
 type WorkspaceClaims struct {
+	jwt.RegisteredClaims
 	Subject     string   `json:"sub"`
 	WorkspaceID string   `json:"workspace_id"`
 	Groups      []string `json:"groups"`
-	ExpiresAt   int64    `json:"exp"`
-	IssuedAt    int64    `json:"iat"`
 }
 
 // Session represents an active user session

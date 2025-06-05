@@ -6,35 +6,40 @@ import (
 
 // Subscription represents a billing subscription
 type Subscription struct {
-	ID                 string    `json:"id"`
-	OrganizationID     string    `json:"organization_id"`
-	PlanID             string    `json:"plan_id"`
-	Status             string    `json:"status"` // active, canceled, past_due, unpaid
-	BillingCycle       string    `json:"billing_cycle"` // monthly, yearly
-	CurrentPeriodStart time.Time `json:"current_period_start"`
-	CurrentPeriodEnd   time.Time `json:"current_period_end"`
-	CancelAt           *time.Time `json:"cancel_at,omitempty"`
-	CanceledAt         *time.Time `json:"canceled_at,omitempty"`
-	TrialEnd           *time.Time `json:"trial_end,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	OrganizationID       string    `json:"organization_id"`
+	PlanID               string    `json:"plan_id"`
+	StripeSubscriptionID string    `json:"stripe_subscription_id,omitempty"`
+	Status               string    `json:"status"` // active, canceled, past_due, unpaid
+	BillingCycle         string    `json:"billing_cycle"` // monthly, yearly
+	CurrentPeriodStart   time.Time `json:"current_period_start"`
+	CurrentPeriodEnd     time.Time `json:"current_period_end"`
+	CancelAt             *time.Time `json:"cancel_at,omitempty"`
+	CanceledAt           *time.Time `json:"canceled_at,omitempty"`
+	TrialEnd             *time.Time `json:"trial_end,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	Plan                 *Plan     `json:"plan,omitempty"`
 }
 
 // Plan represents a subscription plan
 type Plan struct {
-	ID                      string    `json:"id"`
-	Name                    string    `json:"name"`
-	Description             string    `json:"description"`
-	PriceMonthly            float64   `json:"price_monthly"`
-	PriceYearly             float64   `json:"price_yearly"`
-	Currency                string    `json:"currency"`
-	Features                []string  `json:"features"`
-	Limits                  *Limits   `json:"limits"`
-	IsActive                bool      `json:"is_active"`
-	IsPopular               bool      `json:"is_popular"`
-	YearlyDiscountPercentage float64  `json:"yearly_discount_percentage"`
-	CreatedAt               time.Time `json:"created_at"`
-	UpdatedAt               time.Time `json:"updated_at"`
+	ID                      string             `json:"id"`
+	Name                    string             `json:"name"`
+	Description             string             `json:"description"`
+	Price                   float64            `json:"price"` // Current price based on billing cycle
+	PriceMonthly            float64            `json:"price_monthly"`
+	PriceYearly             float64            `json:"price_yearly"`
+	Currency                string             `json:"currency"`
+	Features                []string           `json:"features"`
+	Limits                  *Limits            `json:"limits"`
+	UsageRates              map[string]float64 `json:"usage_rates,omitempty"` // Overage rates per resource
+	IsActive                bool               `json:"is_active"`
+	IsPopular               bool               `json:"is_popular"`
+	YearlyDiscountPercentage float64           `json:"yearly_discount_percentage"`
+	StripePriceID           string             `json:"stripe_price_id,omitempty"`
+	CreatedAt               time.Time          `json:"created_at"`
+	UpdatedAt               time.Time          `json:"updated_at"`
 }
 
 // Limits represents plan resource limits
@@ -51,15 +56,17 @@ type Limits struct {
 
 // PaymentMethod represents a payment method
 type PaymentMethod struct {
-	ID         string    `json:"id"`
-	OrgID      string    `json:"organization_id"`
-	Type       string    `json:"type"` // card, bank_account
-	Brand      string    `json:"brand,omitempty"` // visa, mastercard, etc
-	LastFour   string    `json:"last_four"`
-	ExpiryMonth int      `json:"expiry_month,omitempty"`
-	ExpiryYear  int      `json:"expiry_year,omitempty"`
-	IsDefault   bool     `json:"is_default"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	OrganizationID        string    `json:"organization_id"`
+	StripePaymentMethodID string    `json:"stripe_payment_method_id,omitempty"`
+	Type                  string    `json:"type"` // card, bank_account
+	Brand                 string    `json:"brand,omitempty"` // visa, mastercard, etc
+	Last4                 string    `json:"last4"`
+	LastFour              string    `json:"last_four"` // Alias for backward compatibility
+	ExpiryMonth           int       `json:"expiry_month,omitempty"`
+	ExpiryYear            int       `json:"expiry_year,omitempty"`
+	IsDefault             bool      `json:"is_default"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 // Invoice represents a billing invoice
@@ -78,6 +85,7 @@ type Invoice struct {
 	LineItems      []*LineItem    `json:"line_items"`
 	PaymentMethod  *PaymentMethod `json:"payment_method,omitempty"`
 	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 // LineItem represents an invoice line item
@@ -101,15 +109,17 @@ type UsageRecord struct {
 	Price          float64   `json:"price"`
 	Amount         float64   `json:"amount"`
 	Timestamp      time.Time `json:"timestamp"`
+	RecordedAt     time.Time `json:"recorded_at"`
 	PeriodStart    time.Time `json:"period_start"`
 	PeriodEnd      time.Time `json:"period_end"`
 }
 
 // CreateSubscriptionRequest represents a request to create a subscription
 type CreateSubscriptionRequest struct {
-	PlanID          string `json:"plan_id" binding:"required"`
-	BillingCycle    string `json:"billing_cycle" binding:"required,oneof=monthly yearly"`
-	PaymentMethodID string `json:"payment_method_id,omitempty"`
+	PlanID          string     `json:"plan_id" binding:"required"`
+	BillingCycle    string     `json:"billing_cycle" binding:"required,oneof=monthly yearly"`
+	PaymentMethodID string     `json:"payment_method_id,omitempty"`
+	TrialEnd        *time.Time `json:"trial_end,omitempty"`
 }
 
 // UpdateSubscriptionRequest represents a request to update a subscription
@@ -126,8 +136,15 @@ type CancelSubscriptionRequest struct {
 
 // AddPaymentMethodRequest represents a request to add a payment method
 type AddPaymentMethodRequest struct {
-	Token      string `json:"token" binding:"required"`
-	SetDefault bool   `json:"set_default"`
+	Token           string `json:"token" binding:"required"`
+	PaymentMethodID string `json:"payment_method_id,omitempty"`
+	Type            string `json:"type,omitempty"`
+	Last4           string `json:"last4,omitempty"`
+	Brand           string `json:"brand,omitempty"`
+	ExpiryMonth     int    `json:"expiry_month,omitempty"`
+	ExpiryYear      int    `json:"expiry_year,omitempty"`
+	SetDefault      bool   `json:"set_default"`
+	SetAsDefault    bool   `json:"set_as_default"` // Alias for backward compatibility
 }
 
 // BillingOverview represents billing overview for an organization
@@ -143,10 +160,12 @@ type BillingOverview struct {
 
 // CurrentUsage represents current billing period usage
 type CurrentUsage struct {
-	PeriodStart    time.Time       `json:"period_start"`
-	PeriodEnd      time.Time       `json:"period_end"`
-	EstimatedCost  float64         `json:"estimated_cost"`
+	OrganizationID string           `json:"organization_id"`
+	PeriodStart    time.Time        `json:"period_start"`
+	PeriodEnd      time.Time        `json:"period_end"`
+	EstimatedCost  float64          `json:"estimated_cost"`
 	ResourceUsage  map[string]Usage `json:"resource_usage"`
+	Usage          map[string]float64 `json:"usage"` // Raw usage values
 }
 
 // Usage represents resource usage
@@ -160,18 +179,28 @@ type Usage struct {
 
 // Organization represents billing organization info
 type Organization struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Email       string `json:"email"`
-	TaxID       string `json:"tax_id,omitempty"`
-	Address     string `json:"address,omitempty"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	DisplayName      string `json:"display_name,omitempty"`
+	Email            string `json:"email"`
+	BillingEmail     string `json:"billing_email,omitempty"`
+	TaxID            string `json:"tax_id,omitempty"`
+	Address          string `json:"address,omitempty"`
+	StripeCustomerID string `json:"stripe_customer_id,omitempty"`
 }
 
 // BillingSettings represents billing settings
 type BillingSettings struct {
-	OrganizationID        string `json:"organization_id"`
-	BillingEmail          string `json:"billing_email"`
-	InvoicePrefix         string `json:"invoice_prefix"`
-	TaxExempt             bool   `json:"tax_exempt"`
-	TaxExemptionCertificate string `json:"tax_exemption_certificate,omitempty"`
+	OrganizationID          string    `json:"organization_id"`
+	BillingEmail            string    `json:"billing_email"`
+	InvoicePrefix           string    `json:"invoice_prefix"`
+	TaxExempt               bool      `json:"tax_exempt"`
+	TaxExemptionCertificate string    `json:"tax_exemption_certificate,omitempty"`
+	TaxID                   string    `json:"tax_id,omitempty"`
+	PurchaseOrderNumber     string    `json:"purchase_order_number,omitempty"`
+	CreatedAt               time.Time `json:"created_at"`
+	UpdatedAt               time.Time `json:"updated_at"`
 }
+
+// ResourceUsage is an alias for Usage (for backward compatibility)
+type ResourceUsage = Usage

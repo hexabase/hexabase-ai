@@ -417,8 +417,8 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 }
 
 func (s *service) GenerateWorkspaceToken(ctx context.Context, userID, workspaceID string) (string, error) {
-	// Get user
-	user, err := s.repo.GetUser(ctx, userID)
+	// Verify user exists
+	_, err := s.repo.GetUser(ctx, userID)
 	if err != nil {
 		return "", fmt.Errorf("user not found: %w", err)
 	}
@@ -431,11 +431,14 @@ func (s *service) GenerateWorkspaceToken(ctx context.Context, userID, workspaceI
 
 	// Create workspace claims
 	claims := &auth.WorkspaceClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 		Subject:     userID,
 		WorkspaceID: workspaceID,
 		Groups:      groups,
-		ExpiresAt:   time.Now().Add(1 * time.Hour).Unix(),
-		IssuedAt:    time.Now().Unix(),
 	}
 
 	// Get private key

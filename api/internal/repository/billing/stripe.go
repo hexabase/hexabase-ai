@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -32,10 +33,8 @@ func (r *stripeRepository) CreateCustomer(ctx context.Context, org *billing.Orga
 	params := &stripe.CustomerParams{
 		Name:  stripe.String(org.DisplayName),
 		Email: stripe.String(org.BillingEmail),
-		Metadata: map[string]string{
-			"organization_id": org.ID,
-		},
 	}
+	params.AddMetadata("organization_id", org.ID)
 
 	cust, err := customer.New(params)
 	if err != nil {
@@ -77,12 +76,8 @@ func (r *stripeRepository) CreateStripeSubscription(ctx context.Context, custome
 			},
 		},
 		PaymentBehavior: stripe.String("default_incomplete"),
-		ExpandParams: stripe.ExpandParams{
-			Expand: []*string{
-				stripe.String("latest_invoice.payment_intent"),
-			},
-		},
 	}
+	params.AddExpand("latest_invoice.payment_intent")
 
 	sub, err := subscription.New(params)
 	if err != nil {
@@ -226,7 +221,7 @@ func (r *stripeRepository) ConstructWebhookEvent(payload []byte, signature strin
 
 	// Convert event data to map
 	data := make(map[string]interface{})
-	if err := event.Data.Raw.Unmarshal(&data); err != nil {
+	if err := json.Unmarshal(event.Data.Raw, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
 

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/kaas-api/internal/auth"
-	"github.com/hexabase/kaas-api/internal/config"
+	"github.com/hexabase/hexabase-kaas/api/internal/auth"
+	"github.com/hexabase/hexabase-kaas/api/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

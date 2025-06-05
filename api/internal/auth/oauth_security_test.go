@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/hexabase/kaas-api/internal/config"
+	"github.com/hexabase/hexabase-kaas/api/internal/config"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )

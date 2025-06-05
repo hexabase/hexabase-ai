@@ -345,9 +345,9 @@ func (r *postgresRepository) GetBillingSettings(ctx context.Context, orgID strin
 			// Return default settings
 			return &billing.BillingSettings{
 				OrganizationID:       orgID,
-				InvoiceEmail:         "",
-				ReceiveEmailInvoices: true,
-				BillingAddress:       nil,
+				BillingEmail:         "",
+				InvoicePrefix:        "",
+				TaxExempt:            false,
 				TaxID:                "",
 				PurchaseOrderNumber:  "",
 				CreatedAt:            time.Now(),

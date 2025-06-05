@@ -33,7 +33,7 @@ func NewKubernetesRepository(clientset kubernetes.Interface, dynamicClient dynam
 	}
 }
 
-func (r *kubernetesRepository) CreateNamespace(ctx context.Context, workspaceID string, ns *project.Namespace) error {
+func (r *kubernetesRepository) CreateNamespace(ctx context.Context, workspaceID string, namespaceName string, labels map[string]string) error {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -43,8 +43,8 @@ func (r *kubernetesRepository) CreateNamespace(ctx context.Context, workspaceID 
 	// Create namespace
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   ns.Name,
-			Labels: ns.Labels,
+			Name:   namespaceName,
+			Labels: labels,
 		},
 	}
 
@@ -71,7 +71,7 @@ func (r *kubernetesRepository) DeleteNamespace(ctx context.Context, workspaceID,
 	return nil
 }
 
-func (r *kubernetesRepository) GetNamespace(ctx context.Context, workspaceID, namespaceName string) (*project.Namespace, error) {
+func (r *kubernetesRepository) GetNamespace(ctx context.Context, workspaceID, namespaceName string) (map[string]interface{}, error) {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -83,16 +83,39 @@ func (r *kubernetesRepository) GetNamespace(ctx context.Context, workspaceID, na
 		return nil, fmt.Errorf("failed to get namespace: %w", err)
 	}
 
-	namespace := &project.Namespace{
-		Name:   ns.Name,
-		Labels: ns.Labels,
-		Status: string(ns.Status.Phase),
+	namespace := map[string]interface{}{
+		"name":   ns.Name,
+		"labels": ns.Labels,
+		"status": string(ns.Status.Phase),
+		"creationTimestamp": ns.CreationTimestamp.Time,
+		"uid": string(ns.UID),
 	}
 
 	return namespace, nil
 }
 
+func (r *kubernetesRepository) ListNamespaces(ctx context.Context, workspaceID string) ([]string, error) {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces, err := vClusterClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list namespaces: %w", err)
+	}
+
+	var names []string
+	for _, ns := range namespaces.Items {
+		names = append(names, ns.Name)
+	}
+
+	return names, nil
+}
+
 func (r *kubernetesRepository) ConfigureHNC(ctx context.Context, workspaceID, parentNamespace, childNamespace string) error {
+	// This implementation was moved down in the file
 	// Get vCluster client with dynamic client
 	vClusterDynamic, err := r.getVClusterDynamicClient(ctx, workspaceID)
 	if err != nil {
@@ -187,7 +210,7 @@ func (r *kubernetesRepository) ApplyResourceQuota(ctx context.Context, workspace
 	return nil
 }
 
-func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespaceName string) (map[string]interface{}, error) {
+func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespaceName string) (*project.ResourceUsage, error) {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -199,33 +222,35 @@ func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, wo
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// No quota, return empty usage
-			return map[string]interface{}{
-				"cpu":     0,
-				"memory":  0,
-				"storage": 0,
-				"pods":    0,
+			return &project.ResourceUsage{
+				CPU:    "0",
+				Memory: "0",
+				Pods:   0,
 			}, nil
 		}
 		return nil, fmt.Errorf("failed to get resource quota: %w", err)
 	}
 
 	// Extract usage from quota status
-	usage := make(map[string]interface{})
+	cpuUsed := "0"
+	memoryUsed := "0"
+	podsUsed := 0
 
 	if used, ok := quota.Status.Used[corev1.ResourceCPU]; ok {
-		usage["cpu"] = used.AsApproximateFloat64()
+		cpuUsed = used.String()
 	}
 	if used, ok := quota.Status.Used[corev1.ResourceMemory]; ok {
-		usage["memory"] = used.AsApproximateFloat64()
-	}
-	if used, ok := quota.Status.Used[corev1.ResourceStorage]; ok {
-		usage["storage"] = used.AsApproximateFloat64()
+		memoryUsed = used.String()
 	}
 	if used, ok := quota.Status.Used[corev1.ResourcePods]; ok {
-		usage["pods"] = used.AsApproximateFloat64()
+		podsUsed = int(used.Value())
 	}
 
-	return usage, nil
+	return &project.ResourceUsage{
+		CPU:    cpuUsed,
+		Memory: memoryUsed,
+		Pods:   podsUsed,
+	}, nil
 }
 
 func (r *kubernetesRepository) ApplyRBAC(ctx context.Context, workspaceID, namespaceName, userID, role string) error {
@@ -303,6 +328,171 @@ func (r *kubernetesRepository) RemoveRBAC(ctx context.Context, workspaceID, name
 	}
 
 	return nil
+}
+
+func (r *kubernetesRepository) CreateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+
+	// Create resource quota
+	resourceQuota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "project-quota",
+			Namespace: namespace,
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceCPU:                        resource.MustParse(quota.CPU),
+				corev1.ResourceMemory:                     resource.MustParse(quota.Memory),
+				corev1.ResourceStorage:                    resource.MustParse(quota.Storage),
+				corev1.ResourcePods:                       resource.MustParse(fmt.Sprintf("%d", quota.Pods)),
+				corev1.ResourceServices:                   resource.MustParse(fmt.Sprintf("%d", quota.Services)),
+				corev1.ResourcePersistentVolumeClaims:     resource.MustParse(fmt.Sprintf("%d", quota.PersistentVolumeClaims)),
+			},
+		},
+	}
+
+	_, err = vClusterClient.CoreV1().ResourceQuotas(namespace).Create(ctx, resourceQuota, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create resource quota: %w", err)
+	}
+
+	return nil
+}
+
+func (r *kubernetesRepository) UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+
+	// Get existing quota
+	existing, err := vClusterClient.CoreV1().ResourceQuotas(namespace).Get(ctx, "project-quota", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Create new quota
+			return r.CreateResourceQuota(ctx, workspaceID, namespace, quota)
+		}
+		return fmt.Errorf("failed to get resource quota: %w", err)
+	}
+
+	// Update quota
+	existing.Spec.Hard = corev1.ResourceList{
+		corev1.ResourceCPU:                        resource.MustParse(quota.CPU),
+		corev1.ResourceMemory:                     resource.MustParse(quota.Memory),
+		corev1.ResourceStorage:                    resource.MustParse(quota.Storage),
+		corev1.ResourcePods:                       resource.MustParse(fmt.Sprintf("%d", quota.Pods)),
+		corev1.ResourceServices:                   resource.MustParse(fmt.Sprintf("%d", quota.Services)),
+		corev1.ResourcePersistentVolumeClaims:     resource.MustParse(fmt.Sprintf("%d", quota.PersistentVolumeClaims)),
+	}
+
+	_, err = vClusterClient.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update resource quota: %w", err)
+	}
+
+	return nil
+}
+
+func (r *kubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*project.ResourceQuota, error) {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get resource quota
+	resourceQuota, err := vClusterClient.CoreV1().ResourceQuotas(namespace).Get(ctx, "project-quota", metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource quota: %w", err)
+	}
+
+	// Convert to domain model
+	cpuQuantity := resourceQuota.Spec.Hard[corev1.ResourceCPU]
+	memoryQuantity := resourceQuota.Spec.Hard[corev1.ResourceMemory]
+	storageQuantity := resourceQuota.Spec.Hard[corev1.ResourceStorage]
+	podsQuantity := resourceQuota.Spec.Hard[corev1.ResourcePods]
+	servicesQuantity := resourceQuota.Spec.Hard[corev1.ResourceServices]
+	pvcsQuantity := resourceQuota.Spec.Hard[corev1.ResourcePersistentVolumeClaims]
+	
+	quota := &project.ResourceQuota{
+		CPU:                    cpuQuantity.String(),
+		Memory:                 memoryQuantity.String(),
+		Storage:                storageQuantity.String(),
+		Pods:                   int(podsQuantity.Value()),
+		Services:               int(servicesQuantity.Value()),
+		PersistentVolumeClaims: int(pvcsQuantity.Value()),
+	}
+
+	return quota, nil
+}
+
+func (r *kubernetesRepository) DeleteResourceQuota(ctx context.Context, workspaceID, namespace string) error {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+
+	err = vClusterClient.CoreV1().ResourceQuotas(namespace).Delete(ctx, "project-quota", metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete resource quota: %w", err)
+	}
+
+	return nil
+}
+
+func (r *kubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceID, namespaceName string) (*project.NamespaceUsage, error) {
+	// Get vCluster client
+	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get resource quota status
+	quota, err := vClusterClient.CoreV1().ResourceQuotas(namespaceName).Get(ctx, "project-quota", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// No quota, return empty usage
+			return &project.NamespaceUsage{
+				CPU:     "0",
+				Memory:  "0",
+				Storage: "0",
+				Pods:    0,
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get resource quota: %w", err)
+	}
+
+	// Extract usage from quota status
+	cpuUsed := "0"
+	memoryUsed := "0"
+	storageUsed := "0"
+	podsUsed := 0
+
+	if used, ok := quota.Status.Used[corev1.ResourceCPU]; ok {
+		cpuUsed = used.String()
+	}
+	if used, ok := quota.Status.Used[corev1.ResourceMemory]; ok {
+		memoryUsed = used.String()
+	}
+	if used, ok := quota.Status.Used[corev1.ResourceStorage]; ok {
+		storageUsed = used.String()
+	}
+	if used, ok := quota.Status.Used[corev1.ResourcePods]; ok {
+		podsUsed = int(used.Value())
+	}
+
+	return &project.NamespaceUsage{
+		CPU:     cpuUsed,
+		Memory:  memoryUsed,
+		Storage: storageUsed,
+		Pods:    podsUsed,
+	}, nil
 }
 
 // Helper functions

@@ -8,13 +8,16 @@ import (
 type Project struct {
 	ID            string               `json:"id"`
 	Name          string               `json:"name"`
+	DisplayName   string               `json:"display_name,omitempty"`
 	Description   string               `json:"description,omitempty"`
 	WorkspaceID   string               `json:"workspace_id"`
 	WorkspaceName string               `json:"workspace_name,omitempty"`
+	ParentID      *string              `json:"parent_id,omitempty"`
 	Status        string               `json:"status"` // active, inactive, archived
 	NamespaceName string               `json:"namespace_name,omitempty"`
 	ResourceQuotas *ResourceQuotas     `json:"resource_quotas,omitempty"`
 	ResourceUsage  *ResourceUsage      `json:"resource_usage,omitempty"`
+	Settings      map[string]interface{} `json:"settings,omitempty"`
 	Labels         map[string]string   `json:"labels,omitempty"`
 	CreatedAt      time.Time           `json:"created_at"`
 	UpdatedAt      time.Time           `json:"updated_at"`
@@ -39,20 +42,26 @@ type ResourceUsage struct {
 // CreateProjectRequest represents a request to create a project
 type CreateProjectRequest struct {
 	Name           string            `json:"name" binding:"required"`
+	DisplayName    string            `json:"display_name,omitempty"`
 	Description    string            `json:"description,omitempty"`
 	WorkspaceID    string            `json:"workspace_id" binding:"required"`
 	NamespaceName  string            `json:"namespace_name,omitempty"`
 	ResourceQuotas *ResourceQuotas   `json:"resource_quotas,omitempty"`
+	Settings       map[string]interface{} `json:"settings,omitempty"`
 	Labels         map[string]string `json:"labels,omitempty"`
+	CreatedBy      string            `json:"created_by,omitempty"`
 }
 
 // UpdateProjectRequest represents a request to update a project
 type UpdateProjectRequest struct {
-	Name           string            `json:"name,omitempty"`
-	Description    string            `json:"description,omitempty"`
-	ResourceQuotas *ResourceQuotas   `json:"resource_quotas,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"`
-	Status         string            `json:"status,omitempty"`
+	Name           string                 `json:"name,omitempty"`
+	DisplayName    string                 `json:"display_name,omitempty"`
+	Description    string                 `json:"description,omitempty"`
+	ResourceQuotas *ResourceQuotas        `json:"resource_quotas,omitempty"`
+	Settings       map[string]interface{} `json:"settings,omitempty"`
+	Labels         map[string]string      `json:"labels,omitempty"`
+	Status         string                 `json:"status,omitempty"`
+	UpdatedBy      string                 `json:"updated_by,omitempty"`
 }
 
 // Namespace represents a Kubernetes namespace
@@ -71,10 +80,12 @@ type Namespace struct {
 
 // ResourceQuota represents Kubernetes resource quota
 type ResourceQuota struct {
-	CPU     string `json:"cpu"`
-	Memory  string `json:"memory"`
-	Storage string `json:"storage"`
-	Pods    int    `json:"pods"`
+	CPU                    string `json:"cpu"`
+	Memory                 string `json:"memory"`
+	Storage                string `json:"storage"`
+	Pods                   int    `json:"pods"`
+	Services               int    `json:"services,omitempty"`
+	PersistentVolumeClaims int    `json:"persistent_volume_claims,omitempty"`
 }
 
 // NamespaceUsage represents namespace resource usage
@@ -165,3 +176,29 @@ type ActivityList struct {
 	Activities []*ProjectActivity `json:"activities"`
 	Total      int                `json:"total"`
 }
+
+// ProjectHierarchy represents a hierarchical structure of projects
+type ProjectHierarchy struct {
+	Project  *Project            `json:"project"`
+	Children []*ProjectHierarchy `json:"children,omitempty"`
+}
+
+// AddMemberRequest represents a request to add a member to a project
+type AddMemberRequest struct {
+	UserEmail string `json:"user_email" binding:"required,email"`
+	Role      string `json:"role" binding:"required,oneof=admin developer viewer"`
+}
+
+// ActivityFilter represents filter options for project activities
+type ActivityFilter struct {
+	ProjectID  string
+	UserID     string
+	Type       string
+	StartTime  *time.Time
+	EndTime    *time.Time
+	Page       int
+	PageSize   int
+}
+
+// Activity is an alias for ProjectActivity for backward compatibility
+type Activity = ProjectActivity
