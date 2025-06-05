@@ -6,16 +6,20 @@ import (
 
 // Organization represents a company or team
 type Organization struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description,omitempty"`
-	Website     string    `json:"website,omitempty"`
-	Email       string    `json:"email,omitempty"`
-	Status      string    `json:"status"` // active, suspended, deleted
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	DisplayName      string                 `json:"display_name"`
+	Description      string                 `json:"description,omitempty"`
+	Website          string                 `json:"website,omitempty"`
+	Email            string                 `json:"email,omitempty"`
+	Status           string                 `json:"status"` // active, suspended, deleted
+	OwnerID          string                 `json:"owner_id,omitempty"`
+	Settings         map[string]interface{} `json:"settings,omitempty"`
+	MemberCount      int                    `json:"member_count,omitempty"`
+	SubscriptionInfo *SubscriptionInfo      `json:"subscription_info,omitempty"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+	DeletedAt        *time.Time             `json:"deleted_at,omitempty"`
 }
 
 // OrganizationUser represents a user's membership in an organization
@@ -23,6 +27,7 @@ type OrganizationUser struct {
 	ID             string    `json:"id"`
 	OrganizationID string    `json:"organization_id"`
 	UserID         string    `json:"user_id"`
+	Email          string    `json:"email,omitempty"`
 	Role           string    `json:"role"` // owner, admin, member
 	InvitedBy      string    `json:"invited_by,omitempty"`
 	InvitedAt      time.Time `json:"invited_at"`
@@ -41,10 +46,11 @@ type CreateOrganizationRequest struct {
 
 // UpdateOrganizationRequest represents a request to update an organization
 type UpdateOrganizationRequest struct {
-	DisplayName string `json:"display_name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Website     string `json:"website,omitempty"`
-	Email       string `json:"email,omitempty"`
+	DisplayName string                 `json:"display_name,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Website     string                 `json:"website,omitempty"`
+	Email       string                 `json:"email,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
 }
 
 // InviteUserRequest represents a request to invite a user to an organization
@@ -109,6 +115,7 @@ type Usage struct {
 // OrganizationFilter represents filter options for listing organizations
 type OrganizationFilter struct {
 	UserID    string
+	OwnerID   string
 	Status    string
 	Search    string
 	Page      int
@@ -139,4 +146,55 @@ type Invitation struct {
 	CreatedAt      time.Time `json:"created_at"`
 	AcceptedAt     *time.Time `json:"accepted_at,omitempty"`
 	Status         string    `json:"status"` // pending, accepted, expired
+}
+
+// Activity represents an activity log entry
+type Activity struct {
+	ID             string                 `json:"id"`
+	OrganizationID string                 `json:"organization_id"`
+	UserID         string                 `json:"user_id"`
+	Type           string                 `json:"type"`
+	Action         string                 `json:"action"`
+	ResourceType   string                 `json:"resource_type"`
+	ResourceID     string                 `json:"resource_id"`
+	Details        map[string]interface{} `json:"details,omitempty"`
+	Timestamp      time.Time              `json:"timestamp"`
+}
+
+// ActivityFilter represents filter options for listing activities
+type ActivityFilter struct {
+	OrganizationID string
+	UserID         string
+	Type           string
+	StartDate      *time.Time
+	EndDate        *time.Time
+	Limit          int
+}
+
+// WorkspaceInfo represents basic workspace information
+type WorkspaceInfo struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+// AddMemberRequest represents a request to add a member
+type AddMemberRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+	Role   string `json:"role" binding:"required,oneof=admin member"`
+}
+
+// CreateInvitationRequest represents a request to create an invitation
+type CreateInvitationRequest struct {
+	Email     string `json:"email" binding:"required,email"`
+	Role      string `json:"role" binding:"required,oneof=admin member"`
+	InvitedBy string `json:"invited_by,omitempty"`
+}
+
+// SubscriptionInfo represents subscription information
+type SubscriptionInfo struct {
+	PlanID    string     `json:"plan_id"`
+	PlanName  string     `json:"plan_name"`
+	Status    string     `json:"status"`
+	ExpiresAt time.Time  `json:"expires_at"`
 }

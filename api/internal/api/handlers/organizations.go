@@ -32,9 +32,7 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 		return
 	}
 
-	req.OwnerID = userID
-
-	org, err := h.service.CreateOrganization(c.Request.Context(), &req)
+	org, err := h.service.CreateOrganization(c.Request.Context(), userID, &req)
 	if err != nil {
 		h.logger.Error("failed to create organization", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -66,7 +64,13 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	userID := c.GetString("user_id")
 
-	orgs, err := h.service.ListOrganizations(c.Request.Context(), userID)
+	filter := organization.OrganizationFilter{
+		UserID:   userID,
+		Page:     1,
+		PageSize: 100,
+	}
+
+	orgList, err := h.service.ListOrganizations(c.Request.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list organizations", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list organizations"})
@@ -74,8 +78,8 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"organizations": orgs,
-		"total":         len(orgs),
+		"organizations": orgList.Organizations,
+		"total":         orgList.Total,
 	})
 }
 
@@ -90,7 +94,6 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 		return
 	}
 
-	req.UpdatedBy = userID
 
 	org, err := h.service.UpdateOrganization(c.Request.Context(), orgID, &req)
 	if err != nil {
@@ -125,35 +128,14 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "organization deleted successfully"})
 }
 
-// AddMember handles adding a member to organization
-func (h *OrganizationHandler) AddMember(c *gin.Context) {
-	orgID := c.Param("orgId")
-	addedBy := c.GetString("user_id")
-
-	var req organization.AddMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
-		return
-	}
-
-	req.AddedBy = addedBy
-
-	err := h.service.AddMember(c.Request.Context(), orgID, &req)
-	if err != nil {
-		h.logger.Error("failed to add member", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "member added successfully"})
-}
 
 // RemoveMember handles removing a member from organization
 func (h *OrganizationHandler) RemoveMember(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.Param("userId")
 
-	err := h.service.RemoveMember(c.Request.Context(), orgID, userID)
+	removerID := c.GetString("user_id")
+	err := h.service.RemoveMember(c.Request.Context(), orgID, userID, removerID)
 	if err != nil {
 		h.logger.Error("failed to remove member", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -177,21 +159,31 @@ func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
 		return
 	}
 
-	err := h.service.UpdateMemberRole(c.Request.Context(), orgID, userID, req.Role)
+	updateReq := &organization.UpdateMemberRoleRequest{
+		Role: req.Role,
+	}
+
+	member, err := h.service.UpdateMemberRole(c.Request.Context(), orgID, userID, updateReq)
 	if err != nil {
 		h.logger.Error("failed to update member role", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "member role updated successfully"})
+	c.JSON(http.StatusOK, member)
 }
 
 // ListMembers handles listing organization members
 func (h *OrganizationHandler) ListMembers(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	members, err := h.service.ListMembers(c.Request.Context(), orgID)
+	filter := organization.MemberFilter{
+		OrganizationID: orgID,
+		Page:           1,
+		PageSize:       100,
+	}
+
+	memberList, err := h.service.ListMembers(c.Request.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list members", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -199,27 +191,25 @@ func (h *OrganizationHandler) ListMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"members": members,
-		"total":   len(members),
+		"members": memberList.Members,
+		"total":   memberList.Total,
 	})
 }
 
-// CreateInvitation handles creating an invitation
-func (h *OrganizationHandler) CreateInvitation(c *gin.Context) {
+// InviteUser handles inviting a user to organization
+func (h *OrganizationHandler) InviteUser(c *gin.Context) {
 	orgID := c.Param("orgId")
-	invitedBy := c.GetString("user_id")
+	inviterID := c.GetString("user_id")
 
-	var req organization.CreateInvitationRequest
+	var req organization.InviteUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
 	}
 
-	req.InvitedBy = invitedBy
-
-	invitation, err := h.service.CreateInvitation(c.Request.Context(), orgID, &req)
+	invitation, err := h.service.InviteUser(c.Request.Context(), orgID, inviterID, &req)
 	if err != nil {
-		h.logger.Error("failed to create invitation", zap.Error(err))
+		h.logger.Error("failed to invite user", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -232,36 +222,35 @@ func (h *OrganizationHandler) AcceptInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 	userID := c.GetString("user_id")
 
-	err := h.service.AcceptInvitation(c.Request.Context(), invitationID, userID)
+	member, err := h.service.AcceptInvitation(c.Request.Context(), invitationID, userID)
 	if err != nil {
 		h.logger.Error("failed to accept invitation", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "invitation accepted successfully"})
+	c.JSON(http.StatusOK, member)
 }
 
-// RevokeInvitation handles revoking an invitation
-func (h *OrganizationHandler) RevokeInvitation(c *gin.Context) {
-	orgID := c.Param("orgId")
+// CancelInvitation handles canceling an invitation
+func (h *OrganizationHandler) CancelInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 
-	err := h.service.RevokeInvitation(c.Request.Context(), invitationID)
+	err := h.service.CancelInvitation(c.Request.Context(), invitationID)
 	if err != nil {
-		h.logger.Error("failed to revoke invitation", zap.Error(err))
+		h.logger.Error("failed to cancel invitation", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "invitation revoked successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "invitation canceled successfully"})
 }
 
-// ListInvitations handles listing organization invitations
-func (h *OrganizationHandler) ListInvitations(c *gin.Context) {
+// ListPendingInvitations handles listing pending invitations
+func (h *OrganizationHandler) ListPendingInvitations(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	invitations, err := h.service.ListInvitations(c.Request.Context(), orgID)
+	invitations, err := h.service.ListPendingInvitations(c.Request.Context(), orgID)
 	if err != nil {
 		h.logger.Error("failed to list invitations", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -274,22 +263,16 @@ func (h *OrganizationHandler) ListInvitations(c *gin.Context) {
 	})
 }
 
-// GetActivityLogs handles getting organization activity logs
-func (h *OrganizationHandler) GetActivityLogs(c *gin.Context) {
+// GetOrganizationStats handles getting organization statistics
+func (h *OrganizationHandler) GetOrganizationStats(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var filter organization.ActivityFilter
-	// Parse query parameters for filtering
-
-	logs, err := h.service.GetActivityLogs(c.Request.Context(), orgID, filter)
+	stats, err := h.service.GetOrganizationStats(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get activity logs", zap.Error(err))
+		h.logger.Error("failed to get organization stats", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"activities": logs,
-		"total":      len(logs),
-	})
+	c.JSON(http.StatusOK, stats)
 }
