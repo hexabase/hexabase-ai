@@ -27,12 +27,27 @@ export interface VClusterHealthUpdate {
   timestamp: string;
 }
 
+export interface ProjectUpdate {
+  project_id: string;
+  type: 'status' | 'resource' | 'namespace' | 'member' | 'activity';
+  data: any;
+  timestamp: string;
+}
+
+export interface NamespaceUpdate {
+  namespace_id: string;
+  project_id: string;
+  type: 'created' | 'updated' | 'deleted' | 'usage';
+  data: any;
+  timestamp: string;
+}
+
 class WebSocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
-  private listeners: Map<string, Set<Function>> = new Map();
+  private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
 
   connect(organizationId?: string) {
     if (this.socket?.connected) {
@@ -98,6 +113,28 @@ class WebSocketService {
       this.emit('vcluster:health', data);
     });
 
+    // Project updates
+    this.socket.on('project:update', (data: ProjectUpdate) => {
+      this.emit('project:update', data);
+      // Emit specific event for the project
+      this.emit(`project:update:${data.project_id}`, data);
+    });
+
+    // Namespace updates
+    this.socket.on('namespace:update', (data: NamespaceUpdate) => {
+      this.emit('namespace:update', data);
+      // Emit specific events for the project and namespace
+      this.emit(`project:namespace:${data.project_id}`, data);
+      this.emit(`namespace:update:${data.namespace_id}`, data);
+    });
+
+    // Project activity events
+    this.socket.on('project:activity', (data: any) => {
+      this.emit('project:activity', data);
+      // Emit specific event for the project
+      this.emit(`project:activity:${data.project_id}`, data);
+    });
+
     // Error events
     this.socket.on('error', (error: any) => {
       console.error('WebSocket error:', error);
@@ -161,8 +198,40 @@ class WebSocketService {
     this.socket.emit('unsubscribe:task', { task_id: taskId });
   }
 
+  // Subscribe to project updates
+  subscribeToProject(projectId: string) {
+    if (!this.socket?.connected) {
+      console.warn('WebSocket not connected');
+      return;
+    }
+
+    this.socket.emit('subscribe:project', { project_id: projectId });
+  }
+
+  unsubscribeFromProject(projectId: string) {
+    if (!this.socket?.connected) return;
+
+    this.socket.emit('unsubscribe:project', { project_id: projectId });
+  }
+
+  // Subscribe to namespace updates
+  subscribeToNamespace(namespaceId: string) {
+    if (!this.socket?.connected) {
+      console.warn('WebSocket not connected');
+      return;
+    }
+
+    this.socket.emit('subscribe:namespace', { namespace_id: namespaceId });
+  }
+
+  unsubscribeFromNamespace(namespaceId: string) {
+    if (!this.socket?.connected) return;
+
+    this.socket.emit('unsubscribe:namespace', { namespace_id: namespaceId });
+  }
+
   // Event listener management
-  on(event: string, callback: Function) {
+  on(event: string, callback: (...args: any[]) => void) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
@@ -180,7 +249,7 @@ class WebSocketService {
     };
   }
 
-  off(event: string, callback?: Function) {
+  off(event: string, callback?: (...args: any[]) => void) {
     if (!callback) {
       this.listeners.delete(event);
     } else {

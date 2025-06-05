@@ -399,6 +399,36 @@ export interface CreateProjectRequest {
   };
 }
 
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  role: 'admin' | 'developer' | 'viewer';
+  added_at: string;
+  added_by: string;
+}
+
+export interface AddProjectMemberRequest {
+  user_email: string;
+  role: 'admin' | 'developer' | 'viewer';
+}
+
+export interface ProjectActivity {
+  id: string;
+  project_id: string;
+  type: 'member_added' | 'member_removed' | 'member_role_changed' | 
+        'namespace_created' | 'namespace_deleted' | 'quota_changed' |
+        'project_created' | 'project_updated' | 'project_archived';
+  description: string;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
 export interface Namespace {
   id: string;
   name: string;
@@ -508,6 +538,43 @@ export const namespacesApi = {
   // Get namespace resource usage
   getUsage: async (orgId: string, projectId: string, namespaceId: string): Promise<{ cpu: string; memory: string; pods: number }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}/usage`);
+    return response.data;
+  },
+};
+
+// Project Members API
+export const projectMembersApi = {
+  // List project members
+  list: async (orgId: string, projectId: string): Promise<{ members: ProjectMember[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/members/`);
+    return response.data;
+  },
+
+  // Add member to project
+  add: async (orgId: string, projectId: string, data: AddProjectMemberRequest): Promise<ProjectMember> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/projects/${projectId}/members/`, data);
+    return response.data;
+  },
+
+  // Update member role
+  updateRole: async (orgId: string, projectId: string, memberId: string, role: 'admin' | 'developer' | 'viewer'): Promise<ProjectMember> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/projects/${projectId}/members/${memberId}`, { role });
+    return response.data;
+  },
+
+  // Remove member from project
+  remove: async (orgId: string, projectId: string, memberId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/projects/${projectId}/members/${memberId}`);
+  },
+};
+
+// Project Activity API
+export const projectActivityApi = {
+  // Get project activity timeline
+  list: async (orgId: string, projectId: string, limit: number = 50): Promise<{ activities: ProjectActivity[]; total: number }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/activity/`, {
+      params: { limit }
+    });
     return response.data;
   },
 };
