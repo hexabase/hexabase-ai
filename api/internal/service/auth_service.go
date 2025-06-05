@@ -72,6 +72,24 @@ func (s *AuthService) GetAuthURL(provider string) (string, string, error) {
 	return authURL, state, nil
 }
 
+// GetAuthURLWithPKCE generates an OAuth authorization URL with PKCE
+func (s *AuthService) GetAuthURLWithPKCE(provider, codeChallenge, challengeMethod string) (string, string, error) {
+	ctx := context.Background()
+	state, err := s.oauthClient.GenerateAndStoreState(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate state: %w", err)
+	}
+
+	// For now, use the standard auth URL
+	// TODO: Implement PKCE support in OAuth client
+	authURL, err := s.oauthClient.GetAuthURL(provider, state)
+	if err != nil {
+		return "", "", err
+	}
+
+	return authURL, state, nil
+}
+
 // HandleCallback processes OAuth callback
 func (s *AuthService) HandleCallback(ctx context.Context, provider, code, state string) (*db.User, string, error) {
 	// Validate and consume state
@@ -236,4 +254,125 @@ func (s *AuthService) getUserWorkspaceGroups(userID, workspaceID string) ([]stri
 	// TODO: Implement proper group hierarchy resolution
 	// For now, return default groups
 	return []string{"WorkspaceMembers"}, nil
+}
+
+// StoreAuthState stores authentication state data
+func (s *AuthService) StoreAuthState(state string, clientIP, userAgent string) error {
+	// TODO: Implement state storage with Redis
+	// Will store: {"client_ip": clientIP, "user_agent": userAgent}
+	return nil
+}
+
+// VerifyAuthState verifies and retrieves authentication state data
+func (s *AuthService) VerifyAuthState(state string, clientIP string) error {
+	// TODO: Implement state verification with Redis
+	// Should verify that the state exists and matches the client IP
+	return nil
+}
+
+// VerifyPKCE verifies PKCE parameters
+func (s *AuthService) VerifyPKCE(state, codeVerifier string) error {
+	// TODO: Implement PKCE verification
+	// Should retrieve the code challenge from the state and verify against the verifier
+	return nil
+}
+
+// HandleCallbackWithTokenPair processes OAuth callback and returns token pair
+func (s *AuthService) HandleCallbackWithTokenPair(ctx context.Context, provider, code, state, clientIP, userAgent string) (*db.User, *auth.TokenPair, error) {
+	user, accessToken, err := s.HandleCallback(ctx, provider, code, state)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create token pair (for now, use same token for both)
+	// TODO: Implement proper refresh token generation
+	tokenPair := &auth.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: accessToken, // Temporary: use same token
+		TokenType:    "Bearer",
+		ExpiresIn:    int(s.config.Auth.JWTExpiration),
+	}
+
+	return user, tokenPair, nil
+}
+
+// RefreshTokenPair refreshes an access token using a refresh token
+func (s *AuthService) RefreshTokenPair(refreshToken, clientIP, userAgent string) (*auth.TokenPair, error) {
+	// Validate the refresh token
+	claims, err := s.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token: %w", err)
+	}
+
+	// Generate new access token
+	newToken, err := s.tokenManager.GenerateToken(claims.Subject, claims.Email, claims.Name, claims.OrgIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new token: %w", err)
+	}
+
+	// Create token pair
+	tokenPair := &auth.TokenPair{
+		AccessToken:  newToken,
+		RefreshToken: refreshToken, // Keep same refresh token
+		TokenType:    "Bearer",
+		ExpiresIn:    int(s.config.Auth.JWTExpiration),
+	}
+
+	return tokenPair, nil
+}
+
+// RevokeRefreshToken revokes a refresh token
+func (s *AuthService) RevokeRefreshToken(refreshToken string) error {
+	// TODO: Implement token revocation with Redis blacklist
+	return nil
+}
+
+// GetUserSessions retrieves active sessions for a user
+func (s *AuthService) GetUserSessions(userID string) ([]map[string]interface{}, error) {
+	// TODO: Implement session management
+	return []map[string]interface{}{}, nil
+}
+
+// LogSecurityEvent logs a security-related event
+func (s *AuthService) LogSecurityEvent(userID, eventType, description, clientIP, level string) {
+	metadata := map[string]interface{}{
+		"client_ip": clientIP,
+		"level": level,
+	}
+	s.logger.Info("Security event",
+		zap.String("user_id", userID),
+		zap.String("event_type", eventType),
+		zap.String("description", description),
+		zap.Any("metadata", metadata),
+	)
+	// TODO: Implement persistent security event logging
+}
+
+// RevokeSession revokes a specific session for a user
+func (s *AuthService) RevokeSession(userID, sessionID string) error {
+	// TODO: Implement session revocation with Redis
+	s.logger.Info("Revoking session",
+		zap.String("user_id", userID),
+		zap.String("session_id", sessionID),
+	)
+	return nil
+}
+
+// RevokeAllSessionsExcept revokes all sessions except the current one
+func (s *AuthService) RevokeAllSessionsExcept(userID, currentToken string) error {
+	// TODO: Implement bulk session revocation with Redis
+	s.logger.Info("Revoking all sessions except current",
+		zap.String("user_id", userID),
+	)
+	return nil
+}
+
+// GetSecurityLogs retrieves security logs for a user
+func (s *AuthService) GetSecurityLogs(userID string, limit int) ([]map[string]interface{}, error) {
+	// TODO: Implement security log retrieval from storage
+	s.logger.Info("Getting security logs",
+		zap.String("user_id", userID),
+		zap.Int("limit", limit),
+	)
+	return []map[string]interface{}{}, nil
 }
