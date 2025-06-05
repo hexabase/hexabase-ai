@@ -39,7 +39,7 @@ type Repository interface {
 	
 	// Statistics operations
 	GetOrganizationStats(ctx context.Context, orgID string) (*OrganizationStats, error)
-	GetWorkspaceCount(ctx context.Context, orgID string) (total, active int, error)
+	GetWorkspaceCount(ctx context.Context, orgID string) (total int, active int, err error)
 	GetProjectCount(ctx context.Context, orgID string) (int, error)
 	GetResourceUsage(ctx context.Context, orgID string) (*Usage, error)
 }

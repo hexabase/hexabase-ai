@@ -10,6 +10,7 @@ type Repository interface {
 	// Project operations
 	CreateProject(ctx context.Context, project *Project) error
 	GetProject(ctx context.Context, projectID string) (*Project, error)
+	GetProjectByName(ctx context.Context, name string) (*Project, error)
 	GetProjectByNameAndWorkspace(ctx context.Context, name, workspaceID string) (*Project, error)
 	ListProjects(ctx context.Context, filter ProjectFilter) ([]*Project, int, error)
 	UpdateProject(ctx context.Context, project *Project) error
@@ -35,9 +36,12 @@ type Repository interface {
 	
 	// Activity operations
 	CreateActivity(ctx context.Context, activity *ProjectActivity) error
-	ListActivities(ctx context.Context, projectID string, limit int) ([]*ProjectActivity, error)
+	ListActivities(ctx context.Context, filter ActivityFilter) ([]*ProjectActivity, error)
 	GetLastActivity(ctx context.Context, projectID string) (*ProjectActivity, error)
 	CleanupOldActivities(ctx context.Context, before time.Time) error
+	
+	// Hierarchy operations
+	GetChildProjects(ctx context.Context, parentID string) ([]*Project, error)
 	
 	// User operations (for member details)
 	GetUser(ctx context.Context, userID string) (*User, error)
@@ -61,9 +65,18 @@ type KubernetesRepository interface {
 	UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *ResourceQuota) error
 	GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*ResourceQuota, error)
 	DeleteResourceQuota(ctx context.Context, workspaceID, namespace string) error
+	ApplyResourceQuota(ctx context.Context, workspaceID, namespace string, quota *ResourceQuota) error
 	
 	// Resource usage operations
 	GetNamespaceUsage(ctx context.Context, workspaceID, namespace string) (*NamespaceUsage, error)
+	GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespace string) (*ResourceUsage, error)
+	
+	// RBAC operations
+	ApplyRBAC(ctx context.Context, workspaceID, namespace, userID, role string) error
+	RemoveRBAC(ctx context.Context, workspaceID, namespace, userID string) error
+	
+	// HNC operations
+	ConfigureHNC(ctx context.Context, workspaceID, parentNamespace, childNamespace string) error
 }
 
 // User represents a user in the system

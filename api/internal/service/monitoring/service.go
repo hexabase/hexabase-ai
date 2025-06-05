@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/kaas-api/internal/domain/kubernetes"
-	"github.com/hexabase/kaas-api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-kaas/api/internal/domain/kubernetes"
+	"github.com/hexabase/hexabase-kaas/api/internal/domain/monitoring"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +66,7 @@ func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, o
 // GetClusterHealth checks and returns the health status of a vCluster
 func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*monitoring.ClusterHealth, error) {
 	// Get namespace for the workspace (assuming workspace_id maps to namespace)
-	namespace := fmt.Sprintf("vcluster-%s", workspaceID)
+	// namespace := fmt.Sprintf("vcluster-%s", workspaceID)
 
 	// Check Kubernetes components health
 	componentStatus, err := s.k8sRepo.CheckComponentHealth(ctx)
@@ -345,7 +345,7 @@ func (s *service) convertToDataPoints(workspaceID string, podMetrics *kubernetes
 
 	// Aggregate CPU usage
 	var totalCPU float64
-	for _, pod := range podMetrics.Items {
+	for range podMetrics.Items {
 		// Parse CPU value (assuming format like "100m" for millicores)
 		// This is simplified - real implementation would parse properly
 		totalCPU += 0.1 // placeholder

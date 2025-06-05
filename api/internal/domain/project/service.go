@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"time"
 )
 
 // Service defines the project business logic interface
@@ -23,7 +24,7 @@ type Service interface {
 	GetNamespaceUsage(ctx context.Context, projectID, namespaceID string) (*NamespaceUsage, error)
 	
 	// Member management
-	AddMember(ctx context.Context, projectID, adderID string, req *AddProjectMemberRequest) (*ProjectMember, error)
+	AddMember(ctx context.Context, projectID, adderID string, req *AddMemberRequest) (*ProjectMember, error)
 	GetMember(ctx context.Context, projectID, memberID string) (*ProjectMember, error)
 	ListMembers(ctx context.Context, projectID string) (*MemberList, error)
 	UpdateMemberRole(ctx context.Context, projectID, memberID string, req *UpdateMemberRoleRequest) (*ProjectMember, error)

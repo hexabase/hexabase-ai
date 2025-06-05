@@ -33,6 +33,14 @@ type Repository interface {
 	// Cleanup operations
 	CleanupExpiredTasks(ctx context.Context, before time.Time) error
 	CleanupDeletedWorkspaces(ctx context.Context, before time.Time) error
+	
+	// Member operations
+	ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*WorkspaceMember, error)
+	AddWorkspaceMember(ctx context.Context, member *WorkspaceMember) error
+	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error
+	
+	// Resource usage operations
+	CreateResourceUsage(ctx context.Context, usage *ResourceUsage) error
 }
 
 // VClusterRepository defines the interface for vCluster operations

@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/hexabase/kaas-api/internal/config"
-	"github.com/hexabase/kaas-api/internal/db"
+	"github.com/hexabase/hexabase-kaas/api/internal/config"
+	"github.com/hexabase/hexabase-kaas/api/internal/db"
 	"go.uber.org/zap"
 )
 

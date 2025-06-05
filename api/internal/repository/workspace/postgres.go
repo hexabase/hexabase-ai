@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
 	"gorm.io/gorm"
@@ -31,6 +32,19 @@ func (r *postgresRepository) GetWorkspace(ctx context.Context, workspaceID strin
 			return nil, fmt.Errorf("workspace not found")
 		}
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
+	}
+	return &ws, nil
+}
+
+func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*workspace.Workspace, error) {
+	var ws workspace.Workspace
+	if err := r.db.WithContext(ctx).
+		Where("name = ? AND organization_id = ?", name, orgID).
+		First(&ws).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get workspace by name and org: %w", err)
 	}
 	return &ws, nil
 }
@@ -159,12 +173,19 @@ func (r *postgresRepository) ListTasks(ctx context.Context, workspaceID string) 
 	return tasks, nil
 }
 
-func (r *postgresRepository) GetPendingTasks(ctx context.Context) ([]*workspace.Task, error) {
+func (r *postgresRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspace.Task, error) {
 	var tasks []*workspace.Task
-	if err := r.db.WithContext(ctx).
-		Where("status = ?", "pending").
-		Order("created_at ASC").
-		Find(&tasks).Error; err != nil {
+	query := r.db.WithContext(ctx).Where("status = ?", "pending")
+	
+	if taskType != "" {
+		query = query.Where("type = ?", taskType)
+	}
+	
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	
+	if err := query.Order("created_at ASC").Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get pending tasks: %w", err)
 	}
 	return tasks, nil
@@ -187,4 +208,63 @@ func (r *postgresRepository) GetResourceUsageHistory(ctx context.Context, worksp
 		return nil, fmt.Errorf("failed to get resource usage history: %w", err)
 	}
 	return usages, nil
+}
+
+// CleanupExpiredTasks removes expired tasks
+func (r *postgresRepository) CleanupExpiredTasks(ctx context.Context, before time.Time) error {
+	return r.db.WithContext(ctx).
+		Where("updated_at < ? AND status IN ?", before, []string{"completed", "failed"}).
+		Delete(&workspace.Task{}).Error
+}
+
+// CleanupDeletedWorkspaces removes deleted workspaces
+func (r *postgresRepository) CleanupDeletedWorkspaces(ctx context.Context, before time.Time) error {
+	return r.db.WithContext(ctx).
+		Where("deleted_at IS NOT NULL AND deleted_at < ?", before).
+		Delete(&workspace.Workspace{}).Error
+}
+
+// SaveWorkspaceStatus saves the workspace status
+func (r *postgresRepository) SaveWorkspaceStatus(ctx context.Context, status *workspace.WorkspaceStatus) error {
+	return r.db.WithContext(ctx).Save(status).Error
+}
+
+// GetWorkspaceStatus retrieves the workspace status
+func (r *postgresRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
+	var status workspace.WorkspaceStatus
+	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).First(&status).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get workspace status: %w", err)
+	}
+	return &status, nil
+}
+
+// SaveKubeconfig saves the kubeconfig for a workspace
+func (r *postgresRepository) SaveKubeconfig(ctx context.Context, workspaceID, kubeconfig string) error {
+	// In a real implementation, this would be stored securely, potentially encrypted
+	// For now, we'll store it in the workspace metadata
+	return r.db.WithContext(ctx).
+		Model(&workspace.Workspace{}).
+		Where("id = ?", workspaceID).
+		Update("metadata", gorm.Expr("jsonb_set(COALESCE(metadata, '{}'::jsonb), '{kubeconfig}', ?)", kubeconfig)).
+		Error
+}
+
+// GetKubeconfig retrieves the kubeconfig for a workspace
+func (r *postgresRepository) GetKubeconfig(ctx context.Context, workspaceID string) (string, error) {
+	var result struct {
+		Kubeconfig string
+	}
+	
+	if err := r.db.WithContext(ctx).
+		Model(&workspace.Workspace{}).
+		Where("id = ?", workspaceID).
+		Select("metadata->>'kubeconfig' as kubeconfig").
+		Scan(&result).Error; err != nil {
+		return "", fmt.Errorf("failed to get kubeconfig: %w", err)
+	}
+	
+	return result.Kubeconfig, nil
 }

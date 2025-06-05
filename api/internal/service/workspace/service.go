@@ -32,10 +32,10 @@ func NewService(
 	}
 }
 
-func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWorkspaceRequest) (*workspace.Workspace, error) {
+func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWorkspaceRequest) (*workspace.Workspace, *workspace.Task, error) {
 	// Validate request
 	if req.Name == "" {
-		return nil, fmt.Errorf("workspace name is required")
+		return nil, nil, fmt.Errorf("workspace name is required")
 	}
 
 	// Create workspace record
@@ -52,7 +52,7 @@ func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWork
 	}
 
 	if err := s.repo.CreateWorkspace(ctx, ws); err != nil {
-		return nil, fmt.Errorf("failed to create workspace: %w", err)
+		return nil, nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
 	// Create provisioning task
@@ -70,7 +70,7 @@ func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWork
 		s.logger.Error("failed to create provisioning task", zap.Error(err))
 	}
 
-	return ws, nil
+	return ws, task, nil
 }
 
 func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*workspace.Workspace, error) {
@@ -85,16 +85,27 @@ func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*worksp
 		if err != nil {
 			s.logger.Warn("failed to get vcluster status", zap.Error(err))
 		} else {
-			ws.ClusterInfo = status
+			ws.ClusterInfo = map[string]interface{}{
+				"status": status,
+			}
 		}
 	}
 
 	return ws, nil
 }
 
-func (s *service) ListWorkspaces(ctx context.Context, orgID string, filter workspace.WorkspaceFilter) ([]*workspace.Workspace, int, error) {
-	filter.OrganizationID = orgID
-	return s.repo.ListWorkspaces(ctx, filter)
+func (s *service) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) (*workspace.WorkspaceList, error) {
+	workspaces, total, err := s.repo.ListWorkspaces(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return &workspace.WorkspaceList{
+		Workspaces: workspaces,
+		Total:      total,
+		Page:       filter.Page,
+		PageSize:   filter.PageSize,
+	}, nil
 }
 
 func (s *service) UpdateWorkspace(ctx context.Context, workspaceID string, req *workspace.UpdateWorkspaceRequest) (*workspace.Workspace, error) {
@@ -123,14 +134,120 @@ func (s *service) UpdateWorkspace(ctx context.Context, workspaceID string, req *
 	return ws, nil
 }
 
-func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) error {
+func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
+	// Get workspace
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
-		return fmt.Errorf("failed to get workspace: %w", err)
+		return nil, fmt.Errorf("workspace not found: %w", err)
+	}
+
+	// Get current status from vCluster
+	vclusterStatus, err := s.k8sRepo.GetVClusterStatus(ctx, workspaceID)
+	if err != nil {
+		s.logger.Error("failed to get vcluster status", zap.Error(err))
+		vclusterStatus = "unknown"
+	}
+
+	// Get resource usage
+	usage, err := s.k8sRepo.GetResourceMetrics(ctx, workspaceID)
+	if err != nil {
+		s.logger.Error("failed to get resource metrics", zap.Error(err))
+	}
+
+	// Get cluster info
+	clusterInfo, err := s.k8sRepo.GetVClusterInfo(ctx, workspaceID)
+	if err != nil {
+		s.logger.Error("failed to get cluster info", zap.Error(err))
+	}
+
+	status := &workspace.WorkspaceStatus{
+		WorkspaceID:   workspaceID,
+		Status:        ws.Status,
+		Healthy:       vclusterStatus == "running",
+		Message:       fmt.Sprintf("vCluster is %s", vclusterStatus),
+		ResourceUsage: usage,
+		LastChecked:   time.Now(),
+	}
+
+	if clusterInfo != nil {
+		status.ClusterInfo = map[string]interface{}{
+			"endpoint":   clusterInfo.Endpoint,
+			"api_server": clusterInfo.APIServer,
+			"status":     clusterInfo.Status,
+		}
+	}
+
+	// Save status
+	if err := s.repo.SaveWorkspaceStatus(ctx, status); err != nil {
+		s.logger.Error("failed to save workspace status", zap.Error(err))
+	}
+
+	return status, nil
+}
+
+func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req *workspace.WorkspaceOperationRequest) (*workspace.Task, error) {
+	// Get workspace
+	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("workspace not found: %w", err)
+	}
+
+	// Create task based on operation type
+	task := &workspace.Task{
+		ID:          generateID(),
+		WorkspaceID: workspaceID,
+		Type:        req.Operation,
+		Status:      "pending",
+		Progress:    0,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	switch req.Operation {
+	case "backup":
+		task.Message = fmt.Sprintf("Creating backup of workspace %s", ws.Name)
+		if req.Metadata != nil {
+			task.Metadata = req.Metadata
+		}
+	case "restore":
+		task.Message = fmt.Sprintf("Restoring workspace %s", ws.Name)
+		if req.Metadata != nil && req.Metadata["backup_id"] != nil {
+			task.Payload = map[string]interface{}{
+				"backup_id": req.Metadata["backup_id"],
+			}
+		}
+	case "upgrade":
+		task.Message = fmt.Sprintf("Upgrading workspace %s", ws.Name)
+		if req.Metadata != nil && req.Metadata["target_version"] != nil {
+			task.Payload = map[string]interface{}{
+				"target_version": req.Metadata["target_version"],
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported operation: %s", req.Operation)
+	}
+
+	// Save task
+	if err := s.repo.CreateTask(ctx, task); err != nil {
+		return nil, fmt.Errorf("failed to create task: %w", err)
+	}
+
+	// Publish task to message queue for async processing
+	if err := s.publishTask(ctx, task); err != nil {
+		s.logger.Error("failed to publish task", zap.Error(err))
+	}
+
+	return task, nil
+}
+
+func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) (*workspace.Task, error) {
+	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workspace: %w", err)
 	}
 
 	if ws.Status == "deleting" {
-		return fmt.Errorf("workspace is already being deleted")
+		return nil, fmt.Errorf("workspace is already being deleted")
 	}
 
 	// Update status to deleting
@@ -138,7 +255,7 @@ func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) error
 	ws.UpdatedAt = time.Now()
 
 	if err := s.repo.UpdateWorkspace(ctx, ws); err != nil {
-		return fmt.Errorf("failed to update workspace status: %w", err)
+		return nil, fmt.Errorf("failed to update workspace status: %w", err)
 	}
 
 	// Create deletion task
@@ -156,7 +273,7 @@ func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) error
 		s.logger.Error("failed to create deletion task", zap.Error(err))
 	}
 
-	return nil
+	return task, nil
 }
 
 func (s *service) SuspendWorkspace(ctx context.Context, workspaceID string, reason string) error {
@@ -212,19 +329,14 @@ func (s *service) ReactivateWorkspace(ctx context.Context, workspaceID string) e
 }
 
 func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*workspace.ResourceUsage, error) {
-	metrics, err := s.k8sRepo.GetResourceMetrics(ctx, workspaceID)
+	usage, err := s.k8sRepo.GetResourceMetrics(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource metrics: %w", err)
 	}
 
-	usage := &workspace.ResourceUsage{
-		WorkspaceID: workspaceID,
-		CPU:         metrics["cpu"],
-		Memory:      metrics["memory"],
-		Storage:     metrics["storage"],
-		Pods:        int(metrics["pods"]),
-		Timestamp:   time.Now(),
-	}
+	// Set workspace ID and timestamp
+	usage.WorkspaceID = workspaceID
+	usage.Timestamp = time.Now()
 
 	// Store usage record
 	if err := s.repo.CreateResourceUsage(ctx, usage); err != nil {
@@ -234,39 +346,33 @@ func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*wo
 	return usage, nil
 }
 
-func (s *service) GetKubeconfig(ctx context.Context, workspaceID, userID string) (string, error) {
-	// Check if user has access
-	members, err := s.repo.ListWorkspaceMembers(ctx, workspaceID)
+func (s *service) GetKubeconfig(ctx context.Context, workspaceID string) (string, error) {
+	// Get workspace
+	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
-		return "", fmt.Errorf("failed to list workspace members: %w", err)
+		return "", fmt.Errorf("workspace not found: %w", err)
 	}
 
-	hasAccess := false
-	for _, member := range members {
-		if member.UserID == userID {
-			hasAccess = true
-			break
+	if ws.Status != "active" {
+		return "", fmt.Errorf("workspace is not active")
+	}
+
+	// Get kubeconfig from repository
+	kubeconfig, err := s.repo.GetKubeconfig(ctx, workspaceID)
+	if err != nil {
+		// Try to get from vCluster
+		info, err := s.k8sRepo.GetVClusterInfo(ctx, workspaceID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get vcluster info: %w", err)
+		}
+		
+		kubeconfig = info.KubeConfig
+		
+		// Save kubeconfig for future use
+		if err := s.repo.SaveKubeconfig(ctx, workspaceID, kubeconfig); err != nil {
+			s.logger.Error("failed to save kubeconfig", zap.Error(err))
 		}
 	}
-
-	if !hasAccess {
-		return "", fmt.Errorf("user does not have access to workspace")
-	}
-
-	// Get OIDC token for user
-	token, err := s.authRepo.GenerateWorkspaceToken(ctx, userID, workspaceID)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate workspace token: %w", err)
-	}
-
-	// Get kubeconfig from vCluster
-	kubeconfig, err := s.k8sRepo.GetVClusterKubeconfig(ctx, workspaceID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get vcluster kubeconfig: %w", err)
-	}
-
-	// Update kubeconfig with OIDC token
-	kubeconfig = s.updateKubeconfigWithToken(kubeconfig, token)
 
 	return kubeconfig, nil
 }
@@ -308,7 +414,10 @@ func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, re
 	}
 
 	// Update OIDC configuration
-	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID); err != nil {
+	oidcConfig := map[string]interface{}{
+		"users": []string{member.UserID},
+	}
+	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID, oidcConfig); err != nil {
 		s.logger.Error("failed to update OIDC config", zap.Error(err))
 	}
 
@@ -339,8 +448,18 @@ func (s *service) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID
 		return fmt.Errorf("failed to remove member: %w", err)
 	}
 
-	// Update OIDC configuration
-	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID); err != nil {
+	// Update OIDC configuration with remaining users
+	remainingUsers := []string{}
+	for _, m := range members {
+		if m.UserID != userID {
+			remainingUsers = append(remainingUsers, m.UserID)
+		}
+	}
+	
+	oidcConfig := map[string]interface{}{
+		"users": remainingUsers,
+	}
+	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID, oidcConfig); err != nil {
 		s.logger.Error("failed to update OIDC config", zap.Error(err))
 	}
 
@@ -456,10 +575,132 @@ func (s *service) deleteVCluster(ctx context.Context, task *workspace.Task) erro
 	return nil
 }
 
+func (s *service) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
+	return s.repo.GetTask(ctx, taskID)
+}
+
 func (s *service) GetWorkspaceTask(ctx context.Context, taskID string) (*workspace.Task, error) {
 	return s.repo.GetTask(ctx, taskID)
 }
 
+func (s *service) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
+	return s.repo.ListTasks(ctx, workspaceID)
+}
+
 func (s *service) ListWorkspaceTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
 	return s.repo.ListTasks(ctx, workspaceID)
+}
+
+func (s *service) ProcessProvisioningTask(ctx context.Context, taskID string) error {
+	task, err := s.repo.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+
+	if task.Type != "create" {
+		return fmt.Errorf("invalid task type for provisioning: %s", task.Type)
+	}
+
+	// Update task to running
+	task.Status = "running"
+	task.UpdatedAt = time.Now()
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	// Provision vCluster
+	if err := s.provisionVCluster(ctx, task); err != nil {
+		// Update task to failed
+		task.Status = "failed"
+		task.Error = err.Error()
+		task.UpdatedAt = time.Now()
+		task.CompletedAt = &task.UpdatedAt
+		s.repo.UpdateTask(ctx, task)
+		return err
+	}
+
+	// Update task to completed
+	task.Status = "completed"
+	task.Progress = 100
+	completedAt := time.Now()
+	task.CompletedAt = &completedAt
+	task.UpdatedAt = time.Now()
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	return nil
+}
+
+func (s *service) ProcessDeletionTask(ctx context.Context, taskID string) error {
+	task, err := s.repo.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+
+	if task.Type != "delete" {
+		return fmt.Errorf("invalid task type for deletion: %s", task.Type)
+	}
+
+	// Update task to running
+	task.Status = "running"
+	task.UpdatedAt = time.Now()
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	// Delete vCluster
+	if err := s.deleteVCluster(ctx, task); err != nil {
+		// Update task to failed
+		task.Status = "failed"
+		task.Error = err.Error()
+		task.UpdatedAt = time.Now()
+		task.CompletedAt = &task.UpdatedAt
+		s.repo.UpdateTask(ctx, task)
+		return err
+	}
+
+	// Update task to completed
+	task.Status = "completed"
+	task.Progress = 100
+	completedAt := time.Now()
+	task.CompletedAt = &completedAt
+	task.UpdatedAt = time.Now()
+	if err := s.repo.UpdateTask(ctx, task); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	return nil
+}
+
+// Helper functions
+
+func generateID() string {
+	return uuid.New().String()
+}
+
+func (s *service) publishTask(ctx context.Context, task *workspace.Task) error {
+	// TODO: Implement message queue publishing
+	// For now, just log the task
+	s.logger.Info("task created", 
+		zap.String("task_id", task.ID),
+		zap.String("type", task.Type),
+		zap.String("status", task.Status))
+	return nil
+}
+
+func (s *service) ValidateWorkspaceAccess(ctx context.Context, userID, workspaceID string) error {
+	// Check if user is a member of the workspace
+	members, err := s.repo.ListWorkspaceMembers(ctx, workspaceID)
+	if err != nil {
+		return fmt.Errorf("failed to list workspace members: %w", err)
+	}
+
+	for _, member := range members {
+		if member.UserID == userID {
+			return nil // User has access
+		}
+	}
+
+	return fmt.Errorf("user does not have access to workspace")
 }

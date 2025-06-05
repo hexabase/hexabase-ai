@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/kaas-api/internal/api/handlers"
+	"github.com/hexabase/hexabase-kaas/api/internal/api/handlers"
 )
 
 // RegisterMonitoringRoutes registers all monitoring-related routes

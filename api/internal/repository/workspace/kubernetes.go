@@ -7,7 +7,6 @@ import (
 
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
 	corev1 "k8s.io/api/core/v1"
-	resourcev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -86,7 +85,7 @@ func (r *kubernetesRepository) DeleteVCluster(ctx context.Context, workspaceID s
 	return nil
 }
 
-func (r *kubernetesRepository) GetVClusterStatus(ctx context.Context, workspaceID string) (*workspace.ClusterInfo, error) {
+func (r *kubernetesRepository) GetVClusterStatus(ctx context.Context, workspaceID string) (string, error) {
 	vclusterGVR := schema.GroupVersionResource{
 		Group:    "cluster.loft.sh",
 		Version:  "v1alpha1",
@@ -95,38 +94,24 @@ func (r *kubernetesRepository) GetVClusterStatus(ctx context.Context, workspaceI
 
 	vcluster, err := r.dynamicClient.Resource(vclusterGVR).Namespace("hexabase-vclusters").Get(ctx, workspaceID, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get vCluster: %w", err)
+		return "", fmt.Errorf("failed to get vCluster: %w", err)
 	}
 
 	// Extract status
 	status, ok := vcluster.Object["status"].(map[string]interface{})
 	if !ok {
-		return &workspace.ClusterInfo{
-			Status: "unknown",
-		}, nil
-	}
-
-	info := &workspace.ClusterInfo{
-		Status: "unknown",
+		return "unknown", nil
 	}
 
 	if phase, ok := status["phase"].(string); ok {
-		info.Status = phase
+		return phase, nil
 	}
 
 	if ready, ok := status["ready"].(bool); ok && ready {
-		info.Status = "ready"
+		return "ready", nil
 	}
 
-	// Get endpoint from service
-	svc, err := r.clientset.CoreV1().Services("hexabase-vclusters").Get(ctx, workspaceID, metav1.GetOptions{})
-	if err == nil {
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			info.Endpoint = fmt.Sprintf("https://%s:443", svc.Status.LoadBalancer.Ingress[0].Hostname)
-		}
-	}
-
-	return info, nil
+	return "pending", nil
 }
 
 func (r *kubernetesRepository) GetVClusterKubeconfig(ctx context.Context, workspaceID string) (string, error) {
@@ -145,7 +130,7 @@ func (r *kubernetesRepository) GetVClusterKubeconfig(ctx context.Context, worksp
 	return string(kubeconfig), nil
 }
 
-func (r *kubernetesRepository) ScaleVCluster(ctx context.Context, workspaceID string, replicas int32) error {
+func (r *kubernetesRepository) ScaleVCluster(ctx context.Context, workspaceID string, replicas int) error {
 	// Scale vCluster statefulset
 	statefulsetName := fmt.Sprintf("%s-vcluster", workspaceID)
 	statefulset, err := r.clientset.AppsV1().StatefulSets("hexabase-vclusters").Get(ctx, statefulsetName, metav1.GetOptions{})
@@ -153,7 +138,8 @@ func (r *kubernetesRepository) ScaleVCluster(ctx context.Context, workspaceID st
 		return fmt.Errorf("failed to get statefulset: %w", err)
 	}
 
-	statefulset.Spec.Replicas = &replicas
+	replicas32 := int32(replicas)
+	statefulset.Spec.Replicas = &replicas32
 	_, err = r.clientset.AppsV1().StatefulSets("hexabase-vclusters").Update(ctx, statefulset, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to scale statefulset: %w", err)
@@ -167,12 +153,12 @@ func (r *kubernetesRepository) WaitForVClusterReady(ctx context.Context, workspa
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		info, err := r.GetVClusterStatus(ctx, workspaceID)
+		status, err := r.GetVClusterStatus(ctx, workspaceID)
 		if err != nil {
 			return err
 		}
 
-		if info.Status == "ready" {
+		if status == "ready" {
 			return nil
 		}
 
@@ -261,9 +247,10 @@ func (r *kubernetesRepository) ConfigureOIDC(ctx context.Context, workspaceID st
 	return nil
 }
 
-func (r *kubernetesRepository) UpdateOIDCConfig(ctx context.Context, workspaceID string) error {
+func (r *kubernetesRepository) UpdateOIDCConfig(ctx context.Context, workspaceID string, config map[string]interface{}) error {
 	// Update OIDC configuration when members change
 	// This would involve updating RBAC rules in the vCluster
+	// For now, just call ConfigureOIDC
 	return r.ConfigureOIDC(ctx, workspaceID)
 }
 
@@ -314,19 +301,92 @@ func (r *kubernetesRepository) ApplyResourceQuotas(ctx context.Context, workspac
 	return nil
 }
 
-func (r *kubernetesRepository) GetResourceMetrics(ctx context.Context, workspaceID string) (map[string]float64, error) {
+func (r *kubernetesRepository) GetResourceMetrics(ctx context.Context, workspaceID string) (*workspace.ResourceUsage, error) {
 	// Get vCluster metrics
 	// This would typically query metrics-server or Prometheus
 	
 	// For now, return mock data
-	metrics := map[string]float64{
-		"cpu":     0.5,  // 0.5 cores
-		"memory":  1024, // 1GB
-		"storage": 5120, // 5GB
-		"pods":    10,
+	usage := &workspace.ResourceUsage{
+		CPU: workspace.ResourceMetric{
+			Used:      0.5,
+			Requested: 1.0,
+			Limit:     2.0,
+			Unit:      "cores",
+		},
+		Memory: workspace.ResourceMetric{
+			Used:      1024,
+			Requested: 2048,
+			Limit:     4096,
+			Unit:      "MB",
+		},
+		Storage: workspace.ResourceMetric{
+			Used:      5120,
+			Requested: 10240,
+			Limit:     20480,
+			Unit:      "MB",
+		},
+		Pods: workspace.PodMetric{
+			Running: 5,
+			Pending: 2,
+			Failed:  1,
+			Total:   8,
+		},
+		WorkspaceID: workspaceID,
+		Timestamp:   time.Now(),
 	}
 
-	return metrics, nil
+	return usage, nil
+}
+
+func (r *kubernetesRepository) GetVClusterInfo(ctx context.Context, workspaceID string) (*workspace.ClusterInfo, error) {
+	vclusterGVR := schema.GroupVersionResource{
+		Group:    "cluster.loft.sh",
+		Version:  "v1alpha1",
+		Resource: "virtualclusters",
+	}
+	
+	// Get vCluster information
+	vcluster, err := r.dynamicClient.Resource(vclusterGVR).Namespace("hexabase-vclusters").Get(ctx, workspaceID, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vCluster: %w", err)
+	}
+
+	// Extract status
+	status, ok := vcluster.Object["status"].(map[string]interface{})
+	if !ok {
+		return &workspace.ClusterInfo{
+			Status: "unknown",
+		}, nil
+	}
+
+	info := &workspace.ClusterInfo{
+		Status: "unknown",
+	}
+
+	if phase, ok := status["phase"].(string); ok {
+		info.Status = phase
+	}
+
+	if ready, ok := status["ready"].(bool); ok && ready {
+		info.Status = "ready"
+	}
+
+	// Get endpoint from service
+	svc, err := r.clientset.CoreV1().Services("hexabase-vclusters").Get(ctx, workspaceID, metav1.GetOptions{})
+	if err == nil {
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			info.Endpoint = fmt.Sprintf("https://%s:443", svc.Status.LoadBalancer.Ingress[0].Hostname)
+			info.APIServer = info.Endpoint
+		}
+	}
+
+	// Get kubeconfig
+	kubeconfig, err := r.GetVClusterKubeconfig(ctx, workspaceID)
+	if err == nil {
+		info.KubeConfig = kubeconfig
+	}
+
+	return info, nil
 }
 
 // Helper functions
