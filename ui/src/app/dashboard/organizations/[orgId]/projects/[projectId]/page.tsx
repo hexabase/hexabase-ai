@@ -5,12 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Settings, Activity, Users, Cpu, Database, Package, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, Activity, Users, Cpu, Database, Package, RefreshCw, Folder, History } from 'lucide-react';
 import { projectsApi, namespacesApi, type Project, type Namespace } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { NamespaceCard } from '@/components/projects/namespace-card';
 import { CreateNamespaceDialog } from '@/components/projects/create-namespace-dialog';
 import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog';
+import { ProjectMembers } from '@/components/project-members';
+import { ProjectActivityTimeline } from '@/components/project-activity';
+import { useProjectUpdates } from '@/hooks/use-project-updates';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -22,9 +25,31 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isCreateNamespaceOpen, setIsCreateNamespaceOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'namespaces' | 'members' | 'activity'>('overview');
 
   const orgId = params.orgId as string;
   const projectId = params.projectId as string;
+
+  // Subscribe to real-time project updates
+  const { connected } = useProjectUpdates({
+    projectId,
+    organizationId: orgId,
+    onProjectUpdate: (update) => {
+      // Refresh project data on updates
+      if (update.type === 'status' || update.type === 'resource') {
+        loadProjectData();
+      }
+    },
+    onNamespaceUpdate: (update) => {
+      // Refresh namespaces on updates
+      if (activeTab === 'namespaces') {
+        loadNamespaces();
+      }
+    },
+    onActivityUpdate: (activity) => {
+      // Activity updates are handled by the ProjectActivityTimeline component
+    },
+  });
 
   const loadProjectData = useCallback(async () => {
     try {
@@ -229,6 +254,15 @@ export default function ProjectDetailPage() {
               <span className="text-sm text-gray-500">
                 Workspace: {project.workspace_name}
               </span>
+              {connected && (
+                <>
+                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
+                    Live Updates
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -242,8 +276,61 @@ export default function ProjectDetailPage() {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Tabs */}
+      <div className="border-b">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Activity className="w-4 h-4 inline-block mr-2" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('namespaces')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'namespaces'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Folder className="w-4 h-4 inline-block mr-2" />
+            Namespaces
+          </button>
+          <button
+            onClick={() => setActiveTab('members')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'members'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Users className="w-4 h-4 inline-block mr-2" />
+            Members
+          </button>
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'activity'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <History className="w-4 h-4 inline-block mr-2" />
+            Activity
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card data-testid="total-namespaces-stat">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Namespaces</CardTitle>
@@ -312,9 +399,12 @@ export default function ProjectDetailPage() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
 
-      {/* Namespaces Section */}
-      <Card>
+      {/* Namespaces Tab */}
+      {activeTab === 'namespaces' && (
+        <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -371,6 +461,32 @@ export default function ProjectDetailPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* Members Tab */}
+      {activeTab === 'members' && (
+        <Card>
+          <CardContent className="pt-6">
+            <ProjectMembers 
+              organizationId={orgId} 
+              projectId={projectId} 
+              projectName={project.name}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Activity Tab */}
+      {activeTab === 'activity' && (
+        <Card>
+          <CardContent className="pt-6">
+            <ProjectActivityTimeline 
+              organizationId={orgId} 
+              projectId={projectId}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dialogs */}
       <CreateNamespaceDialog
