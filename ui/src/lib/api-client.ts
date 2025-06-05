@@ -369,20 +369,34 @@ export interface Project {
   workspace_id: string;
   workspace_name?: string;
   status: 'active' | 'inactive' | 'archived';
-  namespace_count: number;
-  created_at: string;
-  updated_at: string;
+  namespace_count?: number;
+  namespace_name?: string;
+  resource_quotas?: {
+    cpu_limit: string;
+    memory_limit: string;
+    storage_limit: string;
+    pod_limit?: string;
+  };
   resource_usage?: {
     cpu: string;
     memory: string;
     pods: number;
   };
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateProjectRequest {
   name: string;
   description?: string;
   workspace_id: string;
+  namespace_name?: string;
+  resource_quotas?: {
+    cpu_limit: string;
+    memory_limit: string;
+    storage_limit: string;
+    pod_limit?: string;
+  };
 }
 
 export interface Namespace {
