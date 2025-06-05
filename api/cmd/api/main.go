@@ -11,10 +11,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/kaas-api/internal/api"
-	"github.com/hexabase/kaas-api/internal/config"
-	"github.com/hexabase/kaas-api/internal/db"
+	"github.com/hexabase/hexabase-kaas/api/internal/api/routes"
+	"github.com/hexabase/hexabase-kaas/api/internal/config"
+	"github.com/hexabase/hexabase-kaas/api/internal/db"
+	"github.com/hexabase/hexabase-kaas/api/internal/infrastructure/wire"
 	"go.uber.org/zap"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
@@ -115,9 +120,45 @@ func main() {
 		})
 	})
 
-	// Initialize API handlers
-	apiHandlers := api.NewHandlers(database, cfg, logger)
-	api.SetupRoutes(router, apiHandlers)
+	// Initialize Kubernetes client
+	var k8sConfig *rest.Config
+	var k8sClient kubernetes.Interface
+	var dynamicClient dynamic.Interface
+
+	// Try to use in-cluster config first
+	k8sConfig, err = rest.InClusterConfig()
+	if err != nil {
+		// Fall back to kubeconfig
+		kubeconfigPath := os.Getenv("KUBECONFIG")
+		if kubeconfigPath == "" {
+			kubeconfigPath = os.Getenv("HOME") + "/.kube/config"
+		}
+		k8sConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			logger.Warn("Failed to initialize Kubernetes client", zap.Error(err))
+		}
+	}
+
+	if k8sConfig != nil {
+		k8sClient, err = kubernetes.NewForConfig(k8sConfig)
+		if err != nil {
+			logger.Warn("Failed to create Kubernetes client", zap.Error(err))
+		}
+
+		dynamicClient, err = dynamic.NewForConfig(k8sConfig)
+		if err != nil {
+			logger.Warn("Failed to create dynamic Kubernetes client", zap.Error(err))
+		}
+	}
+
+	// Initialize application with dependency injection
+	app, err := wire.InitializeApp(cfg, database, k8sClient, dynamicClient, k8sConfig, logger)
+	if err != nil {
+		logger.Fatal("Failed to initialize application", zap.Error(err))
+	}
+
+	// Setup routes
+	routes.SetupRoutes(router, app)
 
 	// Create HTTP server
 	srv := &http.Server{
