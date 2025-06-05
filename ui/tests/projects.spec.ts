@@ -1,15 +1,18 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Projects Management', () => {
-  
+test.describe('Project Management', () => {
   test.beforeEach(async ({ page }) => {
-    // Set auth cookie for authenticated requests
-    await page.evaluate(() => {
-      document.cookie = 'hexabase_token=test-token-12345; path=/';
+    // Mock authentication
+    await page.addInitScript(() => {
+      document.cookie = 'hexabase_access_token=test-token; path=/';
+      document.cookie = 'hexabase_refresh_token=test-refresh; path=/';
+      localStorage.setItem('hexabase_user', JSON.stringify({
+        id: 'test-user',
+        email: 'test@hexabase.com',
+        name: 'Test User',
+        provider: 'google'
+      }));
     });
-    
-    // Navigate to organization dashboard 
-    await page.goto('/dashboard/organizations/org1');
   });
 
   test('should display projects navigation in organization dashboard', async ({ page }) => {
