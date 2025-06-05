@@ -201,6 +201,61 @@ export const workspacesApi = {
   },
 };
 
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
+    return response.data;
+  },
+};
+
 // VCluster API functions
 export const vclusterApi = {
   // Get vCluster status
@@ -252,6 +307,61 @@ export const vclusterApi = {
   },
 };
 
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
+    return response.data;
+  },
+};
+
 // Plans API functions
 export const plansApi = {
   // List available plans
@@ -263,6 +373,61 @@ export const plansApi = {
   // Get plan by ID
   get: async (planId: string): Promise<Plan> => {
     const response = await apiClient.get(`/api/v1/plans/${planId}`);
+    return response.data;
+  },
+};
+
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
     return response.data;
   },
 };
@@ -296,6 +461,61 @@ export const authApi = {
   // Logout with token revocation
   logout: async (refreshToken?: string) => {
     const response = await apiClient.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+    return response.data;
+  },
+};
+
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
     return response.data;
   },
 };
@@ -397,6 +617,61 @@ export const projectsApi = {
   },
 };
 
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
+    return response.data;
+  },
+};
+
 // Namespaces API functions
 export const namespacesApi = {
   // List namespaces for project
@@ -431,6 +706,61 @@ export const namespacesApi = {
   // Get namespace resource usage
   getUsage: async (orgId: string, projectId: string, namespaceId: string): Promise<{ cpu: string; memory: string; pods: number }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/projects/${projectId}/namespaces/${namespaceId}/usage`);
+    return response.data;
+  },
+};
+
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
     return response.data;
   },
 };
@@ -633,6 +963,61 @@ export const billingApi = {
   // Get billing settings
   getBillingSettings: async (orgId: string): Promise<{ usage_threshold: number; email_notifications: boolean; slack_webhook?: string }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/settings`);
+    return response.data;
+  },
+};
+
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
     return response.data;
   },
 };
@@ -860,6 +1245,61 @@ export const monitoringApi = {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/monitoring/logs/export?${searchParams}`, {
       responseType: 'blob',
     });
+    return response.data;
+  },
+};
+
+// Task Management Interfaces
+export interface Task {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  workspace_id?: string;
+  organization_id?: string;
+  result?: Record<string, any>;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Task API functions
+export const taskApi = {
+  // Get task by ID
+  get: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // List tasks
+  list: async (params?: { 
+    workspace_id?: string; 
+    organization_id?: string; 
+    status?: string;
+    type?: string;
+    limit?: number;
+  }): Promise<{ tasks: Task[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
+    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    
+    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
+    return response.data;
+  },
+
+  // Cancel task
+  cancel: async (taskId: string): Promise<void> => {
+    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
+  },
+
+  // Retry failed task
+  retry: async (taskId: string): Promise<Task> => {
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
     return response.data;
   },
 };
