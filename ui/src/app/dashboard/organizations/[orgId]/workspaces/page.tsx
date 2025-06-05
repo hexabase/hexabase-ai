@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CreateWorkspaceDialog } from '@/components/create-workspace-dialog';
 import { workspacesApi, type Workspace } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationUpdates } from '@/hooks/use-websocket';
+import type { WorkspaceStatusUpdate } from '@/lib/websocket';
 
 export default function WorkspacesPage() {
   const params = useParams();
@@ -20,6 +22,9 @@ export default function WorkspacesPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const orgId = params.orgId as string;
+  
+  // WebSocket integration
+  const { onWorkspaceStatus, isConnected } = useOrganizationUpdates(orgId);
 
   const loadWorkspaces = async () => {
     try {
@@ -63,6 +68,32 @@ export default function WorkspacesPage() {
   useEffect(() => {
     loadWorkspaces();
   }, [orgId]);
+
+  // Listen for workspace status updates
+  useEffect(() => {
+    const unsubscribe = onWorkspaceStatus((update: WorkspaceStatusUpdate) => {
+      setWorkspaces(prev => 
+        prev.map(ws => 
+          ws.id === update.workspace_id 
+            ? { ...ws, vcluster_status: update.status }
+            : ws
+        )
+      );
+      
+      // Show toast for important status changes
+      if (update.status === 'RUNNING' || update.status === 'ERROR') {
+        toast({
+          title: update.status === 'RUNNING' ? 'Workspace Started' : 'Workspace Error',
+          description: update.message || `Workspace ${update.workspace_id} status changed to ${update.status}`,
+          variant: update.status === 'ERROR' ? 'destructive' : 'default',
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [onWorkspaceStatus, toast]);
 
   const handleWorkspaceCreated = async () => {
     setCreateDialogOpen(false);

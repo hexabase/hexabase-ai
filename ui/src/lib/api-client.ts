@@ -308,59 +308,6 @@ export const vclusterApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Plans API functions
 export const plansApi = {
@@ -378,59 +325,6 @@ export const plansApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Auth API functions
 export const authApi = {
@@ -466,59 +360,6 @@ export const authApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Project types
 export interface Project {
@@ -618,59 +459,6 @@ export const projectsApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Namespaces API functions
 export const namespacesApi = {
@@ -711,59 +499,6 @@ export const namespacesApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Billing & Subscription Interfaces
 export interface Subscription {
@@ -968,59 +703,6 @@ export const billingApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
 
 // Monitoring & Observability Interfaces
 export interface ClusterHealth {
@@ -1250,56 +932,3 @@ export const monitoringApi = {
 };
 
 // Task Management Interfaces
-export interface Task {
-  id: string;
-  type: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  workspace_id?: string;
-  organization_id?: string;
-  result?: Record<string, any>;
-  error?: string;
-  created_at: string;
-  updated_at: string;
-  completed_at?: string;
-}
-
-// Task API functions
-export const taskApi = {
-  // Get task by ID
-  get: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  // List tasks
-  list: async (params?: { 
-    workspace_id?: string; 
-    organization_id?: string; 
-    status?: string;
-    type?: string;
-    limit?: number;
-  }): Promise<{ tasks: Task[]; total: number }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.workspace_id) searchParams.append('workspace_id', params.workspace_id);
-    if (params?.organization_id) searchParams.append('organization_id', params.organization_id);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    
-    const response = await apiClient.get(`/api/v1/tasks?${searchParams}`);
-    return response.data;
-  },
-
-  // Cancel task
-  cancel: async (taskId: string): Promise<void> => {
-    await apiClient.post(`/api/v1/tasks/${taskId}/cancel`);
-  },
-
-  // Retry failed task
-  retry: async (taskId: string): Promise<Task> => {
-    const response = await apiClient.post(`/api/v1/tasks/${taskId}/retry`);
-    return response.data;
-  },
-};
