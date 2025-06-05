@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Download, Play, Square, RefreshCw, Activity, Users, Cpu, Database } from 'lucide-react';
 import { workspacesApi, vclusterApi, type Workspace, type VClusterHealth } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspaceUpdates } from '@/hooks/use-websocket';
+import type { WorkspaceStatusUpdate, VClusterHealthUpdate } from '@/lib/websocket';
+import { WorkspaceOperations } from '@/components/workspace-operations';
 
 export default function WorkspaceDetailPage() {
   const params = useParams();
@@ -20,6 +23,9 @@ export default function WorkspaceDetailPage() {
 
   const orgId = params.orgId as string;
   const workspaceId = params.workspaceId as string;
+  
+  // WebSocket integration for real-time updates
+  const { onWorkspaceStatus, onVClusterHealth, isConnected } = useWorkspaceUpdates(orgId, workspaceId);
 
   const loadWorkspaceData = async () => {
     try {
@@ -78,6 +84,40 @@ export default function WorkspaceDetailPage() {
     const interval = setInterval(loadHealth, 30000); // Poll health every 30 seconds
     return () => clearInterval(interval);
   }, [orgId, workspaceId]);
+
+  // Listen for real-time workspace status updates
+  useEffect(() => {
+    const unsubscribeStatus = onWorkspaceStatus((update: WorkspaceStatusUpdate) => {
+      if (update.workspace_id === workspaceId) {
+        setWorkspace(prev => prev ? { ...prev, vcluster_status: update.status } : null);
+        
+        // Show toast for status changes
+        if (update.message) {
+          toast({
+            title: 'Workspace Status Update',
+            description: update.message,
+            variant: update.status === 'ERROR' ? 'destructive' : 'default',
+          });
+        }
+      }
+    });
+
+    const unsubscribeHealth = onVClusterHealth((update: VClusterHealthUpdate) => {
+      if (update.workspace_id === workspaceId) {
+        setHealth({
+          healthy: update.healthy,
+          components: update.components,
+          resource_usage: update.resource_usage,
+          last_checked: update.timestamp,
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeStatus();
+      unsubscribeHealth();
+    };
+  }, [workspaceId, onWorkspaceStatus, onVClusterHealth, toast]);
 
   const handleVClusterAction = async (action: 'start' | 'stop') => {
     try {
@@ -204,6 +244,13 @@ export default function WorkspaceDetailPage() {
           <Badge variant={getStatusBadgeVariant(workspace.vcluster_status)} data-testid="workspace-status">
             {workspace.vcluster_status}
           </Badge>
+          
+          {/* Lifecycle Operations */}
+          <WorkspaceOperations 
+            organizationId={orgId} 
+            workspaceId={workspaceId} 
+          />
+          
           <Button
             variant="outline"
             onClick={handleDownloadKubeconfig}

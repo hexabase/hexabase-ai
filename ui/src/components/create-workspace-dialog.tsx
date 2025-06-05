@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { workspacesApi, plansApi, type Plan, type CreateWorkspaceRequest } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { TaskMonitor } from '@/components/task-monitor';
 import { Loader2, Check, Zap, Server, Cloud } from 'lucide-react';
 
 interface CreateWorkspaceDialogProps {
@@ -28,6 +29,7 @@ export function CreateWorkspaceDialog({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateWorkspaceRequest>({
     name: '',
     plan_id: '',
@@ -109,15 +111,27 @@ export function CreateWorkspaceDialog({
 
     try {
       setLoading(true);
-      await workspacesApi.create(orgId, formData);
-      toast({
-        title: 'Success',
-        description: 'Workspace created successfully',
-      });
-      onSuccess?.();
-      onOpenChange(false);
-      // Reset form
-      setFormData({ name: '', plan_id: plans[0]?.id || '' });
+      const response = await workspacesApi.create(orgId, formData);
+      
+      // Check if response contains a task ID (for async workspace creation)
+      if (response.task_id) {
+        setTaskId(response.task_id);
+        toast({
+          title: 'Creating Workspace',
+          description: 'Your workspace is being provisioned...',
+        });
+      } else {
+        // Synchronous creation completed
+        toast({
+          title: 'Success',
+          description: 'Workspace created successfully',
+        });
+        onSuccess?.();
+        onOpenChange(false);
+        // Reset form
+        setFormData({ name: '', plan_id: plans[0]?.id || '' });
+        setTaskId(null);
+      }
     } catch (error) {
       console.error('Failed to create workspace:', error);
       toast({
@@ -259,6 +273,36 @@ export function CreateWorkspaceDialog({
             </Button>
           </DialogFooter>
         </form>
+        
+        {/* Task Monitor for async workspace creation */}
+        {taskId && (
+          <div className="p-6 border-t">
+            <TaskMonitor
+              taskId={taskId}
+              organizationId={orgId}
+              onComplete={() => {
+                toast({
+                  title: 'Success',
+                  description: 'Workspace created successfully',
+                });
+                onSuccess?.();
+                onOpenChange(false);
+                // Reset state
+                setFormData({ name: '', plan_id: plans[0]?.id || '' });
+                setTaskId(null);
+              }}
+              onError={(error) => {
+                toast({
+                  title: 'Error',
+                  description: error || 'Failed to create workspace',
+                  variant: 'destructive',
+                });
+                setTaskId(null);
+              }}
+              showActions={false}
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
