@@ -1,0 +1,100 @@
+{
+  "dashboard": {
+    "title": "CI/CD Pipeline Metrics",
+    "uid": "cicd-metrics",
+    "version": 1,
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "type": "graph",
+        "title": "Build Success Rate",
+        "targets": [
+          {
+            "expr": "rate(ci_pipeline_success_total[5m]) / rate(ci_pipeline_total[5m])",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "max": 1,
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "type": "graph",
+        "title": "Deployment Frequency",
+        "targets": [
+          {
+            "expr": "increase(deployments_total[24h])",
+            "legendFormat": "{{environment}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "type": "stat",
+        "title": "Mean Time to Recovery",
+        "targets": [
+          {
+            "expr": "avg(deployment_rollback_duration_seconds)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "type": "graph",
+        "title": "Pipeline Duration",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, ci_pipeline_duration_seconds_bucket)",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, ci_pipeline_duration_seconds_bucket)",
+            "legendFormat": "p50",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(deployments_total, environment)",
+          "refresh": 1,
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    }
+  }
+}

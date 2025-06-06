@@ -37,6 +37,7 @@ type CreateWorkspaceRequest struct {
 	NodeCount         int                    `json:"node_count,omitempty"`
 	Labels            map[string]string      `json:"labels,omitempty"`
 	Settings          map[string]interface{} `json:"settings,omitempty"`
+	CreatedBy         string                 `json:"created_by,omitempty"`
 }
 
 // UpdateWorkspaceRequest represents a request to update a workspace
@@ -47,6 +48,7 @@ type UpdateWorkspaceRequest struct {
 	NodeCount   int                    `json:"node_count,omitempty"`
 	Labels      map[string]string      `json:"labels,omitempty"`
 	Settings    map[string]interface{} `json:"settings,omitempty"`
+	UpdatedBy   string                 `json:"updated_by,omitempty"`
 }
 
 // WorkspaceList represents a list of workspaces
@@ -157,8 +159,9 @@ type WorkspaceMember struct {
 
 // AddMemberRequest represents a request to add a member to a workspace
 type AddMemberRequest struct {
-	UserID string `json:"user_id" binding:"required"`
-	Role   string `json:"role" binding:"required,oneof=viewer editor admin"`
+	UserID  string `json:"user_id" binding:"required"`
+	Role    string `json:"role" binding:"required,oneof=viewer editor admin"`
+	AddedBy string `json:"added_by,omitempty"`
 }
 
 // ClusterInfo represents vCluster information

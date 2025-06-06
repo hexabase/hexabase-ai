@@ -15,6 +15,14 @@ type Service interface {
 	DeleteProject(ctx context.Context, projectID string) error
 	GetProjectStats(ctx context.Context, projectID string) (*ProjectStats, error)
 	
+	// Hierarchical project management
+	CreateSubProject(ctx context.Context, parentID string, req *CreateProjectRequest) (*Project, error)
+	GetProjectHierarchy(ctx context.Context, projectID string) (*ProjectHierarchy, error)
+	
+	// Resource management
+	ApplyResourceQuota(ctx context.Context, projectID string, quota *ResourceQuota) error
+	GetResourceUsage(ctx context.Context, projectID string) (*ResourceUsage, error)
+	
 	// Namespace management
 	CreateNamespace(ctx context.Context, projectID string, req *CreateNamespaceRequest) (*Namespace, error)
 	GetNamespace(ctx context.Context, projectID, namespaceID string) (*Namespace, error)
@@ -30,9 +38,15 @@ type Service interface {
 	UpdateMemberRole(ctx context.Context, projectID, memberID string, req *UpdateMemberRoleRequest) (*ProjectMember, error)
 	RemoveMember(ctx context.Context, projectID, memberID, removerID string) error
 	
+	// Project member management (aliases for handler compatibility)
+	AddProjectMember(ctx context.Context, projectID string, req *AddMemberRequest) error
+	RemoveProjectMember(ctx context.Context, projectID, userID string) error
+	ListProjectMembers(ctx context.Context, projectID string) ([]*ProjectMember, error)
+	
 	// Activity tracking
 	ListActivities(ctx context.Context, projectID string, limit int) (*ActivityList, error)
 	LogActivity(ctx context.Context, activity *ProjectActivity) error
+	GetActivityLogs(ctx context.Context, projectID string, filter ActivityFilter) ([]*ProjectActivity, error)
 	
 	// Access control
 	ValidateProjectAccess(ctx context.Context, userID, projectID string, requiredRole string) error

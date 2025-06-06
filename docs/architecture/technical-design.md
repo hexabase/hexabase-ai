@@ -101,7 +101,7 @@ Hexabase KaaS is a multi-tenant Kubernetes as a Service platform built on K3s an
 {
   "sub": "hxb-usr-xxxxx",
   "groups": ["WSAdmins", "WorkspaceMembers", "developers"],
-  "iss": "https://api.hexabase.io",
+  "iss": "https://api.hexabase.ai",
   "aud": "ws-xxxxx",
   "exp": 1234567890
 }
@@ -123,7 +123,7 @@ Hexabase KaaS is a multi-tenant Kubernetes as a Service platform built on K3s an
 ### Dedicated Node Management
 ```yaml
 nodeSelector:
-  hexabase.io/node-pool: ws-xxxxx
+  hexabase.ai/node-pool: ws-xxxxx
 tolerations:
 - key: dedicated
   value: ws-xxxxx

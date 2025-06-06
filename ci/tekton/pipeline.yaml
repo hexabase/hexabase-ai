@@ -1,0 +1,73 @@
+# Tekton Pipeline for Hexabase KaaS
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: hexabase-ci-pipeline
+spec:
+  params:
+    - name: git-url
+      type: string
+    - name: git-revision
+      type: string
+      default: main
+    - name: image-registry
+      type: string
+      default: harbor.hexabase.ai
+  workspaces:
+    - name: shared-workspace
+    - name: docker-credentials
+  tasks:
+    - name: git-clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    - name: golang-test
+      runAfter: [git-clone]
+      taskRef:
+        name: golang-test
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: trivy-scan
+      runAfter: [git-clone]
+      taskRef:
+        name: trivy-scanner
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: kaniko-build
+      runAfter: [golang-test, trivy-scan]
+      taskRef:
+        name: kaniko
+      params:
+        - name: IMAGE
+          value: $(params.image-registry)/hexabase/api:$(tasks.git-clone.results.commit)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+
+    - name: update-manifest
+      runAfter: [kaniko-build]
+      taskRef:
+        name: git-cli
+      params:
+        - name: GIT_SCRIPT
+          value: |
+            git clone https://github.com/hexabase/k8s-manifests
+            cd k8s-manifests
+            kustomize edit set image api=$(params.image-registry)/hexabase/api:$(tasks.git-clone.results.commit)
+            git add .
+            git commit -m "Update image to $(tasks.git-clone.results.commit)"
+            git push

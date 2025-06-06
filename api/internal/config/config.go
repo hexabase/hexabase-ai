@@ -168,7 +168,7 @@ func setDefaults() {
 
 	// Auth defaults
 	viper.SetDefault("auth.jwt_expiration", 3600) // 1 hour
-	viper.SetDefault("auth.oidc_issuer", "https://api.hexabase.io")
+	viper.SetDefault("auth.oidc_issuer", "https://api.hexabase.ai")
 
 	// K8s defaults
 	viper.SetDefault("k8s.in_cluster", false)

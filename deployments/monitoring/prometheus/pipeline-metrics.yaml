@@ -1,0 +1,13 @@
+# ServiceMonitor for Tekton Pipeline Metrics
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: tekton-pipelines
+spec:
+  selector:
+    matchLabels:
+      app: tekton-pipelines-controller
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

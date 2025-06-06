@@ -495,7 +495,7 @@ Below are the definitions of major tables. Data types, constraints, and index st
   - `vcluster_instance_name` (TEXT, UNIQUE, Nullable): vCluster instance name on Host K3s cluster (e.g., `hxb-ws-uuid`). Set after successful provisioning.
   - `vcluster_status` (TEXT, NOT NULL, CHECK (`vcluster_status` IN (`PENDING_CREATION`, `CONFIGURING_HNC`, `RUNNING`, `UPDATING_PLAN`, `UPDATING_NODES`, `DELETING`, `ERROR`, `UNKNOWN`))): vCluster status.
   - `vcluster_config` (JSONB, Nullable): vCluster-specific configuration information (e.g., `{ "k3sVersion": "v1.28.5+k3s1", "helmValues": { "syncer": { "extraArgs": ["--tls-san=my.custom.domain"] } } }`).
-  - `dedicated_node_config` (JSONB, Nullable): Configuration of dedicated nodes assigned to this Workspace (e.g., `{ "nodeCount": 2, "instanceType": "m5.large", "nodeSelector": {"hexabase.io/node-pool": "ws-uuid"}, "taints": [{"key": "dedicated", "value": "ws-uuid", "effect": "NoSchedule"}] }`). Can only be set when allowed by Plan.
+  - `dedicated_node_config` (JSONB, Nullable): Configuration of dedicated nodes assigned to this Workspace (e.g., `{ "nodeCount": 2, "instanceType": "m5.large", "nodeSelector": {"hexabase.ai/node-pool": "ws-uuid"}, "taints": [{"key": "dedicated", "value": "ws-uuid", "effect": "NoSchedule"}] }`). Can only be set when allowed by Plan.
   - `stripe_subscription_item_id` (TEXT, Nullable, UNIQUE): ID when Workspace is billed as individual item of Organization's Stripe subscription, or Workspace-unit subscription ID.
   - `created_at` (TIMESTAMPZ, Default: `NOW()`, NOT NULL): Creation datetime.
   - `updated_at` (TIMESTAMPZ, Default: `NOW()`, NOT NULL): Update datetime.
@@ -615,7 +615,7 @@ The Hexabase control plane functions as an independent OIDC provider for each Wo
       - Remove duplicates from all collected group names (directly affiliated group names + all inherited ancestor group names) and create **a flat string array of group names**. Set this array as the value of the `groups` claim in the OIDC ID token.
       - Example: If a user belongs to `frontend-devs`, and `frontend-devs`'s parent is `developers`, and `developers`'s parent is `all-workspace-users`, the `groups` claim would be `["frontend-devs", "developers", "all-workspace-users"]`.
   5.  **Standard OIDC Claim Settings**:
-      - `iss` (Issuer): Set the unique issuer URL of the Hexabase OIDC provider. This URL must match the vCluster API server configuration. From security and tenant isolation perspectives, consider either different issuer URLs per Workspace (e.g., `https://auth.hexabase.io/oidc/{workspaceId}`) or a single issuer URL (e.g., `https://auth.hexabase.io/oidc`) distinguishing targets by `aud` claim. In the latter case, vCluster side configuration must also be adjusted accordingly. Currently proceeding with different Issuer URLs per Workspace.
+      - `iss` (Issuer): Set the unique issuer URL of the Hexabase OIDC provider. This URL must match the vCluster API server configuration. From security and tenant isolation perspectives, consider either different issuer URLs per Workspace (e.g., `https://auth.hexabase.ai/oidc/{workspaceId}`) or a single issuer URL (e.g., `https://auth.hexabase.ai/oidc`) distinguishing targets by `aud` claim. In the latter case, vCluster side configuration must also be adjusted accordingly. Currently proceeding with different Issuer URLs per Workspace.
       - `aud` (Audience): Specifies the intended audience of the ID token. Usually, this is the client ID expected by the vCluster API server (e.g., `kubernetes` which is the default identifier for Kubernetes API servers, or OIDC client ID dynamically configured per Workspace/vCluster, e.g., `hexabase-kaas-{workspaceId}`).
       - `exp` (Expiration Time): Token expiration time (Unix timestamp). Set to a short period (e.g., 10 minutes to 1 hour) for security considerations. Tools like `kubectl` typically have mechanisms to trigger refresh tokens (or re-authentication flow if out of scope) when tokens expire.
       - `iat` (Issued At): Token issue datetime (Unix timestamp).
@@ -633,7 +633,7 @@ The Hexabase control plane functions as an independent OIDC provider for each Wo
   - **Function**: Provides meta-information about various endpoint URLs of the OIDC provider (e.g., `authorization_endpoint`, `token_endpoint` (likely not directly used in Hexabase KaaS but as standard specification), `userinfo_endpoint` (optional), `jwks_uri`, `end_session_endpoint` (for logout, optional)), supported response types, scopes, claims, signature algorithms, authentication methods, etc. This allows OIDC clients like vCluster API servers to dynamically discover OIDC provider configuration and automatically configure themselves.
 - **vCluster Configuration**:
   - During vCluster provisioning (or at appropriate timing such as after HNC setup completion), accurately configure the following information in the target vCluster's API server startup options or configuration files. This is usually set through vCluster Helm Chart values or as `vcluster CLI` flags.
-    - `--oidc-issuer-url`: Hexabase OIDC provider's Discovery Document endpoint URL (e.g., `https://auth.hexabase.io/oidc/{workspaceId}`).
+    - `--oidc-issuer-url`: Hexabase OIDC provider's Discovery Document endpoint URL (e.g., `https://auth.hexabase.ai/oidc/{workspaceId}`).
     - `--oidc-client-id`: Client ID for vCluster to identify itself to the OIDC provider (e.g., `kubernetes`, or ID uniquely generated per Workspace, e.g., `hexabase-kaas-{workspaceId}`).
     - `--oidc-username-claim`: Specifies which claim in the ID token to interpret as Kubernetes username (e.g., `sub` or `email`). `sub` (Hexabase User ID) is recommended.
     - `--oidc-username-prefix`: Prefix automatically added to Kubernetes usernames (e.g., `hexabase:`). This avoids namespace collisions with users created by other authentication methods (e.g., ServiceAccount).
@@ -656,11 +656,11 @@ Manages the entire vCluster lifecycle (creation, configuration, update, deletion
 
   - When `dedicatedNodeConfig` (e.g., node count, instance type, region, custom labels) is specified during Workspace creation or plan update, configure so that vCluster instances (Pods) for that Workspace are scheduled exclusively or preferentially on specific Node groups within the Host K3s cluster. This enables performance guarantees, enhanced security isolation (isolation from other tenant workloads), and support for specific hardware requirements (e.g., GPU-equipped nodes).
   - **Preparation (Host K3s Cluster)**:
-    - Nodes available for dedicated allocation need pre-applied labels indicating information like instance type, CPU architecture, GPU type, region, availability zone, specific tenant groups (e.g., `hexabase.io/node-type=c5.xlarge`, `hexabase.io/node-pool=dedicated-gpu`, `topology.kubernetes.io/region=ap-northeast-1`, `topology.kubernetes.io/zone=ap-northeast-1a`). These labels are applied by Host cluster administrators.
+    - Nodes available for dedicated allocation need pre-applied labels indicating information like instance type, CPU architecture, GPU type, region, availability zone, specific tenant groups (e.g., `hexabase.ai/node-type=c5.xlarge`, `hexabase.ai/node-pool=dedicated-gpu`, `topology.kubernetes.io/region=ap-northeast-1`, `topology.kubernetes.io/zone=ap-northeast-1a`). These labels are applied by Host cluster administrators.
     - As needed, create Node pools dedicated to specific tenants and apply common Taints to Nodes in that pool to prevent other general workloads from being scheduled on those Node groups (e.g., Taint `dedicated-for-workspace=ws-uuid:NoSchedule` or `resource-type=gpu:NoSchedule`).
   - **Implementation Method (During vCluster Provisioning)**:
     - Through Helm Chart values.yaml used when deploying vCluster (used internally by `vcluster CLI`), or direct parameters to `vcluster CLI`, appropriately set `nodeSelector`, `affinity` (nodeAffinity), `tolerations` in Pod templates for vCluster control plane Pods (API server, controller manager, etc.) and data plane components (syncer, etc.).
-      - **`nodeSelector`**: Places vCluster Pods only on Nodes that fully satisfy specific label sets (e.g., `hexabase.io/node-pool: "dedicated-ws-uuid-123"`). This is the simplest allocation method.
+      - **`nodeSelector`**: Places vCluster Pods only on Nodes that fully satisfy specific label sets (e.g., `hexabase.ai/node-pool: "dedicated-ws-uuid-123"`). This is the simplest allocation method.
       - **`affinity.nodeAffinity`**: Defines more flexible scheduling rules (e.g., `preferredDuringSchedulingIgnoredDuringExecution` that strongly recommends specific instance types but allows other types if unavailable, or `podAntiAffinity` to evenly distribute across Node groups with specific labels). For example, specifications like "c5.xlarge is preferred, but m5.xlarge is acceptable if unavailable" are possible.
       - **`tolerations`**: Configure to tolerate Taints applied to dedicated Nodes (e.g., `dedicated-for-workspace=ws-uuid-123:NoSchedule`) to allow scheduling on those Nodes.
     - These settings deploy vCluster's main components to specified Node groups, allowing tenants to execute workloads in isolated form within allocated resources.
@@ -686,7 +686,7 @@ Manages the entire vCluster lifecycle (creation, configuration, update, deletion
           name: "my-microservice-alpha" # This becomes child Namespace name
           namespace: "backend-services" # Parent Namespace
           labels:
-            hexabase.io/project-id: "prj-child-uuid" # Attach Hexabase Project ID as label
+            hexabase.ai/project-id: "prj-child-uuid" # Attach Hexabase Project ID as label
             # Other management labels
         # spec:
         #   allowCascadingDeletion: true # Whether deleted together when parent is deleted (default false)
@@ -742,7 +742,7 @@ Time-consuming operations and external system integrations are processed by NATS
         "region": "ap-northeast-1"
       },
       "oidcConfig": {
-        "issuerUrl": "https://auth.hexabase.io/oidc/ws-uuid-new-abc",
+        "issuerUrl": "https://auth.hexabase.ai/oidc/ws-uuid-new-abc",
         "clientId": "kubernetes",
         "usernameClaim": "sub",
         "groupsClaim": "groups"

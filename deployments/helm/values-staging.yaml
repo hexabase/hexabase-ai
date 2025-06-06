@@ -1,0 +1,278 @@
+# Hexabase KaaS Staging Values
+# Similar to production but with reduced scale for cost optimization
+
+global:
+  domain: staging.hexabase.ai
+  storageClass: standard  # Can use standard storage for staging
+  
+api:
+  replicas: 2  # Reduced from 3
+  image:
+    repository: hexabase/hexabase-kaas-api
+    tag: staging  # Use staging tag
+    pullPolicy: Always  # Always pull latest staging image
+  
+  config:
+    mode: staging
+    logLevel: debug  # More verbose logging for staging
+    
+    jwt:
+      issuer: https://api.staging.hexabase.ai
+      audience: hexabase-kaas-staging
+    
+    oauth:
+      providers:
+        google:
+          existingSecret: hexabase-oauth-google-staging
+          clientIdKey: client-id
+          clientSecretKey: client-secret
+        github:
+          existingSecret: hexabase-oauth-github-staging
+          clientIdKey: client-id
+          clientSecretKey: client-secret
+    
+    stripe:
+      # Use Stripe test mode for staging
+      existingSecret: hexabase-stripe-staging
+      apiKeyKey: api-key
+      webhookSecretKey: webhook-secret
+      testMode: true
+
+  # Reduced resources for staging
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Reduced pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  # Conservative autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 85
+
+  # Relaxed affinity for staging
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - hexabase-api
+          topologyKey: kubernetes.io/hostname
+
+ui:
+  replicas: 1  # Single replica for staging
+  image:
+    repository: hexabase/hexabase-kaas-ui
+    tag: staging
+    pullPolicy: Always
+  
+  config:
+    apiUrl: https://api.staging.hexabase.ai
+    wsUrl: wss://api.staging.hexabase.ai
+    environment: staging  # Show staging banner
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 85
+
+# Staging PostgreSQL configuration
+postgresql:
+  enabled: false
+  external:
+    # Single instance for staging (no HA)
+    host: postgres-staging.database.svc.cluster.local
+    port: 5432
+    database: hexabase_kaas_staging
+    existingSecret: hexabase-postgresql-staging
+    existingSecretUsernameKey: username
+    existingSecretPasswordKey: password
+    sslMode: require
+    
+    # Smaller connection pool for staging
+    poolSize: 15
+    maxIdleConnections: 3
+    maxOpenConnections: 15
+
+# Staging Redis configuration
+redis:
+  enabled: false
+  external:
+    # Single Redis instance (no Sentinel)
+    host: redis-staging.cache.svc.cluster.local
+    port: 6379
+    existingSecret: hexabase-redis-staging
+    existingSecretPasswordKey: password
+    
+    database: 0
+    poolSize: 25
+    minIdleConns: 5
+    maxRetries: 3
+
+# Staging NATS configuration
+nats:
+  enabled: false
+  external:
+    # Single NATS server for staging
+    servers:
+      - nats://nats-staging.messaging.svc.cluster.local:4222
+    
+    existingSecret: hexabase-nats-staging
+    existingSecretUsernameKey: username
+    existingSecretPasswordKey: password
+    
+    jetstream:
+      enabled: true
+      domain: hexabase-staging
+
+# vCluster configuration for staging
+vcluster:
+  operator:
+    enabled: false
+  
+  defaults:
+    # Reduced resources for staging vClusters
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    
+    storage:
+      size: 5Gi
+      className: standard
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Basic auth for staging environment
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: hexabase-staging-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Hexabase Staging"
+    
+  tls:
+    enabled: true
+    certManager:
+      enabled: true
+      issuer: letsencrypt-prod  # Use production issuer for valid certificates
+  
+  hosts:
+    api:
+      host: api.staging.hexabase.ai
+      paths:
+        - path: /
+          pathType: Prefix
+    ui:
+      host: app.staging.hexabase.ai
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Monitoring - simplified for staging
+monitoring:
+  enabled: true
+  
+  prometheus:
+    enabled: false
+    external:
+      url: http://prometheus-staging.monitoring.svc.cluster.local:9090
+      serviceMonitor:
+        enabled: true
+        interval: 60s  # Less frequent scraping
+  
+  grafana:
+    enabled: false
+    external:
+      url: http://grafana-staging.monitoring.svc.cluster.local:3000
+  
+  # Reduced alerting for staging
+  alerts:
+    enabled: true
+    criticalOnly: true  # Only critical alerts in staging
+
+# Backup configuration - less frequent for staging
+backup:
+  enabled: true
+  schedule: "0 4 * * 0"  # Weekly on Sunday at 4 AM
+  
+  s3:
+    endpoint: s3.storage.svc.cluster.local
+    bucket: hexabase-backups-staging
+    region: us-east-1
+    existingSecret: hexabase-backup-s3-staging
+    accessKeyIdKey: access-key-id
+    secretAccessKeyKey: secret-access-key
+  
+  retention:
+    daily: 0  # No daily backups
+    weekly: 2
+    monthly: 1
+
+# Relaxed security for staging
+security:
+  podSecurityPolicy:
+    enabled: false  # Disabled for easier debugging
+  
+  networkPolicy:
+    enabled: true
+    
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    
+  containerSecurityContext:
+    readOnlyRootFilesystem: false  # Allow writes for debugging
+    allowPrivilegeEscalation: false
+
+# Service accounts
+serviceAccount:
+  create: true
+  annotations:
+    # Staging-specific annotations
+    environment: staging
+
+# Additional staging-specific configuration
+extraEnv:
+  - name: ENVIRONMENT
+    value: staging
+  - name: ENABLE_DEBUG_ENDPOINTS
+    value: "true"
+  - name: LOG_LEVEL
+    value: debug
+
+# Use default node pool for staging
+nodeSelector: {}
+
+# No dedicated nodes for staging
+tolerations: []

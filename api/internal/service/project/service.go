@@ -68,9 +68,9 @@ func (s *service) CreateProject(ctx context.Context, req *project.CreateProjectR
 
 	// Create namespace in vCluster
 	labels := map[string]string{
-		"hexabase.io/project-id":   proj.ID,
-		"hexabase.io/workspace-id": proj.WorkspaceID,
-		"hexabase.io/managed":      "true",
+		"hexabase.ai/project-id":   proj.ID,
+		"hexabase.ai/workspace-id": proj.WorkspaceID,
+		"hexabase.ai/managed":      "true",
 	}
 
 	if err := s.k8sRepo.CreateNamespace(ctx, req.WorkspaceID, proj.Name, labels); err != nil {
@@ -514,7 +514,7 @@ func (s *service) ApplyResourceQuota(ctx context.Context, projectID string, quot
 	return nil
 }
 
-func (s *service) GetResourceUsage(ctx context.Context, projectID string) (map[string]interface{}, error) {
+func (s *service) GetResourceUsage(ctx context.Context, projectID string) (*project.ResourceUsage, error) {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
@@ -525,14 +525,7 @@ func (s *service) GetResourceUsage(ctx context.Context, projectID string) (map[s
 		return nil, fmt.Errorf("failed to get resource usage: %w", err)
 	}
 
-	// Convert ResourceUsage to map
-	result := map[string]interface{}{
-		"cpu":    usage.CPU,
-		"memory": usage.Memory,
-		"pods":   usage.Pods,
-	}
-
-	return result, nil
+	return usage, nil
 }
 
 func (s *service) AddMember(ctx context.Context, projectID, adderID string, req *project.AddMemberRequest) (*project.ProjectMember, error) {
@@ -700,6 +693,18 @@ func (s *service) RemoveMember(ctx context.Context, projectID, memberID, remover
 	s.repo.CreateActivity(ctx, activity)
 
 	return nil
+}
+
+func (s *service) AddProjectMember(ctx context.Context, projectID string, req *project.AddMemberRequest) error {
+	// Use the existing AddMember method
+	adderID := req.AddedBy
+	if adderID == "" {
+		// If no adder ID provided, use a system ID
+		adderID = "system"
+	}
+	
+	_, err := s.AddMember(ctx, projectID, adderID, req)
+	return err
 }
 
 func (s *service) RemoveProjectMember(ctx context.Context, projectID, userID string) error {

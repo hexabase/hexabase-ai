@@ -383,34 +383,36 @@ func (s *service) updateKubeconfigWithToken(kubeconfig, token string) string {
 	return kubeconfig
 }
 
-func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, req *workspace.AddMemberRequest) error {
+func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, req *workspace.AddMemberRequest) (*workspace.WorkspaceMember, error) {
 	// Check if workspace exists
 	if _, err := s.repo.GetWorkspace(ctx, workspaceID); err != nil {
-		return fmt.Errorf("workspace not found: %w", err)
+		return nil, fmt.Errorf("workspace not found: %w", err)
 	}
 
 	// Check if user is already a member
 	members, err := s.repo.ListWorkspaceMembers(ctx, workspaceID)
 	if err != nil {
-		return fmt.Errorf("failed to list members: %w", err)
+		return nil, fmt.Errorf("failed to list members: %w", err)
 	}
 
 	for _, member := range members {
 		if member.UserID == req.UserID {
-			return fmt.Errorf("user is already a member")
+			return nil, fmt.Errorf("user is already a member")
 		}
 	}
 
 	// Add member
 	member := &workspace.WorkspaceMember{
+		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		UserID:      req.UserID,
 		Role:        req.Role,
+		AddedBy:     req.AddedBy,
 		AddedAt:     time.Now(),
 	}
 
 	if err := s.repo.AddWorkspaceMember(ctx, member); err != nil {
-		return fmt.Errorf("failed to add member: %w", err)
+		return nil, fmt.Errorf("failed to add member: %w", err)
 	}
 
 	// Update OIDC configuration
@@ -421,7 +423,7 @@ func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, re
 		s.logger.Error("failed to update OIDC config", zap.Error(err))
 	}
 
-	return nil
+	return member, nil
 }
 
 func (s *service) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error {
