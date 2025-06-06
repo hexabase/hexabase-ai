@@ -49,8 +49,8 @@ func (r *kubernetesRepository) CreateVCluster(ctx context.Context, workspaceID s
 				"name":      workspaceID,
 				"namespace": "hexabase-vclusters",
 				"labels": map[string]interface{}{
-					"hexabase.io/workspace-id": workspaceID,
-					"hexabase.io/plan":         plan,
+					"hexabase.ai/workspace-id": workspaceID,
+					"hexabase.ai/plan":         plan,
 				},
 			},
 			"spec": map[string]interface{}{

@@ -11,6 +11,7 @@ import (
 	// Domain imports
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-kaas/api/internal/domain/kubernetes"
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/organization"
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/project"
@@ -76,7 +77,7 @@ var MonitoringSet = wire.NewSet(
 	wire.Bind(new(monitoring.Repository), new(*monitoringRepo.PostgresRepository)),
 	
 	monitoringRepo.NewKubernetesRepository,
-	wire.Bind(new(monitoring.KubernetesRepository), new(*monitoringRepo.KubernetesRepository)),
+	wire.Bind(new(kubernetes.Repository), new(*monitoringRepo.KubernetesRepository)),
 	
 	monitoringSvc.NewService,
 	wire.Bind(new(monitoring.Service), new(*monitoringSvc.Service)),

@@ -1,0 +1,332 @@
+# Hexabase KaaS Production Values
+# This file contains production-ready configuration for self-hosted infrastructure
+
+global:
+  domain: hexabase.ai
+  storageClass: fast-ssd  # Your storage class for persistent volumes
+  
+api:
+  replicas: 3
+  image:
+    repository: hexabase/hexabase-kaas-api
+    tag: v1.0.0  # Use specific version tags in production
+    pullPolicy: IfNotPresent
+  
+  config:
+    mode: production
+    logLevel: info
+    
+    jwt:
+      issuer: https://api.hexabase.ai
+      audience: hexabase-kaas
+      # JWT keys will be mounted from secrets
+    
+    oauth:
+      providers:
+        google:
+          # Credentials from existing secrets
+          existingSecret: hexabase-oauth-google
+          clientIdKey: client-id
+          clientSecretKey: client-secret
+        github:
+          existingSecret: hexabase-oauth-github
+          clientIdKey: client-id
+          clientSecretKey: client-secret
+        azure:
+          existingSecret: hexabase-oauth-azure
+          clientIdKey: client-id
+          clientSecretKey: client-secret
+          tenantId: your-tenant-id
+    
+    stripe:
+      # Stripe credentials from existing secret
+      existingSecret: hexabase-stripe
+      apiKeyKey: api-key
+      webhookSecretKey: webhook-secret
+
+  # Resource configuration for production
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+  # Pod disruption budget for high availability
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  # Autoscaling configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # Affinity rules for pod distribution
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - hexabase-api
+        topologyKey: kubernetes.io/hostname
+
+ui:
+  replicas: 2
+  image:
+    repository: hexabase/hexabase-kaas-ui
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+  
+  config:
+    apiUrl: https://api.hexabase.ai
+    wsUrl: wss://api.hexabase.ai
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+
+# Self-hosted PostgreSQL configuration
+postgresql:
+  enabled: false  # Using external self-hosted PostgreSQL
+  external:
+    host: postgres.database.svc.cluster.local  # Your PostgreSQL service
+    port: 5432
+    database: hexabase_kaas
+    # Credentials from existing secret
+    existingSecret: hexabase-postgresql
+    existingSecretUsernameKey: username
+    existingSecretPasswordKey: password
+    sslMode: require
+    
+    # Connection pool settings
+    poolSize: 25
+    maxIdleConnections: 5
+    maxOpenConnections: 25
+    connectionMaxLifetime: 1h
+
+# Self-hosted Redis configuration
+redis:
+  enabled: false  # Using external self-hosted Redis
+  external:
+    # Redis Sentinel for HA
+    sentinels:
+      - host: redis-sentinel-1.cache.svc.cluster.local
+        port: 26379
+      - host: redis-sentinel-2.cache.svc.cluster.local
+        port: 26379
+      - host: redis-sentinel-3.cache.svc.cluster.local
+        port: 26379
+    masterName: mymaster
+    # Password from existing secret
+    existingSecret: hexabase-redis
+    existingSecretPasswordKey: password
+    
+    # Redis settings
+    database: 0
+    poolSize: 50
+    minIdleConns: 10
+    maxRetries: 3
+
+# Self-hosted NATS configuration
+nats:
+  enabled: false  # Using external self-hosted NATS
+  external:
+    # NATS cluster endpoints
+    servers:
+      - nats://nats-1.messaging.svc.cluster.local:4222
+      - nats://nats-2.messaging.svc.cluster.local:4222
+      - nats://nats-3.messaging.svc.cluster.local:4222
+    
+    # Credentials from existing secret
+    existingSecret: hexabase-nats
+    existingSecretUsernameKey: username
+    existingSecretPasswordKey: password
+    
+    # JetStream configuration
+    jetstream:
+      enabled: true
+      domain: hexabase
+      
+# vCluster configuration
+vcluster:
+  # vCluster will be installed separately
+  operator:
+    enabled: false
+  
+  defaults:
+    # Resource limits for each vCluster
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+    
+    # Storage for vCluster persistence
+    storage:
+      size: 10Gi
+      className: fast-ssd
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization,Content-Type,Accept,Origin,User-Agent,Cache-Control,Keep-Alive"
+    
+  tls:
+    enabled: true
+    # Using cert-manager for automatic TLS
+    certManager:
+      enabled: true
+      issuer: letsencrypt-prod
+      # Or use existing certificates
+      # existingSecret: hexabase-tls
+  
+  hosts:
+    api:
+      host: api.hexabase.ai
+      paths:
+        - path: /
+          pathType: Prefix
+    ui:
+      host: app.hexabase.ai
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Monitoring stack configuration
+monitoring:
+  enabled: true
+  
+  # Using existing Prometheus
+  prometheus:
+    enabled: false
+    external:
+      url: http://prometheus.monitoring.svc.cluster.local:9090
+      # Service monitor for scraping metrics
+      serviceMonitor:
+        enabled: true
+        interval: 30s
+        scrapeTimeout: 10s
+  
+  # Using existing Grafana
+  grafana:
+    enabled: false
+    external:
+      url: http://grafana.monitoring.svc.cluster.local:3000
+      # Pre-configured dashboards
+      dashboards:
+        enabled: true
+        
+  # Alerts configuration
+  alerts:
+    enabled: true
+    # Alert manager configuration
+    alertmanager:
+      url: http://alertmanager.monitoring.svc.cluster.local:9093
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  
+  # S3-compatible storage for backups
+  s3:
+    endpoint: s3.storage.svc.cluster.local
+    bucket: hexabase-backups
+    region: us-east-1
+    existingSecret: hexabase-backup-s3
+    accessKeyIdKey: access-key-id
+    secretAccessKeyKey: secret-access-key
+  
+  # Retention policy
+  retention:
+    daily: 7
+    weekly: 4
+    monthly: 6
+
+# Security policies
+security:
+  podSecurityPolicy:
+    enabled: true
+  
+  networkPolicy:
+    enabled: true
+    
+  # Run as non-root user
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# Service accounts
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/hexabase-api  # For IRSA
+
+# Additional environment variables
+extraEnv:
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://otel-collector.monitoring.svc.cluster.local:4317
+  - name: OTEL_SERVICE_NAME
+    value: hexabase-api
+
+# Additional volumes for configuration
+extraVolumes:
+  - name: config
+    configMap:
+      name: hexabase-config
+  - name: certs
+    secret:
+      secretName: hexabase-internal-ca
+
+extraVolumeMounts:
+  - name: config
+    mountPath: /etc/hexabase
+  - name: certs
+    mountPath: /etc/ssl/certs/hexabase
+
+# Node selector for dedicated nodes
+nodeSelector:
+  workload-type: hexabase
+
+# Tolerations for dedicated nodes
+tolerations:
+  - key: "workload-type"
+    operator: "Equal"
+    value: "hexabase"
+    effect: "NoSchedule"

@@ -1,0 +1,28 @@
+# Kyverno Policy for Image Signature Verification
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+spec:
+  validationFailureAction: enforce
+  background: false
+  rules:
+    - name: verify-signature
+      match:
+        any:
+        - resources:
+            kinds:
+            - Pod
+            namespaces:
+            - hexabase-*
+      verifyImages:
+      - imageReferences:
+        - "harbor.hexabase.ai/*"
+        attestors:
+        - count: 1
+          entries:
+          - keys:
+              publicKeys: |-
+                -----BEGIN PUBLIC KEY-----
+                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...
+                -----END PUBLIC KEY-----

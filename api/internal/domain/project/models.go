@@ -116,11 +116,6 @@ type ProjectMember struct {
 	AddedAt     time.Time `json:"added_at"`
 }
 
-// AddProjectMemberRequest represents a request to add a project member
-type AddProjectMemberRequest struct {
-	UserEmail string `json:"user_email" binding:"required,email"`
-	Role      string `json:"role" binding:"required,oneof=admin developer viewer"`
-}
 
 // UpdateMemberRoleRequest represents a request to update member role
 type UpdateMemberRoleRequest struct {
@@ -187,6 +182,7 @@ type ProjectHierarchy struct {
 type AddMemberRequest struct {
 	UserEmail string `json:"user_email" binding:"required,email"`
 	Role      string `json:"role" binding:"required,oneof=admin developer viewer"`
+	AddedBy   string `json:"added_by,omitempty"`
 }
 
 // ActivityFilter represents filter options for project activities

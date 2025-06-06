@@ -2,384 +2,236 @@
 
 An open-source, multi-tenant Kubernetes as a Service platform built on K3s and vCluster.
 
-## Architecture Overview
+## 🚀 Overview
 
-Hexabase KaaS provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly.
+Hexabase KaaS provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly. It offers isolated Kubernetes environments with enterprise-grade security, monitoring, and billing capabilities.
 
-### Core Concepts
+## 📚 Documentation
 
-- **Organization**: Billing and user management unit
-- **Workspace**: Isolated Kubernetes environment (vCluster)
-- **Project**: Namespace within a Workspace
-- **Users & Groups**: Hierarchical permission system
+### Quick Links
+- **[Getting Started Guide](./docs/getting-started/README.md)** - Platform overview and quick start
+- **[Development Setup](./docs/development/dev-environment-setup.md)** - Set up your local environment
+- **[Deployment Guide](./docs/operations/kubernetes-deployment.md)** - Deploy to production
+- **[API Reference](./docs/api-reference/README.md)** - Complete API documentation
+- **[CI/CD Architecture](./docs/architecture/cicd-architecture.md)** - CI/CD pipelines and GitOps
+- **[CI/CD Configurations](./ci/README.md)** - Pipeline configurations for different platforms
 
-## Project Structure
+### Documentation Structure
+```
+docs/
+├── getting-started/        # Introduction and concepts
+├── architecture/          # System design and architecture
+├── development/           # Developer guides
+├── operations/           # Deployment and operations
+├── api-reference/        # API documentation
+├── testing/              # Testing guides and reports
+└── project-management/   # Project status and roadmap
+
+ci/                       # CI/CD configurations
+├── github-actions/       # GitHub Actions workflows
+├── gitlab-ci/           # GitLab CI pipelines
+└── tekton/              # Tekton pipeline definitions
+
+deployments/
+├── gitops/              # GitOps configurations
+│   ├── flux/           # Flux CD configurations
+│   └── argocd/         # ArgoCD applications
+├── policies/            # Security policies
+│   └── kyverno/        # Kyverno policies
+├── monitoring/          # Monitoring configurations
+│   └── prometheus/     # Prometheus rules
+└── canary/             # Progressive delivery
+    └── flagger/        # Flagger configurations
+```
+
+## 🎯 Key Features
+
+### Multi-Tenant Kubernetes
+- **vCluster Isolation**: Each workspace gets its own virtual Kubernetes cluster
+- **Resource Quotas**: Fine-grained resource limits and quotas
+- **Network Policies**: Secure tenant isolation at the network level
+
+### Enterprise Security
+- **OAuth2/OIDC**: Support for Google, GitHub, Azure AD, and custom providers
+- **PKCE Flow**: Enhanced security for public clients
+- **JWT Fingerprinting**: Token binding to prevent replay attacks
+- **Audit Logging**: Comprehensive security event tracking
+
+### Developer Experience
+- **Simple Abstractions**: Organizations → Workspaces → Projects
+- **Self-Service**: Create and manage Kubernetes environments via UI/API
+- **Real-time Updates**: WebSocket notifications for provisioning status
+
+### Operations & Monitoring
+- **Prometheus Metrics**: Built-in metrics collection
+- **Grafana Dashboards**: Pre-configured visualization
+- **Health Checks**: Automated cluster health monitoring
+- **Alert Management**: Configurable alerting rules
+
+### Billing & Subscriptions
+- **Stripe Integration**: Automated billing and invoicing
+- **Usage Tracking**: Resource consumption monitoring
+- **Flexible Plans**: Multiple subscription tiers
+
+## 🏗️ Architecture
+
+### Core Components
 
 ```
-hexabase-kaas/
-├── api/                    # Go API service
-│   ├── cmd/               # Entry points (api, worker)
-│   ├── internal/          # Internal packages
-│   │   ├── api/          # HTTP handlers
-│   │   ├── auth/         # OAuth2/OIDC with enhanced security
-│   │   ├── billing/      # Stripe integration
-│   │   ├── config/       # Configuration management
-│   │   ├── db/           # Database models & repos
-│   │   ├── k8s/          # vCluster management
-│   │   ├── messaging/    # NATS pub/sub
-│   │   └── service/      # Business logic
-│   ├── Dockerfile
-│   └── config.yaml
-├── ui/                    # Next.js frontend (planned)
-├── deployments/           # IaC and deployment configs
-├── docs/                  # Documentation
-│   ├── 01_concept.md     # Platform concept
-│   ├── 02_base_design.md # Architecture design
-│   ├── 03_oauth_security_specification.md # OAuth security spec
-│   └── 04_oauth_implementation_summary.md # Implementation details
-├── docker-compose.yml     # Development environment
-└── Makefile              # Development commands
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Next.js UI    │────▶│    Go API       │────▶│   PostgreSQL    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                               │
+                               ├──▶ Redis (Cache)
+                               ├──▶ NATS (Message Queue)
+                               └──▶ Kubernetes API
+                                         │
+                                   ┌─────┴─────┐
+                                   │ vClusters │
+                                   └───────────┘
 ```
 
-## Key Features
+### Technology Stack
 
-- **Enhanced OAuth2/OIDC Authentication**: Production-grade auth with PKCE, JWT fingerprinting, and comprehensive security features
-- **Multi-tenant Kubernetes**: Isolated environments using vCluster
-- **Hierarchical Access Control**: Organizations, workspaces, projects, and groups
-- **Integrated Billing**: Stripe integration for subscription management
-- **Real-time Monitoring**: Prometheus, Grafana, and custom metrics
-- **Security First**: Rate limiting, audit logging, session management
+- **Backend**: Go 1.24+, Gin, GORM, Wire
+- **Frontend**: Next.js 14+, TypeScript, Tailwind CSS
+- **Infrastructure**: Kubernetes, vCluster, Helm
+- **Database**: PostgreSQL 14+
+- **Cache**: Redis 6+
+- **Message Queue**: NATS JetStream
+- **Monitoring**: Prometheus, Grafana, Loki
 
-## Quick Start
+## 🚦 Getting Started
 
 ### Prerequisites
+- Go 1.24+
+- Node.js 18+
+- Docker & Docker Compose
+- Kubernetes cluster (or K3s)
+- PostgreSQL 14+
+- Redis 6+
 
-- Docker and Docker Compose
-- Go 1.21+ (for local development)
-- PostgreSQL (included in docker-compose)
+### Quick Start
 
-### Development Setup
-
-1. **Initialize development environment:**
-   ```bash
-   make init
-   ```
-
-2. **Start all services:**
-   ```bash
-   make docker-up
-   ```
-
-3. **Verify the setup:**
-   ```bash
-   curl http://localhost:8080/health
-   # Expected: {"status":"ok","timestamp":"..."}
-   ```
-
-### Available Services
-
-- **API Server**: http://localhost:8080
-- **PostgreSQL**: localhost:5433 (user: postgres, password: postgres)
-- **Redis**: localhost:6380
-- **NATS**: localhost:4223
-
-### Testing the API
-
-**Quick Test:**
+#### Option 1: Automated Setup (Recommended)
 ```bash
-# Run automated test script
-./scripts/quick_test.sh
+# Clone and setup everything with one command
+git clone https://github.com/hexabase/hexabase-kaas.git
+cd hexabase-kaas
+make setup
+
+# Start development
+make dev  # Runs both API and UI in tmux
+# OR run separately:
+make dev-api  # Terminal 1
+make dev-ui   # Terminal 2
 ```
 
-For detailed testing instructions, see [TESTING_GUIDE.md](TESTING_GUIDE.md) which covers:
-- How to obtain authentication tokens
-- Testing all API endpoints with curl
-- Inspecting the database
-- Debugging common issues
-
-### Quick Database Access
-
+#### Option 2: Manual Setup
 ```bash
-# Connect to PostgreSQL
-docker exec -it hexabase-kaas-postgres-1 psql -U postgres -d hexabase
+# Clone the repository
+git clone https://github.com/hexabase/hexabase-kaas.git
+cd hexabase-kaas
 
-# View all tables
-\dt
+# Start infrastructure
+docker-compose up -d
 
-# Exit
-\q
+# Run the API
+cd api && go run cmd/api/main.go
+
+# Run the UI (new terminal)
+cd ui && npm install && npm run dev
 ```
 
-## Development Commands
+Access the application at:
+- **UI**: http://app.localhost
+- **API**: http://api.localhost
+
+For detailed setup instructions, see the [Development Environment Setup](./docs/development/dev-environment-setup.md).
+
+## 🧪 Testing
 
 ```bash
-# Start development environment
-make dev
-
-# Run tests
-make test
-make api-test
-
-# Build binaries
-make build
-
-# View logs
-make docker-logs
-
-# Clean up
-make clean
-```
-
-## API Endpoints
-
-### Authentication
-- `POST /auth/login/{provider}` - Initiate OAuth login
-- `GET /auth/callback/{provider}` - OAuth callback
-- `POST /auth/logout` - Logout
-- `GET /auth/me` - Get current user
-
-### Organizations (✅ Implemented)
-- `POST /api/v1/organizations` - Create organization
-- `GET /api/v1/organizations` - List organizations
-- `GET /api/v1/organizations/{orgId}` - Get organization details
-- `PUT /api/v1/organizations/{orgId}` - Update organization
-- `DELETE /api/v1/organizations/{orgId}` - Delete organization
-
-### Workspaces (🚧 Coming Soon)
-- `POST /api/v1/organizations/{orgId}/workspaces` - Create workspace
-- `GET /api/v1/organizations/{orgId}/workspaces` - List workspaces
-- `GET /api/v1/organizations/{orgId}/workspaces/{wsId}/kubeconfig` - Get kubeconfig
-
-### Projects (🚧 Coming Soon)
-- `POST /api/v1/workspaces/{wsId}/projects` - Create project
-- `GET /api/v1/workspaces/{wsId}/projects` - List projects
-
-### OIDC Provider
-- `GET /.well-known/openid-configuration` - OIDC discovery
-- `GET /.well-known/jwks.json` - JSON Web Key Set
-
-📖 **For testing these endpoints locally, see [TESTING_GUIDE.md](TESTING_GUIDE.md)**
-
-## Current Implementation Status
-
-✅ **Completed:**
-- Project structure and build system
-- Database models with GORM
-- Basic API server with Gin
-- **Complete OAuth/OIDC authentication system**
-  - JWT token management with RSA-256 signing
-  - OAuth2 integration (Google, GitHub)
-  - Redis state validation for CSRF protection
-  - JWKS endpoint for token verification
-  - Comprehensive test suite (21+ tests)
-- Docker containerization
-- Development environment with docker-compose
-- Configuration management
-- Health check endpoints
-- TDD test coverage across all auth components
-
-🚧 **In Progress:**
-- Database migrations and advanced testing
-
-📋 **Planned:**
-- vCluster orchestration
-- Core API endpoints (Organizations, Workspaces, Projects)
-- Stripe billing integration
-- Next.js UI
-- Kubernetes operator for vCluster management
-- Helm charts for deployment
-
-## Testing
-
-The project follows Test-Driven Development (TDD) principles with comprehensive test coverage across all components.
-
-### Prerequisites for Tests
-
-1. **Start the development environment** (required for database integration tests):
-   ```bash
-   make docker-up
-   ```
-
-2. **Create test database** (required for database integration tests):
-   ```bash
-   # Connect to the PostgreSQL container and create test database
-   docker exec -it hexabase-kaas-postgres-1 createdb -U postgres hexabase_test
-   
-   # Alternative: Connect directly using psql
-   docker exec -it hexabase-kaas-postgres-1 psql -U postgres -c "CREATE DATABASE hexabase_test;"
-   ```
-
-### Running Tests
-
-#### Method 1: Using Makefile (Recommended)
-```bash
-# Run all API tests
-make api-test
-```
-
-#### Method 2: Using Go Test Commands
-
-**Run all tests:**
-```bash
+# API tests
 cd api
-go test ./... -v
+go test ./...
+
+# UI tests
+cd ui
+npm test
+npm run test:e2e
 ```
 
-**Run tests for specific packages:**
-```bash
-# Authentication tests
-go test ./internal/auth/... -v
+See the [Testing Guide](./docs/testing/testing-guide.md) for comprehensive testing strategies.
 
-# API endpoint tests
-go test ./internal/api/... -v
+## 🚀 Deployment
 
-# Service layer tests
-go test ./internal/service/... -v
-
-# Database tests (requires test DB)
-go test ./internal/db/... -v
-```
-
-**Run tests with coverage:**
-```bash
-go test ./... -v -cover
-```
-
-**Generate detailed coverage report:**
-```bash
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out -o coverage.html
-open coverage.html  # Opens coverage report in browser
-```
-
-#### Method 3: Run Specific Test Files
+### Quick Deployment with Helm (Recommended)
 
 ```bash
-# JWT and token management tests
-go test ./internal/auth/jwt_test.go -v
+# Add Hexabase Helm repository
+helm repo add hexabase https://charts.hexabase.ai
+helm repo update
 
-# RSA key management tests
-go test ./internal/auth/keys_test.go -v
-
-# OAuth client tests
-go test ./internal/auth/oauth_client_test.go -v
-
-# Redis state validation tests
-go test ./internal/auth/oauth_redis_test.go -v
-
-# API handler tests
-go test ./internal/api/auth_test.go -v
+# Install Hexabase KaaS with production values
+helm install hexabase-kaas hexabase/hexabase-kaas \
+  --namespace hexabase-system \
+  --create-namespace \
+  --values deployments/helm/values-production.yaml
 ```
 
-#### Method 4: Advanced Test Options
+For detailed deployment options, see the [Kubernetes Deployment Guide](./docs/operations/kubernetes-deployment.md).
 
-**Run tests in parallel:**
-```bash
-go test ./... -v -parallel 4
-```
+## 🔄 CI/CD & GitOps
 
-**Run tests with timeout:**
-```bash
-go test ./... -v -timeout 30s
-```
+Hexabase KaaS supports multiple CI/CD platforms and GitOps workflows:
 
-**Run only specific test functions:**
-```bash
-go test ./internal/auth -run TestTokenManager -v
-go test ./internal/api -run TestAuthHandler -v
-```
+### CI/CD Platforms
+- **[GitHub Actions](./ci/github-actions/)** - Native GitHub integration
+- **[GitLab CI](./ci/gitlab-ci/)** - GitLab pipeline support
+- **[Tekton](./ci/tekton/)** - Cloud-native Kubernetes pipelines
 
-**Quick test status check:**
-```bash
-go test ./... | grep -E "(PASS|FAIL|SKIP)"
-```
+### GitOps Tools
+- **[Flux](./deployments/gitops/flux/)** - Automated Git-to-Kubernetes sync
+- **[ArgoCD](./deployments/gitops/argocd/)** - Declarative GitOps with UI
 
-### Test Coverage
+### Security & Policies
+- **[Kyverno Policies](./deployments/policies/kyverno/)** - Policy enforcement
+- **[Supply Chain Security](./ci/github-actions/supply-chain.yml)** - SBOM and signing
 
-Current test coverage includes:
+For architecture details, see the [CI/CD Architecture Guide](./docs/architecture/cicd-architecture.md).
 
-- **Authentication System**: JWT generation/validation, OAuth flows, state management
-- **API Endpoints**: All auth-related HTTP handlers with proper status codes
-- **Database Models**: GORM model validation and relationships
-- **Security Features**: CSRF protection, token validation, key management
-- **Redis Integration**: State storage and validation with Redis
-- **Error Handling**: Comprehensive error scenarios and edge cases
+## 🤝 Contributing
 
-**Test Statistics:**
-- 21+ test functions across authentication components
-- 100% API endpoint coverage for auth routes
-- Mock-based testing for external dependencies
-- Database integration tests (auto-skip if DB unavailable)
-- Redis integration tests with proper mocking
+We welcome contributions! Please read our [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-### Troubleshooting Tests
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-**Database connection issues:**
-```bash
-# Ensure PostgreSQL is running
-docker ps | grep postgres
+## 📋 Project Status
 
-# Check if test database exists
-docker exec -it hexabase-kaas-postgres-1 psql -U postgres -l | grep hexabase_test
+See [Project Management](./docs/project-management/README.md) for current development status and roadmap.
 
-# Recreate test database if needed
-docker exec -it hexabase-kaas-postgres-1 dropdb -U postgres hexabase_test --if-exists
-docker exec -it hexabase-kaas-postgres-1 createdb -U postgres hexabase_test
-```
+## 📄 License
 
-**Port conflicts:**
-- PostgreSQL: localhost:5433 (not 5432)
-- Redis: localhost:6380 (not 6379)
-- NATS: localhost:4223 (not 4222)
+This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
 
-**Test database credentials:**
-- Host: localhost:5433
-- User: postgres
-- Password: postgres
-- Database: hexabase_test
+## 🙏 Acknowledgments
 
-## Configuration
+- [vCluster](https://www.vcluster.com/) for virtual Kubernetes clusters
+- [K3s](https://k3s.io/) for lightweight Kubernetes
+- All our contributors and supporters
 
-Configuration is managed via YAML files and environment variables:
+## 📞 Support
 
-- Development: `api/config.yaml`
-- Production: Environment variables (see `docker-compose.yml`)
+- **Documentation**: [Full Documentation](./docs/README.md)
+- **Issues**: [GitHub Issues](https://github.com/hexabase/hexabase-kaas/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/hexabase/hexabase-kaas/discussions)
 
-### Key Configuration Sections
+---
 
-- **Database**: PostgreSQL connection settings
-- **Redis**: Cache configuration
-- **NATS**: Message queue settings
-- **Auth**: JWT and OAuth provider settings
-- **Stripe**: Payment processing
-- **K8s**: Kubernetes client configuration
-
-## Contributing
-
-1. Follow TDD principles - write tests first
-2. Use conventional commit messages
-3. Ensure all tests pass before submitting PR
-4. Update documentation for new features
-
-## Architecture Decisions
-
-- **Go**: Backend API for performance and K8s ecosystem compatibility
-- **PostgreSQL**: Primary database for ACID compliance
-- **Redis**: Caching and session storage
-- **NATS**: Asynchronous task processing
-- **vCluster**: Tenant isolation with full Kubernetes API
-- **GORM**: ORM for type-safe database operations
-- **Gin**: HTTP framework for API development
-
-## Next Steps
-
-1. Implement comprehensive test coverage
-2. Build OAuth/OIDC authentication system
-3. Develop vCluster orchestration layer
-4. Create Next.js frontend
-5. Add Stripe billing integration
-6. Deploy monitoring and observability stack
-
-## License
-
-Open Source - License TBD
+Built with ❤️ by the Hexabase team

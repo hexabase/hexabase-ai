@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-kaas/api/internal/domain/project"
@@ -69,17 +70,40 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 func (h *ProjectHandler) ListProjects(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
-	projects, err := h.service.ListProjects(c.Request.Context(), workspaceID)
+	// Parse query parameters for filtering
+	filter := project.ProjectFilter{
+		WorkspaceID: workspaceID,
+		Status:      c.Query("status"),
+		Search:      c.Query("search"),
+		SortBy:      c.DefaultQuery("sort_by", "created_at"),
+		SortOrder:   c.DefaultQuery("sort_order", "desc"),
+	}
+	
+	// Parse pagination
+	page := 1
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	filter.Page = page
+	
+	pageSize := 20
+	if ps := c.Query("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
+			pageSize = parsed
+		}
+	}
+	filter.PageSize = pageSize
+
+	result, err := h.service.ListProjects(c.Request.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list projects", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list projects"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"projects": projects,
-		"total":    len(projects),
-	})
+	c.JSON(http.StatusOK, result)
 }
 
 // UpdateProject handles updating a project

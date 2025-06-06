@@ -44,4 +44,16 @@ type Service interface {
 	
 	// ValidateWorkspaceAccess validates if a user has access to a workspace
 	ValidateWorkspaceAccess(ctx context.Context, userID, workspaceID string) error
+	
+	// GetResourceUsage gets the resource usage for a workspace
+	GetResourceUsage(ctx context.Context, workspaceID string) (*ResourceUsage, error)
+	
+	// AddWorkspaceMember adds a member to a workspace
+	AddWorkspaceMember(ctx context.Context, workspaceID string, req *AddMemberRequest) (*WorkspaceMember, error)
+	
+	// ListWorkspaceMembers lists members of a workspace
+	ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*WorkspaceMember, error)
+	
+	// RemoveWorkspaceMember removes a member from a workspace
+	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error
 }

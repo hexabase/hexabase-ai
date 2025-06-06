@@ -1,0 +1,120 @@
+# Hexabase KaaS Local Development Values
+# Simplified configuration for local development environment
+
+global:
+  domain: localhost
+  
+api:
+  replicas: 1
+  image:
+    repository: hexabase/hexabase-kaas-api
+    tag: latest
+    pullPolicy: Always  # Always pull in development
+  
+  config:
+    mode: development
+    logLevel: debug
+    
+    jwt:
+      issuer: http://localhost:8080
+      audience: hexabase-kaas-dev
+    
+    oauth:
+      providers:
+        google:
+          clientId: your-dev-google-client-id
+          clientSecret: your-dev-google-client-secret
+    
+    stripe:
+      apiKey: sk_test_your_test_key
+      webhookSecret: whsec_test_your_test_secret
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+ui:
+  replicas: 1
+  image:
+    repository: hexabase/hexabase-kaas-ui
+    tag: latest
+    pullPolicy: Always
+  
+  config:
+    apiUrl: http://localhost:8080
+    wsUrl: ws://localhost:8080
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Use internal PostgreSQL for development
+postgresql:
+  enabled: true
+  auth:
+    database: hexabase_kaas
+    username: hexabase
+    password: devpassword
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+# Use internal Redis for development
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: devpassword
+  master:
+    persistence:
+      enabled: false  # No persistence in dev
+
+# Use internal NATS for development
+nats:
+  enabled: true
+  nats:
+    jetstream:
+      enabled: true
+      memStorage:
+        enabled: true
+        size: 1Gi
+
+# Simple ingress for development
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    api:
+      host: api.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+    ui:
+      host: app.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Disable monitoring in development
+monitoring:
+  enabled: false
+
+# Disable backups in development
+backup:
+  enabled: false
+
+# Relaxed security for development
+security:
+  podSecurityPolicy:
+    enabled: false
+  networkPolicy:
+    enabled: false

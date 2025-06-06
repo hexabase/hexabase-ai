@@ -20,19 +20,6 @@ Specifically, it provides the following value:
 
 Hexabase KaaS envisions being a catalyst for delivering the power of Kubernetes to more people and accelerating innovation. Developers will be freed from infrastructure complexity and able to focus on the essential value creation of application development.
 
-### 1.2. Existing Codebase
-
-This project will build upon the following existing codebases while implementing significant reimplementation and feature expansion based on this specification. These repositories are artifacts from the project's initial ideation and prototyping phase, requiring fundamental review and reconstruction to achieve the functionality and quality of a full-fledged KaaS platform.
-
-- **UI (Next.js)**: <https://github.com/b-eee/hxb-next-webui>
-
-  - **Current Assessment**: The current repository may contain basic dashboard layout concepts, UI component library selections (e.g., Material UI, Ant Design), some static screen mockups, or initial prototypes. However, complex state management, real-time data display, and dynamic UI control based on user roles required for KaaS are assumed to be unimplemented.
-  - **Reimplementation and Extension Policy**: To support the core concepts defined in this specification (Organization, Workspace, Project, Role, Group, etc.), we will redesign from the information architecture of the entire UI and thoroughly implement component-based development. For state management, we will introduce libraries that can efficiently manage global and local state (e.g., Zustand, Recoil, Redux Toolkit). For data communication with the API server, we will adopt data fetching libraries that provide caching and automatic refetch functionality (e.g., SWR, React Query) to achieve a highly real-time user experience. Key development items include displaying vCluster provisioning status, resource usage graphs, log streaming displays, and user notification features (using WebSocket or Server-Sent Events). For API integration, we will consider approaches that improve development efficiency and quality, such as generating type-safe client code based on API endpoint specifications defined in this document (e.g., OpenAPI Generator). Accessibility (a11y) and internationalization (i18n) will be considered from the initial stage.
-
-- **API (Go)**: <https://github.com/b-eee/apicore>
-  - **Current Assessment**: The existing API core may be a general REST API foundation or an initial prototype specialized for specific functions. Complex business logic as a KaaS control plane, tenant management, Kubernetes resource operations, and external service integration (OIDC, Stripe, etc.) will require significant additional development or redesign.
-  - **Reimplementation and Extension Policy**: We will reimplement all control plane functions defined in this specification in Go. This includes building a robust RESTful API server (using frameworks like Gin or Echo), implementing OIDC provider functionality, vCluster orchestration logic using the `client-go` library, billing system integration using the Stripe SDK, and developing asynchronous processing workers using NATS clients. The database schema (PostgreSQL) will be newly designed based on this specification, and we will achieve efficient data access using ORMs like GORM. Operationally important elements such as error handling, structured logging (e.g., Logrus, Zap), metrics collection (Prometheus client library), and configuration management (e.g., Viper) will be incorporated from the beginning. While we will utilize reusable utility functions and basic structures from existing code (e.g., HTTP server setup, basic middleware), KaaS-specific domain logic and workflows will be newly developed based on this specification, following Test-Driven Development (TDD) and Domain-Driven Design (DDD) principles.
-
 ## 2. System Architecture
 
 The Hexabase KaaS system architecture consists of the **Hexabase UI (Next.js)** that users directly interact with, the **Hexabase API (control plane, Go language)** that manages and controls the entire system, and various supporting **middleware (PostgreSQL, Redis, NATS, etc.)**. All these components are containerized and run on the operational foundation **Host K3s Cluster**. Per-tenant Kubernetes environments are virtually constructed within the Host K3s Cluster using **vCluster** technology, providing strong isolation and independence. This multi-layered architecture is designed with scalability, availability, and maintainability in mind.
@@ -63,17 +50,17 @@ This architecture aims to realize a scalable, resilient, and operationally frien
 
 Hexabase KaaS provides unique abstracted concepts to allow users to use the service without being aware of Kubernetes complexity. These concepts are internally mapped to standard Kubernetes resources and features. Understanding this mapping is crucial for grasping system behavior and using it effectively.
 
-| Hexabase Concept | Kubernetes Equivalent | Scope | Notes |
-| --- | --- | --- | --- |
-| Organization | (None) | Hexabase | Unit for billing, invoicing, and organizational user management. Business logic. |
-| Workspace | vCluster | Host K3s Cluster | Strong tenant isolation boundary. |
-| Workspace Plan | ResourceQuota / Node Configuration | vCluster / Host | Defines resource limits. |
-| Organization User | (None) | Hexabase | Organization administrators and billing managers. |
-| Workspace Member | User (OIDC Subject) | vCluster | Technical personnel operating vCluster. Authenticated via OIDC. |
-| Workspace Group | Group (OIDC Claim) | vCluster | Unit for permission assignment. Hierarchy resolved by Hexabase. |
-| Workspace ClusterRole | ClusterRole | vCluster | Preset permissions spanning entire Workspace (e.g., Admin, Viewer). |
-| Project | Namespace | vCluster | Resource isolation unit within Workspace. |
-| Project Role | Role | vCluster Namespace | Custom permissions that users can create within a Project. |
+| Hexabase Concept      | Kubernetes Equivalent              | Scope              | Notes                                                                            |
+| --------------------- | ---------------------------------- | ------------------ | -------------------------------------------------------------------------------- |
+| Organization          | (None)                             | Hexabase           | Unit for billing, invoicing, and organizational user management. Business logic. |
+| Workspace             | vCluster                           | Host K3s Cluster   | Strong tenant isolation boundary.                                                |
+| Workspace Plan        | ResourceQuota / Node Configuration | vCluster / Host    | Defines resource limits.                                                         |
+| Organization User     | (None)                             | Hexabase           | Organization administrators and billing managers.                                |
+| Workspace Member      | User (OIDC Subject)                | vCluster           | Technical personnel operating vCluster. Authenticated via OIDC.                  |
+| Workspace Group       | Group (OIDC Claim)                 | vCluster           | Unit for permission assignment. Hierarchy resolved by Hexabase.                  |
+| Workspace ClusterRole | ClusterRole                        | vCluster           | Preset permissions spanning entire Workspace (e.g., Admin, Viewer).              |
+| Project               | Namespace                          | vCluster           | Resource isolation unit within Workspace.                                        |
+| Project Role          | Role                               | vCluster Namespace | Custom permissions that users can create within a Project.                       |
 
 # 4. Functional Specifications and User Flows
 
@@ -87,7 +74,7 @@ Hexabase KaaS provides unique abstracted concepts to allow users to use the serv
 
 - **Organization Management**  
   Organization Users can manage billing information (Stripe integration) and invite other Organization Users.  
-  *Note: This permission does not allow direct manipulation of resources within subordinate Workspaces (vClusters).
+  \*Note: This permission does not allow direct manipulation of resources within subordinate Workspaces (vClusters).
 
 ## 4.2. Workspace (vCluster) Management
 
@@ -101,7 +88,7 @@ Hexabase KaaS provides unique abstracted concepts to allow users to use the serv
 
   - Create preset ClusterRoles:  
     Automatically create two ClusterRoles: `hexabase:workspace-admin` and `hexabase:workspace-viewer`.  
-    *Note: Custom ClusterRole creation by users is prohibited.
+    \*Note: Custom ClusterRole creation by users is prohibited.
   - Create default ClusterRoleBinding:  
     Automatically create a ClusterRoleBinding that binds the `hexabase:workspace-admin` ClusterRole to the `WSAdmins` group.
 

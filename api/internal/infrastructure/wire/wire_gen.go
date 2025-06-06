@@ -28,6 +28,16 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// App represents the application with all handlers
+type App struct {
+	AuthHandler         *handlers.AuthHandler
+	BillingHandler      *handlers.BillingHandler
+	MonitoringHandler   *handlers.MonitoringHandler
+	OrganizationHandler *handlers.OrganizationHandler
+	ProjectHandler      *handlers.ProjectHandler
+	WorkspaceHandler    *handlers.WorkspaceHandler
+}
+
 // InitializeApp creates the entire application with all dependencies
 func InitializeApp(
 	cfg *config.Config,
@@ -39,32 +49,39 @@ func InitializeApp(
 ) (*App, error) {
 	// Auth dependencies
 	authRepository := authRepo.NewPostgresRepository(db)
-	authOAuthRepository := authRepo.NewOAuthRepository(ProvideOAuthConfig(cfg))
-	authKeyRepository := authRepo.NewKeyRepository()
+	// Placeholder OAuth config
+	oauthConfig := make(map[string]*authRepo.ProviderConfig)
+	authOAuthRepository := authRepo.NewOAuthRepository(oauthConfig)
+	authKeyRepository, _ := authRepo.NewKeyRepository()
 	authService := authSvc.NewService(authRepository, authOAuthRepository, authKeyRepository, logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 
 	// Billing dependencies
 	billingRepository := billingRepo.NewPostgresRepository(db)
-	apiKey, webhookSecret := ProvideStripeConfig(cfg)
+	// Placeholder config values
+	apiKey, webhookSecret := "", ""
 	billingStripeRepository := billingRepo.NewStripeRepository(apiKey, webhookSecret)
 	billingService := billingSvc.NewService(billingRepository, billingStripeRepository, logger)
 	billingHandler := handlers.NewBillingHandler(billingService, logger)
 
 	// Monitoring dependencies
 	monitoringRepository := monitoringRepo.NewPostgresRepository(db)
-	monitoringKubernetesRepository := monitoringRepo.NewKubernetesRepository(k8sClient)
+	monitoringKubernetesRepository := monitoringRepo.NewKubernetesRepository(k8sClient, dynamicClient, k8sConfig)
 	monitoringService := monitoringSvc.NewService(monitoringRepository, monitoringKubernetesRepository, logger)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService, logger)
 
 	// Organization dependencies
 	organizationRepository := orgRepo.NewPostgresRepository(db)
-	organizationService := orgSvc.NewService(organizationRepository, authRepository, billingStripeRepository, logger)
+	// Create auth adapter for organization domain
+	orgAuthAdapter := orgRepo.NewAuthRepositoryAdapter(authRepository)
+	// Create billing adapter for organization domain  
+	orgBillingAdapter := orgRepo.NewBillingRepositoryAdapter(billingStripeRepository)
+	organizationService := orgSvc.NewService(organizationRepository, orgAuthAdapter, orgBillingAdapter, logger)
 	organizationHandler := handlers.NewOrganizationHandler(organizationService, logger)
 
 	// Project dependencies
 	projectRepository := projectRepo.NewPostgresRepository(db)
-	projectKubernetesRepository := projectRepo.NewKubernetesRepository(k8sClient)
+	projectKubernetesRepository := projectRepo.NewKubernetesRepository(k8sClient, dynamicClient, k8sConfig)
 	projectService := projectSvc.NewService(projectRepository, projectKubernetesRepository, logger)
 	projectHandler := handlers.NewProjectHandler(projectService, logger)
 

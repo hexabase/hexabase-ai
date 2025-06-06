@@ -132,7 +132,7 @@ dependencies:
 ### Quick Install
 
 ```bash
-helm repo add hexabase https://hexabase.io/charts
+helm repo add hexabase https://hexabase.ai/charts
 helm install hexabase-kaas hexabase/hexabase-kaas -f values.yaml
 ```
 

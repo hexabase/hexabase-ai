@@ -1,0 +1,33 @@
+# Supply Chain Security Workflow
+name: Supply Chain Security
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          output-file: sbom.spdx
+          
+      - name: Sign Container Image
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            
+      - name: Attest SBOM
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign attest --yes \
+            --predicate sbom.spdx \
+            --type spdxjson \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}

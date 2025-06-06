@@ -137,12 +137,12 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		// Monitoring (workspace level)
 		monitoring := workspaceScoped.Group("/monitoring")
 		{
-			monitoring.GET("/metrics", app.MonitoringHandler.GetWorkspaceMetrics)
+			monitoring.GET("/metrics", app.MonitoringHandler.GetMetrics)
 			monitoring.GET("/health", app.MonitoringHandler.GetClusterHealth)
 			monitoring.GET("/alerts", app.MonitoringHandler.GetAlerts)
 			monitoring.POST("/alerts", app.MonitoringHandler.CreateAlert)
-			monitoring.PUT("/alerts/:alertId", app.MonitoringHandler.UpdateAlert)
-			monitoring.DELETE("/alerts/:alertId", app.MonitoringHandler.DeleteAlert)
+			monitoring.PUT("/alerts/:alertId/acknowledge", app.MonitoringHandler.AcknowledgeAlert)
+			monitoring.PUT("/alerts/:alertId/resolve", app.MonitoringHandler.ResolveAlert)
 		}
 	}
 

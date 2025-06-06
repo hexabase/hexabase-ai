@@ -1,0 +1,31 @@
+# Flagger Canary Configuration for Progressive Delivery
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: hexabase-api
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hexabase-api
+  progressDeadlineSeconds: 60
+  service:
+    port: 8080
+  analysis:
+    interval: 30s
+    threshold: 5
+    maxWeight: 50
+    stepWeight: 10
+    metrics:
+    - name: request-success-rate
+      thresholdRange:
+        min: 99
+      interval: 1m
+    - name: request-duration
+      thresholdRange:
+        max: 500
+      interval: 30s
+  webhooks:
+    - name: rollback-notification
+      url: http://slack-webhook/rollback
+      timeout: 30s
