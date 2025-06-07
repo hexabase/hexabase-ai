@@ -8,6 +8,7 @@
 ### ✅ Completed Phases
 
 #### 1. Backend API Implementation (100% Complete)
+
 - **OAuth/OIDC Authentication System**: Google & GitHub provider support ✅
 - **JWT Token Management**: RSA-256 signing, Redis state validation ✅
 - **Organizations API**: Complete CRUD operations with role-based access control ✅
@@ -25,6 +26,7 @@
 - **Test Suite**: 140+ test functions, 100% passing ✅
 
 #### 2. Frontend UI Implementation (100% Complete)
+
 - **Next.js 15**: TypeScript, App Router ✅
 - **OAuth Login Interface**: Google & GitHub buttons ✅
 - **Organizations Dashboard**: Complete CRUD operations UI ✅
@@ -33,6 +35,7 @@
 - **Component System**: Reusable UI components ✅
 
 #### 3. Integration Testing (100% Complete)
+
 - **OAuth Integration Tests**: 12/12 tests passing ✅
 - **Organizations API Tests**: 9/9 tests passing ✅
 - **Workspaces API Tests**: 15/15 tests passing ✅
@@ -81,6 +84,7 @@ hexabase-kaas/
 ## 🎯 Recently Completed: VCluster Lifecycle Management
 
 ### ✅ Final Implementation Phase: VCluster API (100% Complete)
+
 - **VCluster Provisioning**: Complete async provisioning with task management ✅
 - **Lifecycle Management**: Start, stop, upgrade, backup, restore operations ✅
 - **Health Monitoring**: Component status and resource usage tracking ✅
@@ -92,6 +96,7 @@ hexabase-kaas/
 ### 🎯 Completed Implementation Summary
 
 #### 1. Monitoring API Implementation (Prometheus Integration) ✅ COMPLETED
+
 - [x] Metrics collection from vClusters ✅
 - [x] Prometheus query endpoints ✅
 - [x] Alerting configuration ✅
@@ -99,12 +104,14 @@ hexabase-kaas/
 - [x] Performance metrics dashboards ✅
 
 #### 2. Role-Based Access Control (RBAC) ✅ COMPLETED
+
 - [x] Kubernetes RBAC integration ✅
 - [x] Custom role definitions ✅
 - [x] Permission management ✅
 - [x] Role assignments to groups ✅
 
 #### 3. vCluster Lifecycle Management ✅ COMPLETED
+
 - [x] Complete vCluster provisioning with async task processing ✅
 - [x] K3s cluster integration framework ✅
 - [x] Resource quota enforcement mechanisms ✅
@@ -115,12 +122,14 @@ hexabase-kaas/
 ## 🛠️ Development Environment Setup
 
 ### Backend Startup
+
 ```bash
 cd /Users/hi/src/hexabase-kaas
 make docker-up    # Start PostgreSQL, Redis, NATS, API
 ```
 
 ### Frontend Startup
+
 ```bash
 cd /Users/hi/src/hexabase-kaas/ui
 npm install
@@ -128,6 +137,7 @@ npm run dev       # http://localhost:3000
 ```
 
 ### API Endpoints
+
 - **API Base**: http://localhost:8080
 - **Health Check**: http://localhost:8080/health
 - **Organizations**: http://localhost:8080/api/v1/organizations/
@@ -144,13 +154,14 @@ npm run dev       # http://localhost:3000
 ## 📊 Test Status
 
 ### All API Test Suites (100% Passing)
+
 ```bash
 cd api
 
 # OAuth Integration Tests (12/12 Passing)
 go test ./internal/api -run TestOAuthIntegrationSuite -v
 
-# Organizations API Tests (9/9 Passing)  
+# Organizations API Tests (9/9 Passing)
 go test ./internal/api -run TestOrganizationTestSuite -v
 
 # Workspaces API Tests (15/15 Passing)
@@ -179,6 +190,7 @@ go test ./internal/api -v
 ```
 
 ### Local Testing
+
 ```bash
 cd /Users/hi/src/hexabase-kaas
 ./scripts/quick_test.sh
@@ -195,13 +207,15 @@ cd /Users/hi/src/hexabase-kaas
 ## 🎯 Implemented Features
 
 ### Authentication System
+
 - ✅ Google OAuth Login
-- ✅ GitHub OAuth Login  
+- ✅ GitHub OAuth Login
 - ✅ JWT Token Generation & Validation
 - ✅ Cookie-based Session Management
 - ✅ CSRF Protection (Redis State Validation)
 
 ### Multi-Tenant API System
+
 - ✅ **Organizations Management**: Create, edit, delete organizations with role-based access
 - ✅ **Workspaces Management**: vCluster provisioning, kubeconfig generation, lifecycle management
 - ✅ **Projects Management**: Kubernetes namespace management with HNC support
@@ -211,6 +225,7 @@ cd /Users/hi/src/hexabase-kaas
 - ✅ **RBAC Management**: Kubernetes-style role-based access control with custom roles and permissions
 
 ### Database & Infrastructure
+
 - ✅ PostgreSQL with GORM ORM
 - ✅ Redis for session state and caching
 - ✅ NATS for async task processing
@@ -218,6 +233,7 @@ cd /Users/hi/src/hexabase-kaas
 - ✅ Comprehensive test coverage
 
 ### UI Components
+
 - ✅ Login Page (OAuth Provider Selection)
 - ✅ Dashboard (Organization Management)
 - ✅ Modal Dialogs (Create/Edit)
@@ -227,6 +243,7 @@ cd /Users/hi/src/hexabase-kaas
 ## 📋 Next Session Action Items
 
 ### 1. Environment Check
+
 ```bash
 cd /Users/hi/src/hexabase-kaas
 git status
@@ -235,6 +252,7 @@ curl http://localhost:8080/health
 ```
 
 ### 2. vCluster Lifecycle Management Implementation Priority
+
 - [ ] Set up actual vCluster provisioning (replace mocks)
 - [ ] Implement K3s cluster integration
 - [ ] Add resource quota enforcement
@@ -242,12 +260,14 @@ curl http://localhost:8080/health
 - [ ] Implement health monitoring and status reporting
 
 ### 3. Required Information
+
 - **vCluster Integration**: K3s cluster configuration details
 - **Production Deployment**: Kubernetes cluster setup, networking requirements
 
 ## 🔧 Development Notes
 
 ### Important Configuration Files
+
 - `/api/internal/config/config.go` - API Configuration
 - `/api/internal/db/models.go` - Database Models
 - `/api/internal/api/routes.go` - API Route Configuration
@@ -255,6 +275,7 @@ curl http://localhost:8080/health
 - `/ui/src/lib/auth-context.tsx` - Authentication State Management
 
 ### Recent API Additions
+
 - **VCluster Lifecycle API**: Complete vCluster management with 10+ endpoints for provisioning, lifecycle operations ✅
 - **RBAC API**: Complete role-based access control with 14+ endpoints for roles, bindings, permissions ✅
 - **Monitoring API**: Complete Prometheus integration with 20+ endpoints for metrics, alerts, targets management ✅
@@ -265,12 +286,14 @@ curl http://localhost:8080/health
 - **Workspaces API**: vCluster lifecycle management with kubeconfig generation ✅
 
 ### Environment Variables
+
 - `NEXT_PUBLIC_API_URL=http://localhost:8080` (UI)
 - PostgreSQL: localhost:5433
 - Redis: localhost:6380
 - NATS: localhost:4222
 
 ### Troubleshooting
+
 - JWT Authentication Error: Use token generation script `go run scripts/generate_test_token.go`
 - DB Connection Error: Restart services with `make docker-up`
 - Test Failures: Run individual test suites to isolate issues
@@ -288,6 +311,7 @@ curl http://localhost:8080/health
 ## 🏗️ Architecture Overview
 
 ### Core API Structure
+
 ```
 Organizations (Multi-tenant root)
   ├── Users (OAuth-based authentication)
@@ -301,25 +325,28 @@ Organizations (Multi-tenant root)
 ```
 
 ### Key Concepts Mapping
+
 | Hexabase Concept | Kubernetes Equivalent | Implementation Status |
-|-----------------|---------------------|---------------------|
-| Organization | (none) | ✅ Complete |
-| Workspace | vCluster | ✅ Complete |
-| Project | Namespace | ✅ Complete |
-| Group | OIDC Group Claims | ✅ Complete |
-| Role | RBAC Role | ✅ Complete |
-| Member | OIDC Subject | ✅ Complete |
+| ---------------- | --------------------- | --------------------- |
+| Organization     | (none)                | ✅ Complete           |
+| Workspace        | vCluster              | ✅ Complete           |
+| Project          | Namespace             | ✅ Complete           |
+| Group            | OIDC Group Claims     | ✅ Complete           |
+| Role             | RBAC Role             | ✅ Complete           |
+| Member           | OIDC Subject          | ✅ Complete           |
 
 ---
 
 ## 🎯 Current Development Phase: Frontend Implementation
 
-### ✅ Backend Implementation Status: COMPLETED 
+### ✅ Backend Implementation Status: COMPLETED
+
 All backend APIs are fully implemented with comprehensive test coverage. The Hexabase KaaS platform backend is ready for production deployment.
 
 ### 🔄 Frontend Implementation Status: IN PROGRESS (25% → 100%)
 
 #### Current Frontend Foundation (25% Complete)
+
 - ✅ **Next.js 15**: TypeScript, App Router, modern React patterns
 - ✅ **Authentication System**: OAuth (Google/GitHub) integration with JWT tokens
 - ✅ **Organizations Dashboard**: Complete CRUD operations with modal forms
@@ -330,21 +357,25 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
 #### 🎯 Frontend Development Roadmap (75% Remaining)
 
 ##### **Phase 1: Workspace Management (HIGH PRIORITY)** - Target: 50% Complete
+
 **Estimated Time: 1-2 weeks**
 
-1. **Workspace Dashboard** 
+1. **Workspace Dashboard**
+
    - Workspace listing with vCluster status indicators
    - Real-time status updates (PENDING_CREATION, RUNNING, STOPPED, ERROR)
    - Quick action buttons (start/stop/restart vCluster)
    - Resource usage overview cards
 
 2. **Workspace Creation Workflow**
+
    - Multi-step wizard for workspace creation
    - Plan selection with pricing comparison
    - Resource configuration (CPU, Memory, Storage)
    - vCluster provisioning progress tracking
 
 3. **Workspace Detail Page**
+
    - Comprehensive vCluster health monitoring
    - Real-time resource usage charts
    - Kubeconfig download functionality
@@ -352,6 +383,7 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
    - Task status monitoring with retry capabilities
 
 4. **Required API Integrations:**
+
    ```typescript
    // Workspaces API (15+ endpoints)
    export const workspacesApi = {
@@ -377,9 +409,11 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
    ```
 
 ##### **Phase 2: Projects Management (HIGH PRIORITY)** - Target: 70% Complete
+
 **Estimated Time: 1 week**
 
 1. **Projects Within Workspace**
+
    - Hierarchical project structure visualization
    - Kubernetes namespace management
    - Resource quota visualization and management
@@ -392,9 +426,11 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
    - Resource usage monitoring per project
 
 ##### **Phase 3: Billing & Subscription Management (MEDIUM PRIORITY)** - Target: 85% Complete
+
 **Estimated Time: 1-2 weeks**
 
 1. **Subscription Dashboard**
+
    - Current plan overview with feature comparison
    - Usage metrics and billing projections
    - Plan upgrade/downgrade workflows
@@ -407,15 +443,18 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
    - Resource usage trending and forecasting
 
 ##### **Phase 4: Advanced Features (LOWER PRIORITY)** - Target: 100% Complete
+
 **Estimated Time: 2-3 weeks**
 
 1. **Groups & Member Management**
+
    - Hierarchical group structure with drag-drop
    - Member invitation system with role assignment
    - Bulk member operations
    - Group-based access control visualization
 
 2. **Monitoring & Analytics Dashboard**
+
    - Prometheus metrics visualization with charts
    - Custom alerting configuration
    - Performance monitoring and bottleneck detection
@@ -430,6 +469,7 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
 ### 🧪 Frontend Testing Strategy (TDD with Playwright)
 
 #### Test-Driven Development Approach
+
 1. **E2E Test First**: Write Playwright tests for user workflows before implementation
 2. **Component Testing**: React Testing Library for component unit tests
 3. **API Integration**: Mock backend responses for frontend testing
@@ -437,6 +477,7 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
 5. **Performance Testing**: Lighthouse integration for performance metrics
 
 #### Target Coverage: 95%+
+
 - **E2E Tests**: User workflows and critical paths
 - **Component Tests**: UI component behavior and props
 - **Integration Tests**: API client and state management
@@ -444,14 +485,15 @@ All backend APIs are fully implemented with comprehensive test coverage. The Hex
 - **Performance Tests**: Load time and interaction metrics
 
 #### Playwright Test Structure
+
 ```typescript
 // tests/workspaces.spec.ts
-test.describe('Workspace Management', () => {
-  test('should create new workspace with valid plan', async ({ page }) => {
+test.describe("Workspace Management", () => {
+  test("should create new workspace with valid plan", async ({ page }) => {
     // Test implementation here
   });
-  
-  test('should display vCluster status in real-time', async ({ page }) => {
+
+  test("should display vCluster status in real-time", async ({ page }) => {
     // Test implementation here
   });
 });
@@ -460,12 +502,14 @@ test.describe('Workspace Management', () => {
 ### 📊 Frontend Success Metrics
 
 #### Completion Targets by Phase
+
 - **Phase 1 (Workspaces)**: 50% → Core workspace management functionality
 - **Phase 2 (Projects)**: 70% → Projects integration within workspaces
 - **Phase 3 (Billing)**: 85% → Subscription and billing management
 - **Phase 4 (Advanced)**: 100% → Full feature parity with backend APIs
 
 #### Quality Goals
+
 - **TypeScript Coverage**: 100% type safety
 - **Test Coverage**: 95%+ with Playwright E2E tests
 - **Performance**: <3s initial load, <1s navigation between pages
@@ -476,37 +520,45 @@ test.describe('Workspace Management', () => {
 ### 🛠️ Technical Implementation Details
 
 #### State Management Enhancement
+
 ```bash
 npm install zustand @tanstack/react-query
 ```
+
 - **Zustand**: Lightweight state management for UI state
 - **React Query**: Data fetching, caching, and synchronization
 
 #### Real-time Updates
+
 ```bash
 npm install socket.io-client
 ```
+
 - **WebSocket Integration**: Real-time vCluster status updates
 - **Task Progress**: Live provisioning and operation progress
 
 #### Testing Framework
+
 ```bash
 npm install -D @playwright/test @testing-library/react @testing-library/jest-dom
 ```
+
 - **Playwright**: E2E testing with multiple browsers
 - **Testing Library**: Component testing with best practices
 
 #### UI Enhancement
+
 ```bash
 npm install recharts react-hook-form zod
 ```
+
 - **Recharts**: Resource usage charts and monitoring graphs
 - **React Hook Form + Zod**: Form handling with validation
 
 ### 📋 Completed Frontend Tasks
 
 1. **Setup Playwright Testing Framework** ✅
-2. **Write E2E Tests for Workspace Management** ✅ 
+2. **Write E2E Tests for Workspace Management** ✅
 3. **Implement Workspace API Client Extensions** ✅
 4. **Build Workspace Listing Component** ✅
 5. **Build Workspace Creation Modal** ✅
@@ -532,12 +584,14 @@ npm install recharts react-hook-form zod
 ### 🚀 Next Phase: Projects Management (Phase 2)
 
 #### Objectives
+
 - Implement project management within workspaces
 - Namespace management with HNC integration
 - Resource quotas and limits configuration
 - Multi-project dashboard views
 
 #### Key Components to Build
+
 1. **Project Listing Page** - Grid view of projects within workspace
 2. **Project Creation Wizard** - With namespace configuration
 3. **Project Detail Dashboard** - Resource usage and namespace info
@@ -552,30 +606,36 @@ npm install recharts react-hook-form zod
 ### Implementation Status: IN PROGRESS
 
 #### Objective
+
 Implement production-grade OAuth2/OIDC authentication with enhanced security measures and perfect frontend-backend integration.
 
 ### 📋 Implementation Plan
 
 #### Phase 1: OAuth Security Enhancement (Backend)
+
 1. **OAuth Provider Configuration**
+
    - [ ] Configure Google OAuth with proper scopes and callbacks
    - [ ] Configure GitHub OAuth with organization access
    - [ ] Add GitLab OAuth provider support
    - [ ] Implement provider-specific validation logic
 
 2. **JWT Security Hardening**
+
    - [ ] Implement JWT rotation with refresh tokens
    - [ ] Add token expiration and renewal logic
    - [ ] Implement token revocation mechanism
    - [ ] Add JWT fingerprinting for enhanced security
 
 3. **Session Security**
+
    - [ ] Implement secure session storage in Redis
    - [ ] Add session timeout and idle detection
    - [ ] Implement device tracking and management
    - [ ] Add concurrent session limiting
 
 4. **Security Middleware**
+
    - [ ] Implement rate limiting per user/IP
    - [ ] Add request signing validation
    - [ ] Implement CORS with strict origin validation
@@ -588,13 +648,16 @@ Implement production-grade OAuth2/OIDC authentication with enhanced security mea
    - [ ] Implement audit logging for all auth events
 
 #### Phase 2: Frontend OAuth Integration
+
 1. **Authentication Flow**
+
    - [ ] Implement PKCE flow for enhanced security
    - [ ] Add state parameter validation
    - [ ] Implement secure token storage
    - [ ] Add automatic token refresh
 
 2. **Security UI Components**
+
    - [ ] Two-factor authentication setup
    - [ ] Device management interface
    - [ ] Session activity viewer
@@ -607,13 +670,16 @@ Implement production-grade OAuth2/OIDC authentication with enhanced security mea
    - [ ] Clear security error messages
 
 #### Phase 3: Testing & Validation
+
 1. **Security Testing**
+
    - [ ] OAuth flow penetration testing
    - [ ] JWT validation testing
    - [ ] Session hijacking prevention tests
    - [ ] CSRF attack prevention tests
 
 2. **Integration Testing**
+
    - [ ] End-to-end OAuth flow tests
    - [ ] Multi-provider authentication tests
    - [ ] Token refresh flow tests
@@ -628,6 +694,7 @@ Implement production-grade OAuth2/OIDC authentication with enhanced security mea
 ### 🔧 Technical Implementation Details
 
 #### Backend Security Enhancements
+
 ```go
 // Enhanced JWT Claims
 type CustomClaims struct {
@@ -654,35 +721,37 @@ type SecureSession struct {
 ```
 
 #### Frontend Security Implementation
+
 ```typescript
 // Secure Token Storage
 class SecureAuthStorage {
-    private readonly STORAGE_KEY = 'hexabase_auth';
-    
-    storeTokens(tokens: AuthTokens): void {
-        // Implement secure storage with encryption
-    }
-    
-    getAccessToken(): string | null {
-        // Implement secure retrieval with validation
-    }
-    
-    refreshToken(): Promise<AuthTokens> {
-        // Implement automatic token refresh
-    }
+  private readonly STORAGE_KEY = "hexabase_auth";
+
+  storeTokens(tokens: AuthTokens): void {
+    // Implement secure storage with encryption
+  }
+
+  getAccessToken(): string | null {
+    // Implement secure retrieval with validation
+  }
+
+  refreshToken(): Promise<AuthTokens> {
+    // Implement automatic token refresh
+  }
 }
 
 // PKCE Implementation
 class PKCEFlow {
-    generateCodeVerifier(): string
-    generateCodeChallenge(verifier: string): string
-    validateState(state: string): boolean
+  generateCodeVerifier(): string;
+  generateCodeChallenge(verifier: string): string;
+  validateState(state: string): boolean;
 }
 ```
 
 ### 📊 Security Metrics & Goals
 
 #### Authentication Security
+
 - **Password-less**: 100% OAuth-based authentication
 - **Token Security**: RSA-256 signing with 2048-bit keys
 - **Session Timeout**: 30 minutes idle, 24 hours absolute
@@ -690,6 +759,7 @@ class PKCEFlow {
 - **Audit Coverage**: 100% of authentication events logged
 
 #### Compliance Requirements
+
 - **OWASP Top 10**: Full compliance
 - **OAuth 2.0 RFC**: Strict adherence
 - **OIDC Standards**: Complete implementation
@@ -699,16 +769,19 @@ class PKCEFlow {
 ### 🚨 Security Considerations
 
 1. **Token Storage**
+
    - Never store tokens in localStorage
    - Use httpOnly, secure, sameSite cookies
    - Implement token encryption at rest
 
 2. **CSRF Protection**
+
    - Double-submit cookie pattern
    - State parameter validation
    - Origin header verification
 
 3. **XSS Prevention**
+
    - Content Security Policy headers
    - Input sanitization
    - Output encoding
@@ -719,9 +792,85 @@ class PKCEFlow {
    - Concurrent session management
 
 ### 📅 Timeline
+
 - **Phase 1**: 2-3 days (Backend security)
 - **Phase 2**: 2-3 days (Frontend integration)
 - **Phase 3**: 1-2 days (Testing & validation)
 - **Total**: 5-8 days for complete implementation
 
 **OAuth Implementation Status**: 🔄 ACTIVE DEVELOPMENT - Implementing production-grade OAuth with enhanced security measures.
+
+## �� New Features in v0.6.0
+
+| #   | Feature                                             | Status      | Target Release | Assignee  | Notes                                                       |
+| --- | --------------------------------------------------- | ----------- | -------------- | --------- | ----------------------------------------------------------- |
+| 28  | WebSocket API for Real-time Updates                 | Implemented | v0.4.0         | @jane_doe | For live updates on UI dashboards.                          |
+| 29  | Hierarchical Namespace Controller (HNC) Integration | Implemented | v0.4.0         | @john_doe | Manages project (namespace) hierarchy within vClusters.     |
+| 30  | **Enhanced CI/CD**                                  | **Planned** | **v0.6.0**     | **TBD**   | **Provider model with DI, standard credential management.** |
+| 31  | **Hybrid Observability Stack**                      | **Planned** | **v0.7.0**     | **TBD**   | **Shared stack for basic plans, dedicated for premium.**    |
+| 32  | **AIOps System - Phase 1**                          | **Planned** | **v0.8.0**     | **TBD**   | **Python-based system, chat API, secure sandbox, LLMOps.**  |
+
+---
+
+## v0.6.0 - AIOps Foundation & Enhanced CI/CD
+
+### Theme: Laying the groundwork for an intelligent, automated platform.
+
+- **Enhanced CI/CD Provider Model**
+
+  - **Epic**: #30
+  - **Status**: Planned
+  - **Description**: Refactor the CI/CD module to use a dependency-injected provider model. Implement Tekton as the first provider. Define a standard, secure way to manage Git and registry credentials using Kubernetes Secrets and Service Accounts.
+  - **Tasks**:
+    - [ ] Define Go interface for CI/CD providers.
+    - [ ] Implement DI for providers in the API server.
+    - [ ] Implement Tekton provider.
+    - [ ] Design and implement credential management flow in UI and API.
+
+- **Centralized Logging with ClickHouse**
+  - **Epic**: #31 (related)
+  - **Status**: Planned
+  - **Description**: Set up a central ClickHouse database for all control plane logs. Implement a structured logging framework (e.g., `slog`) across the Go application and instrument logs with contextual information (traceID, userID, etc.).
+  - **Tasks**:
+    - [ ] Create Helm chart for ClickHouse deployment.
+    - [ ] Integrate `slog` or `zap` into the Go control plane.
+    - [ ] Implement a middleware to inject contextual logger into requests.
+
+## v0.7.0 - Observability and Early AIOps
+
+### Theme: Gaining deep insights and enabling initial AI capabilities.
+
+- **Hybrid Observability Stack**
+
+  - **Epic**: #31
+  - **Status**: Planned
+  - **Description**: Implement the hybrid monitoring architecture. Develop logic to deploy lightweight agents (Prometheus-Agent, Promtail) for shared plans and a full stack for dedicated plans. Configure multi-tenancy in the shared Grafana.
+  - **Tasks**:
+    - [ ] Develop logic for plan-based observability deployment.
+    - [ ] Configure multi-tenant proxy for shared Grafana.
+    - [ ] Implement OIDC integration for Grafana SSO.
+
+- **AIOps - Initial Setup**
+  - **Epic**: #32
+  - **Status**: Planned
+  - **Description**: Set up the foundational infrastructure for the AIOps system. This includes the Python application skeleton, internal API communication with the Go backend (including the secure JWT model), and the LLMOps stack.
+  - **Tasks**:
+    - [ ] Create Python FastAPI project structure under `/ai-ops`.
+    - [ ] Implement the secure internal JWT handshake between Go and Python services.
+    - [ ] Deploy Langfuse stack for LLMOps.
+    - [ ] Set up private LLM serving with Ollama on dedicated nodes.
+
+## v0.8.0 - AIOps Agents and Chat Integration
+
+### Theme: Bringing the AI to life.
+
+- **AIOps Chat and Agent Implementation**
+  - **Epic**: #32
+  - **Status**: Planned
+  - **Description**: Implement the user-facing chat API and the first set of specialized AI agents. The initial focus will be on monitoring agents that can report on system status and resource usage.
+  - **Tasks**:
+    - [ ] Implement the `/api/v1/ai/chat` endpoint.
+    - [ ] Develop the main AIOps orchestrator agent.
+    - [ ] Develop a "Node Resource" and "Workspace Usage" specialized agent.
+    - [ ] Implement the user impersonation flow for read-only requests.
+    - [ ] (Stretch) Implement the first action-performing agent (e.g., scaling a deployment) with user confirmation.
