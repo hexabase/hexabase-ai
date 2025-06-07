@@ -30,7 +30,7 @@ make setup
 make dev
 
 # OR Manual deployment
-helm install hexabase-kaas ./deployments/helm/hexabase-kaas \
+helm install hexabase-ai ./deployments/helm/hexabase-ai \
   --namespace hexabase-dev \
   --values deployments/helm/values-local.yaml
 ```
@@ -83,7 +83,7 @@ jobs:
     steps:
       - name: Deploy to Staging
         run: |
-          helm upgrade --install hexabase-kaas \
+          helm upgrade --install hexabase-ai \
             hexabase/hexabase-kaas \
             --namespace hexabase-staging \
             --values deployments/helm/values-staging.yaml \
@@ -192,7 +192,7 @@ jobs:
           
       - name: Deploy to Production
         run: |
-          helm upgrade --install hexabase-kaas \
+          helm upgrade --install hexabase-ai \
             hexabase/hexabase-kaas \
             --namespace hexabase-system \
             --values deployments/helm/values-production.yaml \

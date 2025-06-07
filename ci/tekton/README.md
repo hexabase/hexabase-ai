@@ -53,7 +53,7 @@ spec:
     name: hexabase-ci-pipeline
   params:
     - name: git-url
-      value: https://github.com/hexabase/hexabase-kaas
+      value: https://github.com/hexabase/hexabase-ai
     - name: git-revision
       value: main
   workspaces:

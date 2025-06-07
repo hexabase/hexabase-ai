@@ -1,10 +1,10 @@
-# Hexabase KaaS Platform
+# Hexabase AI Platform
 
 An open-source, multi-tenant Kubernetes as a Service platform built on K3s and vCluster.
 
 ## 🚀 Overview
 
-Hexabase KaaS provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly. It offers isolated Kubernetes environments with enterprise-grade security, monitoring, and billing capabilities.
+Hexabase AI provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly. It offers isolated Kubernetes environments with enterprise-grade security, monitoring, and billing capabilities.
 
 ## 📚 Documentation
 
