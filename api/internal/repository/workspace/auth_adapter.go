@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	authDomain "github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 )
 
 // AuthRepositoryAdapter adapts auth.Repository to workspace.AuthRepository

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 )
 
 // MockNodeService mocks the node service interface

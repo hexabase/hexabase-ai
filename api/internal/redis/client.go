@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )

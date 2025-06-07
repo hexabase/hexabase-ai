@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/kubernetes"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"go.uber.org/zap"
 )
 

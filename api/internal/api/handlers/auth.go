@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"go.uber.org/zap"
 )
 

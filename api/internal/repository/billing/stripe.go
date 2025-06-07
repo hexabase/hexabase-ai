@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/customer"
 	"github.com/stripe/stripe-go/v74/invoice"

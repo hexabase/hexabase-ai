@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

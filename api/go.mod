@@ -1,4 +1,4 @@
-module github.com/hexabase/hexabase-kaas/api
+module github.com/hexabase/hexabase-ai/api
 
 go 1.24.0
 

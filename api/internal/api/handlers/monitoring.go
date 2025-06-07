@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"go.uber.org/zap"
 )
 

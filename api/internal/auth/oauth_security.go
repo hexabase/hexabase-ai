@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"golang.org/x/oauth2"
 )
 

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 )
 
 // Service implements the application service interface

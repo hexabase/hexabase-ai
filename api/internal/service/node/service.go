@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 )
 
 // Service implements the node business logic
