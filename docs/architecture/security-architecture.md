@@ -12,6 +12,7 @@
 8. [Audit Logging](#8-audit-logging)
 9. [Testing Strategy](#9-testing-strategy)
 10. [Security Best Practices](#10-security-best-practices)
+11. [AIOps Security Sandbox Model](#11-aiops-security-sandbox-model)
 
 ## 1. Overview
 
@@ -28,6 +29,7 @@ The Hexabase KaaS platform implements a comprehensive OAuth2/OIDC-based authenti
 ### 1.2 Threat Model
 
 Key threats addressed:
+
 - **Token Theft**: JWT hijacking, session fixation
 - **Man-in-the-Middle**: TLS enforcement, HSTS
 - **Cross-Site Attacks**: CSRF, XSS, clickjacking
@@ -59,16 +61,19 @@ Key threats addressed:
 ### 2.2 Security Layers
 
 1. **Network Layer**
+
    - TLS 1.3 minimum
    - HSTS enforcement
    - Certificate pinning for critical endpoints
 
 2. **Application Layer**
+
    - OAuth2/OIDC authentication
    - JWT token validation
    - RBAC authorization
 
 3. **Session Layer**
+
    - Secure session management
    - Device fingerprinting
    - Concurrent session control
@@ -186,14 +191,16 @@ Public key exposure for token verification:
 
 ```json
 {
-  "keys": [{
-    "kty": "RSA",
-    "use": "sig",
-    "kid": "2024-01-01",
-    "alg": "RS256",
-    "n": "0Z0VS5JJcds3xfNn...",
-    "e": "AQAB"
-  }]
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "kid": "2024-01-01",
+      "alg": "RS256",
+      "n": "0Z0VS5JJcds3xfNn...",
+      "e": "AQAB"
+    }
+  ]
 }
 ```
 
@@ -244,34 +251,34 @@ userKey := fmt.Sprintf("user_sessions:%s", userID)
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         // HSTS - Enforce HTTPS
-        w.Header().Set("Strict-Transport-Security", 
+        w.Header().Set("Strict-Transport-Security",
             "max-age=31536000; includeSubDomains")
-        
+
         // Prevent MIME type sniffing
         w.Header().Set("X-Content-Type-Options", "nosniff")
-        
+
         // Prevent clickjacking
         w.Header().Set("X-Frame-Options", "DENY")
-        
+
         // XSS Protection
         w.Header().Set("X-XSS-Protection", "1; mode=block")
-        
+
         // Content Security Policy
-        w.Header().Set("Content-Security-Policy", 
+        w.Header().Set("Content-Security-Policy",
             "default-src 'self'; " +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: https:; " +
             "font-src 'self' data:; " +
             "connect-src 'self' https://api.github.com https://accounts.google.com")
-        
+
         // Referrer Policy
         w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-        
+
         // Permissions Policy
-        w.Header().Set("Permissions-Policy", 
+        w.Header().Set("Permissions-Policy",
             "geolocation=(), microphone=(), camera=()")
-        
+
         next.ServeHTTP(w, r)
     })
 }
@@ -286,26 +293,26 @@ func ConfigureCORS(allowedOrigins []string) func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             origin := r.Header.Get("Origin")
-            
+
             // Validate origin
             for _, allowed := range allowedOrigins {
                 if origin == allowed {
                     w.Header().Set("Access-Control-Allow-Origin", origin)
                     w.Header().Set("Access-Control-Allow-Credentials", "true")
-                    w.Header().Set("Access-Control-Allow-Methods", 
+                    w.Header().Set("Access-Control-Allow-Methods",
                         "GET, POST, PUT, DELETE, OPTIONS")
-                    w.Header().Set("Access-Control-Allow-Headers", 
+                    w.Header().Set("Access-Control-Allow-Headers",
                         "Authorization, Content-Type, X-Requested-With, X-CSRF-Token")
                     w.Header().Set("Access-Control-Max-Age", "86400")
                     break
                 }
             }
-            
+
             if r.Method == "OPTIONS" {
                 w.WriteHeader(http.StatusNoContent)
                 return
             }
-            
+
             next.ServeHTTP(w, r)
         })
     }
@@ -413,11 +420,13 @@ type OAuthSecurityTestSuite struct {
 ### 10.1 Development Guidelines
 
 1. **Input Validation**
+
    - Validate all user input
    - Use parameterized queries
    - Sanitize output
 
 2. **Error Handling**
+
    - Don't expose internal errors
    - Log security events
    - Return generic error messages
@@ -430,11 +439,13 @@ type OAuthSecurityTestSuite struct {
 ### 10.2 Operational Security
 
 1. **Monitoring**
+
    - Real-time security alerts
    - Anomaly detection
    - Failed login tracking
 
 2. **Incident Response**
+
    - Security incident playbooks
    - Automated responses
    - Post-incident reviews
@@ -447,11 +458,13 @@ type OAuthSecurityTestSuite struct {
 ### 10.3 Future Enhancements
 
 1. **Multi-Factor Authentication (MFA)**
+
    - TOTP support
    - SMS backup codes
    - Hardware token support
 
 2. **WebAuthn/FIDO2**
+
    - Passwordless authentication
    - Biometric support
    - Platform authenticators
@@ -461,11 +474,64 @@ type OAuthSecurityTestSuite struct {
    - Behavioral analysis
    - Risk scoring
 
+## 11. AIOps Security Sandbox Model
+
+The introduction of AIOps, where AI agents can perform operations on behalf of users, requires a robust security model to prevent unintended actions and ensure all operations are auditable and authorized. The Hexabase KaaS platform implements a security sandbox model for the AIOps system based on the principle of least privilege and zero trust between internal systems.
+
+### 11.1. Core Principles
+
+- **Zero Trust**: The Go-based Control Plane does not inherently trust the Python-based AIOps system. Every request from AIOps must be independently authenticated and authorized.
+- **User Context Impersonation**: AI agents do not have their own permissions. They temporarily "impersonate" the user who initiated the chat or request, and all actions are performed within that user's permission scope.
+- **Final Authority**: The Control Plane is the single source of truth for authorization and the sole executor of privileged operations. The AIOps system can only _request_ actions; it cannot execute them directly.
+
+### 11.2. Architecture and Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant HKS_Control_Plane as Hexabase Control Plane (Go)
+    participant AIOps_System as AIOps System (Python)
+    participant K8s_API as Kubernetes API
+
+    User->>HKS_Control_Plane: 1. AI Chat Request (e.g., "Scale my app to 3 replicas")
+    HKS_Control_Plane->>HKS_Control_Plane: 2. Authenticate User, Create Internal JWT
+    Note right of HKS_Control_Plane: JWT contains: user_id, org_id, roles<br/>Expiry: 10 seconds
+    HKS_Control_Plane->>AIOps_System: 3. Forward request with Internal JWT
+
+    AIOps_System->>AIOps_System: 4. Process request, formulate execution plan
+    Note left of AIOps_System: Plan: "Scale deployment 'my-app' in 'project-x' to 3"
+
+    AIOps_System->>HKS_Control_Plane: 5. Request operation via internal API<br>(`POST /internal/op/scale_deployment`)
+    Note right of HKS_Control_Plane: Request includes plan and original Internal JWT
+
+    HKS_Control_Plane->>HKS_Control_Plane: 6. Final Authorization Check<br/>- Verify JWT<br/>- Check if user has permission for 'my-app'
+
+    alt Access Granted
+        HKS_Control_Plane->>K8s_API: 7. Execute operation
+        K8s_API-->>HKS_Control_Plane: 8. Success
+        HKS_Control_Plane-->>AIOps_System: 9. Operation successful
+    else Access Denied
+        HKS_Control_Plane-->>AIOps_System: 9. Permission denied error
+    end
+
+    AIOps_System-->>HKS_Control_Plane: 10. Forward response
+    HKS_Control_Plane-->>User: 11. Send final response to user
+```
+
+### 11.3. Implementation Details
+
+- **Internal JWT**: A short-lived (e.g., 10-second) JSON Web Token signed by the Control Plane. It contains the user's identity, scope (organization, workspace), and roles. This token is only used for internal, server-to-server communication and is never exposed to the outside world.
+- **Internal Operations API**: A dedicated set of internal API endpoints (e.g., `/internal/v1/operations/...`) on the Control Plane that the AIOps system can call. These endpoints are not exposed publicly.
+- **Strict Validation**: When the Control Plane receives a request on the internal operations API, it performs the same rigorous permission checks it would if the user were making the API call directly. It validates the JWT, checks the user's RBAC permissions for the target resource, and only then executes the command.
+
+This model ensures that even if the AIOps system were compromised or had a bug, it could not perform any action that the impersonated user wasn't already explicitly permitted to do, providing a strong security guarantee.
+
 ## Conclusion
 
 The Hexabase KaaS OAuth security implementation provides a robust, scalable, and secure authentication system suitable for a multi-tenant Kubernetes platform. By following these specifications and best practices, the platform maintains a strong security posture while providing a seamless user experience.
 
 For implementation details, refer to the source code in:
+
 - `/api/internal/auth/oauth_security.go`
 - `/api/internal/auth/oauth_security_test.go`
 - `/api/internal/auth/oauth_client.go`
