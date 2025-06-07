@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"gorm.io/gorm"
 )
 

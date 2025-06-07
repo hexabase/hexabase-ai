@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/node"
-	"github.com/hexabase/hexabase-kaas/api/internal/repository/proxmox"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 )
 
 func TestProxmoxClient_CreateVM(t *testing.T) {

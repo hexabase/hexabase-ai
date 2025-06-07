@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/project"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

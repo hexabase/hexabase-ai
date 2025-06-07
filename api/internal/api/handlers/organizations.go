@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
 	"go.uber.org/zap"
 )
 

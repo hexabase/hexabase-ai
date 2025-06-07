@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/node"
-	nodeService "github.com/hexabase/hexabase-kaas/api/internal/service/node"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	nodeService "github.com/hexabase/hexabase-ai/api/internal/service/node"
 )
 
 // Mock repositories

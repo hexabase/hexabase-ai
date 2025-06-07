@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 )
 
 // Common errors

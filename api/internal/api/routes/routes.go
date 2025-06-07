@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/infrastructure/wire"
+	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
 )
 
 // SetupRoutes configures all API routes

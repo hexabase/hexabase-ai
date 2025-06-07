@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	authDomain "github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/organization"
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
 )
 
 // AuthRepositoryAdapter adapts auth.Repository to organization.AuthRepository
