@@ -8,8 +8,8 @@ We provide an automated setup script that handles most of the configuration for 
 
 ```bash
 # Clone the repository
-git clone https://github.com/hexabase/hexabase-kaas.git
-cd hexabase-kaas
+git clone https://github.com/hexabase/hexabase-ai.git
+cd hexabase-ai
 
 # Run the setup script
 ./scripts/dev-setup.sh
@@ -143,8 +143,8 @@ If you prefer to set up the environment manually or need to understand what the 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/hexabase/hexabase-kaas.git
-cd hexabase-kaas
+git clone https://github.com/hexabase/hexabase-ai.git
+cd hexabase-ai
 ```
 
 ### 2. Start Infrastructure Services

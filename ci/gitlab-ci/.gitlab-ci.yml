@@ -55,7 +55,7 @@ deploy:staging:
   only:
     - develop
   script:
-    - helm upgrade --install hexabase-kaas ./deployments/helm/hexabase-kaas
+    - helm upgrade --install hexabase-ai ./deployments/helm/hexabase-ai
         --namespace hexabase-staging
         --values ./deployments/helm/values-staging.yaml
         --set image.tag=$IMAGE_TAG
@@ -70,7 +70,7 @@ deploy:production:
   only:
     - tags
   script:
-    - helm upgrade --install hexabase-kaas ./deployments/helm/hexabase-kaas
+    - helm upgrade --install hexabase-ai ./deployments/helm/hexabase-ai
         --namespace hexabase-system
         --values ./deployments/helm/values-production.yaml
         --set image.tag=$CI_COMMIT_TAG
