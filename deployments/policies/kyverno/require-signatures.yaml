@@ -1,28 +1,55 @@
-# Kyverno Policy for Image Signature Verification
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/kyverno/v1.14.2/config/crds/kyverno.io_clusterpolicies.yaml
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/category: Software Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      This policy verifies that all container images deployed to hexabase namespaces
+      are signed with the approved keys. This ensures supply chain security and
+      prevents unauthorized or tampered images from being deployed.
 spec:
-  validationFailureAction: enforce
+  validationFailureAction: Enforce
   background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
   rules:
     - name: verify-signature
       match:
         any:
-        - resources:
-            kinds:
-            - Pod
-            namespaces:
-            - hexabase-*
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  hexabase.ai/managed: "true"
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
       verifyImages:
-      - imageReferences:
-        - "harbor.hexabase.ai/*"
-        attestors:
-        - count: 1
-          entries:
-          - keys:
-              publicKeys: |-
-                -----BEGIN PUBLIC KEY-----
-                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...
-                -----END PUBLIC KEY-----
+        - imageReferences:
+            - "harbor.hexabase.ai/*"
+            - "ghcr.io/hexabase/*"
+            - "docker.io/hexabase/*"
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7Q9Y1YpQXq1a
+                      1M5r0L8v2PM3UJrfVmZ6FQojE0H8gVLl/FUpqBj/rJT1wkor
+                      x1Yx5BA5fmFvQVmH7JgmHZLvtQ==
+                      -----END PUBLIC KEY-----
+                    signatureAlgorithm: SHA256
