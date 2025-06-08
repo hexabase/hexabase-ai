@@ -1,8 +1,8 @@
-# Flux GitOps Configuration for Hexabase KaaS
+# Flux GitOps Configuration for Hexabase AI
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: GitRepository
 metadata:
-  name: hexabase-kaas
+  name: hexabase-ai
   namespace: flux-system
 spec:
   interval: 1m
@@ -13,7 +13,7 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
 kind: Kustomization
 metadata:
-  name: hexabase-kaas
+  name: hexabase-ai
   namespace: flux-system
 spec:
   interval: 10m
@@ -21,7 +21,7 @@ spec:
   prune: true
   sourceRef:
     kind: GitRepository
-    name: hexabase-kaas
+    name: hexabase-ai
   validation: client
   postBuild:
     substituteFrom:

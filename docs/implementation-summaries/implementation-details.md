@@ -4,11 +4,11 @@
 
 ### 1.1. Purpose of this Document
 
-This document defines a comprehensive specification for the design and implementation of the control plane that forms the core of the Hexabase KaaS (Kubernetes as a Service) platform. The control plane consists of various components including the API server, OIDC (OpenID Connect) provider, vCluster orchestrator, asynchronous processing workers, and billing system integration modules. This document serves as a technical guide for implementing these components in the Go language, comprehensively describing database schema design (PostgreSQL), RESTful API endpoint specifications, key business logic, resource isolation strategies, security measures, and considerations for future scalability. Through this document, the development team aims to build a robust and scalable KaaS infrastructure with a consistent understanding.
+This document defines a comprehensive specification for the design and implementation of the control plane that forms the core of the Hexabase AI (Kubernetes as a Service) platform. The control plane consists of various components including the API server, OIDC (OpenID Connect) provider, vCluster orchestrator, asynchronous processing workers, and billing system integration modules. This document serves as a technical guide for implementing these components in the Go language, comprehensively describing database schema design (PostgreSQL), RESTful API endpoint specifications, key business logic, resource isolation strategies, security measures, and considerations for future scalability. Through this document, the development team aims to build a robust and scalable KaaS infrastructure with a consistent understanding.
 
 ### 1.2. Target Audience
 
-This document is primarily intended for the following stakeholders involved in the Hexabase KaaS project:
+This document is primarily intended for the following stakeholders involved in the Hexabase AI project:
 
 - **Backend Development Engineers**: Developers responsible for implementing the API server, various modules, and asynchronous workers in Go language.
 - **Database Administrators (DBAs)**: Specialists responsible for PostgreSQL database schema design, optimization, and operations.
@@ -21,7 +21,7 @@ This document is primarily intended for the following stakeholders involved in t
 
 To understand this document, it is recommended to have prior knowledge of the following documents:
 
-- **Hexabase KaaS Final Technical Specification v1.2**: This document contains the overall technology stack, architecture overview, and basic policies regarding adopted open-source products (K3s, vCluster, NATS, Flux, Kyverno, Prometheus, Grafana, Loki, etc.) for the entire project. This implementation specification provides detailed design specific to the control plane within the framework defined in this overall technical specification.
+- **Hexabase AI Final Technical Specification v1.2**: This document contains the overall technology stack, architecture overview, and basic policies regarding adopted open-source products (K3s, vCluster, NATS, Flux, Kyverno, Prometheus, Grafana, Loki, etc.) for the entire project. This implementation specification provides detailed design specific to the control plane within the framework defined in this overall technical specification.
 
 ## 2. Architecture Overview
 
@@ -616,7 +616,7 @@ The Hexabase control plane functions as an independent OIDC provider for each Wo
       - Example: If a user belongs to `frontend-devs`, and `frontend-devs`'s parent is `developers`, and `developers`'s parent is `all-workspace-users`, the `groups` claim would be `["frontend-devs", "developers", "all-workspace-users"]`.
   5.  **Standard OIDC Claim Settings**:
       - `iss` (Issuer): Set the unique issuer URL of the Hexabase OIDC provider. This URL must match the vCluster API server configuration. From security and tenant isolation perspectives, consider either different issuer URLs per Workspace (e.g., `https://auth.hexabase.ai/oidc/{workspaceId}`) or a single issuer URL (e.g., `https://auth.hexabase.ai/oidc`) distinguishing targets by `aud` claim. In the latter case, vCluster side configuration must also be adjusted accordingly. Currently proceeding with different Issuer URLs per Workspace.
-      - `aud` (Audience): Specifies the intended audience of the ID token. Usually, this is the client ID expected by the vCluster API server (e.g., `kubernetes` which is the default identifier for Kubernetes API servers, or OIDC client ID dynamically configured per Workspace/vCluster, e.g., `hexabase-kaas-{workspaceId}`).
+      - `aud` (Audience): Specifies the intended audience of the ID token. Usually, this is the client ID expected by the vCluster API server (e.g., `kubernetes` which is the default identifier for Kubernetes API servers, or OIDC client ID dynamically configured per Workspace/vCluster, e.g., `hexabase-ai-{workspaceId}`).
       - `exp` (Expiration Time): Token expiration time (Unix timestamp). Set to a short period (e.g., 10 minutes to 1 hour) for security considerations. Tools like `kubectl` typically have mechanisms to trigger refresh tokens (or re-authentication flow if out of scope) when tokens expire.
       - `iat` (Issued At): Token issue datetime (Unix timestamp).
       - `nbf` (Not Before): Datetime when token becomes valid (Unix timestamp). Usually set to same as `iat` or slightly future time.
@@ -630,11 +630,11 @@ The Hexabase control plane functions as an independent OIDC provider for each Wo
   - **Key Rotation**: For security improvement, private keys used for signing and corresponding public keys need periodic rotation. The JWKS endpoint is designed to include both currently valid keys and old keys during transition periods (needed to verify tokens still within validity period). This prevents existing tokens from immediately becoming invalid during key rotation.
 - **OIDC Discovery Document Endpoint**:
   - **Path**: Typically `/.well-known/openid-configuration`. This path is relative to the Issuer URL.
-  - **Function**: Provides meta-information about various endpoint URLs of the OIDC provider (e.g., `authorization_endpoint`, `token_endpoint` (likely not directly used in Hexabase KaaS but as standard specification), `userinfo_endpoint` (optional), `jwks_uri`, `end_session_endpoint` (for logout, optional)), supported response types, scopes, claims, signature algorithms, authentication methods, etc. This allows OIDC clients like vCluster API servers to dynamically discover OIDC provider configuration and automatically configure themselves.
+  - **Function**: Provides meta-information about various endpoint URLs of the OIDC provider (e.g., `authorization_endpoint`, `token_endpoint` (likely not directly used in Hexabase AI but as standard specification), `userinfo_endpoint` (optional), `jwks_uri`, `end_session_endpoint` (for logout, optional)), supported response types, scopes, claims, signature algorithms, authentication methods, etc. This allows OIDC clients like vCluster API servers to dynamically discover OIDC provider configuration and automatically configure themselves.
 - **vCluster Configuration**:
   - During vCluster provisioning (or at appropriate timing such as after HNC setup completion), accurately configure the following information in the target vCluster's API server startup options or configuration files. This is usually set through vCluster Helm Chart values or as `vcluster CLI` flags.
     - `--oidc-issuer-url`: Hexabase OIDC provider's Discovery Document endpoint URL (e.g., `https://auth.hexabase.ai/oidc/{workspaceId}`).
-    - `--oidc-client-id`: Client ID for vCluster to identify itself to the OIDC provider (e.g., `kubernetes`, or ID uniquely generated per Workspace, e.g., `hexabase-kaas-{workspaceId}`).
+    - `--oidc-client-id`: Client ID for vCluster to identify itself to the OIDC provider (e.g., `kubernetes`, or ID uniquely generated per Workspace, e.g., `hexabase-ai-{workspaceId}`).
     - `--oidc-username-claim`: Specifies which claim in the ID token to interpret as Kubernetes username (e.g., `sub` or `email`). `sub` (Hexabase User ID) is recommended.
     - `--oidc-username-prefix`: Prefix automatically added to Kubernetes usernames (e.g., `hexabase:`). This avoids namespace collisions with users created by other authentication methods (e.g., ServiceAccount).
     - `--oidc-groups-claim`: Specifies which claim in the ID token to use as group information (e.g., `groups`).
@@ -773,7 +773,7 @@ Time-consuming operations and external system integrations are processed by NATS
 
 ### 8. Stripe Integration Module Implementation
 
-Integration with Stripe is an important part supporting Hexabase KaaS billing functionality. Implement using official Go SDK provided by Stripe (`stripe-go`), delegating most payment processing complexity and PCI DSS compliance to Stripe. This module handles communication with Stripe API, Webhook processing, and part of billing-related business logic.
+Integration with Stripe is an important part supporting Hexabase AI billing functionality. Implement using official Go SDK provided by Stripe (`stripe-go`), delegating most payment processing complexity and PCI DSS compliance to Stripe. This module handles communication with Stripe API, Webhook processing, and part of billing-related business logic.
 
 - **Functions**:
   - **Customer Creation/Update (`stripe.Customer`)**:
@@ -855,8 +855,8 @@ Below is a recommended package structure example from project root. This is just
 /api                          # OpenAPI/Swagger definition files (for API specification definition and documentation generation)
   /openapi.yaml
 /deploy                       # Deployment related files
-  /helm                       # Helm Chart for Hexabase KaaS control plane
-    /hexabase-kaas
+  /helm                       # Helm Chart for Hexabase AI control plane
+    /hexabase-ai
       /templates
       Chart.yaml
       values.yaml
@@ -875,7 +875,7 @@ package workspace // internal/workspace/service.go (or workspace.go)
 import (
 	"context"
 	// Specify actual project paths like internal/db/models
-	"hexabase-kaas/internal/db/models"
+	"hexabase-ai/internal/db/models"
 )
 
 // WorkspaceService defines the interface for managing Workspaces (vClusters).
@@ -922,7 +922,7 @@ package billing // internal/billing/service.go (or stripe_service.go)
 
 import (
 	"context"
-	// "hexabase-kaas/internal/db/models" // Assuming models are defined here
+	// "hexabase-ai/internal/db/models" // Assuming models are defined here
 	"github.com/stripe/stripe-go/v72" // When using Stripe Go SDK types
 )
 
@@ -965,7 +965,7 @@ import (
 	"context"
 	"k8s.io/client-go/kubernetes"       // Kubernetes standard client
 	"k8s.io/client-go/rest"             // For in-cluster and out-of-cluster config
-	"hexabase-kaas/internal/db/models" // Assuming models are defined here
+	"hexabase-ai/internal/db/models" // Assuming models are defined here
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1041,7 +1041,7 @@ type HNCManager interface {
 
 ### 10. Security Considerations
 
-Since Hexabase KaaS provides a multi-tenant environment, security is the top priority. Pay special attention to the following items in design and implementation.
+Since Hexabase AI provides a multi-tenant environment, security is the top priority. Pay special attention to the following items in design and implementation.
 
 - **API Input Validation**: Strictly validate request body, path parameters, and query parameter contents at all API endpoints. Use libraries like `go-playground/validator` to implement type checking, required field checking, character length restrictions, format checking with regular expressions (email addresses, UUIDs, resource names, etc.). Detect invalid input early and return `400 Bad Request` errors. Particularly for user-specifiable names (Workspace names, Project names, Role names, etc.), sanitization to prevent Kubernetes resource naming rules and potential injection attacks (e.g., path traversal) is also important.
 
@@ -1105,7 +1105,7 @@ Adopt a multi-layered testing strategy to deliver high-quality software and prev
 
 ### 12. Future Extensibility
 
-Hexabase KaaS aims to continuously evolve after initial release, designed with the following extensibility considerations. This builds a platform that can flexibly respond to changing user needs and technology trends.
+Hexabase AI aims to continuously evolve after initial release, designed with the following extensibility considerations. This builds a platform that can flexibly respond to changing user needs and technology trends.
 
 - **Consideration of Plugin Architecture Introduction**:
 
@@ -1132,7 +1132,7 @@ Hexabase KaaS aims to continuously evolve after initial release, designed with t
 
 - **Marketplace Feature**:
 
-  - Concept of marketplace feature where users can easily search and deploy applications created by third-party developers or community (Helm Chart format, Operator format, etc.) to Hexabase KaaS Workspace/Project. This allows users to introduce convenient tools and application stacks to their environment with one click.
+  - Concept of marketplace feature where users can easily search and deploy applications created by third-party developers or community (Helm Chart format, Operator format, etc.) to Hexabase AI Workspace/Project. This allows users to introduce convenient tools and application stacks to their environment with one click.
 
 - **Serverless Feature Integration**:
 

@@ -1,13 +1,13 @@
-# Hexabase KaaS Documentation
+# Hexabase AI Documentation
 
-Welcome to the Hexabase Kubernetes as a Service (KaaS) documentation. This guide will help you understand, develop, deploy, and operate the Hexabase KaaS platform.
+Welcome to the Hexabase Kubernetes as a Service (KaaS) documentation. This guide will help you understand, develop, deploy, and operate the Hexabase AI platform.
 
 ## 📚 Documentation Overview
 
 ### [Getting Started](./getting-started/README.md)
 - [Overview](./getting-started/overview.md) - Platform overview and key concepts
 - [Quick Start](./getting-started/quick-start.md) - Get up and running quickly
-- [Core Concepts](./getting-started/concepts.md) - Understanding Hexabase KaaS terminology
+- [Core Concepts](./getting-started/concepts.md) - Understanding Hexabase AI terminology
 
 ### [Architecture](./architecture/README.md)
 - [System Architecture](./architecture/system-architecture.md) - High-level system design
@@ -61,8 +61,8 @@ Welcome to the Hexabase Kubernetes as a Service (KaaS) documentation. This guide
 
 ## 🤝 Getting Help
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/hexabase/hexabase-kaas/issues)
-- **Documentation Issues**: [Help improve these docs](https://github.com/hexabase/hexabase-kaas/issues/new?labels=documentation)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/hexabase/hexabase-ai/issues)
+- **Documentation Issues**: [Help improve these docs](https://github.com/hexabase/hexabase-ai/issues/new?labels=documentation)
 
 ---
 

@@ -1,15 +1,15 @@
 # ArgoCD GitOps Configuration
 
-This directory contains ArgoCD application configurations for GitOps-based deployments of Hexabase KaaS.
+This directory contains ArgoCD application configurations for GitOps-based deployments of Hexabase AI.
 
 ## Overview
 
-ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. This configuration enables automatic synchronization of Hexabase KaaS deployments with Git repositories.
+ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. This configuration enables automatic synchronization of Hexabase AI deployments with Git repositories.
 
 ## Configuration Files
 
 ### application.yaml
-Defines the ArgoCD Application resource that manages Hexabase KaaS deployment with:
+Defines the ArgoCD Application resource that manages Hexabase AI deployment with:
 - Automatic synchronization from Git
 - Self-healing capabilities
 - Retry logic for transient failures
@@ -63,7 +63,7 @@ Create separate applications for different environments:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: hexabase-kaas-staging
+  name: hexabase-ai-staging
   namespace: argocd
 spec:
   source:
@@ -78,14 +78,14 @@ spec:
 Monitor ArgoCD applications:
 ```bash
 # CLI status
-argocd app get hexabase-kaas
-argocd app sync hexabase-kaas
+argocd app get hexabase-ai
+argocd app sync hexabase-ai
 
 # Watch application
-argocd app wait hexabase-kaas
+argocd app wait hexabase-ai
 
 # View history
-argocd app history hexabase-kaas
+argocd app history hexabase-ai
 ```
 
 ## Advanced Features

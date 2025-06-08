@@ -1,4 +1,4 @@
-# Hexabase KaaS Production Values
+# Hexabase AI Production Values
 # This file contains production-ready configuration for self-hosted infrastructure
 
 global:
@@ -8,7 +8,7 @@ global:
 api:
   replicas: 3
   image:
-    repository: hexabase/hexabase-kaas-api
+    repository: hexabase/hexabase-ai-api
     tag: v1.0.0  # Use specific version tags in production
     pullPolicy: IfNotPresent
   
@@ -18,7 +18,7 @@ api:
     
     jwt:
       issuer: https://api.hexabase.ai
-      audience: hexabase-kaas
+      audience: hexabase-ai
       # JWT keys will be mounted from secrets
     
     oauth:
@@ -81,7 +81,7 @@ api:
 ui:
   replicas: 2
   image:
-    repository: hexabase/hexabase-kaas-ui
+    repository: hexabase/hexabase-ai-ui
     tag: v1.0.0
     pullPolicy: IfNotPresent
   

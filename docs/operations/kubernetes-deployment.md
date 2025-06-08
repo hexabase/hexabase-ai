@@ -1,6 +1,6 @@
 # Kubernetes Deployment Guide
 
-This guide provides detailed instructions for deploying Hexabase KaaS on Kubernetes or K3s clusters.
+This guide provides detailed instructions for deploying Hexabase AI on Kubernetes or K3s clusters.
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ sudo mv vcluster /usr/local/bin/
 
 ## Deployment Method 1: Helm Chart (Recommended)
 
-The easiest and recommended way to deploy Hexabase KaaS is using our official Helm chart.
+The easiest and recommended way to deploy Hexabase AI is using our official Helm chart.
 
 ### 1. Add Hexabase Helm Repository
 
@@ -71,14 +71,14 @@ Key configuration sections to update:
 - Storage class names
 - Monitoring endpoints
 
-### 3. Install Hexabase KaaS
+### 3. Install Hexabase AI
 
 ```bash
 # Create namespace
 kubectl create namespace hexabase-system
 
 # Install with Helm
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --values values.yaml \
   --wait
@@ -117,7 +117,7 @@ The provided values files in `deployments/helm/` contain comprehensive configura
 
 For detailed configuration options, run:
 ```bash
-helm show values hexabase/hexabase-kaas > all-values.yaml
+helm show values hexabase/hexabase-ai > all-values.yaml
 ```
 
 ### Upgrading with Helm
@@ -130,19 +130,19 @@ helm repo update hexabase
 helm list -n hexabase-system
 
 # Upgrade to new version
-helm upgrade hexabase-kaas hexabase/hexabase-kaas \
+helm upgrade hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --values values.yaml \
   --wait
 
 # Rollback if needed
-helm rollback hexabase-kaas 1 -n hexabase-system
+helm rollback hexabase-ai 1 -n hexabase-system
 ```
 
 ### Uninstalling
 
 ```bash
-helm uninstall hexabase-kaas -n hexabase-system
+helm uninstall hexabase-ai -n hexabase-system
 kubectl delete namespace hexabase-system
 ```
 
@@ -161,7 +161,7 @@ kubectl create secret generic hexabase-db \
   --namespace hexabase-system \
   --from-literal=username=hexabase \
   --from-literal=password='<secure-password>' \
-  --from-literal=database=hexabase_kaas
+  --from-literal=database=hexabase_ai
 
 # Create Redis secret
 kubectl create secret generic hexabase-redis \
@@ -378,7 +378,7 @@ spec:
     app: nats
 ```
 
-### 6. Deploy Hexabase KaaS API
+### 6. Deploy Hexabase AI API
 
 ```yaml
 # hexabase-api.yaml
@@ -408,7 +408,7 @@ data:
     auth:
       jwt:
         issuer: https://api.hexabase.ai
-        audience: hexabase-kaas
+        audience: hexabase-ai
       oauth:
         redirect_base_url: https://app.hexabase.ai
 ---
@@ -430,7 +430,7 @@ spec:
       serviceAccountName: hexabase-api
       containers:
       - name: api
-        image: hexabase/hexabase-kaas-api:latest
+        image: hexabase/hexabase-ai-api:latest
         env:
         - name: CONFIG_PATH
           value: /config/config.yaml
@@ -525,7 +525,7 @@ spec:
     spec:
       containers:
       - name: ui
-        image: hexabase/hexabase-kaas-ui:latest
+        image: hexabase/hexabase-ai-ui:latest
         env:
         - name: NEXT_PUBLIC_API_URL
           value: https://api.hexabase.ai
@@ -700,7 +700,7 @@ Access the UI at `https://app.hexabase.ai` and complete initial setup.
 
 ## Helm Chart Deployment (Alternative)
 
-For easier deployment, use the Hexabase KaaS Helm chart:
+For easier deployment, use the Hexabase AI Helm chart:
 
 ```bash
 # Add Hexabase helm repo
@@ -708,7 +708,7 @@ helm repo add hexabase https://charts.hexabase.ai
 helm repo update
 
 # Install with custom values
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --create-namespace \
   --values values.yaml
@@ -744,16 +744,16 @@ helm repo update
 **Values validation errors:**
 ```bash
 # Validate your values file
-helm lint hexabase/hexabase-kaas -f values.yaml
+helm lint hexabase/hexabase-ai -f values.yaml
 
 # See all available options
-helm show values hexabase/hexabase-kaas
+helm show values hexabase/hexabase-ai
 ```
 
 **Installation timeouts:**
 ```bash
 # Increase timeout
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --timeout 10m \
   --wait
 ```
@@ -762,17 +762,17 @@ helm install hexabase-kaas hexabase/hexabase-kaas \
 
 1. **Check Helm release status:**
    ```bash
-   helm status hexabase-kaas -n hexabase-system
+   helm status hexabase-ai -n hexabase-system
    ```
 
 2. **View rendered manifests:**
    ```bash
-   helm get manifest hexabase-kaas -n hexabase-system
+   helm get manifest hexabase-ai -n hexabase-system
    ```
 
 3. **Enable debug output:**
    ```bash
-   helm install hexabase-kaas hexabase/hexabase-kaas \
+   helm install hexabase-ai hexabase/hexabase-ai \
      --debug \
      --dry-run
    ```

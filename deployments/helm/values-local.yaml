@@ -1,4 +1,4 @@
-# Hexabase KaaS Local Development Values
+# Hexabase AI Local Development Values
 # Simplified configuration for local development environment
 
 global:
@@ -7,7 +7,7 @@ global:
 api:
   replicas: 1
   image:
-    repository: hexabase/hexabase-kaas-api
+    repository: hexabase/hexabase-ai-api
     tag: latest
     pullPolicy: Always  # Always pull in development
   
@@ -17,7 +17,7 @@ api:
     
     jwt:
       issuer: http://localhost:8080
-      audience: hexabase-kaas-dev
+      audience: hexabase-ai-dev
     
     oauth:
       providers:
@@ -40,7 +40,7 @@ api:
 ui:
   replicas: 1
   image:
-    repository: hexabase/hexabase-kaas-ui
+    repository: hexabase/hexabase-ai-ui
     tag: latest
     pullPolicy: Always
   

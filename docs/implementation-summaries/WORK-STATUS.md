@@ -287,7 +287,7 @@ cd /Users/hi/src/hexabase-ai
 ### 1. Environment Check
 
 ```bash
-cd /Users/hi/src/hexabase-kaas
+cd /Users/hi/src/hexabase-ai
 git status
 make docker-up
 curl http://localhost:8080/health
@@ -396,7 +396,7 @@ Organizations (Multi-tenant root)
 
 ### ✅ Backend Implementation Status: COMPLETED
 
-All backend APIs are fully implemented with comprehensive test coverage. The Hexabase KaaS platform backend is ready for production deployment.
+All backend APIs are fully implemented with comprehensive test coverage. The Hexabase AI platform backend is ready for production deployment.
 
 ### 🔄 Frontend Implementation Status: IN PROGRESS (25% → 100%)
 

@@ -1,10 +1,10 @@
-# Hexabase KaaS: Concept and Architecture
+# Hexabase AI: Concept and Architecture
 
 ## 1. Project Overview
 
 ### Vision
 
-Hexabase KaaS is an open-source, multi-tenant Kubernetes as a Service platform built on K3s and vCluster, designed to make Kubernetes accessible to developers of all skill levels.
+Hexabase AI is an open-source, multi-tenant Kubernetes as a Service platform built on K3s and vCluster, designed to make Kubernetes accessible to developers of all skill levels.
 
 ### Core Values
 
@@ -119,7 +119,7 @@ Both repositories require significant reimplementation based on this specificati
 
 ```yaml
 apiVersion: v2
-name: hexabase-kaas
+name: hexabase-ai
 dependencies:
   - name: postgresql
     repository: https://charts.bitnami.com/bitnami
@@ -133,7 +133,7 @@ dependencies:
 
 ```bash
 helm repo add hexabase https://hexabase.ai/charts
-helm install hexabase-kaas hexabase/hexabase-kaas -f values.yaml
+helm install hexabase-ai hexabase/hexabase-ai -f values.yaml
 ```
 
 ## 7. Key Features
@@ -167,6 +167,6 @@ helm install hexabase-kaas hexabase/hexabase-kaas -f values.yaml
 
 ## 8. Summary
 
-Hexabase KaaS democratizes Kubernetes access through intelligent abstractions, strong multi-tenancy, and enterprise-grade operations tooling. By leveraging K3s and vCluster, it provides a production-ready platform that scales from individual developers to large organizations, all while maintaining the flexibility and power of native Kubernetes.
+Hexabase AI democratizes Kubernetes access through intelligent abstractions, strong multi-tenancy, and enterprise-grade operations tooling. By leveraging K3s and vCluster, it provides a production-ready platform that scales from individual developers to large organizations, all while maintaining the flexibility and power of native Kubernetes.
 
-The open-source nature ensures transparency, community-driven innovation, and the ability to customize for specific requirements. With simple Helm-based installation and comprehensive monitoring, Hexabase KaaS represents a new standard for accessible Kubernetes platforms.
+The open-source nature ensures transparency, community-driven innovation, and the ability to customize for specific requirements. With simple Helm-based installation and comprehensive monitoring, Hexabase AI represents a new standard for accessible Kubernetes platforms.

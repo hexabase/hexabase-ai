@@ -1,14 +1,14 @@
-# Hexabase KaaS: Architecture Specification
+# Hexabase AI: Architecture Specification
 
 ## 1. Project Overview
 
 ### 1.1. Vision
 
-This project aims to develop and provide an open-source, observable, and intuitive multi-tenant Kubernetes as a Service (KaaS) platform based on `K3s` and `vCluster`. While Kubernetes has become the de facto standard in modern application development, its high learning curve, complex operational management, and difficulty in securing resources for small teams and individual developers remain barriers to adoption. Hexabase KaaS is designed to solve these challenges.
+This project aims to develop and provide an open-source, observable, and intuitive multi-tenant Kubernetes as a Service (KaaS) platform based on `K3s` and `vCluster`. While Kubernetes has become the de facto standard in modern application development, its high learning curve, complex operational management, and difficulty in securing resources for small teams and individual developers remain barriers to adoption. Hexabase AI is designed to solve these challenges.
 
 Specifically, it provides the following value:
 
-- **Ease of Deployment**: Based on `K3s`, a lightweight Kubernetes distribution, and utilizing `vCluster` virtualization technology, users are freed from the complexity of physical cluster management and can quickly start using isolated Kubernetes environments. This ease of use encourages developers and teams with limited Kubernetes expertise to embrace new technologies. Traditional Kubernetes cluster construction required extensive expertise in network configuration, security policy formulation, storage provisioning, and more. Hexabase KaaS automates and abstracts much of this, providing a ready-to-use state with just a few clicks.
+- **Ease of Deployment**: Based on `K3s`, a lightweight Kubernetes distribution, and utilizing `vCluster` virtualization technology, users are freed from the complexity of physical cluster management and can quickly start using isolated Kubernetes environments. This ease of use encourages developers and teams with limited Kubernetes expertise to embrace new technologies. Traditional Kubernetes cluster construction required extensive expertise in network configuration, security policy formulation, storage provisioning, and more. Hexabase AI automates and abstracts much of this, providing a ready-to-use state with just a few clicks.
 
 - **Intuitive Operation**: Kubernetes' powerful features are abstracted through a sophisticated UI/UX, making them easily accessible to users without specialized knowledge. Resources can be managed using intuitive concepts such as Organization, Workspace, and Project. For example, common operations like application deployment, scaling, and monitoring can be performed from a graphical interface without directly editing YAML files. Error messages and logs are also displayed in an understandable way to support problem resolution.
 
@@ -18,11 +18,11 @@ Specifically, it provides the following value:
 
 - **Open Source Transparency and Community**: By releasing this project as open source, we ensure technical transparency and actively welcome feedback and contributions from developers worldwide. We aim to build a reliable platform that grows with the community and can address more use cases. We also anticipate use in educational institutions and as a learning/validation platform for new cloud-native technologies. Open source code publication leads to early discovery and correction of security vulnerabilities. Additionally, incorporating diverse perspectives enables more innovative and practical feature development.
 
-Hexabase KaaS envisions being a catalyst for delivering the power of Kubernetes to more people and accelerating innovation. Developers will be freed from infrastructure complexity and able to focus on the essential value creation of application development.
+Hexabase AI envisions being a catalyst for delivering the power of Kubernetes to more people and accelerating innovation. Developers will be freed from infrastructure complexity and able to focus on the essential value creation of application development.
 
 ## 2. System Architecture
 
-The Hexabase KaaS system architecture consists of the **Hexabase UI (Next.js)** that users directly interact with, the **Hexabase API (control plane, Go language)** that manages and controls the entire system, various supporting **middleware (PostgreSQL, Redis, NATS, etc.)**, and a new **AIOps System (Python)**. All these components are containerized and run on the operational foundation **Host K3s Cluster**. Per-tenant Kubernetes environments are virtually constructed within the Host K3s Cluster using **vCluster** technology, providing strong isolation and independence. This multi-layered architecture is designed with scalability, availability, maintainability, and intelligence in mind.
+The Hexabase AI system architecture consists of the **Hexabase UI (Next.js)** that users directly interact with, the **Hexabase API (control plane, Go language)** that manages and controls the entire system, various supporting **middleware (PostgreSQL, Redis, NATS, etc.)**, and a new **AIOps System (Python)**. All these components are containerized and run on the operational foundation **Host K3s Cluster**. Per-tenant Kubernetes environments are virtually constructed within the Host K3s Cluster using **vCluster** technology, providing strong isolation and independence. This multi-layered architecture is designed with scalability, availability, maintainability, and intelligence in mind.
 
 **Architectural Diagram:**
 
@@ -114,7 +114,7 @@ This architecture aims to realize a scalable, resilient, intelligent, and operat
 
 ## 3. Core Concepts and Entity Mapping
 
-Hexabase KaaS provides unique abstracted concepts to allow users to use the service without being aware of Kubernetes complexity. These concepts are internally mapped to standard Kubernetes resources and features. Understanding this mapping is crucial for grasping system behavior and using it effectively.
+Hexabase AI provides unique abstracted concepts to allow users to use the service without being aware of Kubernetes complexity. These concepts are internally mapped to standard Kubernetes resources and features. Understanding this mapping is crucial for grasping system behavior and using it effectively.
 
 | Hexabase Concept      | Kubernetes Equivalent                              | Scope              | Notes                                                                                |
 | --------------------- | -------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
@@ -248,8 +248,8 @@ Provides a Helm Umbrella Chart that enables deployment of all Hexabase component
 
 ```yaml
 apiVersion: v2
-name: hexabase-kaas
-description: A Helm chart for deploying the Hexabase KaaS Control Plane
+name: hexabase-ai
+description: A Helm chart for deploying the Hexabase AI Control Plane
 version: 0.1.0
 appVersion: "0.1.0"
 
@@ -278,7 +278,7 @@ dependencies:
 
 ## 6.2. Installation Flow
 
-End users can deploy Hexabase KaaS following these steps after preparing a K3s cluster:
+End users can deploy Hexabase AI following these steps after preparing a K3s cluster:
 
 ### Add Helm Repository
 
@@ -295,11 +295,11 @@ helm repo update
 ### Install with Helm:
 
 ```bash
-helm install hexabase-kaas hexabase/hexabase-kaas -f values.yaml
+helm install hexabase-ai hexabase/hexabase-ai -f values.yaml
 ```
 
 This single command sets up the entire Hexabase control plane on the K3s cluster along with dependent components like PostgreSQL, Redis, and NATS.
 
 # 7. Conclusion
 
-This specification is a conceptual design blueprint for Hexabase KaaS based on modern technology stacks and cloud-native best practices. By incorporating simple deployment with Helm, efficient CI/CD with Tekton and GitOps, robust security with Trivy and Falco, and flexible policy management with Kyverno, we build a strong foundation for an open-source project that can be trusted by users worldwide and grow with the community.
+This specification is a conceptual design blueprint for Hexabase AI based on modern technology stacks and cloud-native best practices. By incorporating simple deployment with Helm, efficient CI/CD with Tekton and GitOps, robust security with Trivy and Falco, and flexible policy management with Kyverno, we build a strong foundation for an open-source project that can be trusted by users worldwide and grow with the community.

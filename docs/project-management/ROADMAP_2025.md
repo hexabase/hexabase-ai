@@ -34,26 +34,54 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Core Platform Completion (Jun-Jul 2025)
+### Phase 1: Core Platform & AI Agent Foundation (Jun-Jul 2025)
 
-#### Week 1-2: AIOps Integration
-- [ ] Connect real Ollama LLM service
-- [ ] Implement Redis chat session management
-- [ ] Setup ClickHouse for chat history
-- [ ] Create monitoring & operations agents
-- [ ] Build secure code execution sandbox
+#### Week 1-2: CronJob Management Implementation
+- [ ] Add CronJob type to Application model
+- [ ] Create CronJob configuration API endpoints
+- [ ] Implement Kubernetes CronJob resource creation
+- [ ] Build UI for CronJob management
+  - Schedule configuration (presets + cron expression)
+  - Template selection from existing applications
+  - Command/args override
+  - Manual trigger capability
+- [ ] Add job history and log viewing
+- [ ] Integrate with backup settings feature
 
-#### Week 3-4: Essential Services
-- [ ] Email notification system
-  - Organization invitations
-  - Billing notifications
-  - Provisioning status updates
-- [ ] NATS message queue integration
-  - Async task processing
-  - Retry mechanisms
-  - Status tracking
+#### Week 3-4: HKS Functions (Serverless) Foundation
+- [ ] Install Knative on host K3s cluster
+- [ ] Develop hks-func CLI wrapper
+  - Authentication integration
+  - Project context management
+  - Function deployment commands
+- [ ] Create function management API
+- [ ] Build UI dashboard for functions
+  - Function listing and status
+  - Invocation endpoints
+  - Logs and metrics viewing
+- [ ] Implement HTTP trigger routing
+- [ ] Create function-to-CronJob integration
 
-### Phase 2: Security & Frontend (Jul-Aug 2025)
+### Phase 2: AI Agent Enablement & Security (Jul-Aug 2025)
+
+#### AI-Powered Dynamic Function Execution
+- [ ] Implement secure Internal Operations API
+  - `/internal/v1/operations/deploy-function`
+  - `/internal/v1/operations/delete-function`
+- [ ] Setup Kaniko for secure in-cluster builds
+- [ ] Create restricted Service Accounts for functions
+- [ ] Develop HKS Internal SDK (Python)
+  - `hks_sdk.functions.execute(code="...")`
+  - Automatic cleanup lifecycle
+- [ ] Implement function sandboxing and resource limits
+- [ ] Create AI agent code execution patterns
+
+#### AIOps Integration with Functions
+- [ ] Connect Ollama LLM service
+- [ ] Enable AI agents to generate and deploy functions
+- [ ] Implement Redis session management for context
+- [ ] Setup ClickHouse for execution history
+- [ ] Create monitoring & operations agents using functions
 
 #### Security Enhancements
 - [ ] JWT refresh token implementation
@@ -98,21 +126,22 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 - [ ] Automated remediation workflows
 - [ ] Change impact analysis
 
-### Phase 4: Developer Experience (Oct-Dec 2025)
+### Phase 4: Advanced Platform Features (Oct-Dec 2025)
 
-#### CronJob Management
-- [ ] CronJob API extensions
-- [ ] Schedule configuration UI
-- [ ] Job history tracking
-- [ ] Manual trigger capability
-- [ ] Failure notifications
+#### Email & Notification Services
+- [ ] Email notification system
+  - Organization invitations
+  - Billing notifications
+  - CronJob execution alerts
+  - Function invocation notifications
+- [ ] Webhook integrations
+- [ ] Slack/Discord notifications
 
-#### HKS Functions (Serverless)
-- [ ] Knative integration
-- [ ] Function management UI
-- [ ] CLI tooling (hks-func)
-- [ ] HTTP trigger routing
-- [ ] Function metrics & logs
+#### NATS Message Queue Integration
+- [ ] Async task processing
+- [ ] Event-driven function triggers
+- [ ] Retry mechanisms
+- [ ] Dead letter queues
 
 ### Phase 5: Enterprise & Scale (2026 Q1-Q2)
 
