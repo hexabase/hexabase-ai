@@ -92,6 +92,26 @@ hexabase-ai/
 └── docker-compose.yml      # Development Environment
 ```
 
+## 🎯 Recently Discovered: Additional Implemented Features
+
+### ✅ Node Management (95% Complete)
+- **Proxmox Integration**: Full VM lifecycle management implemented ✅
+- **Resource Tracking**: CPU, memory, disk monitoring ✅
+- **Billing Integration**: Cost calculation and plan transitions ✅
+- **TODO**: K3s agent status check implementation
+
+### ✅ Application Management (80% Complete)
+- **Domain Models**: Complete support for stateless/stateful apps ✅
+- **Service Layer**: Full deployment, scaling, update operations ✅
+- **Kubernetes Integration**: Deployment/StatefulSet management ✅
+- **TODO**: API handlers and route registration missing
+
+### ✅ CI/CD Foundation (70% Complete)
+- **Provider Model**: Extensible architecture with DI ✅
+- **Tekton Integration**: Basic provider implementation ✅
+- **Credential Management**: Git/registry credentials handling ✅
+- **TODO**: Template-based pipeline creation incomplete
+
 ## 🎯 Recently Completed: VCluster Lifecycle Management
 
 ### ✅ Final Implementation Phase: VCluster API (100% Complete)
@@ -273,7 +293,17 @@ make docker-up
 curl http://localhost:8080/health
 ```
 
-### 2. vCluster Lifecycle Management Implementation Priority
+### 2. Complete Node, Application, and CI/CD Features
+
+- [ ] Register node management routes in routes.go
+- [ ] Implement application API handlers (currently missing)
+- [ ] Register application routes in routes.go
+- [ ] Fix wire DI issues for CI/CD handlers
+- [ ] Uncomment and enable CI/CD routes
+- [ ] Complete Tekton template-based pipeline creation
+- [ ] Implement K3s agent status check for nodes
+
+### 3. vCluster Lifecycle Management Implementation Priority
 
 - [ ] Set up actual vCluster provisioning (replace mocks)
 - [ ] Implement K3s cluster integration
@@ -281,7 +311,7 @@ curl http://localhost:8080/health
 - [ ] Configure network policies
 - [ ] Implement health monitoring and status reporting
 
-### 3. Required Information
+### 4. Required Information
 
 - **vCluster Integration**: K3s cluster configuration details
 - **Production Deployment**: Kubernetes cluster setup, networking requirements
@@ -306,6 +336,9 @@ curl http://localhost:8080/health
 - **Groups API**: Complete hierarchical group management with 8 endpoints ✅
 - **Projects API**: Kubernetes namespace management with resource quotas ✅
 - **Workspaces API**: vCluster lifecycle management with kubeconfig generation ✅
+- **Nodes API**: Domain/service/handlers complete, routes NOT registered (0 endpoints active) 🚧
+- **Applications API**: Domain/service complete, handlers missing, routes NOT registered (0 endpoints active) 🚧
+- **CI/CD API**: Complete implementation but routes COMMENTED OUT pending wire DI fix 🚧
 
 ### Environment Variables
 
