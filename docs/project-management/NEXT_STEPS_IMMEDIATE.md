@@ -1,6 +1,6 @@
 # Immediate Next Steps - Sprint Plan
 
-**Sprint**: Jan 8-22, 2025  
+**Sprint**: Jun 9-23, 2025  
 **Focus**: AIOps Completion & Core Services
 
 ## 🎯 Priority 1: Complete AIOps Integration (3-4 days)

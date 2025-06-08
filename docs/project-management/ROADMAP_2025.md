@@ -1,6 +1,6 @@
 # Hexabase AI Roadmap 2025
 
-**Last Updated**: 2025-01-08  
+**Last Updated**: 2025-06-09  
 **Status**: Active Development
 
 ## 🎯 Project Vision
@@ -34,7 +34,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Core Platform Completion (Jan-Feb 2025)
+### Phase 1: Core Platform Completion (Jun-Jul 2025)
 
 #### Week 1-2: AIOps Integration
 - [ ] Connect real Ollama LLM service
@@ -53,7 +53,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
   - Retry mechanisms
   - Status tracking
 
-### Phase 2: Security & Frontend (Feb-Mar 2025)
+### Phase 2: Security & Frontend (Jul-Aug 2025)
 
 #### Security Enhancements
 - [ ] JWT refresh token implementation
@@ -82,7 +82,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
   - Audit trail viewer
   - Group management
 
-### Phase 3: Platform Intelligence (Mar-May 2025)
+### Phase 3: Platform Intelligence (Aug-Oct 2025)
 
 #### Observability Stack
 - [ ] Multi-tenant Prometheus setup
@@ -98,7 +98,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 - [ ] Automated remediation workflows
 - [ ] Change impact analysis
 
-### Phase 4: Developer Experience (May-Jul 2025)
+### Phase 4: Developer Experience (Oct-Dec 2025)
 
 #### CronJob Management
 - [ ] CronJob API extensions
@@ -114,7 +114,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 - [ ] HTTP trigger routing
 - [ ] Function metrics & logs
 
-### Phase 5: Enterprise & Scale (Jul-Dec 2025)
+### Phase 5: Enterprise & Scale (2026 Q1-Q2)
 
 #### Multi-Region Architecture
 - [ ] Region-aware scheduling
@@ -187,7 +187,7 @@ Transform Hexabase from a Kubernetes-as-a-Service platform into an AI-powered in
 - Community feedback loops
 - Regular architecture reviews
 
-## 🎯 Next Sprint Plan (Jan 8-22, 2025)
+## 🎯 Next Sprint Plan (Jun 9-23, 2025)
 
 ### Sprint Goals
 1. Complete AIOps Ollama integration

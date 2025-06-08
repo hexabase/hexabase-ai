@@ -115,13 +115,13 @@ def test_log_querying_tool_success(httpx_mock):
     mock_response_data = {
         "logs": [
             {
-                "timestamp": "2025-01-08T10:00:00Z",
+                "timestamp": "2025-06-09T10:00:00Z",
                 "level": "ERROR",
                 "message": "Internal server error 500",
                 "source": "api-gateway"
             },
             {
-                "timestamp": "2025-01-08T10:05:00Z",
+                "timestamp": "2025-06-09T10:05:00Z",
                 "level": "ERROR", 
                 "message": "Database connection error 500",
                 "source": "backend-service"
