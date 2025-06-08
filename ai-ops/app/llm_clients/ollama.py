@@ -10,12 +10,12 @@ class OllamaClient:
         self.model_name = model_name
         self.http_client = httpx.Client(timeout=60.0)
 
-    def predict(self, system_prompt: str, user_query: str) -> str:
+    def predict(self, system_prompt: str, user_query: str) -> dict:
         """
         Sends a request to the Ollama /api/generate endpoint (non-streaming).
 
         Returns:
-            The raw JSON string from the 'response' field of the last JSON object from Ollama.
+            A dictionary containing either the response or an error.
         """
         endpoint = f"{self.api_url}/api/generate"
         
@@ -41,8 +41,21 @@ class OllamaClient:
 
         except httpx.HTTPStatusError as e:
             print(f"HTTP error occurred: {e}")
-            # In a real app, you might want to raise a custom exception.
-            return f'{{"error": "HTTP error connecting to LLM: {e.get("status_code")}"}}'
+            # Return consistent dict format with error details
+            return {
+                "error": f"HTTP error connecting to LLM: {e.response.status_code}",
+                "status_code": e.response.status_code,
+                "detail": str(e)
+            }
+        except httpx.RequestError as e:
+            print(f"Request error occurred: {e}")
+            return {
+                "error": "Failed to connect to LLM service",
+                "detail": str(e)
+            }
         except Exception as e:
-            print(f"An error occurred: {e}")
-            return f'{{"error": "An unexpected error occurred: {str(e)}"}}' 
+            print(f"An unexpected error occurred: {e}")
+            return {
+                "error": "An unexpected error occurred",
+                "detail": str(e)
+            }

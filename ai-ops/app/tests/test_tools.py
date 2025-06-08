@@ -1,6 +1,10 @@
 import pytest
 from httpx import Response
-from app.agents.tools import GetKubernetesNodesTool, GetKubernetesNodesInput, ScaleDeploymentTool, ScaleDeploymentInput
+from app.agents.tools import (
+    GetKubernetesNodesTool, GetKubernetesNodesInput, 
+    ScaleDeploymentTool, ScaleDeploymentInput,
+    LogQueryingTool, LogQueryInput
+)
 from app.config import settings
 
 def test_get_kubernetes_nodes_tool_success(httpx_mock):
@@ -97,4 +101,121 @@ def test_scale_deployment_tool_success(httpx_mock):
     # 5. Verify the API call was made with the correct body.
     request = httpx_mock.get_request()
     assert request is not None
-    assert request.json() == {"replicas": 5} 
+    assert request.json() == {"replicas": 5}
+
+
+def test_log_querying_tool_success(httpx_mock):
+    # Arrange
+    # 1. Mock the internal Go API endpoint for log querying.
+    workspace_id = "ws-123"
+    query = "error 500"
+    time_range = "1h"
+    go_api_endpoint = f"{settings.HKS_INTERNAL_API_URL}/internal/v1/workspaces/{workspace_id}/logs/query"
+    
+    mock_response_data = {
+        "logs": [
+            {
+                "timestamp": "2025-01-08T10:00:00Z",
+                "level": "ERROR",
+                "message": "Internal server error 500",
+                "source": "api-gateway"
+            },
+            {
+                "timestamp": "2025-01-08T10:05:00Z",
+                "level": "ERROR", 
+                "message": "Database connection error 500",
+                "source": "backend-service"
+            }
+        ],
+        "total_count": 2
+    }
+    
+    httpx_mock.add_response(
+        url=go_api_endpoint,
+        method="POST",
+        json=mock_response_data,
+        status_code=200,
+    )
+
+    # 2. Instantiate the tool.
+    tool = LogQueryingTool()
+    tool_input = LogQueryInput(workspace_id=workspace_id, query=query, time_range=time_range)
+
+    # Act
+    # 3. Call the tool's use method.
+    result = tool.use(tool_input)
+
+    # Assert
+    # 4. Verify the result contains log summary.
+    assert "Found 2 log entries" in result
+    assert "error 500" in result
+    assert "api-gateway" in result
+    assert "backend-service" in result
+    
+    # 5. Verify the API call was made with correct parameters.
+    request = httpx_mock.get_request()
+    assert request is not None
+    assert request.json() == {"query": "error 500", "time_range": "1h"}
+
+
+def test_log_querying_tool_no_results(httpx_mock):
+    # Arrange
+    # 1. Mock the internal Go API endpoint to return empty results.
+    workspace_id = "ws-123"
+    query = "non-existent-error"
+    time_range = "1h"
+    go_api_endpoint = f"{settings.HKS_INTERNAL_API_URL}/internal/v1/workspaces/{workspace_id}/logs/query"
+    
+    mock_response_data = {
+        "logs": [],
+        "total_count": 0
+    }
+    
+    httpx_mock.add_response(
+        url=go_api_endpoint,
+        method="POST",
+        json=mock_response_data,
+        status_code=200,
+    )
+
+    # 2. Instantiate the tool.
+    tool = LogQueryingTool()
+    tool_input = LogQueryInput(workspace_id=workspace_id, query=query, time_range=time_range)
+
+    # Act
+    # 3. Call the tool's use method.
+    result = tool.use(tool_input)
+
+    # Assert
+    # 4. Verify the result indicates no logs found.
+    assert "No log entries found" in result
+    assert "non-existent-error" in result
+
+
+def test_log_querying_tool_api_error(httpx_mock):
+    # Arrange
+    # 1. Mock the internal Go API endpoint to return an error.
+    workspace_id = "ws-error"
+    query = "test"
+    time_range = "1h"
+    go_api_endpoint = f"{settings.HKS_INTERNAL_API_URL}/internal/v1/workspaces/{workspace_id}/logs/query"
+    
+    httpx_mock.add_response(
+        url=go_api_endpoint,
+        method="POST",
+        status_code=403,
+        json={"error": "unauthorized access to logs"}
+    )
+
+    # 2. Instantiate the tool.
+    tool = LogQueryingTool()
+    tool_input = LogQueryInput(workspace_id=workspace_id, query=query, time_range=time_range)
+
+    # Act
+    # 3. Call the tool's use method.
+    result = tool.use(tool_input)
+
+    # Assert
+    # 4. Verify the result contains error message.
+    assert "Error: Could not query logs" in result
+    assert "403" in result 
