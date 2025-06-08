@@ -5,19 +5,22 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 )
 
 // InternalHandler handles internal-only API requests.
 type InternalHandler struct {
 	workspaceSvc workspace.Service
+	logSvc       logs.Service
 	logger       *slog.Logger
 }
 
 // NewInternalHandler creates a new handler for internal operations.
-func NewInternalHandler(workspaceSvc workspace.Service, logger *slog.Logger) *InternalHandler {
+func NewInternalHandler(workspaceSvc workspace.Service, logSvc logs.Service, logger *slog.Logger) *InternalHandler {
 	return &InternalHandler{
 		workspaceSvc: workspaceSvc,
+		logSvc:       logSvc,
 		logger:       logger,
 	}
 }
@@ -62,4 +65,29 @@ func (h *InternalHandler) ScaleDeployment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "deployment scaled successfully"})
+}
+
+// QueryLogs is the handler for POST /internal/v1/logs/query
+func (h *InternalHandler) QueryLogs(c *gin.Context) {
+	var query logs.LogQuery
+	if err := c.ShouldBindJSON(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid query payload: " + err.Error()})
+		return
+	}
+
+	// Basic validation
+	if query.WorkspaceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace_id is required"})
+		return
+	}
+
+	// Call the log service
+	results, err := h.logSvc.QueryLogs(c.Request.Context(), query)
+	if err != nil {
+		h.logger.Error("failed to query logs", "query", query, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve logs"})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
 } 

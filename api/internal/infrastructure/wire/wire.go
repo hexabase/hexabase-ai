@@ -6,6 +6,7 @@ package wire
 import (
 	"log/slog"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
@@ -16,6 +17,7 @@ import (
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
+	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
@@ -23,6 +25,7 @@ import (
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
+	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	orgSvc "github.com/hexabase/hexabase-ai/api/internal/service/organization"
 	projectSvc "github.com/hexabase/hexabase-ai/api/internal/service/project"
@@ -42,13 +45,14 @@ var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRep
 var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicdSvc.NewService, handlers.NewCICDHandler)
 var HelmSet = wire.NewSet(helm.NewService)
 var AIOpsProxySet = wire.NewSet(ProvideAIOpsServiceURL, handlers.NewAIOpsProxyHandler)
+var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepository, logSvc.NewLogService)
 
 type App struct {
-	AuthHandler *handlers.AuthHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler
+	AuthHandler *handlers.AuthHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
 }
 
-func NewApp(authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler) *App {
-	return &App{AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH}
+func NewApp(authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+	return &App{AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
 type StripeAPIKey string
@@ -68,6 +72,16 @@ func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSec
 func ProvideCICDNamespace() CICDNamespace { return CICDNamespace("hexabase-cicd") }
 func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace CICDNamespace) cicd.ProviderFactory { return cicdRepo.NewProviderFactory(kubeClient, k8sConfig, string(namespace)) }
 func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicd.CredentialManager { return cicdRepo.NewKubernetesCredentialManager(kubeClient, string(namespace)) }
+func ProvideClickHouseConnection(cfg *config.Config) (clickhouse.Conn, error) {
+	// This should be expanded with full config options (user, pass, etc.)
+	conn, err := clickhouse.Open(&clickhouse.Options{
+		Addr: []string{cfg.ClickHouse.Address},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
 
 func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interface, dynamicClient dynamic.Interface, k8sConfig *rest.Config, logger *slog.Logger) (*App, error) {
 	wire.Build(
@@ -80,6 +94,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		CICDSet,
 		HelmSet,
 		AIOpsProxySet,
+		LogSet,
 		ProvideOAuthProviderConfigs,
 		ProvideStripeAPIKey,
 		ProvideStripeWebhookSecret,

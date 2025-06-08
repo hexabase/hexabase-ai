@@ -1,5 +1,5 @@
 import json
-from .tools import TOOL_REGISTRY, GetKubernetesNodesInput, ScaleDeploymentInput
+from .tools import TOOL_REGISTRY, GetKubernetesNodesInput, ScaleDeploymentInput, LogQueryInput
 
 class OrchestratorAgent:
     def __init__(self, llm_client):
@@ -63,11 +63,12 @@ class OrchestratorAgent:
         tool = self.tools[tool_name]
 
         # Find the correct Pydantic model for the tool's input
-        # This is a bit of a simplification; a more robust system might use a mapping.
         if tool.name == "get_kubernetes_nodes":
             input_model = GetKubernetesNodesInput(**tool_input_dict)
         elif tool.name == "scale_deployment":
             input_model = ScaleDeploymentInput(**tool_input_dict)
+        elif tool.name == "query_logs":
+            input_model = LogQueryInput(**tool_input_dict)
         else:
             return f"Error: Could not find input model for tool '{tool.name}'"
 

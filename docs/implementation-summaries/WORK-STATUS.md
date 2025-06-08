@@ -1,7 +1,7 @@
-# Hexabase KaaS - Work Status Report
+# Hexabase AI - Work Status Report
 
-**Last Updated**: 2025-06-03
-**Project**: Hexabase Kubernetes as a Service (KaaS) Platform
+**Last Updated**: 2025-06-08
+**Project**: Hexabase AI - Kubernetes as a Service Platform with AIOps
 
 ## 🚀 Current Progress Status
 
@@ -51,7 +51,7 @@
 ## 📂 Project Structure
 
 ```
-hexabase-kaas/
+hexabase-ai/
 ├── api/                     # Go API Service
 │   ├── internal/api/        # HTTP Handlers
 │   │   ├── auth.go         # OAuth/JWT Authentication
@@ -65,10 +65,21 @@ hexabase-kaas/
 │   │   ├── rbac.go         # Role-Based Access Control ✅
 │   │   ├── vcluster.go     # VCluster Lifecycle Management ✅
 │   │   ├── routes.go       # API Route Configuration
+│   │   ├── aiops.go        # AI Operations Handler ✅
+│   │   ├── aiops_proxy.go  # AI Operations Proxy ✅
+│   │   ├── cicd.go         # CI/CD Operations ✅
 │   │   └── handlers.go     # Handler Initialization
 │   ├── internal/auth/       # OAuth/JWT Authentication System
 │   ├── internal/db/         # Database Models & Migrations
 │   └── cmd/                 # Entry Points
+├── ai-ops/                  # Python AIOps Service ✅
+│   ├── src/aiops/          # FastAPI Application
+│   │   ├── main.py         # Main app entry point
+│   │   ├── routers/        # API endpoints
+│   │   │   ├── chat.py     # Chat endpoint ✅
+│   │   │   ├── monitoring.py # Monitoring endpoints
+│   │   │   └── operations.py # Remediation endpoints
+│   │   └── auth/           # JWT validation
 ├── ui/                      # Next.js Frontend
 │   ├── src/app/            # App Router Pages
 │   ├── src/components/     # React Components
@@ -124,14 +135,21 @@ hexabase-kaas/
 ### Backend Startup
 
 ```bash
-cd /Users/hi/src/hexabase-kaas
+cd /Users/hi/src/hexabase-ai
 make docker-up    # Start PostgreSQL, Redis, NATS, API
+```
+
+### AI Ops Service Startup
+
+```bash
+cd /Users/hi/src/hexabase-ai
+docker-compose -f docker-compose.aiops.yml up -d
 ```
 
 ### Frontend Startup
 
 ```bash
-cd /Users/hi/src/hexabase-kaas/ui
+cd /Users/hi/src/hexabase-ai/ui
 npm install
 npm run dev       # http://localhost:3000
 ```
@@ -150,6 +168,7 @@ npm run dev       # http://localhost:3000
 - **RBAC**: http://localhost:8080/api/v1/organizations/:orgId/workspaces/:wsId/rbac/
 - **VCluster**: http://localhost:8080/api/v1/organizations/:orgId/workspaces/:wsId/vcluster/
 - **Tasks**: http://localhost:8080/api/v1/tasks/
+- **AI Chat**: http://localhost:8080/api/v1/ai/chat
 
 ## 📊 Test Status
 
@@ -192,15 +211,18 @@ go test ./internal/api -v
 ### Local Testing
 
 ```bash
-cd /Users/hi/src/hexabase-kaas
+cd /Users/hi/src/hexabase-ai
 ./scripts/quick_test.sh
+
+# Test AI Ops Integration
+./scripts/test/test_aiops_integration.sh
 ```
 
 ## 🔗 Repository Information
 
-- **GitHub**: https://github.com/hexabase/hexabase-kaas
-- **Latest Commit**: Ready to commit Groups API implementation
-- **Branch**: `main`
+- **GitHub**: https://github.com/hexabase/hexabase-ai
+- **Latest Commit**: Implementing AIOps Chat Integration
+- **Branch**: `develop`
 - **Total Files**: 80+ files
 - **Total Lines**: 22,000+ lines
 
@@ -861,8 +883,12 @@ class PKCEFlow {
     - [x] Implement the secure internal JWT handshake between Go and Python services.
     - [x] Deploy Langfuse stack for LLMOps.
     - [x] Deploy private LLM serving with Ollama on dedicated nodes.
+    - [x] Implement chat endpoint `/v1/chat` in Python service.
+    - [x] Create proxy handler in Go API to forward to Python service.
+    - [x] Add integration test script for chat functionality.
     - [ ] **TODO**: Connect the real `OllamaClient` in the Python service.
-    - [ ] **TODO**: Implement the real `GetKubernetesNodesTool` to call the Go API.
+    - [ ] **TODO**: Implement chat session management with Redis.
+    - [ ] **TODO**: Add chat history storage to ClickHouse.
 
 ---
 

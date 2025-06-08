@@ -84,8 +84,52 @@ class ScaleDeploymentTool(Tool):
         except Exception as e:
             return f"Error: An unexpected error occurred while scaling deployment: {str(e)}"
 
+class LogQueryInput(ToolInput):
+    """Input model for the LogQueryingTool."""
+    workspace_id: str
+    search_term: str = None
+    level: str = None
+    # In a real tool, we would handle time parsing more robustly
+    start_time: str = None
+    end_time: str = None
+    limit: int = 100
+
+class LogQueryingTool(Tool):
+    """A tool to query logs for a given workspace. Use this to answer questions about errors, specific pod logs, or events within a time range."""
+    name = "query_logs"
+    description = "Searches and retrieves logs from a workspace based on search terms, log level, and time range."
+
+    def use(self, input_data: LogQueryInput) -> str:
+        """
+        Calls the internal HKS API to query logs.
+        """
+        endpoint = f"{settings.HKS_INTERNAL_API_URL}/internal/v1/logs/query"
+        payload = input_data.dict(exclude_none=True)
+
+        try:
+            with httpx.Client() as client:
+                response = client.post(endpoint, json=payload)
+                response.raise_for_status()
+                logs = response.json()
+
+            if not logs:
+                return f"No logs found for workspace {input_data.workspace_id} with the given criteria."
+            
+            summary = f"Found {len(logs)} log entries:\n"
+            for log in logs:
+                summary += f"- [{log.get('timestamp')}] [{log.get('level')}] {log.get('message')}\n"
+            
+            return summary.strip()
+
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json().get("error", "unknown error")
+            return f"Error: Could not query logs. The API returned a {e.response.status_code} status: {error_detail}"
+        except Exception as e:
+            return f"Error: An unexpected error occurred while querying logs: {str(e)}"
+
 # A registry of available tools for the orchestrator to use.
 TOOL_REGISTRY = [
     GetKubernetesNodesTool(),
     ScaleDeploymentTool(),
+    LogQueryingTool(),
 ] 

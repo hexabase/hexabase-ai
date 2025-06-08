@@ -18,6 +18,7 @@ type Config struct {
 	K8s        K8sConfig        `mapstructure:"k8s"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 	AIOps      AIOpsConfig      `mapstructure:"aiops"`
+	ClickHouse ClickHouseConfig `mapstructure:"clickhouse"`
 }
 
 // ServerConfig holds HTTP server configuration
@@ -109,6 +110,14 @@ type AIOpsConfig struct {
 	URL string `mapstructure:"url"`
 }
 
+// ClickHouseConfig holds configuration for the ClickHouse database.
+type ClickHouseConfig struct {
+	Address  string `mapstructure:"address"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Database string `mapstructure:"database"`
+}
+
 // Load loads configuration from file and environment variables
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigName("config")
@@ -179,6 +188,12 @@ func setDefaults() {
 
 	// AIOps defaults
 	viper.SetDefault("aiops.url", "http://ai-ops-service.ai-ops.svc.cluster.local:8000")
+
+	// ClickHouse defaults
+	viper.SetDefault("clickhouse.address", "llmops-clickhouse.llm-ops.svc.cluster.local:9000")
+	viper.SetDefault("clickhouse.user", "default")
+	viper.SetDefault("clickhouse.password", "")
+	viper.SetDefault("clickhouse.database", "default")
 
 	// K8s defaults
 	viper.SetDefault("k8s.in_cluster", false)
