@@ -140,8 +140,8 @@ deployments/
 
 ```bash
 # Clone and setup everything with one command
-git clone https://github.com/hexabase/hexabase-kaas.git
-cd hexabase-kaas
+git clone https://github.com/hexabase/hexabase-ai.git
+cd hexabase-ai
 make setup
 
 # Start development
@@ -155,8 +155,8 @@ make dev-ui   # Terminal 2
 
 ```bash
 # Clone the repository
-git clone https://github.com/hexabase/hexabase-kaas.git
-cd hexabase-kaas
+git clone https://github.com/hexabase/hexabase-ai.git
+cd hexabase-ai
 
 # Start infrastructure
 docker-compose up -d
@@ -200,7 +200,7 @@ helm repo add hexabase https://charts.hexabase.ai
 helm repo update
 
 # Install Hexabase KaaS with production values
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --create-namespace \
   --values deployments/helm/values-production.yaml
@@ -263,8 +263,8 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICE
 ## 📞 Support
 
 - **Documentation**: [Full Documentation](./docs/README.md)
-- **Issues**: [GitHub Issues](https://github.com/hexabase/hexabase-kaas/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/hexabase/hexabase-kaas/discussions)
+- **Issues**: [GitHub Issues](https://github.com/hexabase/hexabase-ai/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/hexabase/hexabase-ai/discussions)
 
 ---
 

@@ -1,4 +1,4 @@
-# Hexabase KaaS Staging Values
+# Hexabase AI Staging Values
 # Similar to production but with reduced scale for cost optimization
 
 global:
@@ -8,7 +8,7 @@ global:
 api:
   replicas: 2  # Reduced from 3
   image:
-    repository: hexabase/hexabase-kaas-api
+    repository: hexabase/hexabase-ai-api
     tag: staging  # Use staging tag
     pullPolicy: Always  # Always pull latest staging image
   
@@ -18,7 +18,7 @@ api:
     
     jwt:
       issuer: https://api.staging.hexabase.ai
-      audience: hexabase-kaas-staging
+      audience: hexabase-ai-staging
     
     oauth:
       providers:
@@ -77,7 +77,7 @@ api:
 ui:
   replicas: 1  # Single replica for staging
   image:
-    repository: hexabase/hexabase-kaas-ui
+    repository: hexabase/hexabase-ai-ui
     tag: staging
     pullPolicy: Always
   

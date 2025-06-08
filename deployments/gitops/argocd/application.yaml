@@ -1,8 +1,8 @@
-# ArgoCD Application for Hexabase KaaS
+# ArgoCD Application for Hexabase AI
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: hexabase-kaas
+  name: hexabase-ai
   namespace: argocd
 spec:
   project: default

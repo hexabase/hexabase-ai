@@ -1,4 +1,4 @@
-# Hexabase KaaS Local Testing Guide
+# Hexabase AI Local Testing Guide
 
 This guide helps you test the API locally and inspect the database.
 
@@ -44,7 +44,7 @@ For testing purposes, we provide scripts to create test data and generate JWT to
 
 ```bash
 # Step 1: Create test user in database
-docker exec -i hexabase-kaas-postgres-1 psql -U postgres -d hexabase < scripts/create_test_user.sql
+docker exec -i hexabase-ai-postgres-1 psql -U postgres -d hexabase < scripts/create_test_user.sql
 
 # Step 2: Generate test JWT token
 cd api
@@ -114,7 +114,7 @@ curl -X DELETE http://localhost:8080/api/v1/organizations/{org-id} \
 
 ```bash
 # Connect to the database container
-docker exec -it hexabase-kaas-postgres-1 psql -U postgres -d hexabase
+docker exec -it hexabase-ai-postgres-1 psql -U postgres -d hexabase
 
 # Common psql commands:
 \dt                    # List all tables
@@ -187,7 +187,7 @@ DELETE FROM users WHERE id = 'test-user-123';
 ### 1. View API Logs
 ```bash
 # View API logs
-docker logs hexabase-kaas-api-1 -f
+docker logs hexabase-ai-api-1 -f
 
 # View all service logs
 docker-compose logs -f
@@ -196,7 +196,7 @@ docker-compose logs -f
 ### 2. Check Redis State
 ```bash
 # Connect to Redis
-docker exec -it hexabase-kaas-redis-1 redis-cli
+docker exec -it hexabase-ai-redis-1 redis-cli
 
 # Commands:
 KEYS *              # List all keys
@@ -238,10 +238,10 @@ lsof -i :8080  # API
 docker ps | grep postgres
 
 # Check PostgreSQL logs
-docker logs hexabase-kaas-postgres-1
+docker logs hexabase-ai-postgres-1
 
 # Test connection
-docker exec hexabase-kaas-postgres-1 pg_isready
+docker exec hexabase-ai-postgres-1 pg_isready
 ```
 
 ### Authentication Issues

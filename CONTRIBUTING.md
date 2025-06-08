@@ -15,8 +15,8 @@ Thank you for your interest in contributing to Hexabase KaaS! This document prov
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hexabase/hexabase-kaas.git
-   cd hexabase-kaas
+   git clone https://github.com/hexabase/hexabase-ai.git
+   cd hexabase-ai
    ```
 
 2. **Start development environment:**
@@ -95,7 +95,7 @@ test: add integration tests for organizations
 ### Project Structure
 
 ```
-hexabase-kaas/
+hexabase-ai/
 ├── api/                    # Go API service
 │   ├── cmd/               # Entry points (api, worker)
 │   ├── internal/          # Internal packages

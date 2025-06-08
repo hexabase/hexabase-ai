@@ -1,6 +1,6 @@
 # Deployment Policies
 
-This document defines the deployment policies, procedures, and requirements for each environment in the Hexabase KaaS platform.
+This document defines the deployment policies, procedures, and requirements for each environment in the Hexabase AI platform.
 
 ## Environment Overview
 
@@ -84,7 +84,7 @@ jobs:
       - name: Deploy to Staging
         run: |
           helm upgrade --install hexabase-ai \
-            hexabase/hexabase-kaas \
+            hexabase/hexabase-ai \
             --namespace hexabase-staging \
             --values deployments/helm/values-staging.yaml \
             --wait
@@ -193,7 +193,7 @@ jobs:
       - name: Deploy to Production
         run: |
           helm upgrade --install hexabase-ai \
-            hexabase/hexabase-kaas \
+            hexabase/hexabase-ai \
             --namespace hexabase-system \
             --values deployments/helm/values-production.yaml \
             --atomic \

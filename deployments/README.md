@@ -1,6 +1,6 @@
 # Deployments
 
-This directory contains deployment configurations and operational resources for Hexabase KaaS.
+This directory contains deployment configurations and operational resources for Hexabase AI.
 
 ## Directory Structure
 
@@ -23,7 +23,7 @@ deployments/
 
 ### Deploy with Helm
 ```bash
-helm install hexabase-kaas ./helm/hexabase-kaas \
+helm install hexabase-ai ./helm/hexabase-ai \
   --namespace hexabase-system \
   --create-namespace
 ```
@@ -43,7 +43,7 @@ kubectl apply -f gitops/argocd/application.yaml
 ## Components
 
 ### Helm Charts
-The main deployment method for Hexabase KaaS. Includes:
+The main deployment method for Hexabase AI. Includes:
 - API server deployment
 - UI deployment
 - Database migrations
@@ -77,19 +77,19 @@ Safe rollout strategies:
 
 ### Development
 ```bash
-helm install hexabase-kaas ./helm/hexabase-kaas \
+helm install hexabase-ai ./helm/hexabase-ai \
   -f ./helm/values-dev.yaml
 ```
 
 ### Staging
 ```bash
-helm install hexabase-kaas ./helm/hexabase-kaas \
+helm install hexabase-ai ./helm/hexabase-ai \
   -f ./helm/values-staging.yaml
 ```
 
 ### Production
 ```bash
-helm install hexabase-kaas ./helm/hexabase-kaas \
+helm install hexabase-ai ./helm/hexabase-ai \
   -f ./helm/values-production.yaml
 ```
 
@@ -133,8 +133,8 @@ flux get kustomizations
 flux logs --follow
 
 # ArgoCD
-argocd app get hexabase-kaas
-argocd app sync hexabase-kaas
+argocd app get hexabase-ai
+argocd app sync hexabase-ai
 ```
 
 ## Related Documentation
