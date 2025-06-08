@@ -6,20 +6,29 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 )
+
+// InternalAIOpsClaims defines the structure for the internal AIOps token.
+type InternalAIOpsClaims struct {
+	jwt.RegisteredClaims
+	UserID            string   `json:"user_id"`
+	OrgIDs            []string `json:"org_ids"`
+	ActiveWorkspaceID string   `json:"active_workspace_id"`
+	TokenType         string   `json:"token_type"`
+}
 
 type service struct {
 	repo      auth.Repository
 	oauthRepo auth.OAuthRepository
 	keyRepo   auth.KeyRepository
-	logger    *zap.Logger
+	logger    *slog.Logger
 }
 
 // NewService creates a new auth service
@@ -27,7 +36,7 @@ func NewService(
 	repo auth.Repository,
 	oauthRepo auth.OAuthRepository,
 	keyRepo auth.KeyRepository,
-	logger *zap.Logger,
+	logger *slog.Logger,
 ) auth.Service {
 	return &service{
 		repo:      repo,
@@ -136,7 +145,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 	} else {
 		// Update last login
 		if err := s.repo.UpdateLastLogin(ctx, user.ID); err != nil {
-			s.logger.Error("failed to update last login", zap.Error(err))
+			s.logger.Error("failed to update last login", "error", err)
 		}
 	}
 
@@ -154,7 +163,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 
 	// Clean up auth state
 	if err := s.repo.DeleteAuthState(ctx, req.State); err != nil {
-		s.logger.Error("failed to delete auth state", zap.Error(err))
+		s.logger.Error("failed to delete auth state", "error", err)
 	}
 
 	// Log security event
@@ -204,7 +213,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 
 	// Blacklist old refresh token
 	if err := s.repo.BlacklistRefreshToken(ctx, refreshToken, session.ExpiresAt); err != nil {
-		s.logger.Error("failed to blacklist old refresh token", zap.Error(err))
+		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
 	// Update session with new refresh token
@@ -291,7 +300,7 @@ func (s *service) RevokeSession(ctx context.Context, userID, sessionID string) e
 
 	// Blacklist refresh token
 	if err := s.repo.BlacklistRefreshToken(ctx, session.RefreshToken, session.ExpiresAt); err != nil {
-		s.logger.Error("failed to blacklist refresh token", zap.Error(err))
+		s.logger.Error("failed to blacklist refresh token", "error", err)
 	}
 
 	// Delete session
@@ -316,7 +325,7 @@ func (s *service) RevokeAllSessions(ctx context.Context, userID string, exceptSe
 	for _, session := range sessions {
 		if session.ID != exceptSessionID {
 			if err := s.repo.BlacklistRefreshToken(ctx, session.RefreshToken, session.ExpiresAt); err != nil {
-				s.logger.Error("failed to blacklist refresh token", zap.Error(err))
+				s.logger.Error("failed to blacklist refresh token", "error", err)
 			}
 		}
 	}
@@ -353,7 +362,7 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 	// Update last used
 	session.LastUsedAt = time.Now()
 	if err := s.repo.UpdateSession(ctx, session); err != nil {
-		s.logger.Error("failed to update session last used", zap.Error(err))
+		s.logger.Error("failed to update session last used", "error", err)
 	}
 
 	return nil
@@ -612,7 +621,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *auth.User) (*auth
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
-		s.logger.Warn("failed to get user organizations", zap.Error(err))
+		s.logger.Warn("failed to get user organizations", "error", err)
 		orgIDs = []string{}
 	}
 
@@ -674,6 +683,40 @@ func (s *service) logSecurityEvent(ctx context.Context, userID, eventType, descr
 	}
 
 	if err := s.repo.CreateSecurityEvent(ctx, event); err != nil {
-		s.logger.Error("failed to log security event", zap.Error(err))
+		s.logger.Error("failed to log security event", "error", err)
 	}
+}
+
+func (s *service) GenerateInternalAIOpsToken(ctx context.Context, userID string, orgIDs []string, activeWorkspaceID string) (string, error) {
+	claims := &InternalAIOpsClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Second)), // Very short-lived
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "hexabase-control-plane",
+			Audience:  jwt.ClaimStrings{"hexabase-aiops-service"},
+		},
+		UserID:            userID,
+		OrgIDs:            orgIDs,
+		ActiveWorkspaceID: activeWorkspaceID,
+		TokenType:         "internal-aiops-v1",
+	}
+
+	privateKeyPEM, err := s.keyRepo.GetPrivateKey()
+	if err != nil {
+		return "", fmt.Errorf("failed to get private key for internal token: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse private key for internal token: %w", err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	tokenString, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign internal token: %w", err)
+	}
+
+	return tokenString, nil
 }

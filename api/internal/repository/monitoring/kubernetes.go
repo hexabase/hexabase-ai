@@ -3,7 +3,7 @@ package monitoring
 import (
 	"context"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/kubernetes"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"

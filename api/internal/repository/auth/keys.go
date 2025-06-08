@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 )
 
 type keyRepository struct {

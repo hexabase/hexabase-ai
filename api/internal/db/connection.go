@@ -105,6 +105,17 @@ func MigrateDatabase(db *gorm.DB) error {
 		&RoleAssignment{},
 		&VClusterProvisioningTask{},
 		&StripeEvent{},
+		// Node management models
+		&NodePlan{},
+		&DedicatedNode{},
+		&NodeEvent{},
+		&WorkspaceNodeAllocation{},
+		// CI/CD models
+		&Pipeline{},
+		&PipelineRun{},
+		&PipelineTemplate{},
+		&WorkspaceProviderConfig{},
+		&CICDCredential{},
 	)
 }
 

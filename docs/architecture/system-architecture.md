@@ -22,7 +22,64 @@ Hexabase KaaS envisions being a catalyst for delivering the power of Kubernetes 
 
 ## 2. System Architecture
 
-The Hexabase KaaS system architecture consists of the **Hexabase UI (Next.js)** that users directly interact with, the **Hexabase API (control plane, Go language)** that manages and controls the entire system, and various supporting **middleware (PostgreSQL, Redis, NATS, etc.)**. All these components are containerized and run on the operational foundation **Host K3s Cluster**. Per-tenant Kubernetes environments are virtually constructed within the Host K3s Cluster using **vCluster** technology, providing strong isolation and independence. This multi-layered architecture is designed with scalability, availability, and maintainability in mind.
+The Hexabase KaaS system architecture consists of the **Hexabase UI (Next.js)** that users directly interact with, the **Hexabase API (control plane, Go language)** that manages and controls the entire system, various supporting **middleware (PostgreSQL, Redis, NATS, etc.)**, and a new **AIOps System (Python)**. All these components are containerized and run on the operational foundation **Host K3s Cluster**. Per-tenant Kubernetes environments are virtually constructed within the Host K3s Cluster using **vCluster** technology, providing strong isolation and independence. This multi-layered architecture is designed with scalability, availability, maintainability, and intelligence in mind.
+
+**Architectural Diagram:**
+
+```mermaid
+graph TD
+    subgraph "User Interaction"
+        direction LR
+        User -- "Browser, Slack, etc." --> Frontend
+        Frontend[Hexabase UI / Chat Client]
+    end
+
+    subgraph "Hexabase Control Plane (Go)"
+        direction LR
+        Frontend -- "REST/WebSocket" --> API_Server[API Server]
+        API_Server -- "Publish Tasks" --> NATS[NATS Messaging]
+        NATS -- "Consume Tasks" --> Workers[Async Workers]
+    end
+
+    subgraph "AIOps System (Python)"
+        direction LR
+        AIOps_API[AIOps API]
+        AIOps_Orchestrator[Orchestrator]
+        AIOps_Agents[Specialized Agents]
+        Private_LLM[Private LLMs on Ollama]
+
+        AIOps_API --> AIOps_Orchestrator
+        AIOps_Orchestrator --> AIOps_Agents
+        AIOps_Agents --> Private_LLM
+        AIOps_Orchestrator -- "External LLM API" --> Internet
+    end
+
+    subgraph "Data & State"
+        PostgreSQL
+        Redis
+        Central_Logging[Central Logging (ClickHouse)]
+        LLMOps[LLMOps (Langfuse)]
+    end
+
+    subgraph "Host K3s Cluster"
+        vClusters[vClusters per Tenant]
+        Shared_Observability[Shared Observability Stack]
+    end
+
+    API_Server -- "Read/Write" --> PostgreSQL
+    API_Server -- "Cache" --> Redis
+    API_Server -- "Log" --> Central_Logging
+    Workers -- "Read/Write" --> PostgreSQL
+
+    API_Server -- "Internal JWT" --> AIOps_API
+    AIOps_API -- "Log/Trace" --> LLMOps
+
+    API_Server -- "Manage" --> vClusters
+    Workers -- "Manage" --> vClusters
+
+    style Frontend fill:#d4f0ff
+    style AIOps_API fill:#e6ffc2
+```
 
 **Key Component Interactions and Data Flow:**
 
@@ -38,29 +95,40 @@ The Hexabase KaaS system architecture consists of the **Hexabase UI (Next.js)** 
 
 6. **Caching**: Redis caches user session information, frequently accessed configuration data, public keys (JWKS) required for OIDC token validation, rate limit counters, etc., reducing database load and improving system responsiveness and scalability. Cache expiration and invalidation strategies are also properly designed.
 
-7. **Monitoring and Logging**: Prometheus collects system-wide metrics (API server performance indicators, vCluster resource usage, NATS queue length, PostgreSQL connection count, etc.). Loki centrally aggregates logs from all components (API server, workers, vCluster control plane logs, etc.). Grafana visualizes this data and provides dashboards for operators to monitor system health in real-time and respond quickly to issues. Alerts are notified to the operations team through Alertmanager.
+7. **Monitoring and Logging**:
+   The monitoring architecture employs a hybrid model based on the tenant's plan.
+
+   - **Shared Plan**: Each vCluster runs lightweight agents (`prometheus-agent`, `promtail`) that forward metrics and logs to a central, multi-tenant **Prometheus and Loki stack** on the host cluster. Tenant data is isolated using labels (`workspace_id`).
+   - **Dedicated Plan**: A dedicated, fully independent observability stack (Prometheus, Grafana, Loki) can be deployed inside the tenant's vCluster for complete isolation.
+   - **Central Logging**: All Hexabase control plane and AIOps system logs are aggregated into a central **ClickHouse** database for high-speed querying and analysis.
 
 8. **GitOps Deployment**: Deployment and updates of the Hexabase control plane itself are managed through GitOps workflows using Flux. Infrastructure configuration (Kubernetes manifests, Helm Charts), application settings, security policies, etc., are all declaratively managed in Git repositories. Changes are made through Git commits and pull requests, and once approved, Flux automatically applies them to the Host K3s cluster. This improves deployment reproducibility, auditability, and reliability.
 
 9. **Policy Application**: Kyverno operates as a Kubernetes Admission Controller, enforcing security and operational policies on the Host K3s cluster and within each vCluster (if configurable). For example, policies such as "all Namespaces must have an `owner` label," "prohibit launching privileged containers," or "block image pulls from untrusted registries" can be defined to maintain compliance. Policies should also be managed through GitOps.
 
-This architecture aims to realize a scalable, resilient, and operationally friendly KaaS platform. By clarifying the division of responsibilities among components and utilizing standardized technologies and open-source products, we enhance development efficiency and system reliability.
+10. **Serverless Backbone**: **Knative** is installed on the host cluster to provide the underlying infrastructure for the HKS Functions (FaaS) offering. It manages the entire lifecycle of serverless containers, including scaling to zero.
+
+11. **AIOps System Interaction**: The AIOps system operates as a separate Python-based service. The Hexabase API server communicates with it via internal, RESTful APIs, passing a short-lived, scoped JWT for secure, context-aware operations. The AIOps system analyzes data from the observability stack and its own agents, and can request operational changes (e.g., scaling a deployment) by calling back to a secured internal API on the Hexabase control plane, which performs the final authorization and execution.
+
+This architecture aims to realize a scalable, resilient, intelligent, and operationally friendly KaaS platform. By clarifying the division of responsibilities among components and utilizing standardized technologies and open-source products, we enhance development efficiency and system reliability.
 
 ## 3. Core Concepts and Entity Mapping
 
 Hexabase KaaS provides unique abstracted concepts to allow users to use the service without being aware of Kubernetes complexity. These concepts are internally mapped to standard Kubernetes resources and features. Understanding this mapping is crucial for grasping system behavior and using it effectively.
 
-| Hexabase Concept      | Kubernetes Equivalent              | Scope              | Notes                                                                            |
-| --------------------- | ---------------------------------- | ------------------ | -------------------------------------------------------------------------------- |
-| Organization          | (None)                             | Hexabase           | Unit for billing, invoicing, and organizational user management. Business logic. |
-| Workspace             | vCluster                           | Host K3s Cluster   | Strong tenant isolation boundary.                                                |
-| Workspace Plan        | ResourceQuota / Node Configuration | vCluster / Host    | Defines resource limits.                                                         |
-| Organization User     | (None)                             | Hexabase           | Organization administrators and billing managers.                                |
-| Workspace Member      | User (OIDC Subject)                | vCluster           | Technical personnel operating vCluster. Authenticated via OIDC.                  |
-| Workspace Group       | Group (OIDC Claim)                 | vCluster           | Unit for permission assignment. Hierarchy resolved by Hexabase.                  |
-| Workspace ClusterRole | ClusterRole                        | vCluster           | Preset permissions spanning entire Workspace (e.g., Admin, Viewer).              |
-| Project               | Namespace                          | vCluster           | Resource isolation unit within Workspace.                                        |
-| Project Role          | Role                               | vCluster Namespace | Custom permissions that users can create within a Project.                       |
+| Hexabase Concept      | Kubernetes Equivalent                              | Scope              | Notes                                                                                |
+| --------------------- | -------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| Organization          | (None)                                             | Hexabase           | Unit for billing, invoicing, and organizational user management. Business logic.     |
+| Workspace             | vCluster                                           | Host K3s Cluster   | Strong tenant isolation boundary.                                                    |
+| Workspace Plan        | ResourceQuota / Node Configuration                 | vCluster / Host    | Defines resource limits.                                                             |
+| Organization User     | (None)                                             | Hexabase           | Organization administrators and billing managers.                                    |
+| Workspace Member      | User (OIDC Subject)                                | vCluster           | Technical personnel operating vCluster. Authenticated via OIDC.                      |
+| Workspace Group       | Group (OIDC Claim)                                 | vCluster           | Unit for permission assignment. Hierarchy resolved by Hexabase.                      |
+| Workspace ClusterRole | ClusterRole                                        | vCluster           | Preset permissions spanning entire Workspace (e.g., Admin, Viewer).                  |
+| Project               | Namespace                                          | vCluster           | Resource isolation unit within Workspace.                                            |
+| Project Role          | Role                                               | vCluster Namespace | Custom permissions that users can create within a Project.                           |
+| **CronJob**           | `batch/v1.CronJob`                                 | vCluster Namespace | A scheduled task, configured via the UI but maps to a native CronJob resource.       |
+| **Function**          | Knative Service (`serving.knative.dev/v1.Service`) | vCluster Namespace | A serverless function deployed via the `hks-func` CLI or dynamically by an AI agent. |
 
 # 4. Functional Specifications and User Flows
 

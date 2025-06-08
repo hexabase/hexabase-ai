@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -482,4 +483,78 @@ func getPlanLimits(plan string) planLimits {
 			PVCs:     "5",
 		}
 	}
+}
+
+// ListVClusterNodes lists nodes in the vCluster
+func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+	// Get vCluster kubeconfig
+	kubeconfig, err := r.GetVClusterKubeconfig(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create client for vCluster
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfig))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
+	}
+
+	vClusterClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vCluster client: %w", err)
+	}
+
+	// List nodes in vCluster
+	nodeList, err := vClusterClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	nodes := make([]workspace.Node, 0, len(nodeList.Items))
+	for _, node := range nodeList.Items {
+		nodes = append(nodes, workspace.Node{
+			Name:   node.Name,
+			Status: string(node.Status.Phase),
+		})
+	}
+
+	return nodes, nil
+}
+
+// ScaleVClusterDeployment scales a deployment in the vCluster
+func (r *kubernetesRepository) ScaleVClusterDeployment(ctx context.Context, workspaceID, deploymentName string, replicas int) error {
+	// Get vCluster kubeconfig
+	kubeconfig, err := r.GetVClusterKubeconfig(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+
+	// Create client for vCluster
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfig))
+	if err != nil {
+		return fmt.Errorf("failed to parse kubeconfig: %w", err)
+	}
+
+	vClusterClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("failed to create vCluster client: %w", err)
+	}
+
+	// Scale deployment
+	scale := &autoscalingv1.Scale{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: "default",
+		},
+		Spec: autoscalingv1.ScaleSpec{
+			Replicas: int32(replicas),
+		},
+	}
+
+	_, err = vClusterClient.AppsV1().Deployments("default").UpdateScale(ctx, deploymentName, scale, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to scale deployment: %w", err)
+	}
+
+	return nil
 }

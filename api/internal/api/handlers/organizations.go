@@ -1,21 +1,21 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/organization"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
 )
 
 // OrganizationHandler handles organization-related HTTP requests
 type OrganizationHandler struct {
 	service organization.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewOrganizationHandler creates a new organization handler
-func NewOrganizationHandler(service organization.Service, logger *zap.Logger) *OrganizationHandler {
+func NewOrganizationHandler(service organization.Service, logger *slog.Logger) *OrganizationHandler {
 	return &OrganizationHandler{
 		service: service,
 		logger:  logger,
@@ -34,14 +34,14 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 
 	org, err := h.service.CreateOrganization(c.Request.Context(), userID, &req)
 	if err != nil {
-		h.logger.Error("failed to create organization", zap.Error(err))
+		h.logger.Error("failed to create organization", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("organization created",
-		zap.String("org_id", org.ID),
-		zap.String("user_id", userID))
+		"org_id", org.ID,
+		"user_id", userID)
 
 	c.JSON(http.StatusCreated, org)
 }
@@ -52,7 +52,7 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 
 	org, err := h.service.GetOrganization(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get organization", zap.Error(err))
+		h.logger.Error("failed to get organization", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
 		return
 	}
@@ -72,7 +72,7 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 
 	orgList, err := h.service.ListOrganizations(c.Request.Context(), filter)
 	if err != nil {
-		h.logger.Error("failed to list organizations", zap.Error(err))
+		h.logger.Error("failed to list organizations", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list organizations"})
 		return
 	}
@@ -97,14 +97,14 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 
 	org, err := h.service.UpdateOrganization(c.Request.Context(), orgID, &req)
 	if err != nil {
-		h.logger.Error("failed to update organization", zap.Error(err))
+		h.logger.Error("failed to update organization", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("organization updated",
-		zap.String("org_id", orgID),
-		zap.String("user_id", userID))
+		"org_id", orgID,
+		"user_id", userID)
 
 	c.JSON(http.StatusOK, org)
 }
@@ -116,14 +116,14 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 
 	err := h.service.DeleteOrganization(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to delete organization", zap.Error(err))
+		h.logger.Error("failed to delete organization", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("organization deleted",
-		zap.String("org_id", orgID),
-		zap.String("user_id", userID))
+		"org_id", orgID,
+		"user_id", userID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "organization deleted successfully"})
 }
@@ -137,7 +137,7 @@ func (h *OrganizationHandler) RemoveMember(c *gin.Context) {
 	removerID := c.GetString("user_id")
 	err := h.service.RemoveMember(c.Request.Context(), orgID, userID, removerID)
 	if err != nil {
-		h.logger.Error("failed to remove member", zap.Error(err))
+		h.logger.Error("failed to remove member", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -165,7 +165,7 @@ func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
 
 	member, err := h.service.UpdateMemberRole(c.Request.Context(), orgID, userID, updateReq)
 	if err != nil {
-		h.logger.Error("failed to update member role", zap.Error(err))
+		h.logger.Error("failed to update member role", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -185,7 +185,7 @@ func (h *OrganizationHandler) ListMembers(c *gin.Context) {
 
 	memberList, err := h.service.ListMembers(c.Request.Context(), filter)
 	if err != nil {
-		h.logger.Error("failed to list members", zap.Error(err))
+		h.logger.Error("failed to list members", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -209,7 +209,7 @@ func (h *OrganizationHandler) InviteUser(c *gin.Context) {
 
 	invitation, err := h.service.InviteUser(c.Request.Context(), orgID, inviterID, &req)
 	if err != nil {
-		h.logger.Error("failed to invite user", zap.Error(err))
+		h.logger.Error("failed to invite user", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -224,7 +224,7 @@ func (h *OrganizationHandler) AcceptInvitation(c *gin.Context) {
 
 	member, err := h.service.AcceptInvitation(c.Request.Context(), invitationID, userID)
 	if err != nil {
-		h.logger.Error("failed to accept invitation", zap.Error(err))
+		h.logger.Error("failed to accept invitation", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -238,7 +238,7 @@ func (h *OrganizationHandler) CancelInvitation(c *gin.Context) {
 
 	err := h.service.CancelInvitation(c.Request.Context(), invitationID)
 	if err != nil {
-		h.logger.Error("failed to cancel invitation", zap.Error(err))
+		h.logger.Error("failed to cancel invitation", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -252,7 +252,7 @@ func (h *OrganizationHandler) ListPendingInvitations(c *gin.Context) {
 
 	invitations, err := h.service.ListPendingInvitations(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to list invitations", zap.Error(err))
+		h.logger.Error("failed to list invitations", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -269,7 +269,7 @@ func (h *OrganizationHandler) GetOrganizationStats(c *gin.Context) {
 
 	stats, err := h.service.GetOrganizationStats(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get organization stats", zap.Error(err))
+		h.logger.Error("failed to get organization stats", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

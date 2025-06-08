@@ -1,0 +1,26 @@
+{{- if .Values.prometheusAgent.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-prometheus-agent
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.prometheusAgent.scrapeInterval }}
+      external_labels:
+        workspace_id: {{ .Values.tenant.workspaceId | quote }}
+
+    remote_write:
+      - url: {{ .Values.centralObservability.prometheus.remoteWriteUrl | quote }}
+
+    scrape_configs:
+      - job_name: 'prometheus-agent'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      {{- with .Values.prometheusAgent.extraScrapeConfigs }}
+      {{- . | nindent 6 }}
+      {{- end }}
+{{- end }} 

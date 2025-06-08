@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/kubernetes"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,6 +138,71 @@ func (r *kubernetesRepository) GetClusterInfo(ctx context.Context) (*kubernetes.
 		PodCount:       len(pods.Items),
 		NamespaceCount: len(namespaces.Items),
 	}, nil
+}
+
+// getVClusterClient is a placeholder for retrieving a clientset scoped to a vCluster.
+func (r *kubernetesRepository) getVClusterClient(ctx context.Context, workspaceID string) (k8s.Interface, string, error) {
+	// In a real implementation, this would use the vcluster syncer to get the REST config
+	// for the specific vcluster's control plane.
+	// For now, it returns the host clientset and a conventional namespace name.
+	namespace := "vcluster-" + workspaceID
+	return r.client, namespace, nil
+}
+
+// ListVClusterNodes lists the nodes available to a specific vCluster.
+func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+	clientset, _, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vcluster client: %w", err)
+	}
+	
+	nodeList, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list nodes for workspace %s: %w", workspaceID, err)
+	}
+
+	var nodes []workspace.Node
+	for _, item := range nodeList.Items {
+		// Determine node status
+		status := "NotReady"
+		for _, cond := range item.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				status = "Ready"
+				break
+			}
+		}
+		
+		nodes = append(nodes, workspace.Node{
+			Name:   item.Name,
+			Status: status,
+			CPU:    item.Status.Capacity.Cpu().String(),
+			Memory: item.Status.Capacity.Memory().String(),
+		})
+	}
+
+	return nodes, nil
+}
+
+// ScaleVClusterDeployment scales a deployment within a vCluster.
+func (r *kubernetesRepository) ScaleVClusterDeployment(ctx context.Context, workspaceID, deploymentName string, replicas int) error {
+	clientset, namespace, err := r.getVClusterClient(ctx, workspaceID)
+	if err != nil {
+		return fmt.Errorf("failed to get vcluster client: %w", err)
+	}
+
+	scale, err := clientset.AppsV1().Deployments(namespace).GetScale(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get scale for deployment %s in namespace %s: %w", deploymentName, namespace, err)
+	}
+
+	scale.Spec.Replicas = int32(replicas)
+
+	_, err = clientset.AppsV1().Deployments(namespace).UpdateScale(ctx, deploymentName, scale, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update scale for deployment %s in namespace %s: %w", deploymentName, namespace, err)
+	}
+
+	return nil
 }
 
 // CheckComponentHealth checks health of cluster components

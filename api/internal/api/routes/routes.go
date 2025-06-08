@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/infrastructure/wire"
+	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
 )
 
 // SetupRoutes configures all API routes
@@ -38,6 +38,15 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 	// Protected routes (require authentication)
 	protected := v1.Group("")
 	protected.Use(app.AuthHandler.AuthMiddleware())
+
+	// AIOps Chat Proxy
+	ai := protected.Group("/ai")
+	{
+		// This single endpoint proxies all chat-related interactions to the Python service.
+		// The python service is responsible for handling sessions, history, etc.
+		// The `workspace_id` is passed as a query param to give context to the AIOps service.
+		ai.Any("/chat", app.AIOpsProxyHandler.ChatProxy)
+	}
 
 	// Organization routes
 	orgs := protected.Group("/organizations")
@@ -134,6 +143,14 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			projects.GET("/:projectId/activity", app.ProjectHandler.GetActivityLogs)
 		}
 
+		// AIOps (workspace level)
+		aiops := workspaceScoped.Group("/aiops")
+		{
+			// For now, we only have the chat proxy endpoint
+			// The Python service will handle all the session management and other features
+			aiops.Any("/chat", app.AIOpsProxyHandler.ChatProxy)
+		}
+
 		// Monitoring (workspace level)
 		monitoring := workspaceScoped.Group("/monitoring")
 		{
@@ -144,13 +161,121 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			monitoring.PUT("/alerts/:alertId/acknowledge", app.MonitoringHandler.AcknowledgeAlert)
 			monitoring.PUT("/alerts/:alertId/resolve", app.MonitoringHandler.ResolveAlert)
 		}
+
+		// Nodes (workspace level)
+		nodes := workspaceScoped.Group("/nodes")
+		{
+			nodes.POST("/", app.NodeHandler.ProvisionDedicatedNode)
+			nodes.GET("/", app.NodeHandler.ListNodes)
+			nodes.GET("/:nodeId", app.NodeHandler.GetNode)
+			nodes.DELETE("/:nodeId", app.NodeHandler.DeleteNode)
+
+			// Node operations
+			nodes.POST("/:nodeId/start", app.NodeHandler.StartNode)
+			nodes.POST("/:nodeId/stop", app.NodeHandler.StopNode)
+			nodes.POST("/:nodeId/reboot", app.NodeHandler.RebootNode)
+
+			// Node monitoring
+			nodes.GET("/:nodeId/status", app.NodeHandler.GetNodeStatus)
+			nodes.GET("/:nodeId/metrics", app.NodeHandler.GetNodeMetrics)
+			nodes.GET("/:nodeId/events", app.NodeHandler.GetNodeEvents)
+
+			// Resource usage
+			nodes.GET("/usage", app.NodeHandler.GetWorkspaceResourceUsage)
+			nodes.GET("/costs", app.NodeHandler.GetNodeCosts)
+			nodes.POST("/check-allocation", app.NodeHandler.CanAllocateResources)
+
+			// Plan transitions
+			nodes.POST("/transition/shared", app.NodeHandler.TransitionToSharedPlan)
+			nodes.POST("/transition/dedicated", app.NodeHandler.TransitionToDedicatedPlan)
+		}
+
+		// Applications (workspace level)
+		applications := workspaceScoped.Group("/applications")
+		{
+			applications.POST("/", app.ApplicationHandler.CreateApplication)
+			applications.GET("/", app.ApplicationHandler.ListApplications)
+			applications.GET("/:appId", app.ApplicationHandler.GetApplication)
+			applications.PUT("/:appId", app.ApplicationHandler.UpdateApplication)
+			applications.DELETE("/:appId", app.ApplicationHandler.DeleteApplication)
+
+			// Application operations
+			applications.POST("/:appId/start", app.ApplicationHandler.StartApplication)
+			applications.POST("/:appId/stop", app.ApplicationHandler.StopApplication)
+			applications.POST("/:appId/restart", app.ApplicationHandler.RestartApplication)
+			applications.POST("/:appId/scale", app.ApplicationHandler.ScaleApplication)
+
+			// Pod operations
+			applications.GET("/:appId/pods", app.ApplicationHandler.ListPods)
+			applications.POST("/:appId/pods/:podName/restart", app.ApplicationHandler.RestartPod)
+			applications.GET("/:appId/logs", app.ApplicationHandler.GetPodLogs)
+			applications.GET("/:appId/logs/stream", app.ApplicationHandler.StreamPodLogs)
+
+			// Monitoring
+			applications.GET("/:appId/metrics", app.ApplicationHandler.GetApplicationMetrics)
+			applications.GET("/:appId/events", app.ApplicationHandler.GetApplicationEvents)
+
+			// Network operations
+			applications.PUT("/:appId/network", app.ApplicationHandler.UpdateNetworkConfig)
+			applications.GET("/:appId/endpoints", app.ApplicationHandler.GetApplicationEndpoints)
+
+			// Node operations
+			applications.PUT("/:appId/node-affinity", app.ApplicationHandler.UpdateNodeAffinity)
+			applications.POST("/:appId/migrate", app.ApplicationHandler.MigrateToNode)
+		}
+
+		// CI/CD (workspace level)
+		pipelines := workspaceScoped.Group("/pipelines")
+		{
+			pipelines.POST("/", app.CICDHandler.CreatePipeline)
+			pipelines.GET("/", app.CICDHandler.ListPipelines)
+			pipelines.POST("/from-template", app.CICDHandler.CreatePipelineFromTemplate)
+		}
+
+		// Credentials (workspace level)
+		credentials := workspaceScoped.Group("/credentials")
+		{
+			credentials.POST("/git", app.CICDHandler.CreateGitCredential)
+			credentials.POST("/registry", app.CICDHandler.CreateRegistryCredential)
+			credentials.GET("/", app.CICDHandler.ListCredentials)
+			credentials.DELETE("/:credentialName", app.CICDHandler.DeleteCredential)
+		}
+
+		// Provider config (workspace level)
+		workspaceScoped.GET("/provider-config", app.CICDHandler.GetProviderConfig)
+		workspaceScoped.PUT("/provider-config", app.CICDHandler.SetProviderConfig)
 	}
+
+	// Pipeline-specific routes (not workspace-scoped)
+	pipelineRoutes := protected.Group("/pipelines")
+	{
+		pipelineRoutes.GET("/:pipelineId", app.CICDHandler.GetPipeline)
+		pipelineRoutes.DELETE("/:pipelineId", app.CICDHandler.DeletePipeline)
+		pipelineRoutes.POST("/:pipelineId/cancel", app.CICDHandler.CancelPipeline)
+		pipelineRoutes.POST("/:pipelineId/retry", app.CICDHandler.RetryPipeline)
+		pipelineRoutes.GET("/:pipelineId/logs", app.CICDHandler.GetPipelineLogs)
+		pipelineRoutes.GET("/:pipelineId/logs/stream", app.CICDHandler.StreamPipelineLogs)
+		
+		// Templates
+		pipelineRoutes.GET("/templates", app.CICDHandler.ListTemplates)
+		pipelineRoutes.GET("/templates/:templateId", app.CICDHandler.GetTemplate)
+	}
+
+	// CI/CD Providers (global)
+	protected.GET("/providers", app.CICDHandler.ListProviders)
 
 	// Billing plans (public)
 	plans := v1.Group("/plans")
 	{
 		plans.GET("/", app.BillingHandler.ListPlans)
 		plans.GET("/compare", app.BillingHandler.ComparePlans)
+	}
+
+	// Node plans (public)
+	nodePlans := v1.Group("/node-plans")
+	{
+		nodePlans.GET("/", app.NodeHandler.GetAvailablePlans)
+		nodePlans.GET("/:planId", app.NodeHandler.GetPlanDetails)
 	}
 
 	// Webhook routes (no authentication required)

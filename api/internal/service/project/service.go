@@ -6,21 +6,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/project"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"log/slog"
 )
 
 type service struct {
 	repo      project.Repository
 	k8sRepo   project.KubernetesRepository
-	logger    *zap.Logger
+	logger    *slog.Logger
 }
 
 // NewService creates a new project service
 func NewService(
 	repo project.Repository,
 	k8sRepo project.KubernetesRepository,
-	logger *zap.Logger,
+	logger *slog.Logger,
 ) project.Service {
 	return &service{
 		repo:    repo,
@@ -74,7 +74,7 @@ func (s *service) CreateProject(ctx context.Context, req *project.CreateProjectR
 	}
 
 	if err := s.k8sRepo.CreateNamespace(ctx, req.WorkspaceID, proj.Name, labels); err != nil {
-		s.logger.Error("failed to create namespace", zap.Error(err))
+		s.logger.Error("failed to create namespace", "error", err)
 		// Don't fail project creation if namespace creation fails
 		// It can be retried later
 	} else {
@@ -99,7 +99,7 @@ func (s *service) GetProject(ctx context.Context, projectID string) (*project.Pr
 	if proj.NamespaceName != "" {
 		namespace, err := s.k8sRepo.GetNamespace(ctx, proj.WorkspaceID, proj.NamespaceName)
 		if err != nil {
-			s.logger.Warn("failed to get namespace status", zap.Error(err))
+			s.logger.Warn("failed to get namespace status", "error", err)
 		} else {
 			if status, ok := namespace["status"].(string); ok {
 				proj.Status = status
@@ -111,7 +111,7 @@ func (s *service) GetProject(ctx context.Context, projectID string) (*project.Pr
 	if proj.NamespaceName != "" {
 		usage, err := s.k8sRepo.GetNamespaceResourceUsage(ctx, proj.WorkspaceID, proj.NamespaceName)
 		if err != nil {
-			s.logger.Warn("failed to get namespace resource usage", zap.Error(err))
+			s.logger.Warn("failed to get namespace resource usage", "error", err)
 		} else {
 			proj.ResourceUsage = usage
 		}
@@ -132,8 +132,8 @@ func (s *service) ListProjects(ctx context.Context, filter project.ProjectFilter
 			namespace, err := s.k8sRepo.GetNamespace(ctx, proj.WorkspaceID, proj.NamespaceName)
 			if err != nil {
 				s.logger.Warn("failed to get namespace status", 
-					zap.String("project_id", proj.ID),
-					zap.Error(err))
+					"project_id", proj.ID,
+					"error", err)
 				continue
 			}
 			// Set status based on namespace info
@@ -188,7 +188,7 @@ func (s *service) DeleteProject(ctx context.Context, projectID string) error {
 
 	// Delete namespace from vCluster
 	if err := s.k8sRepo.DeleteNamespace(ctx, proj.WorkspaceID, proj.Name); err != nil {
-		s.logger.Error("failed to delete namespace", zap.Error(err))
+		s.logger.Error("failed to delete namespace", "error", err)
 		// Continue with project deletion even if namespace deletion fails
 	}
 
@@ -236,7 +236,7 @@ func (s *service) CreateNamespace(ctx context.Context, projectID string, req *pr
 	// Apply resource quota if provided
 	if req.ResourceQuota != nil {
 		if err := s.k8sRepo.CreateResourceQuota(ctx, proj.WorkspaceID, namespaceName, req.ResourceQuota); err != nil {
-			s.logger.Error("failed to apply resource quota", zap.Error(err))
+			s.logger.Error("failed to apply resource quota", "error", err)
 		}
 	}
 
@@ -291,7 +291,7 @@ func (s *service) GetNamespace(ctx context.Context, projectID, namespaceID strin
 
 	usage, err := s.k8sRepo.GetNamespaceUsage(ctx, proj.WorkspaceID, namespace.Name)
 	if err != nil {
-		s.logger.Error("failed to get namespace usage", zap.Error(err))
+		s.logger.Error("failed to get namespace usage", "error", err)
 	} else {
 		namespace.ResourceUsage = usage
 	}
@@ -437,7 +437,7 @@ func (s *service) CreateSubProject(ctx context.Context, parentID string, req *pr
 
 	// Apply HNC (Hierarchical Namespace Controller) configuration
 	if err := s.k8sRepo.ConfigureHNC(ctx, parent.WorkspaceID, parent.Name, subProj.Name); err != nil {
-		s.logger.Error("failed to configure HNC", zap.Error(err))
+		s.logger.Error("failed to configure HNC", "error", err)
 	}
 
 	return subProj, nil
@@ -571,7 +571,7 @@ func (s *service) AddMember(ctx context.Context, projectID, adderID string, req 
 
 	// Apply RBAC in namespace
 	if err := s.k8sRepo.ApplyRBAC(ctx, proj.WorkspaceID, proj.NamespaceName, user.ID, req.Role); err != nil {
-		s.logger.Error("failed to apply RBAC", zap.Error(err))
+		s.logger.Error("failed to apply RBAC", "error", err)
 	}
 
 	// Log activity
@@ -639,7 +639,7 @@ func (s *service) UpdateMemberRole(ctx context.Context, projectID, memberID stri
 	}
 
 	if err := s.k8sRepo.ApplyRBAC(ctx, proj.WorkspaceID, proj.NamespaceName, member.UserID, req.Role); err != nil {
-		s.logger.Error("failed to update RBAC", zap.Error(err))
+		s.logger.Error("failed to update RBAC", "error", err)
 	}
 
 	// Log activity
@@ -678,7 +678,7 @@ func (s *service) RemoveMember(ctx context.Context, projectID, memberID, remover
 
 	// Remove RBAC from namespace
 	if err := s.k8sRepo.RemoveRBAC(ctx, proj.WorkspaceID, proj.NamespaceName, member.UserID); err != nil {
-		s.logger.Error("failed to remove RBAC", zap.Error(err))
+		s.logger.Error("failed to remove RBAC", "error", err)
 	}
 
 	// Log activity
@@ -726,7 +726,7 @@ func (s *service) RemoveProjectMember(ctx context.Context, projectID, userID str
 
 	// Remove RBAC from namespace
 	if err := s.k8sRepo.RemoveRBAC(ctx, proj.WorkspaceID, proj.Name, userID); err != nil {
-		s.logger.Error("failed to remove RBAC", zap.Error(err))
+		s.logger.Error("failed to remove RBAC", "error", err)
 	}
 
 	// Log activity
@@ -760,13 +760,13 @@ func (s *service) GetProjectStats(ctx context.Context, projectID string) (*proje
 	}
 	memberCount, err := s.repo.CountMembers(ctx, projectID)
 	if err != nil {
-		s.logger.Error("failed to count members", zap.Error(err))
+		s.logger.Error("failed to count members", "error", err)
 	}
 
 	// Get resource usage
 	usage, err := s.repo.GetProjectResourceUsage(ctx, projectID)
 	if err != nil {
-		s.logger.Error("failed to get resource usage", zap.Error(err))
+		s.logger.Error("failed to get resource usage", "error", err)
 	}
 
 	// Get last activity
@@ -893,6 +893,6 @@ func (s *service) logActivity(ctx context.Context, projectID, activityType, desc
 	}
 
 	if err := s.repo.CreateActivity(ctx, activity); err != nil {
-		s.logger.Error("failed to log activity", zap.Error(err))
+		s.logger.Error("failed to log activity", "error", err)
 	}
 }

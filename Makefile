@@ -1,11 +1,11 @@
-# Hexabase KaaS Makefile
+# Hexabase AI Makefile
 # Common development tasks
 
 .PHONY: help setup clean dev-api dev-ui test lint build deploy-dev deploy-staging deploy-prod
 
 # Default target
 help:
-	@echo "Hexabase KaaS Development Commands"
+	@echo "Hexabase AI Development Commands"
 	@echo "=================================="
 	@echo "Setup & Cleanup:"
 	@echo "  make setup          - Set up complete development environment"
@@ -120,13 +120,13 @@ build:
 # Build Docker images
 docker:
 	@echo "Building Docker images..."
-	@docker build -t hexabase/hexabase-kaas-api:latest -f api/Dockerfile api/
-	@docker build -t hexabase/hexabase-kaas-ui:latest -f ui/Dockerfile ui/
+	@docker build -t hexabase/hexabase-ai-api:latest -f api/Dockerfile api/
+	@docker build -t hexabase/hexabase-ai-ui:latest -f ui/Dockerfile ui/
 
 # Deploy to development
 deploy-dev:
 	@echo "Deploying to development..."
-	@helm upgrade --install hexabase-kaas ./deployments/helm/hexabase-kaas \
+	@helm upgrade --install hexabase-ai ./deployments/helm/hexabase-ai \
 		--namespace hexabase-dev \
 		--create-namespace \
 		--values deployments/helm/values-local.yaml \
@@ -135,7 +135,7 @@ deploy-dev:
 # Deploy to staging
 deploy-staging:
 	@echo "Deploying to staging..."
-	@helm upgrade --install hexabase-kaas ./deployments/helm/hexabase-kaas \
+	@helm upgrade --install hexabase-ai ./deployments/helm/hexabase-ai \
 		--namespace hexabase-staging \
 		--create-namespace \
 		--values deployments/helm/values-staging.yaml \
@@ -147,7 +147,7 @@ deploy-prod:
 	@echo -n "Are you sure? Type 'yes' to continue: "
 	@read confirm && [ "$$confirm" = "yes" ] || (echo "Deployment cancelled"; exit 1)
 	@echo "Deploying to production..."
-	@helm upgrade --install hexabase-kaas ./deployments/helm/hexabase-kaas \
+	@helm upgrade --install hexabase-ai ./deployments/helm/hexabase-ai \
 		--namespace hexabase-system \
 		--create-namespace \
 		--values deployments/helm/values-production.yaml \

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hexabase KaaS is a multi-tenant Kubernetes as a Service platform built on K3s and vCluster. The project consists of multiple repositories:
+Hexabase AI is a multi-tenant Kubernetes as a Service platform built on K3s and vCluster. The project consists of multiple repositories:
 
 - **Current Repository**: Documentation and architecture specifications
 - **UI Repository**: https://github.com/b-eee/hxb-next-webui (Next.js)
@@ -52,8 +52,8 @@ npm run lint           # Run linting
 
 ### For Kubernetes/Helm Development
 ```bash
-# Deploy Hexabase KaaS using Helm
-helm install hexabase-kaas ./charts/hexabase-kaas -f values.yaml
+# Deploy Hexabase AI using Helm
+helm install hexabase-ai ./charts/hexabase-ai -f values.yaml
 
 # Common kubectl commands for debugging
 kubectl get vcluster -A                    # List all vClusters

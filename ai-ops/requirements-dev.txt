@@ -1,0 +1,3 @@
+pytest
+pytest-httpx
+-r requirements.txt 

@@ -1,0 +1,820 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"io"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// Mock repositories
+type MockRepository struct {
+	mock.Mock
+}
+
+func (m *MockRepository) CreateApplication(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockRepository) GetApplication(ctx context.Context, id string) (*application.Application, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.Application), args.Error(1)
+}
+
+func (m *MockRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*application.Application, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.Application), args.Error(1)
+}
+
+func (m *MockRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]application.Application, error) {
+	args := m.Called(ctx, workspaceID, projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+func (m *MockRepository) UpdateApplication(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockRepository) DeleteApplication(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockRepository) CreateEvent(ctx context.Context, event *application.ApplicationEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]application.ApplicationEvent, error) {
+	args := m.Called(ctx, applicationID, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.ApplicationEvent), args.Error(1)
+}
+
+func (m *MockRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]application.Application, error) {
+	args := m.Called(ctx, nodeID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+func (m *MockRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status application.ApplicationStatus) ([]application.Application, error) {
+	args := m.Called(ctx, workspaceID, status)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+// Mock Kubernetes repository
+type MockKubernetesRepository struct {
+	mock.Mock
+}
+
+func (m *MockKubernetesRepository) CreateDeployment(ctx context.Context, workspaceID, projectID string, spec application.DeploymentSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) UpdateDeployment(ctx context.Context, workspaceID, projectID, name string, spec application.DeploymentSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, name, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeleteDeployment(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) GetDeploymentStatus(ctx context.Context, workspaceID, projectID, name string) (*application.DeploymentStatus, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.DeploymentStatus), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) CreateStatefulSet(ctx context.Context, workspaceID, projectID string, spec application.StatefulSetSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) UpdateStatefulSet(ctx context.Context, workspaceID, projectID, name string, spec application.StatefulSetSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, name, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeleteStatefulSet(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspaceID, projectID, name string) (*application.StatefulSetStatus, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.StatefulSetStatus), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) CreateService(ctx context.Context, workspaceID, projectID string, spec application.ServiceSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeleteService(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) GetServiceEndpoints(ctx context.Context, workspaceID, projectID, name string) ([]application.Endpoint, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.Endpoint), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) CreateIngress(ctx context.Context, workspaceID, projectID string, spec application.IngressSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) UpdateIngress(ctx context.Context, workspaceID, projectID, name string, spec application.IngressSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, name, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeleteIngress(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) CreatePVC(ctx context.Context, workspaceID, projectID string, spec application.PVCSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeletePVC(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) ListPods(ctx context.Context, workspaceID, projectID string, selector map[string]string) ([]application.Pod, error) {
+	args := m.Called(ctx, workspaceID, projectID, selector)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.Pod), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) GetPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts application.LogOptions) ([]application.LogEntry, error) {
+	args := m.Called(ctx, workspaceID, projectID, podName, container, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.LogEntry), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) StreamPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts application.LogOptions) (io.ReadCloser, error) {
+	args := m.Called(ctx, workspaceID, projectID, podName, container, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(io.ReadCloser), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) RestartPod(ctx context.Context, workspaceID, projectID, podName string) error {
+	args := m.Called(ctx, workspaceID, projectID, podName)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) GetPodMetrics(ctx context.Context, workspaceID, projectID string, podNames []string) ([]application.PodMetrics, error) {
+	args := m.Called(ctx, workspaceID, projectID, podNames)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]application.PodMetrics), args.Error(1)
+}
+
+// Test service
+func TestCreateApplication(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful stateless application creation", func(t *testing.T) {
+		req := application.CreateApplicationRequest{
+			Name: "test-app",
+			Type: application.ApplicationTypeStateless,
+			Source: application.ApplicationSource{
+				Type:  application.SourceTypeImage,
+				Image: "nginx:latest",
+			},
+			Config: application.ApplicationConfig{
+				Replicas: 3,
+				Port:     80,
+				EnvVars: map[string]string{
+					"ENV": "production",
+				},
+				Resources: application.ResourceRequests{
+					CPURequest:    "100m",
+					CPULimit:      "500m",
+					MemoryRequest: "128Mi",
+					MemoryLimit:   "512Mi",
+				},
+			},
+			ProjectID: "proj-123",
+		}
+
+		// Mock expectations
+		mockRepo.On("GetApplicationByName", ctx, "ws-123", "proj-123", "test-app").Return(nil, errors.New("not found"))
+		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		
+		// Async deployment expectations
+		mockK8s.On("CreateDeployment", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+			return spec.Name == "test-app" && spec.Replicas == 3 && spec.Image == "nginx:latest"
+		})).Return(nil).Maybe()
+		
+		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.ServiceSpec) bool {
+			return spec.Name == "test-app" && spec.Port == 80
+		})).Return(nil).Maybe()
+		
+		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "test-app").Return([]application.Endpoint{}, nil).Maybe()
+		
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+
+		// Execute
+		app, err := service.CreateApplication(ctx, "ws-123", req)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, "test-app", app.Name)
+		assert.Equal(t, application.ApplicationTypeStateless, app.Type)
+		// Don't check status as it's being modified in a goroutine
+		
+		// Wait a bit for async operations to complete
+		time.Sleep(100 * time.Millisecond)
+		
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+
+	t.Run("successful stateful application creation", func(t *testing.T) {
+		req := application.CreateApplicationRequest{
+			Name: "postgres-db",
+			Type: application.ApplicationTypeStateful,
+			Source: application.ApplicationSource{
+				Type:  application.SourceTypeImage,
+				Image: "postgres:14",
+			},
+			Config: application.ApplicationConfig{
+				Replicas: 1,
+				Port:     5432,
+				EnvVars: map[string]string{
+					"POSTGRES_DB": "mydb",
+				},
+				Resources: application.ResourceRequests{
+					CPURequest:    "250m",
+					CPULimit:      "1000m",
+					MemoryRequest: "512Mi",
+					MemoryLimit:   "2Gi",
+				},
+				Storage: &application.StorageConfig{
+					Size:         "10Gi",
+					StorageClass: "standard",
+					MountPath:    "/var/lib/postgresql/data",
+				},
+			},
+			ProjectID: "proj-123",
+		}
+
+		// Mock expectations
+		mockRepo.On("GetApplicationByName", ctx, "ws-123", "proj-123", "postgres-db").Return(nil, errors.New("not found"))
+		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		
+		// Async deployment expectations
+		mockK8s.On("CreatePVC", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.PVCSpec) bool {
+			return spec.Name == "postgres-db-data" && spec.Size == "10Gi"
+		})).Return(nil).Maybe()
+		
+		mockK8s.On("CreateStatefulSet", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.StatefulSetSpec) bool {
+			return spec.Name == "postgres-db" && spec.Replicas == 1 && spec.Image == "postgres:14"
+		})).Return(nil).Maybe()
+		
+		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.ServiceSpec) bool {
+			return spec.Name == "postgres-db" && spec.Port == 5432
+		})).Return(nil).Maybe()
+		
+		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "postgres-db").Return([]application.Endpoint{}, nil).Maybe()
+		
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+
+		// Execute
+		app, err := service.CreateApplication(ctx, "ws-123", req)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, "postgres-db", app.Name)
+		assert.Equal(t, application.ApplicationTypeStateful, app.Type)
+		// Don't check status as it's being modified in a goroutine
+		
+		// Wait a bit for async operations to complete
+		time.Sleep(100 * time.Millisecond)
+		
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+
+	t.Run("application name already exists", func(t *testing.T) {
+		req := application.CreateApplicationRequest{
+			Name:      "existing-app",
+			Type:      application.ApplicationTypeStateless,
+			Source: application.ApplicationSource{
+				Type:  application.SourceTypeImage,
+				Image: "nginx:latest",
+			},
+			ProjectID: "proj-123",
+		}
+
+		existingApp := &application.Application{
+			ID:   "app-existing",
+			Name: "existing-app",
+		}
+		mockRepo.On("GetApplicationByName", ctx, "ws-123", "proj-123", "existing-app").Return(existingApp, nil)
+
+		// Execute
+		app, err := service.CreateApplication(ctx, "ws-123", req)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, app)
+		assert.Contains(t, err.Error(), "already exists")
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("invalid application type", func(t *testing.T) {
+		req := application.CreateApplicationRequest{
+			Name:      "invalid-app",
+			Type:      application.ApplicationType("invalid"),
+			ProjectID: "proj-123",
+		}
+
+		// Execute
+		app, err := service.CreateApplication(ctx, "ws-123", req)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, app)
+		assert.Contains(t, err.Error(), "invalid application type")
+	})
+
+	t.Run("invalid source type", func(t *testing.T) {
+		req := application.CreateApplicationRequest{
+			Name: "invalid-source",
+			Type: application.ApplicationTypeStateless,
+			Source: application.ApplicationSource{
+				Type: application.SourceType("invalid"),
+			},
+			ProjectID: "proj-123",
+		}
+
+		// Execute
+		app, err := service.CreateApplication(ctx, "ws-123", req)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, app)
+		assert.Contains(t, err.Error(), "invalid source type")
+	})
+}
+
+func TestUpdateApplication(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful update replicas", func(t *testing.T) {
+		existingApp := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+			Type:        application.ApplicationTypeStateless,
+			Status:      application.ApplicationStatusRunning,
+			Config: application.ApplicationConfig{
+				Replicas: 3,
+			},
+		}
+
+		replicas := 5
+		req := application.UpdateApplicationRequest{
+			Replicas: &replicas,
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(existingApp, nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		
+		// Async update expectations
+		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+			return spec.Replicas == 5
+		})).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil).Maybe()
+
+		// Execute
+		app, err := service.UpdateApplication(ctx, "app-123", req)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, 5, app.Config.Replicas)
+		// Don't check status as it's being modified in a goroutine
+		
+		// Wait a bit for async operations to complete
+		time.Sleep(100 * time.Millisecond)
+		
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+
+	t.Run("application not found", func(t *testing.T) {
+		req := application.UpdateApplicationRequest{}
+		mockRepo.On("GetApplication", ctx, "app-not-found").Return(nil, errors.New("not found"))
+
+		// Execute
+		app, err := service.UpdateApplication(ctx, "app-not-found", req)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, app)
+		assert.Contains(t, err.Error(), "not found")
+		mockRepo.AssertExpectations(t)
+	})
+}
+
+func TestDeleteApplication(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful deletion of stateless app", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+			Type:        application.ApplicationTypeStateless,
+			Status:      application.ApplicationStatusStopped,
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockK8s.On("DeleteDeployment", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
+		mockK8s.On("DeleteService", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
+		mockK8s.On("DeleteIngress", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
+		mockRepo.On("DeleteApplication", ctx, "app-123").Return(nil)
+
+		// Execute
+		err := service.DeleteApplication(ctx, "app-123")
+
+		// Assert
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+
+	t.Run("successful deletion of stateful app", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-456",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "postgres-db",
+			Type:        application.ApplicationTypeStateful,
+			Status:      application.ApplicationStatusStopped,
+			Config: application.ApplicationConfig{
+				Storage: &application.StorageConfig{
+					Size: "10Gi",
+				},
+			},
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-456").Return(app, nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockK8s.On("DeleteStatefulSet", ctx, "ws-123", "proj-123", "postgres-db").Return(nil).Maybe()
+		mockK8s.On("DeleteService", ctx, "ws-123", "proj-123", "postgres-db").Return(nil).Maybe()
+		mockK8s.On("DeletePVC", ctx, "ws-123", "proj-123", "postgres-db-data").Return(nil).Maybe()
+		mockK8s.On("DeleteIngress", ctx, "ws-123", "proj-123", "postgres-db").Return(nil).Maybe()
+		mockRepo.On("DeleteApplication", ctx, "app-456").Return(nil)
+
+		// Execute
+		err := service.DeleteApplication(ctx, "app-456")
+
+		// Assert
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+}
+
+func TestListPods(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful pod listing", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+		}
+
+		pods := []application.Pod{
+			{
+				Name:     "test-app-abc123",
+				Status:   "Running",
+				NodeName: "node-1",
+				IP:       "10.0.0.1",
+			},
+			{
+				Name:     "test-app-def456",
+				Status:   "Running",
+				NodeName: "node-2",
+				IP:       "10.0.0.2",
+			},
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		mockK8s.On("ListPods", ctx, "ws-123", "proj-123", map[string]string{"app": "test-app"}).Return(pods, nil)
+
+		// Execute
+		result, err := service.ListPods(ctx, "app-123")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+		assert.Equal(t, "test-app-abc123", result[0].Name)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+}
+
+func TestGetPodLogs(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful log retrieval", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+		}
+
+		query := application.LogQuery{
+			ApplicationID: "app-123",
+			PodName:       "test-app-abc123",
+			Limit:         100,
+		}
+
+		logs := []application.LogEntry{
+			{
+				Timestamp: time.Now(),
+				PodName:   "test-app-abc123",
+				Message:   "Application started",
+			},
+			{
+				Timestamp: time.Now(),
+				PodName:   "test-app-abc123",
+				Message:   "Listening on port 80",
+			},
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		
+		logOpts := application.LogOptions{
+			Limit: 100,
+		}
+		mockK8s.On("GetPodLogs", ctx, "ws-123", "proj-123", "test-app-abc123", "", logOpts).Return(logs, nil)
+
+		// Execute
+		result, err := service.GetPodLogs(ctx, query)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+		assert.Equal(t, "Application started", result[0].Message)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+}
+
+func TestStreamPodLogs(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful log streaming", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+		}
+
+		query := application.LogQuery{
+			ApplicationID: "app-123",
+			PodName:       "test-app-abc123",
+			Follow:        true,
+		}
+
+		reader := io.NopCloser(strings.NewReader("log stream data"))
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		
+		logOpts := application.LogOptions{
+			Follow: true,
+		}
+		mockK8s.On("StreamPodLogs", ctx, "ws-123", "proj-123", "test-app-abc123", "", logOpts).Return(reader, nil)
+
+		// Execute
+		result, err := service.StreamPodLogs(ctx, query)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+}
+
+func TestGetApplicationMetrics(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful metrics retrieval", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+		}
+
+		pods := []application.Pod{
+			{Name: "test-app-abc123"},
+			{Name: "test-app-def456"},
+		}
+
+		podMetrics := []application.PodMetrics{
+			{
+				PodName:     "test-app-abc123",
+				CPUUsage:    0.5,
+				MemoryUsage: 256.0,
+				NetworkIn:   1.5,
+				NetworkOut:  2.0,
+			},
+			{
+				PodName:     "test-app-def456",
+				CPUUsage:    0.3,
+				MemoryUsage: 200.0,
+				NetworkIn:   1.0,
+				NetworkOut:  1.5,
+			},
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		mockK8s.On("ListPods", ctx, "ws-123", "proj-123", map[string]string{"app": "test-app"}).Return(pods, nil)
+		mockK8s.On("GetPodMetrics", ctx, "ws-123", "proj-123", []string{"test-app-abc123", "test-app-def456"}).Return(podMetrics, nil)
+
+		// Execute
+		result, err := service.GetApplicationMetrics(ctx, "app-123")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "app-123", result.ApplicationID)
+		assert.Len(t, result.PodMetrics, 2)
+		assert.Equal(t, 0.8, result.AggregateUsage.TotalCPU)
+		assert.Equal(t, 0.4, result.AggregateUsage.AverageCPU)
+		assert.Equal(t, 456.0, result.AggregateUsage.TotalMemory)
+		assert.Equal(t, 228.0, result.AggregateUsage.AverageMemory)
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+}
+
+func TestScaleApplication(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := new(MockRepository)
+	mockK8s := new(MockKubernetesRepository)
+	
+	service := NewService(mockRepo, mockK8s)
+
+	t.Run("successful scaling", func(t *testing.T) {
+		app := &application.Application{
+			ID:          "app-123",
+			WorkspaceID: "ws-123",
+			ProjectID:   "proj-123",
+			Name:        "test-app",
+			Type:        application.ApplicationTypeStateless,
+			Status:      application.ApplicationStatusRunning,
+			Config: application.ApplicationConfig{
+				Replicas: 3,
+			},
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		
+		// Async update expectations
+		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+			return spec.Replicas == 5
+		})).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil).Maybe()
+
+		// Execute
+		err := service.ScaleApplication(ctx, "app-123", 5)
+
+		// Assert
+		assert.NoError(t, err)
+		
+		// Wait a bit for async operations to complete
+		time.Sleep(100 * time.Millisecond)
+		
+		mockRepo.AssertExpectations(t)
+		mockK8s.AssertExpectations(t)
+	})
+
+	t.Run("invalid replica count", func(t *testing.T) {
+		// Execute
+		err := service.ScaleApplication(ctx, "app-123", -1)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid replica count")
+	})
+
+	t.Run("scaling stateful set not allowed beyond 1", func(t *testing.T) {
+		app := &application.Application{
+			ID:     "app-456",
+			Type:   application.ApplicationTypeStateful,
+			Status: application.ApplicationStatusRunning,
+		}
+
+		mockRepo.On("GetApplication", ctx, "app-456").Return(app, nil)
+
+		// Execute
+		err := service.ScaleApplication(ctx, "app-456", 3)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot scale beyond 1 replica")
+		mockRepo.AssertExpectations(t)
+	})
+}

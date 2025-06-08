@@ -3,18 +3,20 @@ package workspace
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/workspace"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/helm"
 )
 
 type service struct {
 	repo      workspace.Repository
 	k8sRepo   workspace.KubernetesRepository
 	authRepo  workspace.AuthRepository
-	logger    *zap.Logger
+	helmSvc   helm.Service
+	logger    *slog.Logger
 }
 
 // NewService creates a new workspace service
@@ -22,12 +24,14 @@ func NewService(
 	repo workspace.Repository,
 	k8sRepo workspace.KubernetesRepository,
 	authRepo workspace.AuthRepository,
-	logger *zap.Logger,
+	helmSvc helm.Service,
+	logger *slog.Logger,
 ) workspace.Service {
 	return &service{
 		repo:     repo,
 		k8sRepo:  k8sRepo,
 		authRepo: authRepo,
+		helmSvc:  helmSvc,
 		logger:   logger,
 	}
 }
@@ -67,7 +71,7 @@ func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWork
 	}
 
 	if err := s.repo.CreateTask(ctx, task); err != nil {
-		s.logger.Error("failed to create provisioning task", zap.Error(err))
+		s.logger.Error("failed to create provisioning task", slog.String("error", err.Error()))
 	}
 
 	return ws, task, nil
@@ -83,7 +87,7 @@ func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*worksp
 	if ws.Status == "active" {
 		status, err := s.k8sRepo.GetVClusterStatus(ctx, workspaceID)
 		if err != nil {
-			s.logger.Warn("failed to get vcluster status", zap.Error(err))
+			s.logger.Warn("failed to get vcluster status", slog.String("error", err.Error()))
 		} else {
 			ws.ClusterInfo = map[string]interface{}{
 				"status": status,
@@ -144,20 +148,20 @@ func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*
 	// Get current status from vCluster
 	vclusterStatus, err := s.k8sRepo.GetVClusterStatus(ctx, workspaceID)
 	if err != nil {
-		s.logger.Error("failed to get vcluster status", zap.Error(err))
+		s.logger.Error("failed to get vcluster status", slog.String("error", err.Error()))
 		vclusterStatus = "unknown"
 	}
 
 	// Get resource usage
 	usage, err := s.k8sRepo.GetResourceMetrics(ctx, workspaceID)
 	if err != nil {
-		s.logger.Error("failed to get resource metrics", zap.Error(err))
+		s.logger.Error("failed to get resource metrics", slog.String("error", err.Error()))
 	}
 
 	// Get cluster info
 	clusterInfo, err := s.k8sRepo.GetVClusterInfo(ctx, workspaceID)
 	if err != nil {
-		s.logger.Error("failed to get cluster info", zap.Error(err))
+		s.logger.Error("failed to get cluster info", slog.String("error", err.Error()))
 	}
 
 	status := &workspace.WorkspaceStatus{
@@ -179,7 +183,7 @@ func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*
 
 	// Save status
 	if err := s.repo.SaveWorkspaceStatus(ctx, status); err != nil {
-		s.logger.Error("failed to save workspace status", zap.Error(err))
+		s.logger.Error("failed to save workspace status", slog.String("error", err.Error()))
 	}
 
 	return status, nil
@@ -234,7 +238,7 @@ func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req 
 
 	// Publish task to message queue for async processing
 	if err := s.publishTask(ctx, task); err != nil {
-		s.logger.Error("failed to publish task", zap.Error(err))
+		s.logger.Error("failed to publish task", slog.String("error", err.Error()))
 	}
 
 	return task, nil
@@ -270,7 +274,7 @@ func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) (*wor
 	}
 
 	if err := s.repo.CreateTask(ctx, task); err != nil {
-		s.logger.Error("failed to create deletion task", zap.Error(err))
+		s.logger.Error("failed to create deletion task", slog.String("error", err.Error()))
 	}
 
 	return task, nil
@@ -296,7 +300,7 @@ func (s *service) SuspendWorkspace(ctx context.Context, workspaceID string, reas
 
 	// Scale down vCluster
 	if err := s.k8sRepo.ScaleVCluster(ctx, workspaceID, 0); err != nil {
-		s.logger.Error("failed to scale down vcluster", zap.Error(err))
+		s.logger.Error("failed to scale down vcluster", slog.String("error", err.Error()))
 	}
 
 	return nil
@@ -322,7 +326,7 @@ func (s *service) ReactivateWorkspace(ctx context.Context, workspaceID string) e
 
 	// Scale up vCluster
 	if err := s.k8sRepo.ScaleVCluster(ctx, workspaceID, 1); err != nil {
-		s.logger.Error("failed to scale up vcluster", zap.Error(err))
+		s.logger.Error("failed to scale up vcluster", slog.String("error", err.Error()))
 	}
 
 	return nil
@@ -340,7 +344,7 @@ func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*wo
 
 	// Store usage record
 	if err := s.repo.CreateResourceUsage(ctx, usage); err != nil {
-		s.logger.Error("failed to store resource usage", zap.Error(err))
+		s.logger.Error("failed to store resource usage", slog.String("error", err.Error()))
 	}
 
 	return usage, nil
@@ -370,7 +374,7 @@ func (s *service) GetKubeconfig(ctx context.Context, workspaceID string) (string
 		
 		// Save kubeconfig for future use
 		if err := s.repo.SaveKubeconfig(ctx, workspaceID, kubeconfig); err != nil {
-			s.logger.Error("failed to save kubeconfig", zap.Error(err))
+			s.logger.Error("failed to save kubeconfig", slog.String("error", err.Error()))
 		}
 	}
 
@@ -420,7 +424,7 @@ func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, re
 		"users": []string{member.UserID},
 	}
 	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID, oidcConfig); err != nil {
-		s.logger.Error("failed to update OIDC config", zap.Error(err))
+		s.logger.Error("failed to update OIDC config", slog.String("error", err.Error()))
 	}
 
 	return member, nil
@@ -462,7 +466,7 @@ func (s *service) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID
 		"users": remainingUsers,
 	}
 	if err := s.k8sRepo.UpdateOIDCConfig(ctx, workspaceID, oidcConfig); err != nil {
-		s.logger.Error("failed to update OIDC config", zap.Error(err))
+		s.logger.Error("failed to update OIDC config", slog.String("error", err.Error()))
 	}
 
 	return nil
@@ -511,7 +515,7 @@ func (s *service) ProcessTask(ctx context.Context, taskID string) error {
 	task.UpdatedAt = time.Now()
 
 	if err := s.repo.UpdateTask(ctx, task); err != nil {
-		s.logger.Error("failed to update task status", zap.Error(err))
+		s.logger.Error("failed to update task status", slog.String("error", err.Error()))
 	}
 
 	return processErr
@@ -519,6 +523,7 @@ func (s *service) ProcessTask(ctx context.Context, taskID string) error {
 
 func (s *service) provisionVCluster(ctx context.Context, task *workspace.Task) error {
 	workspaceID := task.WorkspaceID
+	log := s.logger.With("workspace_id", workspaceID, "task_id", task.ID)
 
 	// Get workspace details
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
@@ -527,26 +532,53 @@ func (s *service) provisionVCluster(ctx context.Context, task *workspace.Task) e
 	}
 
 	// Create vCluster
+	log.Info("Creating vCluster...")
 	if err := s.k8sRepo.CreateVCluster(ctx, workspaceID, ws.Plan); err != nil {
 		return fmt.Errorf("failed to create vcluster: %w", err)
 	}
 
 	// Wait for vCluster to be ready
+	log.Info("Waiting for vCluster to become ready...")
 	if err := s.k8sRepo.WaitForVClusterReady(ctx, workspaceID); err != nil {
 		return fmt.Errorf("vcluster did not become ready: %w", err)
 	}
 
 	// Configure OIDC
+	log.Info("Configuring OIDC for vCluster...")
 	if err := s.k8sRepo.ConfigureOIDC(ctx, workspaceID); err != nil {
 		return fmt.Errorf("failed to configure OIDC: %w", err)
 	}
 
 	// Apply resource quotas
+	log.Info("Applying resource quotas...")
 	if err := s.k8sRepo.ApplyResourceQuotas(ctx, workspaceID, ws.Plan); err != nil {
 		return fmt.Errorf("failed to apply resource quotas: %w", err)
 	}
 
+	// NEW: Deploy observability agents for shared plans
+	if ws.Plan == "shared" { // Assuming plan name indicates a shared plan
+		log.Info("Deploying observability agents for shared plan...")
+		chartPath := "./deployments/helm/hks-observability-agents"
+		releaseName := "hks-observability-agents"
+		namespace := "vcluster-" + workspaceID // This needs to match the actual namespace created for the vcluster
+
+		values := map[string]interface{}{
+			"tenant": map[string]interface{}{
+				"workspaceId": workspaceID,
+			},
+		}
+
+		if err := s.helmSvc.InstallOrUpgrade(releaseName, chartPath, namespace, values); err != nil {
+			// We can decide if this is a critical failure or just a warning.
+			// For now, we'll log it as an error but not fail the entire provisioning.
+			log.Error("failed to deploy observability agents, but continuing", slog.String("error", err.Error()))
+		} else {
+			log.Info("Successfully deployed observability agents.")
+		}
+	}
+
 	// Update workspace status
+	log.Info("Updating workspace status to active.")
 	ws.Status = "active"
 	ws.UpdatedAt = time.Now()
 	if err := s.repo.UpdateWorkspace(ctx, ws); err != nil {
@@ -685,9 +717,9 @@ func (s *service) publishTask(ctx context.Context, task *workspace.Task) error {
 	// TODO: Implement message queue publishing
 	// For now, just log the task
 	s.logger.Info("task created", 
-		zap.String("task_id", task.ID),
-		zap.String("type", task.Type),
-		zap.String("status", task.Status))
+		slog.String("task_id", task.ID),
+		slog.String("type", task.Type),
+		slog.String("status", task.Status))
 	return nil
 }
 
@@ -705,4 +737,47 @@ func (s *service) ValidateWorkspaceAccess(ctx context.Context, userID, workspace
 	}
 
 	return fmt.Errorf("user does not have access to workspace")
+}
+
+func (s *service) GetNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+	// This method will call the Kubernetes repository to list nodes
+	// and their metrics for the given workspace's vCluster.
+	// The repository will handle the logic of finding the correct vCluster context.
+	log := s.logger.With("workspace_id", workspaceID)
+	log.Info("fetching nodes for workspace")
+
+	// The actual implementation will live in the k8s repository
+	// For now, we assume it exists and will be implemented next.
+	nodes, err := s.k8sRepo.ListVClusterNodes(ctx, workspaceID)
+	if err != nil {
+		log.Error("failed to list nodes from k8s repository", "error", err)
+		return nil, err
+	}
+
+	return nodes, nil
+}
+
+func (s *service) ScaleDeployment(ctx context.Context, workspaceID, deploymentName string, replicas int) error {
+	// This method will scale a deployment in the workspace's vCluster
+	log := s.logger.With("workspace_id", workspaceID, "deployment", deploymentName, "replicas", replicas)
+	log.Info("scaling deployment in workspace")
+
+	// Validate workspace exists and is active
+	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return fmt.Errorf("failed to get workspace: %w", err)
+	}
+
+	if ws.Status != "active" {
+		return fmt.Errorf("workspace is not active")
+	}
+
+	// Scale the deployment using the k8s repository
+	if err := s.k8sRepo.ScaleVClusterDeployment(ctx, workspaceID, deploymentName, replicas); err != nil {
+		log.Error("failed to scale deployment", "error", err)
+		return fmt.Errorf("failed to scale deployment: %w", err)
+	}
+
+	log.Info("successfully scaled deployment")
+	return nil
 }

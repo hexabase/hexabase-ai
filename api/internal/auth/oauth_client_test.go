@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/hexabase/hexabase-kaas/api/internal/auth"
-	"github.com/hexabase/hexabase-kaas/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 )

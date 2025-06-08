@@ -1,0 +1,272 @@
+# Shared Plan Prometheus Configuration
+# Multi-tenant Prometheus stack running on host cluster
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-shared-config
+  namespace: hexabase-monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'hexabase-shared'
+        prometheus: 'shared'
+
+    rule_files:
+      - "alert_rules.yml"
+      - "recording_rules.yml"
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+
+    scrape_configs:
+      # Scrape Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # Scrape from all vClusters using prometheus-agent
+      - job_name: 'vcluster-metrics'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: ['vcluster-*']  # All vCluster namespaces
+        relabel_configs:
+          # Only scrape prometheus-agent endpoints
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: prometheus-agent
+          
+          # Add workspace_id label from namespace
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: workspace_id
+            regex: vcluster-(.+)
+            replacement: ${1}
+          
+          # Add tenant isolation labels
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: __tmp_namespace
+          - target_label: tenant_namespace
+            source_labels: [__tmp_namespace]
+
+      # Scrape Control Plane components
+      - job_name: 'hexabase-api'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: ['hexabase-control-plane']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: hexabase-api
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+
+      # Scrape ClickHouse metrics
+      - job_name: 'clickhouse'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: ['hexabase-monitoring']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: clickhouse
+
+      # Scrape Node Exporter from all nodes
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: '(.*):10250'
+            target_label: __address__
+            replacement: '${1}:9100'
+
+      # Scrape cAdvisor for container metrics
+      - job_name: 'cadvisor'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: '(.*):10250'
+            target_label: __address__
+            replacement: '${1}:4194'
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+
+    remote_write:
+      # Optional: Write to long-term storage
+      - url: "http://thanos-receive:19291/api/v1/receive"
+        queue_config:
+          max_samples_per_send: 10000
+          max_shards: 200
+
+  alert_rules.yml: |
+    groups:
+      - name: hexabase.rules
+        rules:
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate detected"
+              description: "Error rate is {{ $value }} for {{ $labels.workspace_id }}"
+
+          - alert: WorkspaceResourceExhaustion
+            expr: |
+              (
+                sum by (workspace_id) (container_memory_usage_bytes{namespace=~"vcluster-.*"}) 
+                / 
+                sum by (workspace_id) (kube_resourcequota_hard{resource="requests.memory", namespace=~"vcluster-.*"})
+              ) > 0.9
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Workspace approaching memory limit"
+              description: "Workspace {{ $labels.workspace_id }} is using {{ $value | humanizePercentage }} of memory quota"
+
+          - alert: VClusterDown
+            expr: up{job="vcluster-metrics"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "vCluster is down"
+              description: "vCluster for workspace {{ $labels.workspace_id }} is not responding"
+
+  recording_rules.yml: |
+    groups:
+      - name: hexabase.recording
+        rules:
+          - record: hexabase:workspace_cpu_usage_rate
+            expr: |
+              sum by (workspace_id) (
+                rate(container_cpu_usage_seconds_total{namespace=~"vcluster-.*"}[5m])
+              )
+
+          - record: hexabase:workspace_memory_usage_bytes
+            expr: |
+              sum by (workspace_id) (
+                container_memory_usage_bytes{namespace=~"vcluster-.*"}
+              )
+
+          - record: hexabase:workspace_pod_count
+            expr: |
+              sum by (workspace_id) (
+                kube_pod_info{namespace=~"vcluster-.*"}
+              )
+
+          - record: hexabase:api_request_rate
+            expr: |
+              sum by (workspace_id, method, path) (
+                rate(http_requests_total[5m])
+              )
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-shared
+  namespace: hexabase-monitoring
+  labels:
+    app: prometheus
+    tier: shared
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+      tier: shared
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        tier: shared
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--storage.tsdb.retention.time=30d'
+          - '--storage.tsdb.retention.size=50GB'
+          - '--web.enable-lifecycle'
+          - '--web.enable-admin-api'
+          - '--storage.tsdb.wal-compression'
+        ports:
+        - name: web
+          containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-shared-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-shared-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-shared
+  namespace: hexabase-monitoring
+  labels:
+    app: prometheus
+    tier: shared
+spec:
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus
+    tier: shared
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-shared-pvc
+  namespace: hexabase-monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd

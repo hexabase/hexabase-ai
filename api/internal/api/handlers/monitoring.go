@@ -1,22 +1,22 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/monitoring"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 )
 
 // MonitoringHandler handles monitoring-related HTTP requests
 type MonitoringHandler struct {
 	service monitoring.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewMonitoringHandler creates a new monitoring handler
-func NewMonitoringHandler(service monitoring.Service, logger *zap.Logger) *MonitoringHandler {
+func NewMonitoringHandler(service monitoring.Service, logger *slog.Logger) *MonitoringHandler {
 	return &MonitoringHandler{
 		service: service,
 		logger:  logger,
@@ -44,8 +44,8 @@ func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
 	metrics, err := h.service.GetWorkspaceMetrics(c.Request.Context(), workspaceID, opts)
 	if err != nil {
 		h.logger.Error("Failed to get workspace metrics",
-			zap.String("workspace_id", workspaceID),
-			zap.Error(err))
+			"workspace_id", workspaceID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve metrics"})
 		return
 	}
@@ -60,8 +60,8 @@ func (h *MonitoringHandler) GetClusterHealth(c *gin.Context) {
 	health, err := h.service.GetClusterHealth(c.Request.Context(), workspaceID)
 	if err != nil {
 		h.logger.Error("Failed to get cluster health",
-			zap.String("workspace_id", workspaceID),
-			zap.Error(err))
+			"workspace_id", workspaceID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check cluster health"})
 		return
 	}
@@ -76,8 +76,8 @@ func (h *MonitoringHandler) GetResourceUsage(c *gin.Context) {
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), workspaceID)
 	if err != nil {
 		h.logger.Error("Failed to get resource usage",
-			zap.String("workspace_id", workspaceID),
-			zap.Error(err))
+			"workspace_id", workspaceID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve resource usage"})
 		return
 	}
@@ -93,8 +93,8 @@ func (h *MonitoringHandler) GetAlerts(c *gin.Context) {
 	alerts, err := h.service.GetAlerts(c.Request.Context(), workspaceID, severity)
 	if err != nil {
 		h.logger.Error("Failed to get alerts",
-			zap.String("workspace_id", workspaceID),
-			zap.Error(err))
+			"workspace_id", workspaceID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve alerts"})
 		return
 	}
@@ -137,8 +137,8 @@ func (h *MonitoringHandler) CreateAlert(c *gin.Context) {
 
 	if err := h.service.CreateAlert(c.Request.Context(), alert); err != nil {
 		h.logger.Error("Failed to create alert",
-			zap.String("workspace_id", workspaceID),
-			zap.Error(err))
+			"workspace_id", workspaceID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create alert"})
 		return
 	}
@@ -153,8 +153,8 @@ func (h *MonitoringHandler) AcknowledgeAlert(c *gin.Context) {
 
 	if err := h.service.AcknowledgeAlert(c.Request.Context(), alertID, userID); err != nil {
 		h.logger.Error("Failed to acknowledge alert",
-			zap.String("alert_id", alertID),
-			zap.Error(err))
+			"alert_id", alertID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to acknowledge alert"})
 		return
 	}
@@ -168,8 +168,8 @@ func (h *MonitoringHandler) ResolveAlert(c *gin.Context) {
 
 	if err := h.service.ResolveAlert(c.Request.Context(), alertID); err != nil {
 		h.logger.Error("Failed to resolve alert",
-			zap.String("alert_id", alertID),
-			zap.Error(err))
+			"alert_id", alertID,
+			"error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve alert"})
 		return
 	}

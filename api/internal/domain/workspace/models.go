@@ -1,7 +1,6 @@
 package workspace
 
 import (
-	"context"
 	"time"
 )
 
@@ -172,32 +171,19 @@ type ClusterInfo struct {
 	Status     string `json:"status"`
 }
 
-// Define repository interfaces to be used by other packages
-type KubernetesRepository interface {
-	CreateVCluster(ctx context.Context, workspaceID string, plan string) error
-	DeleteVCluster(ctx context.Context, workspaceID string) error
-	GetVClusterStatus(ctx context.Context, workspaceID string) (string, error)
-	ScaleVCluster(ctx context.Context, workspaceID string, nodeCount int) error
-	GetVClusterInfo(ctx context.Context, workspaceID string) (*ClusterInfo, error)
-	GetResourceMetrics(ctx context.Context, workspaceID string) (*ResourceUsage, error)
-	
-	// Additional operations
-	UpdateOIDCConfig(ctx context.Context, workspaceID string, config map[string]interface{}) error
-	WaitForVClusterReady(ctx context.Context, workspaceID string) error
-	WaitForVClusterDeleted(ctx context.Context, workspaceID string) error
-	ConfigureOIDC(ctx context.Context, workspaceID string) error
-	ApplyResourceQuotas(ctx context.Context, workspaceID, plan string) error
-	GetVClusterKubeconfig(ctx context.Context, workspaceID string) (string, error)
-}
-
-type AuthRepository interface {
-	GetUser(ctx context.Context, userID string) (*User, error)
-	GenerateWorkspaceToken(ctx context.Context, userID, workspaceID string) (string, error)
-}
 
 // User represents a minimal user for workspace context
 type User struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
 	Name  string `json:"name"`
+}
+
+// Node represents a Kubernetes node within a workspace.
+type Node struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
+	Pods   int    `json:"pods"`
 }

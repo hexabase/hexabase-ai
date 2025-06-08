@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,11 +10,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/api/routes"
-	"github.com/hexabase/hexabase-kaas/api/internal/config"
-	"github.com/hexabase/hexabase-kaas/api/internal/db"
-	"github.com/hexabase/hexabase-kaas/api/internal/infrastructure/wire"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/api/middleware"
+	"github.com/hexabase/hexabase-ai/api/internal/api/routes"
+	"github.com/hexabase/hexabase-ai/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/db"
+	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
+	"github.com/hexabase/hexabase-ai/api/internal/logging"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -24,21 +24,19 @@ import (
 
 func main() {
 	// Initialize logger
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	defer logger.Sync()
+	logger := logging.NewLogger()
 
 	// Load configuration
 	cfg, err := config.Load("")
 	if err != nil {
-		logger.Fatal("Failed to load configuration", zap.Error(err))
+		logger.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
-		logger.Fatal("Configuration validation failed", zap.Error(err))
+		logger.Error("Configuration validation failed", "error", err)
+		os.Exit(1)
 	}
 
 	// Connect to database
@@ -53,12 +51,14 @@ func main() {
 
 	database, err := db.ConnectDatabase(dbConfig)
 	if err != nil {
-		logger.Fatal("Failed to connect to database", zap.Error(err))
+		logger.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 
 	// Run migrations
 	if err := db.MigrateDatabase(database); err != nil {
-		logger.Fatal("Failed to migrate database", zap.Error(err))
+		logger.Error("Failed to migrate database", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize Gin router
@@ -67,11 +67,11 @@ func main() {
 	}
 
 	router := gin.New()
-	
+
 	// Add middleware
-	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	
+	router.Use(middleware.StructuredLogger(logger))
+
 	// Add CORS middleware
 	router.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -135,26 +135,27 @@ func main() {
 		}
 		k8sConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
-			logger.Warn("Failed to initialize Kubernetes client", zap.Error(err))
+			logger.Warn("Failed to initialize Kubernetes client", "error", err)
 		}
 	}
 
 	if k8sConfig != nil {
 		k8sClient, err = kubernetes.NewForConfig(k8sConfig)
 		if err != nil {
-			logger.Warn("Failed to create Kubernetes client", zap.Error(err))
+			logger.Warn("Failed to create Kubernetes client", "error", err)
 		}
 
 		dynamicClient, err = dynamic.NewForConfig(k8sConfig)
 		if err != nil {
-			logger.Warn("Failed to create dynamic Kubernetes client", zap.Error(err))
+			logger.Warn("Failed to create dynamic Kubernetes client", "error", err)
 		}
 	}
 
 	// Initialize application with dependency injection
 	app, err := wire.InitializeApp(cfg, database, k8sClient, dynamicClient, k8sConfig, logger)
 	if err != nil {
-		logger.Fatal("Failed to initialize application", zap.Error(err))
+		logger.Error("Failed to initialize application", "error", err)
+		os.Exit(1)
 	}
 
 	// Setup routes
@@ -171,13 +172,14 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		logger.Info("Starting HTTP server", 
-			zap.String("address", srv.Addr),
-			zap.String("environment", gin.Mode()),
+		logger.Info("Starting HTTP server",
+			"address", srv.Addr,
+			"environment", gin.Mode(),
 		)
-		
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to start server", zap.Error(err))
+			logger.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -185,15 +187,16 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	logger.Info("Shutting down server...")
 
 	// Give outstanding requests 30 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("Server forced to shutdown", zap.Error(err))
+		logger.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
 	logger.Info("Server exited")

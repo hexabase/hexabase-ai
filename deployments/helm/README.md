@@ -1,6 +1,6 @@
-# Hexabase KaaS Helm Deployment
+# Hexabase AI Helm Deployment
 
-This directory contains Helm values files for deploying Hexabase KaaS in different environments.
+This directory contains Helm values files for deploying Hexabase AI in different environments.
 
 ## Files
 
@@ -92,7 +92,7 @@ helm repo add hexabase https://charts.hexabase.ai
 helm repo update
 
 # Deploy to production
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --create-namespace \
   --values values-production.yaml \
@@ -100,7 +100,7 @@ helm install hexabase-kaas hexabase/hexabase-kaas \
 
 # Verify deployment
 kubectl get pods -n hexabase-system
-helm status hexabase-kaas -n hexabase-system
+helm status hexabase-ai -n hexabase-system
 ```
 
 ## Staging Deployment
@@ -118,7 +118,7 @@ The staging configuration provides a production-like environment with reduced sc
 
 ### Deploy to Staging:
 ```bash
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-staging \
   --create-namespace \
   --values values-staging.yaml
@@ -133,7 +133,7 @@ For local development with kind or minikube:
 ./scripts/dev-setup.sh
 
 # Or deploy manually with development values
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-dev \
   --create-namespace \
   --values values-local.yaml
@@ -149,7 +149,7 @@ You can override any values by:
 
 Example:
 ```bash
-helm install hexabase-kaas hexabase/hexabase-kaas \
+helm install hexabase-ai hexabase/hexabase-ai \
   --values values-production.yaml \
   --values custom-overrides.yaml \
   --set api.replicas=5
@@ -160,22 +160,22 @@ helm install hexabase-kaas hexabase/hexabase-kaas \
 ```bash
 # Check for updates
 helm repo update
-helm search repo hexabase/hexabase-kaas --versions
+helm search repo hexabase/hexabase-ai --versions
 
 # Upgrade
-helm upgrade hexabase-kaas hexabase/hexabase-kaas \
+helm upgrade hexabase-ai hexabase/hexabase-ai \
   --namespace hexabase-system \
   --values values-production.yaml \
   --wait
 
 # Rollback if needed
-helm rollback hexabase-kaas -n hexabase-system
+helm rollback hexabase-ai -n hexabase-system
 ```
 
 ## Monitoring
 
 After deployment, access:
-- Grafana dashboards: Pre-configured dashboards for Hexabase KaaS
+- Grafana dashboards: Pre-configured dashboards for Hexabase AI
 - Prometheus metrics: Available at `/metrics` endpoint
 - Custom alerts: Configured in AlertManager
 

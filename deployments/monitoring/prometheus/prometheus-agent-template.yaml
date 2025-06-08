@@ -1,0 +1,220 @@
+# Prometheus Agent Template for vCluster (Shared Plans)
+# This template is deployed in each vCluster namespace for shared plan workspaces
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-agent-config
+  namespace: vcluster-${WORKSPACE_ID}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+      external_labels:
+        workspace_id: '${WORKSPACE_ID}'
+        tenant: 'shared'
+        vcluster: '${WORKSPACE_ID}'
+
+    scrape_configs:
+      # Scrape vCluster API server
+      - job_name: 'vcluster-api'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: ['kube-system']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: kubernetes
+          - target_label: workspace_id
+            replacement: '${WORKSPACE_ID}'
+
+      # Scrape pods in vCluster
+      - job_name: 'vcluster-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # Add workspace_id to all metrics
+          - target_label: workspace_id
+            replacement: '${WORKSPACE_ID}'
+          
+          # Only scrape pods with prometheus annotations
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+      # Scrape services in vCluster
+      - job_name: 'vcluster-services'
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - target_label: workspace_id
+            replacement: '${WORKSPACE_ID}'
+          
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+
+      # Scrape kube-state-metrics if deployed
+      - job_name: 'kube-state-metrics'
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: kube-state-metrics
+          - target_label: workspace_id
+            replacement: '${WORKSPACE_ID}'
+
+    remote_write:
+      # Send metrics to shared Prometheus
+      - url: "http://prometheus-shared.hexabase-monitoring.svc.cluster.local:9090/api/v1/write"
+        queue_config:
+          max_samples_per_send: 1000
+          max_shards: 10
+          batch_send_deadline: 5s
+        write_relabel_configs:
+          # Ensure workspace_id is always present
+          - target_label: workspace_id
+            replacement: '${WORKSPACE_ID}'
+          
+          # Add plan type label
+          - target_label: plan_type
+            replacement: 'shared'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-agent
+  namespace: vcluster-${WORKSPACE_ID}
+  labels:
+    app: prometheus-agent
+    workspace_id: ${WORKSPACE_ID}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-agent
+  template:
+    metadata:
+      labels:
+        app: prometheus-agent
+        workspace_id: ${WORKSPACE_ID}
+    spec:
+      serviceAccountName: prometheus-agent
+      containers:
+      - name: prometheus-agent
+        image: prom/prometheus:v2.45.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--web.listen-address=0.0.0.0:9090'
+          - '--storage.agent.path=/prometheus'
+          - '--enable-feature=agent'
+          - '--web.enable-lifecycle'
+        ports:
+        - name: web
+          containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-agent-config
+      - name: storage
+        emptyDir:
+          sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-agent
+  namespace: vcluster-${WORKSPACE_ID}
+  labels:
+    app: prometheus-agent
+    workspace_id: ${WORKSPACE_ID}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-agent
+  namespace: vcluster-${WORKSPACE_ID}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-agent-${WORKSPACE_ID}
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-agent-${WORKSPACE_ID}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-agent-${WORKSPACE_ID}
+subjects:
+- kind: ServiceAccount
+  name: prometheus-agent
+  namespace: vcluster-${WORKSPACE_ID}

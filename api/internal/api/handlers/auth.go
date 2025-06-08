@@ -1,22 +1,22 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-kaas/api/internal/domain/auth"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 )
 
 // AuthHandler handles authentication-related HTTP requests
 type AuthHandler struct {
 	service auth.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(service auth.Service, logger *zap.Logger) *AuthHandler {
+func NewAuthHandler(service auth.Service, logger *slog.Logger) *AuthHandler {
 	return &AuthHandler{
 		service: service,
 		logger:  logger,
@@ -35,9 +35,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	authURL, state, err := h.service.GetAuthURL(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error("failed to generate auth URL", 
-			zap.Error(err),
-			zap.String("provider", provider))
+		h.logger.Error("failed to generate auth URL",
+			"error", err,
+			"provider", provider)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid provider or configuration error"})
 		return
 	}
@@ -84,17 +84,17 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 
 	authResp, err := h.service.HandleCallback(c.Request.Context(), req, clientIP, userAgent)
 	if err != nil {
-		h.logger.Error("OAuth callback failed", 
-			zap.Error(err),
-			zap.String("provider", provider))
+		h.logger.Error("OAuth callback failed",
+			"error", err,
+			"provider", provider)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
 
-	h.logger.Info("OAuth login successful", 
-		zap.String("provider", provider),
-		zap.String("user_id", authResp.User.ID),
-		zap.String("email", authResp.User.Email))
+	h.logger.Info("OAuth login successful",
+		"provider", provider,
+		"user_id", authResp.User.ID,
+		"email", authResp.User.Email)
 
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  authResp.AccessToken,
@@ -123,7 +123,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	tokenPair, err := h.service.RefreshToken(c.Request.Context(), req.RefreshToken, clientIP, userAgent)
 	if err != nil {
-		h.logger.Error("token refresh failed", zap.Error(err))
+		h.logger.Error("token refresh failed", "error", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired refresh token"})
 		return
 	}
@@ -148,7 +148,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// Revoke refresh token if provided
 	if req.RefreshToken != "" {
 		if err := h.service.RevokeRefreshToken(c.Request.Context(), req.RefreshToken); err != nil {
-			h.logger.Error("failed to revoke refresh token", zap.Error(err))
+			h.logger.Warn("failed to revoke refresh token", "error", err)
 		}
 	}
 
@@ -163,7 +163,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	if err := h.service.LogSecurityEvent(c.Request.Context(), event); err != nil {
-		h.logger.Error("failed to log security event", zap.Error(err))
+		h.logger.Error("failed to log security event", "error", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "successfully logged out"})
@@ -182,7 +182,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 
 	user, err := h.service.GetCurrentUser(c.Request.Context(), token)
 	if err != nil {
-		h.logger.Error("failed to get current user", zap.Error(err))
+		h.logger.Error("failed to get current user", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user information"})
 		return
 	}
@@ -205,7 +205,7 @@ func (h *AuthHandler) GetSessions(c *gin.Context) {
 
 	sessions, err := h.service.GetUserSessions(c.Request.Context(), userID)
 	if err != nil {
-		h.logger.Error("failed to get sessions", zap.Error(err))
+		h.logger.Error("failed to get sessions", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve sessions"})
 		return
 	}
@@ -222,7 +222,7 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	if err := h.service.RevokeSession(c.Request.Context(), userID, sessionID); err != nil {
-		h.logger.Error("failed to revoke session", zap.Error(err))
+		h.logger.Error("failed to revoke session", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke session"})
 		return
 	}
@@ -236,7 +236,7 @@ func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
 	sessionID := c.GetString("session_id") // Set by middleware
 
 	if err := h.service.RevokeAllSessions(c.Request.Context(), userID, sessionID); err != nil {
-		h.logger.Error("failed to revoke sessions", zap.Error(err))
+		h.logger.Error("failed to revoke sessions", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke sessions"})
 		return
 	}
@@ -255,7 +255,7 @@ func (h *AuthHandler) GetSecurityLogs(c *gin.Context) {
 
 	logs, err := h.service.GetSecurityLogs(c.Request.Context(), filter)
 	if err != nil {
-		h.logger.Error("failed to get security logs", zap.Error(err))
+		h.logger.Error("failed to get security logs", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve security logs"})
 		return
 	}
@@ -270,7 +270,7 @@ func (h *AuthHandler) GetSecurityLogs(c *gin.Context) {
 func (h *AuthHandler) OIDCDiscovery(c *gin.Context) {
 	config, err := h.service.GetOIDCConfiguration(c.Request.Context())
 	if err != nil {
-		h.logger.Error("failed to get OIDC configuration", zap.Error(err))
+		h.logger.Error("failed to get OIDC configuration", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get configuration"})
 		return
 	}
@@ -282,7 +282,7 @@ func (h *AuthHandler) OIDCDiscovery(c *gin.Context) {
 func (h *AuthHandler) JWKS(c *gin.Context) {
 	jwks, err := h.service.GetJWKS(c.Request.Context())
 	if err != nil {
-		h.logger.Error("failed to get JWKS", zap.Error(err))
+		h.logger.Error("failed to get JWKS", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve public keys"})
 		return
 	}
@@ -313,7 +313,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 		// Validate JWT token
 		claims, err := h.service.ValidateAccessToken(c.Request.Context(), token)
 		if err != nil {
-			h.logger.Debug("token validation failed", zap.Error(err))
+			h.logger.Debug("token validation failed", "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			c.Abort()
 			return
