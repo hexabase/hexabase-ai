@@ -11,13 +11,13 @@ import (
 
 // ApplicationHandler handles application-related requests
 type ApplicationHandler struct {
-	applicationSvc application.Service
+	appService application.Service
 }
 
 // NewApplicationHandler creates a new ApplicationHandler
-func NewApplicationHandler(applicationSvc application.Service) *ApplicationHandler {
+func NewApplicationHandler(appService application.Service) *ApplicationHandler {
 	return &ApplicationHandler{
-		applicationSvc: applicationSvc,
+		appService: appService,
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 	}
 
 	// Create the application
-	app, err := h.applicationSvc.CreateApplication(c.Request.Context(), workspaceID, req)
+	app, err := h.appService.CreateApplication(c.Request.Context(), workspaceID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -66,7 +66,7 @@ func (h *ApplicationHandler) GetApplication(c *gin.Context) {
 		return
 	}
 
-	app, err := h.applicationSvc.GetApplication(c.Request.Context(), appID)
+	app, err := h.appService.GetApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -85,7 +85,7 @@ func (h *ApplicationHandler) ListApplications(c *gin.Context) {
 
 	projectID := c.Query("project_id")
 
-	apps, err := h.applicationSvc.ListApplications(c.Request.Context(), workspaceID, projectID)
+	apps, err := h.appService.ListApplications(c.Request.Context(), workspaceID, projectID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -108,7 +108,7 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 		return
 	}
 
-	app, err := h.applicationSvc.UpdateApplication(c.Request.Context(), appID, req)
+	app, err := h.appService.UpdateApplication(c.Request.Context(), appID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -125,7 +125,7 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.DeleteApplication(c.Request.Context(), appID)
+	err := h.appService.DeleteApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -142,7 +142,7 @@ func (h *ApplicationHandler) StartApplication(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.StartApplication(c.Request.Context(), appID)
+	err := h.appService.StartApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -159,7 +159,7 @@ func (h *ApplicationHandler) StopApplication(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.StopApplication(c.Request.Context(), appID)
+	err := h.appService.StopApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -176,7 +176,7 @@ func (h *ApplicationHandler) RestartApplication(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.RestartApplication(c.Request.Context(), appID)
+	err := h.appService.RestartApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -201,7 +201,7 @@ func (h *ApplicationHandler) ScaleApplication(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.ScaleApplication(c.Request.Context(), appID, req.Replicas)
+	err := h.appService.ScaleApplication(c.Request.Context(), appID, req.Replicas)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -218,7 +218,7 @@ func (h *ApplicationHandler) ListPods(c *gin.Context) {
 		return
 	}
 
-	pods, err := h.applicationSvc.ListPods(c.Request.Context(), appID)
+	pods, err := h.appService.ListPods(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -236,7 +236,7 @@ func (h *ApplicationHandler) RestartPod(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.RestartPod(c.Request.Context(), appID, podName)
+	err := h.appService.RestartPod(c.Request.Context(), appID, podName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -274,7 +274,7 @@ func (h *ApplicationHandler) GetPodLogs(c *gin.Context) {
 		}
 	}
 
-	logs, err := h.applicationSvc.GetPodLogs(c.Request.Context(), query)
+	logs, err := h.appService.GetPodLogs(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -298,7 +298,7 @@ func (h *ApplicationHandler) StreamPodLogs(c *gin.Context) {
 		Follow:        true,
 	}
 
-	stream, err := h.applicationSvc.StreamPodLogs(c.Request.Context(), query)
+	stream, err := h.appService.StreamPodLogs(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -322,7 +322,7 @@ func (h *ApplicationHandler) GetApplicationMetrics(c *gin.Context) {
 		return
 	}
 
-	metrics, err := h.applicationSvc.GetApplicationMetrics(c.Request.Context(), appID)
+	metrics, err := h.appService.GetApplicationMetrics(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -346,7 +346,7 @@ func (h *ApplicationHandler) GetApplicationEvents(c *gin.Context) {
 		}
 	}
 
-	events, err := h.applicationSvc.GetApplicationEvents(c.Request.Context(), appID, limit)
+	events, err := h.appService.GetApplicationEvents(c.Request.Context(), appID, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -369,7 +369,7 @@ func (h *ApplicationHandler) UpdateNetworkConfig(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.UpdateNetworkConfig(c.Request.Context(), appID, config)
+	err := h.appService.UpdateNetworkConfig(c.Request.Context(), appID, config)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -386,7 +386,7 @@ func (h *ApplicationHandler) GetApplicationEndpoints(c *gin.Context) {
 		return
 	}
 
-	endpoints, err := h.applicationSvc.GetApplicationEndpoints(c.Request.Context(), appID)
+	endpoints, err := h.appService.GetApplicationEndpoints(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -411,7 +411,7 @@ func (h *ApplicationHandler) UpdateNodeAffinity(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.UpdateNodeAffinity(c.Request.Context(), appID, req.NodeSelector)
+	err := h.appService.UpdateNodeAffinity(c.Request.Context(), appID, req.NodeSelector)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -436,11 +436,110 @@ func (h *ApplicationHandler) MigrateToNode(c *gin.Context) {
 		return
 	}
 
-	err := h.applicationSvc.MigrateToNode(c.Request.Context(), appID, req.TargetNodeID)
+	err := h.appService.MigrateToNode(c.Request.Context(), appID, req.TargetNodeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "application migration started"})
+}
+
+// UpdateCronJobSchedule updates the schedule of a CronJob
+func (h *ApplicationHandler) UpdateCronJobSchedule(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	var req application.UpdateCronScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	err := h.appService.UpdateCronJobSchedule(c.Request.Context(), appID, req.Schedule)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "cron schedule updated"})
+}
+
+// TriggerCronJob manually triggers a CronJob
+func (h *ApplicationHandler) TriggerCronJob(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	err := h.appService.TriggerCronJob(c.Request.Context(), appID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "cronjob triggered successfully"})
+}
+
+// GetCronJobExecutions retrieves executions for a CronJob
+func (h *ApplicationHandler) GetCronJobExecutions(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	// Parse pagination parameters
+	page := 1
+	perPage := 10
+	
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	
+	if perPageStr := c.Query("per_page"); perPageStr != "" {
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	executions, total, err := h.appService.GetCronJobExecutions(c.Request.Context(), appID, perPage, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := application.CronJobExecutionList{
+		Executions: executions,
+		Total:      total,
+		Page:       page,
+		PageSize:   perPage,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetCronJobStatus retrieves the current status of a CronJob
+func (h *ApplicationHandler) GetCronJobStatus(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	status, err := h.appService.GetCronJobStatus(c.Request.Context(), appID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
 }

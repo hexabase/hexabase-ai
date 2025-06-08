@@ -13,15 +13,17 @@ import (
 
 // Service implements the application service interface
 type Service struct {
-	repo application.Repository
-	k8s  application.KubernetesRepository
+	repo    application.Repository
+	k8s     application.KubernetesRepository
+	k8sRepo application.KubernetesRepository // Alias for backward compatibility
 }
 
 // NewService creates a new application service
 func NewService(repo application.Repository, k8s application.KubernetesRepository) application.Service {
 	return &Service{
-		repo: repo,
-		k8s:  k8s,
+		repo:    repo,
+		k8s:     k8s,
+		k8sRepo: k8s, // Set alias
 	}
 }
 
@@ -66,6 +68,18 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 		app.Config.NodeSelector = map[string]string{
 			"node-pool": req.NodePoolID,
 		}
+	}
+
+	// Handle CronJob type specifically
+	if req.Type == application.ApplicationTypeCronJob {
+		// Set CronJob specific fields from request
+		app.CronSchedule = req.CronSchedule
+		app.CronCommand = req.CronCommand
+		app.CronArgs = req.CronArgs
+		app.TemplateAppID = req.TemplateAppID
+		
+		// Use CreateCronJob for CronJob type
+		return app, s.CreateCronJob(ctx, app)
 	}
 
 	// Save to database
@@ -113,10 +127,21 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 	}()
 
 	// Deploy based on application type
-	if app.Type == application.ApplicationTypeStateless {
+	switch app.Type {
+	case application.ApplicationTypeStateless:
 		err = s.deployStatelessApp(ctx, app)
-	} else {
+	case application.ApplicationTypeStateful:
 		err = s.deployStatefulApp(ctx, app)
+	case application.ApplicationTypeCronJob:
+		// CronJob deployment is handled separately through CreateCronJob
+		app.Status = application.ApplicationStatusRunning
+		s.repo.UpdateApplication(ctx, app)
+		return
+	case application.ApplicationTypeFunction:
+		// Function deployment will be implemented later
+		err = errors.New("function type not yet implemented")
+	default:
+		err = fmt.Errorf("unknown application type: %s", app.Type)
 	}
 
 	if err != nil {
@@ -683,4 +708,159 @@ func (s *Service) MigrateToNode(ctx context.Context, applicationID, targetNodeID
 		"node-id": targetNodeID,
 	}
 	return s.UpdateNodeAffinity(ctx, applicationID, nodeSelector)
+}
+
+// CreateCronJob creates a new CronJob application
+func (s *Service) CreateCronJob(ctx context.Context, app *application.Application) error {
+	// Validate CronJob specific fields
+	if app.Type != application.ApplicationTypeCronJob {
+		return errors.New("application type must be cronjob")
+	}
+	if app.CronSchedule == "" {
+		return errors.New("cron schedule is required")
+	}
+	if len(app.CronCommand) == 0 && app.TemplateAppID == "" {
+		return errors.New("cron command or template app ID is required")
+	}
+
+	// Set initial status
+	app.Status = application.ApplicationStatusPending
+	
+	// Create in repository (will handle template app copying)
+	if err := s.repo.Create(ctx, app); err != nil {
+		return fmt.Errorf("failed to create cronjob application: %w", err)
+	}
+
+	// Create CronJob in Kubernetes
+	cronJobSpec := application.CronJobSpec{
+		Name:              app.Name,
+		Schedule:          app.CronSchedule,
+		Image:             app.Source.Image,
+		Command:           app.CronCommand,
+		Args:              app.CronArgs,
+		EnvVars:           app.Config.EnvVars,
+		Resources:         app.Config.Resources,
+		NodeSelector:      app.Config.NodeSelector,
+		Labels:            map[string]string{"app": app.Name, "type": "cronjob"},
+		Annotations:       map[string]string{"hexabase.io/app-id": app.ID},
+		RestartPolicy:     "OnFailure",
+		ConcurrencyPolicy: "Forbid", // Default to forbid concurrent runs
+	}
+
+	if err := s.k8s.CreateCronJob(ctx, app.WorkspaceID, app.ProjectID, cronJobSpec); err != nil {
+		// Update status to error
+		app.Status = application.ApplicationStatusError
+		s.repo.UpdateApplication(ctx, app)
+		return fmt.Errorf("failed to create kubernetes cronjob: %w", err)
+	}
+
+	// Update status to running
+	app.Status = application.ApplicationStatusRunning
+	return s.repo.UpdateApplication(ctx, app)
+}
+
+// UpdateCronJobSchedule updates the schedule of a CronJob
+func (s *Service) UpdateCronJobSchedule(ctx context.Context, applicationID, newSchedule string) error {
+	// Get application
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return err
+	}
+
+	if app.Type != application.ApplicationTypeCronJob {
+		return errors.New("application is not a cronjob")
+	}
+
+	// Update schedule in repository
+	if err := s.repo.UpdateCronSchedule(ctx, applicationID, newSchedule); err != nil {
+		return fmt.Errorf("failed to update cron schedule: %w", err)
+	}
+
+	// Update CronJob in Kubernetes
+	cronJobSpec := application.CronJobSpec{
+		Name:              app.Name,
+		Schedule:          newSchedule,
+		Image:             app.Source.Image,
+		Command:           app.CronCommand,
+		Args:              app.CronArgs,
+		EnvVars:           app.Config.EnvVars,
+		Resources:         app.Config.Resources,
+		NodeSelector:      app.Config.NodeSelector,
+		Labels:            map[string]string{"app": app.Name, "type": "cronjob"},
+		Annotations:       map[string]string{"hexabase.io/app-id": app.ID},
+		RestartPolicy:     "OnFailure",
+		ConcurrencyPolicy: "Forbid",
+	}
+
+	if err := s.k8s.UpdateCronJob(ctx, app.WorkspaceID, app.ProjectID, app.Name, cronJobSpec); err != nil {
+		return fmt.Errorf("failed to update kubernetes cronjob: %w", err)
+	}
+
+	return nil
+}
+
+// TriggerCronJob manually triggers a CronJob
+func (s *Service) TriggerCronJob(ctx context.Context, applicationID string) error {
+	// Get application
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return err
+	}
+
+	if app.Type != application.ApplicationTypeCronJob {
+		return errors.New("application is not a cronjob")
+	}
+
+	// Trigger in Kubernetes
+	if err := s.k8s.TriggerCronJob(ctx, app.WorkspaceID, app.ProjectID, app.Name); err != nil {
+		return fmt.Errorf("failed to trigger cronjob: %w", err)
+	}
+
+	// Create execution record
+	execution := &application.CronJobExecution{
+		ID:            uuid.New().String(),
+		ApplicationID: applicationID,
+		JobName:       fmt.Sprintf("%s-manual-%d", app.Name, time.Now().Unix()),
+		StartedAt:     time.Now(),
+		Status:        application.CronJobExecutionStatusRunning,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	if err := s.repo.CreateCronJobExecution(ctx, execution); err != nil {
+		// Log error but don't fail the trigger
+		fmt.Printf("failed to create execution record: %v\n", err)
+	}
+
+	return nil
+}
+
+// GetCronJobExecutions retrieves executions for a CronJob
+func (s *Service) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
+	// Verify application exists and is a CronJob
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if app.Type != application.ApplicationTypeCronJob {
+		return nil, 0, errors.New("application is not a cronjob")
+	}
+
+	return s.repo.GetCronJobExecutions(ctx, applicationID, limit, offset)
+}
+
+// GetCronJobStatus retrieves the status of a CronJob from Kubernetes
+func (s *Service) GetCronJobStatus(ctx context.Context, applicationID string) (*application.CronJobStatus, error) {
+	// Get application
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.Type != application.ApplicationTypeCronJob {
+		return nil, errors.New("application is not a cronjob")
+	}
+
+	return s.k8s.GetCronJobStatus(ctx, app.WorkspaceID, app.ProjectID, app.Name)
 }

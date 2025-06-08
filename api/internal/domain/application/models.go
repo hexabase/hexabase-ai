@@ -10,6 +10,8 @@ type ApplicationType string
 const (
 	ApplicationTypeStateless ApplicationType = "stateless"
 	ApplicationTypeStateful  ApplicationType = "stateful"
+	ApplicationTypeCronJob   ApplicationType = "cronjob"
+	ApplicationTypeFunction  ApplicationType = "function"
 )
 
 // ApplicationStatus represents the status of an application
@@ -45,8 +47,15 @@ type Application struct {
 	Source      ApplicationSource `json:"source"`
 	Config      ApplicationConfig `json:"config"`
 	Endpoints   []Endpoint        `json:"endpoints"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	// CronJob specific fields
+	CronSchedule    string     `json:"cron_schedule,omitempty"`
+	CronCommand     []string   `json:"cron_command,omitempty"`
+	CronArgs        []string   `json:"cron_args,omitempty"`
+	TemplateAppID   string     `json:"template_app_id,omitempty"`
+	LastExecutionAt *time.Time `json:"last_execution_at,omitempty"`
+	NextExecutionAt *time.Time `json:"next_execution_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // ApplicationSource represents the source configuration for an application
@@ -127,6 +136,11 @@ type CreateApplicationRequest struct {
 	Config        ApplicationConfig `json:"config"`
 	ProjectID     string            `json:"project_id"`
 	NodePoolID    string            `json:"node_pool_id,omitempty"` // Optional target node pool
+	// CronJob specific fields
+	CronSchedule  string   `json:"cron_schedule,omitempty"`
+	CronCommand   []string `json:"cron_command,omitempty"`
+	CronArgs      []string `json:"cron_args,omitempty"`
+	TemplateAppID string   `json:"template_app_id,omitempty"`
 }
 
 // UpdateApplicationRequest represents a request to update an application
@@ -186,7 +200,7 @@ type LogQuery struct {
 // ValidateApplicationType checks if the application type is valid
 func (a ApplicationType) IsValid() bool {
 	switch a {
-	case ApplicationTypeStateless, ApplicationTypeStateful:
+	case ApplicationTypeStateless, ApplicationTypeStateful, ApplicationTypeCronJob, ApplicationTypeFunction:
 		return true
 	default:
 		return false
@@ -227,4 +241,45 @@ func (s ApplicationStatus) CanTransition(target ApplicationStatus) bool {
 		}
 	}
 	return false
+}
+
+// CronJobExecutionStatus represents the status of a CronJob execution
+type CronJobExecutionStatus string
+
+const (
+	CronJobExecutionStatusRunning   CronJobExecutionStatus = "running"
+	CronJobExecutionStatusSucceeded CronJobExecutionStatus = "succeeded"
+	CronJobExecutionStatusFailed    CronJobExecutionStatus = "failed"
+)
+
+// CronJobExecution represents a single execution of a CronJob
+type CronJobExecution struct {
+	ID            string                 `json:"id"`
+	ApplicationID string                 `json:"application_id"`
+	JobName       string                 `json:"job_name"`
+	StartedAt     time.Time              `json:"started_at"`
+	CompletedAt   *time.Time             `json:"completed_at,omitempty"`
+	Status        CronJobExecutionStatus `json:"status"`
+	ExitCode      *int                   `json:"exit_code,omitempty"`
+	Logs          string                 `json:"logs,omitempty"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+}
+
+// CronJobExecutionList represents a list of CronJob executions
+type CronJobExecutionList struct {
+	Executions []CronJobExecution `json:"executions"`
+	Total      int                `json:"total"`
+	Page       int                `json:"page"`
+	PageSize   int                `json:"page_size"`
+}
+
+// TriggerCronJobRequest represents a request to manually trigger a CronJob
+type TriggerCronJobRequest struct {
+	ApplicationID string `json:"application_id"`
+}
+
+// UpdateCronScheduleRequest represents a request to update a CronJob's schedule
+type UpdateCronScheduleRequest struct {
+	Schedule string `json:"schedule"`
 }

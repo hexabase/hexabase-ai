@@ -149,6 +149,34 @@ func (m *MockApplicationService) MigrateToNode(ctx context.Context, applicationI
 	return args.Error(0)
 }
 
+func (m *MockApplicationService) CreateCronJob(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockApplicationService) UpdateCronJobSchedule(ctx context.Context, applicationID, newSchedule string) error {
+	args := m.Called(ctx, applicationID, newSchedule)
+	return args.Error(0)
+}
+
+func (m *MockApplicationService) TriggerCronJob(ctx context.Context, applicationID string) error {
+	args := m.Called(ctx, applicationID)
+	return args.Error(0)
+}
+
+func (m *MockApplicationService) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	return args.Get(0).([]application.CronJobExecution), args.Int(1), args.Error(2)
+}
+
+func (m *MockApplicationService) GetCronJobStatus(ctx context.Context, applicationID string) (*application.CronJobStatus, error) {
+	args := m.Called(ctx, applicationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.CronJobStatus), args.Error(1)
+}
+
 // ApplicationHandlerTestSuite tests the application handlers
 type ApplicationHandlerTestSuite struct {
 	suite.Suite
@@ -162,7 +190,7 @@ func (suite *ApplicationHandlerTestSuite) SetupTest() {
 	suite.router = gin.New()
 	suite.mockService = new(MockApplicationService)
 	suite.handler = &ApplicationHandler{
-		applicationSvc: suite.mockService,
+		appService: suite.mockService,
 	}
 
 	// Setup routes for testing

@@ -222,6 +222,12 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			// Node operations
 			applications.PUT("/:appId/node-affinity", app.ApplicationHandler.UpdateNodeAffinity)
 			applications.POST("/:appId/migrate", app.ApplicationHandler.MigrateToNode)
+
+			// CronJob operations
+			applications.PUT("/:appId/schedule", app.ApplicationHandler.UpdateCronJobSchedule)
+			applications.POST("/:appId/trigger", app.ApplicationHandler.TriggerCronJob)
+			applications.GET("/:appId/executions", app.ApplicationHandler.GetCronJobExecutions)
+			applications.GET("/:appId/cronjob-status", app.ApplicationHandler.GetCronJobStatus)
 		}
 
 		// CI/CD (workspace level)

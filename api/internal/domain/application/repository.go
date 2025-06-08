@@ -23,6 +23,14 @@ type Repository interface {
 	// Query operations
 	GetApplicationsByNode(ctx context.Context, nodeID string) ([]Application, error)
 	GetApplicationsByStatus(ctx context.Context, workspaceID string, status ApplicationStatus) ([]Application, error)
+
+	// CronJob operations
+	Create(ctx context.Context, app *Application) error // Alias for CreateApplication
+	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
+	CreateCronJobExecution(ctx context.Context, execution *CronJobExecution) error
+	UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status CronJobExecutionStatus, exitCode *int, logs string) error
+	UpdateCronSchedule(ctx context.Context, applicationID, schedule string) error
+	GetCronJobExecutionByID(ctx context.Context, executionID string) (*CronJobExecution, error)
 }
 
 // KubernetesRepository defines the interface for Kubernetes operations
@@ -61,6 +69,13 @@ type KubernetesRepository interface {
 
 	// Metrics operations
 	GetPodMetrics(ctx context.Context, workspaceID, projectID string, podNames []string) ([]PodMetrics, error)
+
+	// CronJob operations
+	CreateCronJob(ctx context.Context, workspaceID, projectID string, spec CronJobSpec) error
+	UpdateCronJob(ctx context.Context, workspaceID, projectID, name string, spec CronJobSpec) error
+	DeleteCronJob(ctx context.Context, workspaceID, projectID, name string) error
+	GetCronJobStatus(ctx context.Context, workspaceID, projectID, name string) (*CronJobStatus, error)
+	TriggerCronJob(ctx context.Context, workspaceID, projectID, name string) error
 }
 
 // DeploymentSpec represents the specification for a Kubernetes Deployment
@@ -162,4 +177,35 @@ type LogOptions struct {
 	Limit     int
 	Follow    bool
 	Previous  bool
+}
+
+// CronJobSpec represents the specification for a Kubernetes CronJob
+type CronJobSpec struct {
+	Name              string
+	Schedule          string
+	Image             string
+	Command           []string
+	Args              []string
+	EnvVars           map[string]string
+	Resources         ResourceRequests
+	NodeSelector      map[string]string
+	Labels            map[string]string
+	Annotations       map[string]string
+	RestartPolicy     string
+	ConcurrencyPolicy string // Allow, Forbid, Replace
+}
+
+// CronJobStatus represents the status of a Kubernetes CronJob
+type CronJobStatus struct {
+	Schedule          string
+	LastScheduleTime  *time.Time
+	LastSuccessfulTime *time.Time
+	Active            []ObjectReference
+}
+
+// ObjectReference represents a reference to a Kubernetes object
+type ObjectReference struct {
+	Name      string
+	Namespace string
+	UID       string
 }

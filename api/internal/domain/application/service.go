@@ -37,4 +37,11 @@ type Service interface {
 	// Node affinity operations (for dedicated nodes)
 	UpdateNodeAffinity(ctx context.Context, applicationID string, nodeSelector map[string]string) error
 	MigrateToNode(ctx context.Context, applicationID, targetNodeID string) error
+
+	// CronJob operations
+	CreateCronJob(ctx context.Context, app *Application) error
+	UpdateCronJobSchedule(ctx context.Context, applicationID, newSchedule string) error
+	TriggerCronJob(ctx context.Context, applicationID string) error
+	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
+	GetCronJobStatus(ctx context.Context, applicationID string) (*CronJobStatus, error)
 }
