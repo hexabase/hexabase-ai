@@ -5,6 +5,8 @@ package wire
 
 import (
 	"log/slog"
+	"net/http"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
@@ -12,21 +14,26 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
+	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/repository/node"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
+	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
+	nodeSvc "github.com/hexabase/hexabase-ai/api/internal/service/node"
 	orgSvc "github.com/hexabase/hexabase-ai/api/internal/service/organization"
 	projectSvc "github.com/hexabase/hexabase-ai/api/internal/service/project"
 	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/service/workspace"
@@ -34,11 +41,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
+var ApplicationSet = wire.NewSet(applicationRepo.NewPostgresRepository, applicationRepo.NewKubernetesRepository, applicationSvc.NewService, handlers.NewApplicationHandler)
 var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, handlers.NewAuthHandler)
 var BillingSet = wire.NewSet(billingRepo.NewPostgresRepository, ProvideStripeRepository, billingSvc.NewService, handlers.NewBillingHandler)
 var MonitoringSet = wire.NewSet(monitoringRepo.NewPostgresRepository, k8sRepo.NewKubernetesRepository, monitoringSvc.NewService, handlers.NewMonitoringHandler)
+var NodeSet = wire.NewSet(nodeRepo.NewPostgresRepository, ProvideNodeRepository, ProvideProxmoxRepository, ProvideProxmoxRepositoryInterface, nodeSvc.NewService, ProvideNodeService, handlers.NewNodeHandler)
 var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, handlers.NewOrganizationHandler)
 var ProjectSet = wire.NewSet(projectRepo.NewPostgresRepository, projectRepo.NewKubernetesRepository, projectSvc.NewService, handlers.NewProjectHandler)
 var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, handlers.NewWorkspaceHandler)
@@ -46,13 +56,14 @@ var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFac
 var HelmSet = wire.NewSet(helm.NewService)
 var AIOpsProxySet = wire.NewSet(ProvideAIOpsServiceURL, handlers.NewAIOpsProxyHandler)
 var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepository, logSvc.NewLogService)
+var InternalSet = wire.NewSet(handlers.NewInternalHandler)
 
 type App struct {
-	AuthHandler *handlers.AuthHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
+	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *handlers.AuthHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
 }
 
-func NewApp(authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
-	return &App{AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
+func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+	return &App{ApplicationHandler: appH, AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
 type StripeAPIKey string
@@ -83,11 +94,37 @@ func ProvideClickHouseConnection(cfg *config.Config) (clickhouse.Conn, error) {
 	return conn, nil
 }
 
+func ProvideProxmoxRepository(cfg *config.Config) *nodeRepo.ProxmoxRepository {
+	// TODO: Get Proxmox configuration from config
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	return nodeRepo.NewProxmoxRepository(httpClient, "https://proxmox.example.com/api2/json", "your-api-token")
+}
+
+func ProvideMetricsClientset(k8sConfig *rest.Config) (versioned.Interface, error) {
+	return versioned.NewForConfig(k8sConfig)
+}
+
+func ProvideNodeService(svc *nodeSvc.Service) node.Service {
+	return svc
+}
+
+func ProvideNodeRepository(repo *nodeRepo.PostgresRepository) node.Repository {
+	return repo
+}
+
+func ProvideProxmoxRepositoryInterface(repo *nodeRepo.ProxmoxRepository) node.ProxmoxRepository {
+	return repo
+}
+
 func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interface, dynamicClient dynamic.Interface, k8sConfig *rest.Config, logger *slog.Logger) (*App, error) {
 	wire.Build(
+		ApplicationSet,
 		AuthSet,
 		BillingSet,
 		MonitoringSet,
+		NodeSet,
 		OrganizationSet,
 		ProjectSet,
 		WorkspaceSet,
@@ -95,10 +132,12 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		HelmSet,
 		AIOpsProxySet,
 		LogSet,
+		InternalSet,
 		ProvideOAuthProviderConfigs,
 		ProvideStripeAPIKey,
 		ProvideStripeWebhookSecret,
 		ProvideCICDNamespace,
+		ProvideMetricsClientset,
 		NewApp,
 	)
 	return nil, nil

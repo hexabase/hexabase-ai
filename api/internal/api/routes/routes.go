@@ -162,8 +162,69 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			monitoring.PUT("/alerts/:alertId/resolve", app.MonitoringHandler.ResolveAlert)
 		}
 
-		// CI/CD (workspace level) - TODO: Re-enable after fixing wire DI
-		/*
+		// Nodes (workspace level)
+		nodes := workspaceScoped.Group("/nodes")
+		{
+			nodes.POST("/", app.NodeHandler.ProvisionDedicatedNode)
+			nodes.GET("/", app.NodeHandler.ListNodes)
+			nodes.GET("/:nodeId", app.NodeHandler.GetNode)
+			nodes.DELETE("/:nodeId", app.NodeHandler.DeleteNode)
+
+			// Node operations
+			nodes.POST("/:nodeId/start", app.NodeHandler.StartNode)
+			nodes.POST("/:nodeId/stop", app.NodeHandler.StopNode)
+			nodes.POST("/:nodeId/reboot", app.NodeHandler.RebootNode)
+
+			// Node monitoring
+			nodes.GET("/:nodeId/status", app.NodeHandler.GetNodeStatus)
+			nodes.GET("/:nodeId/metrics", app.NodeHandler.GetNodeMetrics)
+			nodes.GET("/:nodeId/events", app.NodeHandler.GetNodeEvents)
+
+			// Resource usage
+			nodes.GET("/usage", app.NodeHandler.GetWorkspaceResourceUsage)
+			nodes.GET("/costs", app.NodeHandler.GetNodeCosts)
+			nodes.POST("/check-allocation", app.NodeHandler.CanAllocateResources)
+
+			// Plan transitions
+			nodes.POST("/transition/shared", app.NodeHandler.TransitionToSharedPlan)
+			nodes.POST("/transition/dedicated", app.NodeHandler.TransitionToDedicatedPlan)
+		}
+
+		// Applications (workspace level)
+		applications := workspaceScoped.Group("/applications")
+		{
+			applications.POST("/", app.ApplicationHandler.CreateApplication)
+			applications.GET("/", app.ApplicationHandler.ListApplications)
+			applications.GET("/:appId", app.ApplicationHandler.GetApplication)
+			applications.PUT("/:appId", app.ApplicationHandler.UpdateApplication)
+			applications.DELETE("/:appId", app.ApplicationHandler.DeleteApplication)
+
+			// Application operations
+			applications.POST("/:appId/start", app.ApplicationHandler.StartApplication)
+			applications.POST("/:appId/stop", app.ApplicationHandler.StopApplication)
+			applications.POST("/:appId/restart", app.ApplicationHandler.RestartApplication)
+			applications.POST("/:appId/scale", app.ApplicationHandler.ScaleApplication)
+
+			// Pod operations
+			applications.GET("/:appId/pods", app.ApplicationHandler.ListPods)
+			applications.POST("/:appId/pods/:podName/restart", app.ApplicationHandler.RestartPod)
+			applications.GET("/:appId/logs", app.ApplicationHandler.GetPodLogs)
+			applications.GET("/:appId/logs/stream", app.ApplicationHandler.StreamPodLogs)
+
+			// Monitoring
+			applications.GET("/:appId/metrics", app.ApplicationHandler.GetApplicationMetrics)
+			applications.GET("/:appId/events", app.ApplicationHandler.GetApplicationEvents)
+
+			// Network operations
+			applications.PUT("/:appId/network", app.ApplicationHandler.UpdateNetworkConfig)
+			applications.GET("/:appId/endpoints", app.ApplicationHandler.GetApplicationEndpoints)
+
+			// Node operations
+			applications.PUT("/:appId/node-affinity", app.ApplicationHandler.UpdateNodeAffinity)
+			applications.POST("/:appId/migrate", app.ApplicationHandler.MigrateToNode)
+		}
+
+		// CI/CD (workspace level)
 		pipelines := workspaceScoped.Group("/pipelines")
 		{
 			pipelines.POST("/", app.CICDHandler.CreatePipeline)
@@ -183,11 +244,9 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		// Provider config (workspace level)
 		workspaceScoped.GET("/provider-config", app.CICDHandler.GetProviderConfig)
 		workspaceScoped.PUT("/provider-config", app.CICDHandler.SetProviderConfig)
-		*/
 	}
 
-	// Pipeline-specific routes (not workspace-scoped) - TODO: Re-enable after fixing wire DI
-	/*
+	// Pipeline-specific routes (not workspace-scoped)
 	pipelineRoutes := protected.Group("/pipelines")
 	{
 		pipelineRoutes.GET("/:pipelineId", app.CICDHandler.GetPipeline)
@@ -204,13 +263,19 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 
 	// CI/CD Providers (global)
 	protected.GET("/providers", app.CICDHandler.ListProviders)
-	*/
 
 	// Billing plans (public)
 	plans := v1.Group("/plans")
 	{
 		plans.GET("/", app.BillingHandler.ListPlans)
 		plans.GET("/compare", app.BillingHandler.ComparePlans)
+	}
+
+	// Node plans (public)
+	nodePlans := v1.Group("/node-plans")
+	{
+		nodePlans.GET("/", app.NodeHandler.GetAvailablePlans)
+		nodePlans.GET("/:planId", app.NodeHandler.GetPlanDetails)
 	}
 
 	// Webhook routes (no authentication required)

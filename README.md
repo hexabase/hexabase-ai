@@ -1,22 +1,25 @@
-# Hexabase AI Platform
+# Hexabase.AI - KaaS Platform with AIOps -
 
 An open-source, multi-tenant Kubernetes as a Service platform built on K3s and vCluster.
 
 ## 🚀 Overview
 
-Hexabase AI provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly. It offers isolated Kubernetes environments with enterprise-grade security, monitoring, and billing capabilities.
+Hexabase AI provides a user-friendly abstraction layer over Kubernetes, enabling developers to deploy and manage applications without dealing with Kubernetes complexity directly. It offers isolated Kubernetes environments with enterprise-grade security, monitoring, and resource quota management capabilities.
 
 ## 📚 Documentation
 
 ### Quick Links
+
 - **[Getting Started Guide](./docs/getting-started/README.md)** - Platform overview and quick start
 - **[Development Setup](./docs/development/dev-environment-setup.md)** - Set up your local environment
+- **[Project Structure Guide](./STRUCTURE_GUIDE.md)** - Code organization and conventions
 - **[Deployment Guide](./docs/operations/kubernetes-deployment.md)** - Deploy to production
 - **[API Reference](./docs/api-reference/README.md)** - Complete API documentation
 - **[CI/CD Architecture](./docs/architecture/cicd-architecture.md)** - CI/CD pipelines and GitOps
 - **[CI/CD Configurations](./ci/README.md)** - Pipeline configurations for different platforms
 
 ### Documentation Structure
+
 ```
 docs/
 ├── getting-started/        # Introduction and concepts
@@ -24,8 +27,15 @@ docs/
 ├── development/           # Developer guides
 ├── operations/           # Deployment and operations
 ├── api-reference/        # API documentation
-├── testing/              # Testing guides and reports
+├── testing/              # Testing guides ONLY (no results)
+├── implementation-summaries/ # Implementation notes
 └── project-management/   # Project status and roadmap
+
+api/
+├── testresults/          # ALL test results and reports
+│   ├── coverage/        # Coverage data
+│   ├── unit/            # Unit test results
+│   └── coverage-reports/ # Test coverage reports
 
 ci/                       # CI/CD configurations
 ├── github-actions/       # GitHub Actions workflows
@@ -47,28 +57,33 @@ deployments/
 ## 🎯 Key Features
 
 ### Multi-Tenant Kubernetes
+
 - **vCluster Isolation**: Each workspace gets its own virtual Kubernetes cluster
 - **Resource Quotas**: Fine-grained resource limits and quotas
 - **Network Policies**: Secure tenant isolation at the network level
 
 ### Enterprise Security
+
 - **OAuth2/OIDC**: Support for Google, GitHub, Azure AD, and custom providers
 - **PKCE Flow**: Enhanced security for public clients
 - **JWT Fingerprinting**: Token binding to prevent replay attacks
 - **Audit Logging**: Comprehensive security event tracking
 
 ### Developer Experience
+
 - **Simple Abstractions**: Organizations → Workspaces → Projects
 - **Self-Service**: Create and manage Kubernetes environments via UI/API
 - **Real-time Updates**: WebSocket notifications for provisioning status
 
 ### Operations & Monitoring
+
 - **Prometheus Metrics**: Built-in metrics collection
 - **Grafana Dashboards**: Pre-configured visualization
 - **Health Checks**: Automated cluster health monitoring
 - **Alert Management**: Configurable alerting rules
 
 ### Billing & Subscriptions
+
 - **Stripe Integration**: Automated billing and invoicing
 - **Usage Tracking**: Resource consumption monitoring
 - **Flexible Plans**: Multiple subscription tiers
@@ -104,6 +119,7 @@ deployments/
 ## 🚦 Getting Started
 
 ### Prerequisites
+
 - Go 1.24+
 - Node.js 18+
 - Docker & Docker Compose
@@ -114,6 +130,7 @@ deployments/
 ### Quick Start
 
 #### Option 1: Automated Setup (Recommended)
+
 ```bash
 # Clone and setup everything with one command
 git clone https://github.com/hexabase/hexabase-kaas.git
@@ -128,6 +145,7 @@ make dev-ui   # Terminal 2
 ```
 
 #### Option 2: Manual Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/hexabase/hexabase-kaas.git
@@ -144,6 +162,7 @@ cd ui && npm install && npm run dev
 ```
 
 Access the application at:
+
 - **UI**: http://app.localhost
 - **API**: http://api.localhost
 
@@ -187,15 +206,18 @@ For detailed deployment options, see the [Kubernetes Deployment Guide](./docs/op
 Hexabase KaaS supports multiple CI/CD platforms and GitOps workflows:
 
 ### CI/CD Platforms
+
 - **[GitHub Actions](./ci/github-actions/)** - Native GitHub integration
 - **[GitLab CI](./ci/gitlab-ci/)** - GitLab pipeline support
 - **[Tekton](./ci/tekton/)** - Cloud-native Kubernetes pipelines
 
 ### GitOps Tools
+
 - **[Flux](./deployments/gitops/flux/)** - Automated Git-to-Kubernetes sync
 - **[ArgoCD](./deployments/gitops/argocd/)** - Declarative GitOps with UI
 
 ### Security & Policies
+
 - **[Kyverno Policies](./deployments/policies/kyverno/)** - Policy enforcement
 - **[Supply Chain Security](./ci/github-actions/supply-chain.yml)** - SBOM and signing
 
@@ -203,9 +225,14 @@ For architecture details, see the [CI/CD Architecture Guide](./docs/architecture
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md).
+We welcome contributions! Please read our:
+- [Contributing Guidelines](./CONTRIBUTING.md) - How to contribute
+- [Code of Conduct](./CODE_OF_CONDUCT.md) - Community standards
+- [Project Structure Guide](./STRUCTURE_GUIDE.md) - Code organization rules
+- [AI Assistant Guide](./CLAUDE.md) - For AI-assisted development
 
 ### Development Workflow
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)

@@ -8,12 +8,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Service implements the node business logic
 type Service struct {
 	nodeRepo    node.Repository
 	proxmoxRepo node.ProxmoxRepository
+	k8sClient   kubernetes.Interface
 }
 
 // NewService creates a new node service
@@ -22,6 +26,11 @@ func NewService(nodeRepo node.Repository, proxmoxRepo node.ProxmoxRepository) *S
 		nodeRepo:    nodeRepo,
 		proxmoxRepo: proxmoxRepo,
 	}
+}
+
+// SetK8sClient sets the Kubernetes client for the service
+func (s *Service) SetK8sClient(client kubernetes.Interface) {
+	s.k8sClient = client
 }
 
 // GetAvailablePlans returns all available node plans
@@ -298,17 +307,32 @@ func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*node.NodeS
 		proxmoxStatus = "unknown"
 	}
 
+	// Get K3s agent status
+	k3sStatus := "unknown"
+	if s.k8sClient != nil {
+		if status, err := s.CheckK3sAgentStatus(ctx, nodeID); err == nil {
+			k3sStatus = status
+		}
+	}
+
 	statusInfo := &node.NodeStatusInfo{
 		NodeID:        nodeID,
 		Status:        dedicatedNode.Status,
 		ProxmoxStatus: proxmoxStatus,
-		K3sStatus:     "unknown", // TODO: Implement K3s status check
+		K3sStatus:     k3sStatus,
 		LastUpdated:   dedicatedNode.UpdatedAt,
 		Conditions:    []node.NodeCondition{},
 	}
 
-	// Add basic conditions based on status
-	if dedicatedNode.Status == node.NodeStatusReady && proxmoxStatus == "running" {
+	// Get K3s conditions if available
+	if s.k8sClient != nil {
+		if conditions, err := s.GetK3sAgentConditions(ctx, nodeID); err == nil {
+			statusInfo.Conditions = conditions
+		}
+	}
+
+	// Add basic conditions if no K3s conditions are available
+	if len(statusInfo.Conditions) == 0 && dedicatedNode.Status == node.NodeStatusReady && proxmoxStatus == "running" {
 		statusInfo.Conditions = append(statusInfo.Conditions, node.NodeCondition{
 			Type:    "Ready",
 			Status:  "True",
@@ -638,4 +662,113 @@ func (s *Service) calculateNodeCost(n node.DedicatedNode, period node.BillingPer
 		TotalCost:   totalCost,
 		Status:      string(n.Status),
 	}
+}
+
+// CheckK3sAgentStatus checks the status of K3s agent on a dedicated node
+func (s *Service) CheckK3sAgentStatus(ctx context.Context, nodeID string) (string, error) {
+	if s.k8sClient == nil {
+		return "unknown", errors.New("kubernetes client not configured")
+	}
+
+	// Get the dedicated node
+	dedicatedNode, err := s.nodeRepo.GetDedicatedNode(ctx, nodeID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get dedicated node: %w", err)
+	}
+
+	// If node is not ready or provisioning, return appropriate status
+	switch dedicatedNode.Status {
+	case node.NodeStatusProvisioning:
+		return "provisioning", nil
+	case node.NodeStatusStopped, node.NodeStatusFailed:
+		return "stopped", nil
+	}
+
+	// List all nodes in the cluster
+	nodes, err := s.k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("node.hexabase.io/node-id=%s", nodeID),
+	})
+	if err != nil {
+		return "unknown", fmt.Errorf("failed to list k8s nodes: %w", err)
+	}
+
+	// Check if node exists
+	if len(nodes.Items) == 0 {
+		// Try to find by name
+		k8sNode, err := s.k8sClient.CoreV1().Nodes().Get(ctx, dedicatedNode.Name, metav1.GetOptions{})
+		if err != nil {
+			return "not_found", nil
+		}
+		nodes.Items = []corev1.Node{*k8sNode}
+	}
+
+	// Check node conditions
+	for _, k8sNode := range nodes.Items {
+		// Check if heartbeat is recent (within 5 minutes)
+		for _, condition := range k8sNode.Status.Conditions {
+			if condition.Type == corev1.NodeReady {
+				heartbeatAge := time.Since(condition.LastHeartbeatTime.Time)
+				if heartbeatAge > 5*time.Minute {
+					return "stale", nil
+				}
+				
+				if condition.Status == corev1.ConditionTrue {
+					return "ready", nil
+				} else {
+					return "not_ready", nil
+				}
+			}
+		}
+	}
+
+	return "unknown", nil
+}
+
+// GetK3sAgentConditions returns the Kubernetes node conditions for a dedicated node
+func (s *Service) GetK3sAgentConditions(ctx context.Context, nodeID string) ([]node.NodeCondition, error) {
+	if s.k8sClient == nil {
+		return nil, errors.New("kubernetes client not configured")
+	}
+
+	// Get the dedicated node
+	dedicatedNode, err := s.nodeRepo.GetDedicatedNode(ctx, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get dedicated node: %w", err)
+	}
+
+	// List nodes with matching label
+	nodes, err := s.k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("node.hexabase.io/node-id=%s", nodeID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list k8s nodes: %w", err)
+	}
+
+	// If not found by label, try by name
+	if len(nodes.Items) == 0 {
+		k8sNode, err := s.k8sClient.CoreV1().Nodes().Get(ctx, dedicatedNode.Name, metav1.GetOptions{})
+		if err == nil {
+			nodes.Items = []corev1.Node{*k8sNode}
+		} else {
+			// Node not found, return empty conditions
+			return []node.NodeCondition{}, nil
+		}
+	}
+
+	// Convert Kubernetes conditions to our domain model
+	var conditions []node.NodeCondition
+	for _, k8sNode := range nodes.Items {
+		for _, cond := range k8sNode.Status.Conditions {
+			conditions = append(conditions, node.NodeCondition{
+				Type:    string(cond.Type),
+				Status:  string(cond.Status),
+				Reason:  cond.Reason,
+				Message: cond.Message,
+				Since:   cond.LastTransitionTime.Time,
+			})
+		}
+		break // Only process the first node
+	}
+
+	return conditions, nil
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"log/slog"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 )
@@ -131,7 +132,7 @@ func (m *MockNodeService) TransitionToDedicatedPlan(ctx context.Context, workspa
 }
 
 func setupNodeHandler() (*NodeHandler, *MockNodeService) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockService := new(MockNodeService)
 	
 	handler := NewNodeHandler(mockService, logger)
