@@ -106,7 +106,9 @@ graph TD
 
 9. **Policy Application**: Kyverno operates as a Kubernetes Admission Controller, enforcing security and operational policies on the Host K3s cluster and within each vCluster (if configurable). For example, policies such as "all Namespaces must have an `owner` label," "prohibit launching privileged containers," or "block image pulls from untrusted registries" can be defined to maintain compliance. Policies should also be managed through GitOps.
 
-10. **AIOps System Interaction**: The AIOps system operates as a separate Python-based service. The Hexabase API server communicates with it via internal, RESTful APIs, passing a short-lived, scoped JWT for secure, context-aware operations. The AIOps system analyzes data from the observability stack and its own agents, and can request operational changes (e.g., scaling a deployment) by calling back to a secured internal API on the Hexabase control plane, which performs the final authorization and execution.
+10. **Serverless Backbone**: **Knative** is installed on the host cluster to provide the underlying infrastructure for the HKS Functions (FaaS) offering. It manages the entire lifecycle of serverless containers, including scaling to zero.
+
+11. **AIOps System Interaction**: The AIOps system operates as a separate Python-based service. The Hexabase API server communicates with it via internal, RESTful APIs, passing a short-lived, scoped JWT for secure, context-aware operations. The AIOps system analyzes data from the observability stack and its own agents, and can request operational changes (e.g., scaling a deployment) by calling back to a secured internal API on the Hexabase control plane, which performs the final authorization and execution.
 
 This architecture aims to realize a scalable, resilient, intelligent, and operationally friendly KaaS platform. By clarifying the division of responsibilities among components and utilizing standardized technologies and open-source products, we enhance development efficiency and system reliability.
 
@@ -114,17 +116,19 @@ This architecture aims to realize a scalable, resilient, intelligent, and operat
 
 Hexabase KaaS provides unique abstracted concepts to allow users to use the service without being aware of Kubernetes complexity. These concepts are internally mapped to standard Kubernetes resources and features. Understanding this mapping is crucial for grasping system behavior and using it effectively.
 
-| Hexabase Concept      | Kubernetes Equivalent              | Scope              | Notes                                                                            |
-| --------------------- | ---------------------------------- | ------------------ | -------------------------------------------------------------------------------- |
-| Organization          | (None)                             | Hexabase           | Unit for billing, invoicing, and organizational user management. Business logic. |
-| Workspace             | vCluster                           | Host K3s Cluster   | Strong tenant isolation boundary.                                                |
-| Workspace Plan        | ResourceQuota / Node Configuration | vCluster / Host    | Defines resource limits.                                                         |
-| Organization User     | (None)                             | Hexabase           | Organization administrators and billing managers.                                |
-| Workspace Member      | User (OIDC Subject)                | vCluster           | Technical personnel operating vCluster. Authenticated via OIDC.                  |
-| Workspace Group       | Group (OIDC Claim)                 | vCluster           | Unit for permission assignment. Hierarchy resolved by Hexabase.                  |
-| Workspace ClusterRole | ClusterRole                        | vCluster           | Preset permissions spanning entire Workspace (e.g., Admin, Viewer).              |
-| Project               | Namespace                          | vCluster           | Resource isolation unit within Workspace.                                        |
-| Project Role          | Role                               | vCluster Namespace | Custom permissions that users can create within a Project.                       |
+| Hexabase Concept      | Kubernetes Equivalent                              | Scope              | Notes                                                                                |
+| --------------------- | -------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| Organization          | (None)                                             | Hexabase           | Unit for billing, invoicing, and organizational user management. Business logic.     |
+| Workspace             | vCluster                                           | Host K3s Cluster   | Strong tenant isolation boundary.                                                    |
+| Workspace Plan        | ResourceQuota / Node Configuration                 | vCluster / Host    | Defines resource limits.                                                             |
+| Organization User     | (None)                                             | Hexabase           | Organization administrators and billing managers.                                    |
+| Workspace Member      | User (OIDC Subject)                                | vCluster           | Technical personnel operating vCluster. Authenticated via OIDC.                      |
+| Workspace Group       | Group (OIDC Claim)                                 | vCluster           | Unit for permission assignment. Hierarchy resolved by Hexabase.                      |
+| Workspace ClusterRole | ClusterRole                                        | vCluster           | Preset permissions spanning entire Workspace (e.g., Admin, Viewer).                  |
+| Project               | Namespace                                          | vCluster           | Resource isolation unit within Workspace.                                            |
+| Project Role          | Role                                               | vCluster Namespace | Custom permissions that users can create within a Project.                           |
+| **CronJob**           | `batch/v1.CronJob`                                 | vCluster Namespace | A scheduled task, configured via the UI but maps to a native CronJob resource.       |
+| **Function**          | Knative Service (`serving.knative.dev/v1.Service`) | vCluster Namespace | A serverless function deployed via the `hks-func` CLI or dynamically by an AI agent. |
 
 # 4. Functional Specifications and User Flows
 

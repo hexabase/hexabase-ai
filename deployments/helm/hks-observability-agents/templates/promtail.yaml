@@ -1,0 +1,88 @@
+{{- if .Values.promtail.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /run/promtail/positions.yaml
+
+    clients:
+      - url: {{ .Values.centralObservability.loki.lokiUrl | quote }}
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        pipeline_stages:
+          {{- with .Values.promtail.config.snippets.pipelineStages }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        relabel_configs:
+          # This section is crucial for adding the workspace_id label.
+          # It's a bit complex as we add a static value.
+          - source_labels: [__meta_kubernetes_pod_name] # any present label
+            target_label: workspace_id
+            replacement: {{ .Values.tenant.workspaceId | quote }}
+          # More relabeling to shape the log labels
+          {{- with .Values.promtail.config.snippets.relabeling }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+spec:
+  selector:
+    matchLabels:
+      {{- include "hks-observability-agents.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: promtail
+  template:
+    metadata:
+      labels:
+        {{- include "hks-observability-agents.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: promtail
+    spec:
+      serviceAccountName: {{ include "hks-observability-agents.fullname" . }}-promtail
+      containers:
+        - name: promtail
+          image: "{{ .Values.promtail.image.repository }}:{{ .Values.promtail.image.tag }}"
+          imagePullPolicy: {{ .Values.promtail.image.pullPolicy }}
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: runs
+              mountPath: /run/promtail
+            - name: containers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: pods
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "hks-observability-agents.fullname" . }}-promtail
+        - name: runs
+          hostPath:
+            path: /run/promtail
+        - name: containers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: pods
+          hostPath:
+            path: /var/log/pods
+{{- end }} 

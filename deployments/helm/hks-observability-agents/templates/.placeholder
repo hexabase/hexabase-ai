@@ -1,0 +1,2 @@
+# This is a new directory, so it's an empty file.
+# The 'edit_file' command with 'create_if_missing=true' will create the directory structure. 

@@ -107,6 +107,7 @@ kubeconfig
 
 # Testing artifacts
 hexabase_test
+api/testresults/
 
 # Local development overrides
 docker-compose.override.yml

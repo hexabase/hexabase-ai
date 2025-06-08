@@ -2,21 +2,21 @@ package handlers
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
-	"go.uber.org/zap"
 )
 
 // BillingHandler handles billing-related HTTP requests
 type BillingHandler struct {
 	service billing.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewBillingHandler creates a new billing handler
-func NewBillingHandler(service billing.Service, logger *zap.Logger) *BillingHandler {
+func NewBillingHandler(service billing.Service, logger *slog.Logger) *BillingHandler {
 	return &BillingHandler{
 		service: service,
 		logger:  logger,
@@ -35,7 +35,7 @@ func (h *BillingHandler) CreateSubscription(c *gin.Context) {
 
 	sub, err := h.service.CreateSubscription(c.Request.Context(), orgID, &req)
 	if err != nil {
-		h.logger.Error("failed to create subscription", zap.Error(err))
+		h.logger.Error("failed to create subscription", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -49,7 +49,7 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 
 	sub, err := h.service.GetOrganizationSubscription(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get subscription", zap.Error(err))
+		h.logger.Error("failed to get subscription", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
 		return
 	}
@@ -70,14 +70,14 @@ func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
 	// Get subscription for organization
 	currentSub, err := h.service.GetOrganizationSubscription(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get current subscription", zap.Error(err))
+		h.logger.Error("failed to get current subscription", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
 		return
 	}
 
 	sub, err := h.service.UpdateSubscription(c.Request.Context(), currentSub.ID, &req)
 	if err != nil {
-		h.logger.Error("failed to update subscription", zap.Error(err))
+		h.logger.Error("failed to update subscription", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -97,14 +97,14 @@ func (h *BillingHandler) CancelSubscription(c *gin.Context) {
 	// Get subscription for organization
 	currentSub, err := h.service.GetOrganizationSubscription(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get current subscription", zap.Error(err))
+		h.logger.Error("failed to get current subscription", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
 		return
 	}
 
 	err = h.service.CancelSubscription(c.Request.Context(), currentSub.ID, &req)
 	if err != nil {
-		h.logger.Error("failed to cancel subscription", zap.Error(err))
+		h.logger.Error("failed to cancel subscription", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -116,7 +116,7 @@ func (h *BillingHandler) CancelSubscription(c *gin.Context) {
 func (h *BillingHandler) ListPlans(c *gin.Context) {
 	plans, err := h.service.ListPlans(c.Request.Context())
 	if err != nil {
-		h.logger.Error("failed to list plans", zap.Error(err))
+		h.logger.Error("failed to list plans", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list plans"})
 		return
 	}
@@ -139,7 +139,7 @@ func (h *BillingHandler) ComparePlans(c *gin.Context) {
 
 	comparison, err := h.service.ComparePlans(c.Request.Context(), currentPlanID, targetPlanID)
 	if err != nil {
-		h.logger.Error("failed to compare plans", zap.Error(err))
+		h.logger.Error("failed to compare plans", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -159,7 +159,7 @@ func (h *BillingHandler) AddPaymentMethod(c *gin.Context) {
 
 	method, err := h.service.AddPaymentMethod(c.Request.Context(), orgID, &req)
 	if err != nil {
-		h.logger.Error("failed to add payment method", zap.Error(err))
+		h.logger.Error("failed to add payment method", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -173,7 +173,7 @@ func (h *BillingHandler) ListPaymentMethods(c *gin.Context) {
 
 	methods, err := h.service.ListPaymentMethods(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to list payment methods", zap.Error(err))
+		h.logger.Error("failed to list payment methods", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -190,7 +190,7 @@ func (h *BillingHandler) SetDefaultPaymentMethod(c *gin.Context) {
 
 	err := h.service.SetDefaultPaymentMethod(c.Request.Context(), methodID)
 	if err != nil {
-		h.logger.Error("failed to set default payment method", zap.Error(err))
+		h.logger.Error("failed to set default payment method", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -204,7 +204,7 @@ func (h *BillingHandler) RemovePaymentMethod(c *gin.Context) {
 
 	err := h.service.RemovePaymentMethod(c.Request.Context(), methodID)
 	if err != nil {
-		h.logger.Error("failed to remove payment method", zap.Error(err))
+		h.logger.Error("failed to remove payment method", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -221,7 +221,7 @@ func (h *BillingHandler) ListInvoices(c *gin.Context) {
 
 	invoices, total, err := h.service.ListInvoices(c.Request.Context(), orgID, filter)
 	if err != nil {
-		h.logger.Error("failed to list invoices", zap.Error(err))
+		h.logger.Error("failed to list invoices", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -238,7 +238,7 @@ func (h *BillingHandler) GetInvoice(c *gin.Context) {
 
 	invoice, err := h.service.GetInvoice(c.Request.Context(), invoiceID)
 	if err != nil {
-		h.logger.Error("failed to get invoice", zap.Error(err))
+		h.logger.Error("failed to get invoice", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "invoice not found"})
 		return
 	}
@@ -252,7 +252,7 @@ func (h *BillingHandler) DownloadInvoice(c *gin.Context) {
 
 	pdfData, filename, err := h.service.DownloadInvoice(c.Request.Context(), invoiceID)
 	if err != nil {
-		h.logger.Error("failed to download invoice", zap.Error(err))
+		h.logger.Error("failed to download invoice", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -268,7 +268,7 @@ func (h *BillingHandler) GetUpcomingInvoice(c *gin.Context) {
 
 	invoice, err := h.service.GetUpcomingInvoice(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get upcoming invoice", zap.Error(err))
+		h.logger.Error("failed to get upcoming invoice", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -282,7 +282,7 @@ func (h *BillingHandler) GetCurrentUsage(c *gin.Context) {
 
 	usage, err := h.service.GetCurrentUsage(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get current usage", zap.Error(err))
+		h.logger.Error("failed to get current usage", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -296,7 +296,7 @@ func (h *BillingHandler) GetBillingOverview(c *gin.Context) {
 
 	overview, err := h.service.GetBillingOverview(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get billing overview", zap.Error(err))
+		h.logger.Error("failed to get billing overview", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -310,7 +310,7 @@ func (h *BillingHandler) GetBillingSettings(c *gin.Context) {
 
 	settings, err := h.service.GetBillingSettings(c.Request.Context(), orgID)
 	if err != nil {
-		h.logger.Error("failed to get billing settings", zap.Error(err))
+		h.logger.Error("failed to get billing settings", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -330,7 +330,7 @@ func (h *BillingHandler) UpdateBillingSettings(c *gin.Context) {
 
 	err := h.service.UpdateBillingSettings(c.Request.Context(), orgID, &settings)
 	if err != nil {
-		h.logger.Error("failed to update billing settings", zap.Error(err))
+		h.logger.Error("failed to update billing settings", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -343,7 +343,7 @@ func (h *BillingHandler) HandleStripeWebhook(c *gin.Context) {
 	// Read body
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		h.logger.Error("failed to read webhook body", zap.Error(err))
+		h.logger.Error("failed to read webhook body", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
 		return
 	}
@@ -358,7 +358,7 @@ func (h *BillingHandler) HandleStripeWebhook(c *gin.Context) {
 	// Process webhook
 	err = h.service.ProcessStripeWebhook(c.Request.Context(), body, signature)
 	if err != nil {
-		h.logger.Error("failed to process webhook", zap.Error(err))
+		h.logger.Error("failed to process webhook", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

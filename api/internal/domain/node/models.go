@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// NodeStatus represents the current state of a node
+type NodeStatus string
+
 // Plan types
 const (
 	PlanTypeShared    = "shared"
@@ -14,14 +17,14 @@ const (
 
 // Node statuses
 const (
-	NodeStatusProvisioning = "provisioning"
-	NodeStatusReady        = "ready"
-	NodeStatusStarting     = "starting"
-	NodeStatusStopping     = "stopping"
-	NodeStatusStopped      = "stopped"
-	NodeStatusDeleting     = "deleting"
-	NodeStatusFailed       = "failed"
-	NodeStatusDeleted      = "deleted"
+	NodeStatusProvisioning NodeStatus = "provisioning"
+	NodeStatusReady        NodeStatus = "ready"
+	NodeStatusStarting     NodeStatus = "starting"
+	NodeStatusStopping     NodeStatus = "stopping"
+	NodeStatusStopped      NodeStatus = "stopped"
+	NodeStatusDeleting     NodeStatus = "deleting"
+	NodeStatusFailed       NodeStatus = "failed"
+	NodeStatusDeleted      NodeStatus = "deleted"
 )
 
 // Event types
@@ -142,9 +145,6 @@ type DedicatedNode struct {
 	UpdatedAt       time.Time         `json:"updated_at"`
 	DeletedAt       *time.Time        `json:"deleted_at,omitempty" gorm:"index"`
 }
-
-// NodeStatus represents the current state of a node
-type NodeStatus string
 
 // CanScheduleWorkload checks if the node can accept new workloads
 func (n *DedicatedNode) CanScheduleWorkload() bool {

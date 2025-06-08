@@ -3,22 +3,22 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"go.uber.org/zap"
 )
 
 // service implements the monitoring.Service interface
 type service struct {
 	repo      monitoring.Repository
 	k8sRepo   kubernetes.Repository
-	logger    *zap.Logger
+	logger    *slog.Logger
 }
 
 // NewService creates a new monitoring service
-func NewService(repo monitoring.Repository, k8sRepo kubernetes.Repository, logger *zap.Logger) monitoring.Service {
+func NewService(repo monitoring.Repository, k8sRepo kubernetes.Repository, logger *slog.Logger) monitoring.Service {
 	return &service{
 		repo:    repo,
 		k8sRepo: k8sRepo,
@@ -34,19 +34,19 @@ func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, o
 	// Fetch metrics from repository
 	cpuMetrics, err := s.repo.GetMetrics(ctx, workspaceID, "cpu_usage", start, end)
 	if err != nil {
-		s.logger.Error("Failed to fetch CPU metrics", zap.Error(err))
+		s.logger.Error("Failed to fetch CPU metrics", "error", err)
 		return nil, fmt.Errorf("failed to fetch CPU metrics: %w", err)
 	}
 
 	memoryMetrics, err := s.repo.GetMetrics(ctx, workspaceID, "memory_usage", start, end)
 	if err != nil {
-		s.logger.Error("Failed to fetch memory metrics", zap.Error(err))
+		s.logger.Error("Failed to fetch memory metrics", "error", err)
 		return nil, fmt.Errorf("failed to fetch memory metrics: %w", err)
 	}
 
 	podMetrics, err := s.repo.GetMetrics(ctx, workspaceID, "pod_count", start, end)
 	if err != nil {
-		s.logger.Error("Failed to fetch pod metrics", zap.Error(err))
+		s.logger.Error("Failed to fetch pod metrics", "error", err)
 		return nil, fmt.Errorf("failed to fetch pod metrics: %w", err)
 	}
 
@@ -71,7 +71,7 @@ func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*mo
 	// Check Kubernetes components health
 	componentStatus, err := s.k8sRepo.CheckComponentHealth(ctx)
 	if err != nil {
-		s.logger.Error("Failed to check component health", zap.Error(err))
+		s.logger.Error("Failed to check component health", "error", err)
 		return nil, fmt.Errorf("failed to check component health: %w", err)
 	}
 
@@ -100,7 +100,7 @@ func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*mo
 
 	// Save health check result
 	if err := s.repo.SaveHealthCheck(ctx, health); err != nil {
-		s.logger.Warn("Failed to save health check", zap.Error(err))
+		s.logger.Warn("Failed to save health check", "error", err)
 	}
 
 	return health, nil
@@ -157,9 +157,9 @@ func (s *service) CreateAlert(ctx context.Context, alert *monitoring.Alert) erro
 	}
 
 	s.logger.Info("Alert created",
-		zap.String("alert_id", alert.ID),
-		zap.String("workspace_id", alert.WorkspaceID),
-		zap.String("severity", alert.Severity))
+		"alert_id", alert.ID,
+		"workspace_id", alert.WorkspaceID,
+		"severity", alert.Severity)
 
 	return nil
 }
@@ -217,8 +217,8 @@ func (s *service) CollectMetrics(ctx context.Context, workspaceID string) error 
 	}
 
 	s.logger.Info("Metrics collected",
-		zap.String("workspace_id", workspaceID),
-		zap.Int("data_points", len(dataPoints)))
+		"workspace_id", workspaceID,
+		"data_points", len(dataPoints))
 
 	return nil
 }

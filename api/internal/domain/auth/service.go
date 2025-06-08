@@ -43,4 +43,7 @@ type Service interface {
 	
 	// PKCE
 	VerifyPKCE(ctx context.Context, state, codeVerifier string) error
+
+	// Internal communication
+	GenerateInternalAIOpsToken(ctx context.Context, userID string, orgIDs []string, activeWorkspaceID string) (string, error)
 }

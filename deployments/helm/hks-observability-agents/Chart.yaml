@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hks-observability-agents
+description: A Helm chart for deploying lightweight observability agents (prometheus-agent, promtail) into Hexabase KaaS tenant workspaces.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

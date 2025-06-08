@@ -1,22 +1,22 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
-	"go.uber.org/zap"
 )
 
 // ProjectHandler handles project-related HTTP requests
 type ProjectHandler struct {
 	service project.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewProjectHandler creates a new project handler
-func NewProjectHandler(service project.Service, logger *zap.Logger) *ProjectHandler {
+func NewProjectHandler(service project.Service, logger *slog.Logger) *ProjectHandler {
 	return &ProjectHandler{
 		service: service,
 		logger:  logger,
@@ -39,15 +39,15 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 	proj, err := h.service.CreateProject(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error("failed to create project", zap.Error(err))
+		h.logger.Error("failed to create project", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("project created",
-		zap.String("project_id", proj.ID),
-		zap.String("workspace_id", workspaceID),
-		zap.String("user_id", userID))
+		"project_id", proj.ID,
+		"workspace_id", workspaceID,
+		"user_id", userID)
 
 	c.JSON(http.StatusCreated, proj)
 }
@@ -58,7 +58,7 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 
 	proj, err := h.service.GetProject(c.Request.Context(), projectID)
 	if err != nil {
-		h.logger.Error("failed to get project", zap.Error(err))
+		h.logger.Error("failed to get project", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
 		return
 	}
@@ -98,7 +98,7 @@ func (h *ProjectHandler) ListProjects(c *gin.Context) {
 
 	result, err := h.service.ListProjects(c.Request.Context(), filter)
 	if err != nil {
-		h.logger.Error("failed to list projects", zap.Error(err))
+		h.logger.Error("failed to list projects", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list projects"})
 		return
 	}
@@ -121,14 +121,14 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 
 	proj, err := h.service.UpdateProject(c.Request.Context(), projectID, &req)
 	if err != nil {
-		h.logger.Error("failed to update project", zap.Error(err))
+		h.logger.Error("failed to update project", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("project updated",
-		zap.String("project_id", projectID),
-		zap.String("user_id", userID))
+		"project_id", projectID,
+		"user_id", userID)
 
 	c.JSON(http.StatusOK, proj)
 }
@@ -140,14 +140,14 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 
 	err := h.service.DeleteProject(c.Request.Context(), projectID)
 	if err != nil {
-		h.logger.Error("failed to delete project", zap.Error(err))
+		h.logger.Error("failed to delete project", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("project deleted",
-		zap.String("project_id", projectID),
-		zap.String("user_id", userID))
+		"project_id", projectID,
+		"user_id", userID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "project deleted successfully"})
 }
@@ -167,7 +167,7 @@ func (h *ProjectHandler) CreateSubProject(c *gin.Context) {
 
 	proj, err := h.service.CreateSubProject(c.Request.Context(), parentID, &req)
 	if err != nil {
-		h.logger.Error("failed to create sub-project", zap.Error(err))
+		h.logger.Error("failed to create sub-project", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -181,7 +181,7 @@ func (h *ProjectHandler) GetProjectHierarchy(c *gin.Context) {
 
 	hierarchy, err := h.service.GetProjectHierarchy(c.Request.Context(), projectID)
 	if err != nil {
-		h.logger.Error("failed to get project hierarchy", zap.Error(err))
+		h.logger.Error("failed to get project hierarchy", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -201,7 +201,7 @@ func (h *ProjectHandler) ApplyResourceQuota(c *gin.Context) {
 
 	err := h.service.ApplyResourceQuota(c.Request.Context(), projectID, &quota)
 	if err != nil {
-		h.logger.Error("failed to apply resource quota", zap.Error(err))
+		h.logger.Error("failed to apply resource quota", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -215,7 +215,7 @@ func (h *ProjectHandler) GetResourceUsage(c *gin.Context) {
 
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), projectID)
 	if err != nil {
-		h.logger.Error("failed to get resource usage", zap.Error(err))
+		h.logger.Error("failed to get resource usage", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -238,7 +238,7 @@ func (h *ProjectHandler) AddProjectMember(c *gin.Context) {
 
 	err := h.service.AddProjectMember(c.Request.Context(), projectID, &req)
 	if err != nil {
-		h.logger.Error("failed to add project member", zap.Error(err))
+		h.logger.Error("failed to add project member", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -253,7 +253,7 @@ func (h *ProjectHandler) RemoveProjectMember(c *gin.Context) {
 
 	err := h.service.RemoveProjectMember(c.Request.Context(), projectID, userID)
 	if err != nil {
-		h.logger.Error("failed to remove project member", zap.Error(err))
+		h.logger.Error("failed to remove project member", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -267,7 +267,7 @@ func (h *ProjectHandler) ListProjectMembers(c *gin.Context) {
 
 	members, err := h.service.ListProjectMembers(c.Request.Context(), projectID)
 	if err != nil {
-		h.logger.Error("failed to list project members", zap.Error(err))
+		h.logger.Error("failed to list project members", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -281,19 +281,12 @@ func (h *ProjectHandler) ListProjectMembers(c *gin.Context) {
 // GetActivityLogs handles getting project activity logs
 func (h *ProjectHandler) GetActivityLogs(c *gin.Context) {
 	projectID := c.Param("projectId")
-
 	var filter project.ActivityFilter
-	// Parse query parameters for filtering
-
 	logs, err := h.service.GetActivityLogs(c.Request.Context(), projectID, filter)
 	if err != nil {
-		h.logger.Error("failed to get activity logs", zap.Error(err))
+		h.logger.Error("failed to get activity logs", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"activities": logs,
-		"total":      len(logs),
-	})
+	c.JSON(http.StatusOK, gin.H{"activities": logs, "total": len(logs)})
 }

@@ -1,0 +1,38 @@
+{{- if .Values.promtail.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - services
+      - namespaces
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "hks-observability-agents.fullname" . }}-promtail
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "hks-observability-agents.fullname" . }}-promtail
+    namespace: {{ .Release.Namespace }}
+{{- end }} 

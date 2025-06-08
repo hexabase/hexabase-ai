@@ -1,0 +1,41 @@
+{{- if .Values.prometheusAgent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hks-observability-agents.fullname" . }}-prometheus-agent
+  labels:
+    {{- include "hks-observability-agents.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "hks-observability-agents.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus-agent
+  template:
+    metadata:
+      labels:
+        {{- include "hks-observability-agents.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: prometheus-agent
+    spec:
+      serviceAccountName: {{ include "hks-observability-agents.fullname" . }}-prometheus-agent
+      containers:
+        - name: prometheus-agent
+          image: "{{ .Values.prometheusAgent.image.repository }}:{{ .Values.prometheusAgent.image.tag }}"
+          imagePullPolicy: {{ .Values.prometheusAgent.image.pullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.agent.path=/prometheus
+            - --enable-feature=agent
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "hks-observability-agents.fullname" . }}-prometheus-agent
+{{- end }} 

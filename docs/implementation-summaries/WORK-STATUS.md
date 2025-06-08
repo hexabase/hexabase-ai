@@ -800,36 +800,38 @@ class PKCEFlow {
 
 **OAuth Implementation Status**: 🔄 ACTIVE DEVELOPMENT - Implementing production-grade OAuth with enhanced security measures.
 
-## �� New Features in v0.6.0
+## 🎯 New Features in v0.6.0
 
-| #   | Feature                                             | Status      | Target Release | Assignee  | Notes                                                       |
-| --- | --------------------------------------------------- | ----------- | -------------- | --------- | ----------------------------------------------------------- |
-| 28  | WebSocket API for Real-time Updates                 | Implemented | v0.4.0         | @jane_doe | For live updates on UI dashboards.                          |
-| 29  | Hierarchical Namespace Controller (HNC) Integration | Implemented | v0.4.0         | @john_doe | Manages project (namespace) hierarchy within vClusters.     |
-| 30  | **Enhanced CI/CD**                                  | **Planned** | **v0.6.0**     | **TBD**   | **Provider model with DI, standard credential management.** |
-| 31  | **Hybrid Observability Stack**                      | **Planned** | **v0.7.0**     | **TBD**   | **Shared stack for basic plans, dedicated for premium.**    |
-| 32  | **AIOps System - Phase 1**                          | **Planned** | **v0.8.0**     | **TBD**   | **Python-based system, chat API, secure sandbox, LLMOps.**  |
+| #   | Feature                                             | Status          | Target Release | Assignee  | Notes                                                       |
+| --- | --------------------------------------------------- | --------------- | -------------- | --------- | ----------------------------------------------------------- |
+| 28  | WebSocket API for Real-time Updates                 | Implemented     | v0.4.0         | @jane_doe | For live updates on UI dashboards.                          |
+| 29  | Hierarchical Namespace Controller (HNC) Integration | Implemented     | v0.4.0         | @john_doe | Manages project (namespace) hierarchy within vClusters.     |
+| 30  | **Enhanced CI/CD**                                  | **Planned**     | **v0.6.0**     | **TBD**   | **Provider model with DI, standard credential management.** |
+| 31  | **Hybrid Observability Stack**                      | **Planned**     | **v0.7.0**     | **TBD**   | **Shared stack for basic plans, dedicated for premium.**    |
+| 32  | **AIOps System - Phase 1**                          | **In Progress** | **v0.8.0**     | **TBD**   | **Python-based system, chat API, secure sandbox, LLMOps.**  |
+| 33  | **CronJob Management**                              | **Planned**     | **v0.9.0**     | **TBD**   | **UI-driven creation and management of scheduled tasks.**   |
+| 34  | **Function as a Service (HKS Functions)**           | **Planned**     | **v0.9.0**     | **TBD**   | **Knative-based serverless functions (CLI-first).**         |
 
 ---
 
-## v0.6.0 - AIOps Foundation & Enhanced CI/CD
+## Phase 2: AIOps Foundation (In Progress)
 
 ### Theme: Laying the groundwork for an intelligent, automated platform.
 
 - **Enhanced CI/CD Provider Model**
 
   - **Epic**: #30
-  - **Status**: Planned
+  - **Status**: In Progress
   - **Description**: Refactor the CI/CD module to use a dependency-injected provider model. Implement Tekton as the first provider. Define a standard, secure way to manage Git and registry credentials using Kubernetes Secrets and Service Accounts.
   - **Tasks**:
-    - [ ] Define Go interface for CI/CD providers.
-    - [ ] Implement DI for providers in the API server.
-    - [ ] Implement Tekton provider.
+    - [x] Define Go interface for CI/CD providers.
+    - [x] Implement DI for providers in the API server.
+    - [x] Implement Tekton provider.
     - [ ] Design and implement credential management flow in UI and API.
 
 - **Centralized Logging with ClickHouse**
   - **Epic**: #31 (related)
-  - **Status**: Planned
+  - **Status**: In Progress
   - **Description**: Set up a central ClickHouse database for all control plane logs. Implement a structured logging framework (e.g., `slog`) across the Go application and instrument logs with contextual information (traceID, userID, etc.).
   - **Tasks**:
     - [ ] Create Helm chart for ClickHouse deployment.
@@ -852,15 +854,17 @@ class PKCEFlow {
 
 - **AIOps - Initial Setup**
   - **Epic**: #32
-  - **Status**: Planned
+  - **Status**: In Progress
   - **Description**: Set up the foundational infrastructure for the AIOps system. This includes the Python application skeleton, internal API communication with the Go backend (including the secure JWT model), and the LLMOps stack.
   - **Tasks**:
-    - [ ] Create Python FastAPI project structure under `/ai-ops`.
-    - [ ] Implement the secure internal JWT handshake between Go and Python services.
-    - [ ] Deploy Langfuse stack for LLMOps.
-    - [ ] Set up private LLM serving with Ollama on dedicated nodes.
+    - [x] Create Python FastAPI project structure under `/ai-ops`.
+    - [x] Implement the secure internal JWT handshake between Go and Python services.
+    - [x] Deploy Langfuse stack for LLMOps.
+    - [x] Deploy private LLM serving with Ollama on dedicated nodes.
+    - [ ] **TODO**: Connect the real `OllamaClient` in the Python service.
+    - [ ] **TODO**: Implement the real `GetKubernetesNodesTool` to call the Go API.
 
-## v0.8.0 - AIOps Agents and Chat Integration
+---
 
 ### Theme: Bringing the AI to life.
 
@@ -874,3 +878,41 @@ class PKCEFlow {
     - [ ] Develop a "Node Resource" and "Workspace Usage" specialized agent.
     - [ ] Implement the user impersonation flow for read-only requests.
     - [ ] (Stretch) Implement the first action-performing agent (e.g., scaling a deployment) with user confirmation.
+
+## v0.9.0 - Advanced Workloads: CronJobs & Serverless
+
+### Theme: Expanding application types and enabling event-driven architectures.
+
+- **CronJob Management**
+
+  - **Epic**: #33
+  - **Status**: Planned
+  - **Description**: Implement a new "CronJob" application type in the UI. Allow users to define scheduled tasks based on existing application images and manage their lifecycle.
+  - **Tasks**:
+    - [ ] Add "CronJob" type to Application creation UI.
+    - [ ] Implement UI for schedule configuration (simple & cron expression).
+    - [ ] Develop API endpoint to create/manage `batch/v1.CronJob` resources in vClusters.
+
+- **HKS Functions - Phase 1 (CLI & Core Deployment)**
+  - **Epic**: #34
+  - **Status**: Planned
+  - **Description**: Set up the Knative backbone on the host cluster and deliver the initial developer experience for HKS Functions through a dedicated CLI.
+  - **Tasks**:
+    - [ ] Install and configure Knative Serving on the host K3s cluster.
+    - [ ] Develop the `hks-func` CLI wrapper for seamless authentication and deployment.
+    - [ ] Implement the backend logic to support `hks-func deploy`.
+    - [ ] Create a basic UI to list deployed functions and their URLs.
+
+## v1.0.0 - Full AIOps Integration
+
+### Theme: Realizing the vision of an intelligent, self-operating platform.
+
+- **AIOps-Powered Dynamic Function Execution**
+  - **Epic**: #34 (related)
+  - **Status**: Planned
+  - **Description**: Implement the secure sandbox for AI agents to dynamically build, deploy, invoke, and clean up functions to perform complex tasks.
+  - **Tasks**:
+    - [ ] Implement the secure in-cluster image-building process (e.g., using Kaniko).
+    - [ ] Create the internal HKS Operations API endpoints (`deploy-function`, `delete-function`).
+    - [ ] Develop the Python Internal SDK to abstract the dynamic execution flow for agents.
+    - [ ] Develop a sophisticated AIOps agent that utilizes this capability to solve a real-world problem (e.g., "analyze logs from pod X and summarize the errors").

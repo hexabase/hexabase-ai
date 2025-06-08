@@ -3,24 +3,24 @@ package billing
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
-	"go.uber.org/zap"
 )
 
 type service struct {
 	repo       billing.Repository
 	stripeRepo billing.StripeRepository
-	logger     *zap.Logger
+	logger     *slog.Logger
 }
 
 // NewService creates a new billing service
 func NewService(
 	repo billing.Repository,
 	stripeRepo billing.StripeRepository,
-	logger *zap.Logger,
+	logger *slog.Logger,
 ) billing.Service {
 	return &service{
 		repo:       repo,
@@ -78,7 +78,7 @@ func (s *service) GetSubscription(ctx context.Context, subscriptionID string) (*
 	// Get plan details
 	plan, err := s.repo.GetPlan(ctx, sub.PlanID)
 	if err != nil {
-		s.logger.Warn("failed to get plan details", zap.Error(err))
+		s.logger.Warn("failed to get plan details", "error", err)
 	} else {
 		sub.Plan = plan
 	}
@@ -95,7 +95,7 @@ func (s *service) GetOrganizationSubscription(ctx context.Context, orgID string)
 	// Get plan details
 	plan, err := s.repo.GetPlan(ctx, sub.PlanID)
 	if err != nil {
-		s.logger.Warn("failed to get plan details", zap.Error(err))
+		s.logger.Warn("failed to get plan details", "error", err)
 	} else {
 		sub.Plan = plan
 	}
@@ -329,7 +329,7 @@ func (s *service) AddPaymentMethod(ctx context.Context, orgID string, req *billi
 	// Set as default if requested
 	if req.SetAsDefault {
 		if err := s.SetDefaultPaymentMethod(ctx, method.ID); err != nil {
-			s.logger.Error("failed to set default payment method", zap.Error(err))
+			s.logger.Error("failed to set default payment method", "error", err)
 		}
 	}
 
@@ -410,7 +410,7 @@ func (s *service) GetInvoice(ctx context.Context, invoiceID string) (*billing.In
 	// Get line items
 	lineItems, err := s.repo.GetInvoiceLineItems(ctx, invoiceID)
 	if err != nil {
-		s.logger.Warn("failed to get invoice line items", zap.Error(err))
+		s.logger.Warn("failed to get invoice line items", "error", err)
 	} else {
 		invoice.LineItems = lineItems
 	}
@@ -451,7 +451,7 @@ func (s *service) GetUpcomingInvoice(ctx context.Context, orgID string) (*billin
 	// Calculate usage-based charges
 	usage, err := s.repo.SummarizeUsage(ctx, orgID, sub.CurrentPeriodStart, sub.CurrentPeriodEnd)
 	if err != nil {
-		s.logger.Warn("failed to calculate usage", zap.Error(err))
+		s.logger.Warn("failed to calculate usage", "error", err)
 	} else {
 		// Add usage charges to amount
 		for resource, amount := range usage {
@@ -671,7 +671,7 @@ func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billin
 	// Get upcoming invoice
 	upcomingInvoice, err := s.GetUpcomingInvoice(ctx, orgID)
 	if err != nil {
-		s.logger.Warn("failed to get upcoming invoice", zap.Error(err))
+		s.logger.Warn("failed to get upcoming invoice", "error", err)
 	}
 
 	// Get recent invoices
@@ -680,13 +680,13 @@ func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billin
 		PageSize: 5,
 	})
 	if err != nil {
-		s.logger.Warn("failed to get recent invoices", zap.Error(err))
+		s.logger.Warn("failed to get recent invoices", "error", err)
 	}
 
 	// Get payment methods
 	paymentMethods, err := s.ListPaymentMethods(ctx, orgID)
 	if err != nil {
-		s.logger.Warn("failed to get payment methods", zap.Error(err))
+		s.logger.Warn("failed to get payment methods", "error", err)
 	}
 
 	overview := &billing.BillingOverview{
@@ -732,14 +732,14 @@ func (s *service) ProcessStripeWebhook(ctx context.Context, payload []byte, sign
 
 	case "customer.subscription.updated":
 		// Handle subscription updates
-		s.logger.Info("subscription updated", zap.String("event_id", event.ID))
+		s.logger.Info("subscription updated", "event_id", event.ID)
 
 	case "customer.subscription.deleted":
 		// Handle subscription cancellation
-		s.logger.Info("subscription deleted", zap.String("event_id", event.ID))
+		s.logger.Info("subscription deleted", "event_id", event.ID)
 
 	default:
-		s.logger.Info("unhandled webhook event", zap.String("type", event.Type))
+		s.logger.Info("unhandled webhook event", "type", event.Type)
 	}
 
 	return nil

@@ -39,6 +39,15 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 	protected := v1.Group("")
 	protected.Use(app.AuthHandler.AuthMiddleware())
 
+	// AIOps Chat Proxy
+	ai := protected.Group("/ai")
+	{
+		// This single endpoint proxies all chat-related interactions to the Python service.
+		// The python service is responsible for handling sessions, history, etc.
+		// The `workspace_id` is passed as a query param to give context to the AIOps service.
+		ai.Any("/chat", app.AIOpsProxyHandler.ChatProxy)
+	}
+
 	// Organization routes
 	orgs := protected.Group("/organizations")
 	{
@@ -134,6 +143,14 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			projects.GET("/:projectId/activity", app.ProjectHandler.GetActivityLogs)
 		}
 
+		// AIOps (workspace level)
+		aiops := workspaceScoped.Group("/aiops")
+		{
+			// For now, we only have the chat proxy endpoint
+			// The Python service will handle all the session management and other features
+			aiops.Any("/chat", app.AIOpsProxyHandler.ChatProxy)
+		}
+
 		// Monitoring (workspace level)
 		monitoring := workspaceScoped.Group("/monitoring")
 		{
@@ -144,7 +161,50 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			monitoring.PUT("/alerts/:alertId/acknowledge", app.MonitoringHandler.AcknowledgeAlert)
 			monitoring.PUT("/alerts/:alertId/resolve", app.MonitoringHandler.ResolveAlert)
 		}
+
+		// CI/CD (workspace level) - TODO: Re-enable after fixing wire DI
+		/*
+		pipelines := workspaceScoped.Group("/pipelines")
+		{
+			pipelines.POST("/", app.CICDHandler.CreatePipeline)
+			pipelines.GET("/", app.CICDHandler.ListPipelines)
+			pipelines.POST("/from-template", app.CICDHandler.CreatePipelineFromTemplate)
+		}
+
+		// Credentials (workspace level)
+		credentials := workspaceScoped.Group("/credentials")
+		{
+			credentials.POST("/git", app.CICDHandler.CreateGitCredential)
+			credentials.POST("/registry", app.CICDHandler.CreateRegistryCredential)
+			credentials.GET("/", app.CICDHandler.ListCredentials)
+			credentials.DELETE("/:credentialName", app.CICDHandler.DeleteCredential)
+		}
+
+		// Provider config (workspace level)
+		workspaceScoped.GET("/provider-config", app.CICDHandler.GetProviderConfig)
+		workspaceScoped.PUT("/provider-config", app.CICDHandler.SetProviderConfig)
+		*/
 	}
+
+	// Pipeline-specific routes (not workspace-scoped) - TODO: Re-enable after fixing wire DI
+	/*
+	pipelineRoutes := protected.Group("/pipelines")
+	{
+		pipelineRoutes.GET("/:pipelineId", app.CICDHandler.GetPipeline)
+		pipelineRoutes.DELETE("/:pipelineId", app.CICDHandler.DeletePipeline)
+		pipelineRoutes.POST("/:pipelineId/cancel", app.CICDHandler.CancelPipeline)
+		pipelineRoutes.POST("/:pipelineId/retry", app.CICDHandler.RetryPipeline)
+		pipelineRoutes.GET("/:pipelineId/logs", app.CICDHandler.GetPipelineLogs)
+		pipelineRoutes.GET("/:pipelineId/logs/stream", app.CICDHandler.StreamPipelineLogs)
+		
+		// Templates
+		pipelineRoutes.GET("/templates", app.CICDHandler.ListTemplates)
+		pipelineRoutes.GET("/templates/:templateId", app.CICDHandler.GetTemplate)
+	}
+
+	// CI/CD Providers (global)
+	protected.GET("/providers", app.CICDHandler.ListProviders)
+	*/
 
 	// Billing plans (public)
 	plans := v1.Group("/plans")

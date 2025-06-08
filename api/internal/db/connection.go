@@ -110,6 +110,12 @@ func MigrateDatabase(db *gorm.DB) error {
 		&DedicatedNode{},
 		&NodeEvent{},
 		&WorkspaceNodeAllocation{},
+		// CI/CD models
+		&Pipeline{},
+		&PipelineRun{},
+		&PipelineTemplate{},
+		&WorkspaceProviderConfig{},
+		&CICDCredential{},
 	)
 }
 

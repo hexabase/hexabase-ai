@@ -7,17 +7,17 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 // Client wraps the Redis client
 type Client struct {
 	client *redis.Client
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
 // NewClient creates a new Redis client
-func NewClient(cfg *config.RedisConfig, logger *zap.Logger) (*Client, error) {
+func NewClient(cfg *config.RedisConfig, logger *slog.Logger) (*Client, error) {
 	opt := &redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
 		Password: cfg.Password,
@@ -35,9 +35,9 @@ func NewClient(cfg *config.RedisConfig, logger *zap.Logger) (*Client, error) {
 	}
 
 	logger.Info("Connected to Redis",
-		zap.String("host", cfg.Host),
-		zap.String("port", cfg.Port),
-		zap.Int("db", cfg.DB))
+		"host", cfg.Host,
+		"port", cfg.Port,
+		"db", cfg.DB)
 
 	return &Client{
 		client: client,

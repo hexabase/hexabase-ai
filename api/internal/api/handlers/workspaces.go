@@ -5,17 +5,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 // WorkspaceHandler handles workspace-related HTTP requests
 type WorkspaceHandler struct {
 	service workspace.Service
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
 // NewWorkspaceHandler creates a new workspace handler
-func NewWorkspaceHandler(service workspace.Service, logger *zap.Logger) *WorkspaceHandler {
+func NewWorkspaceHandler(service workspace.Service, logger *slog.Logger) *WorkspaceHandler {
 	return &WorkspaceHandler{
 		service: service,
 		logger:  logger,
@@ -38,16 +38,16 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 
 	ws, task, err := h.service.CreateWorkspace(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error("failed to create workspace", zap.Error(err))
+		h.logger.Error("failed to create workspace", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("workspace created",
-		zap.String("workspace_id", ws.ID),
-		zap.String("org_id", orgID),
-		zap.String("user_id", userID),
-		zap.String("task_id", task.ID))
+		"workspace_id", ws.ID,
+		"org_id", orgID,
+		"user_id", userID,
+		"task_id", task.ID)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"workspace": ws,
@@ -61,7 +61,7 @@ func (h *WorkspaceHandler) GetWorkspace(c *gin.Context) {
 
 	ws, err := h.service.GetWorkspace(c.Request.Context(), workspaceID)
 	if err != nil {
-		h.logger.Error("failed to get workspace", zap.Error(err))
+		h.logger.Error("failed to get workspace", "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "workspace not found"})
 		return
 	}
@@ -94,7 +94,7 @@ func (h *WorkspaceHandler) ListWorkspaces(c *gin.Context) {
 	filter.OrganizationID = orgID
 	result, err := h.service.ListWorkspaces(c.Request.Context(), filter)
 	if err != nil {
-		h.logger.Error("failed to list workspaces", zap.Error(err))
+		h.logger.Error("failed to list workspaces", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list workspaces"})
 		return
 	}
@@ -122,14 +122,14 @@ func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 
 	ws, err := h.service.UpdateWorkspace(c.Request.Context(), workspaceID, &req)
 	if err != nil {
-		h.logger.Error("failed to update workspace", zap.Error(err))
+		h.logger.Error("failed to update workspace", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("workspace updated",
-		zap.String("workspace_id", workspaceID),
-		zap.String("user_id", userID))
+		"workspace_id", workspaceID,
+		"user_id", userID)
 
 	c.JSON(http.StatusOK, ws)
 }
@@ -141,15 +141,15 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 
 	task, err := h.service.DeleteWorkspace(c.Request.Context(), workspaceID)
 	if err != nil {
-		h.logger.Error("failed to delete workspace", zap.Error(err))
+		h.logger.Error("failed to delete workspace", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logger.Info("workspace deletion initiated",
-		zap.String("workspace_id", workspaceID),
-		zap.String("user_id", userID),
-		zap.String("task_id", task.ID))
+		"workspace_id", workspaceID,
+		"user_id", userID,
+		"task_id", task.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "workspace deletion initiated",
@@ -165,7 +165,7 @@ func (h *WorkspaceHandler) GetKubeconfig(c *gin.Context) {
 
 	kubeconfig, err := h.service.GetKubeconfig(c.Request.Context(), workspaceID)
 	if err != nil {
-		h.logger.Error("failed to get kubeconfig", zap.Error(err))
+		h.logger.Error("failed to get kubeconfig", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -181,7 +181,7 @@ func (h *WorkspaceHandler) GetResourceUsage(c *gin.Context) {
 
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), workspaceID)
 	if err != nil {
-		h.logger.Error("failed to get resource usage", zap.Error(err))
+		h.logger.Error("failed to get resource usage", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -204,7 +204,7 @@ func (h *WorkspaceHandler) AddWorkspaceMember(c *gin.Context) {
 
 	member, err := h.service.AddWorkspaceMember(c.Request.Context(), workspaceID, &req)
 	if err != nil {
-		h.logger.Error("failed to add workspace member", zap.Error(err))
+		h.logger.Error("failed to add workspace member", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -222,7 +222,7 @@ func (h *WorkspaceHandler) RemoveWorkspaceMember(c *gin.Context) {
 
 	err := h.service.RemoveWorkspaceMember(c.Request.Context(), workspaceID, userID)
 	if err != nil {
-		h.logger.Error("failed to remove workspace member", zap.Error(err))
+		h.logger.Error("failed to remove workspace member", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -236,7 +236,7 @@ func (h *WorkspaceHandler) ListWorkspaceMembers(c *gin.Context) {
 
 	members, err := h.service.ListWorkspaceMembers(c.Request.Context(), workspaceID)
 	if err != nil {
-		h.logger.Error("failed to list workspace members", zap.Error(err))
+		h.logger.Error("failed to list workspace members", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

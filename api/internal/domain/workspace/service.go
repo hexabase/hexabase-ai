@@ -56,4 +56,8 @@ type Service interface {
 	
 	// RemoveWorkspaceMember removes a member from a workspace
 	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error
+
+	// Node operations
+	GetNodes(ctx context.Context, workspaceID string) ([]Node, error)
+	ScaleDeployment(ctx context.Context, workspaceID, deploymentName string, replicas int) error
 }

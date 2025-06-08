@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-ops
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llmops-postgres-secret
+  namespace: llm-ops
+stringData:
+  POSTGRES_USER: "langfuse"
+  POSTGRES_DB: "langfuse"
+  # IMPORTANT: Change this in production! Use a securely generated password.
+  POSTGRES_PASSWORD: "insecure_dev_password"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llmops-postgres-pvc
+  namespace: llm-ops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi # Start with 5GB, can be expanded
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmops-postgres-deployment
+  namespace: llm-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llmops-postgres
+  template:
+    metadata:
+      labels:
+        app: llmops-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          envFrom:
+            - secretRef:
+                name: llmops-postgres-secret
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: llmops-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llmops-postgres-service
+  namespace: llm-ops
+spec:
+  selector:
+    app: llmops-postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llmops-langfuse-secret
+  namespace: llm-ops
+stringData:
+  # IMPORTANT: Change this in production! Use `openssl rand -base64 32` to generate
+  NEXTAUTH_SECRET: "insecure_dev_nextauth_secret"
+  SALT: "insecure_dev_salt"
+  NEXTAUTH_URL: "http://localhost:3000" # This should be updated by Ingress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmops-langfuse-server
+  namespace: llm-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llmops-langfuse-server
+  template:
+    metadata:
+      labels:
+        app: llmops-langfuse-server
+    spec:
+      containers:
+        - name: langfuse-server
+          image: langfuse/langfuse:latest
+          envFrom:
+            - secretRef:
+                name: llmops-langfuse-secret
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@llmops-postgres-service.llm-ops.svc.cluster.local:5432/$(POSTGRES_DB)"
+            - name: POSTGRES_USER
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: llmops-postgres-secret, key: POSTGRES_USER },
+                }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: llmops-postgres-secret, key: POSTGRES_PASSWORD },
+                }
+            - name: POSTGRES_DB
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: llmops-postgres-secret, key: POSTGRES_DB },
+                }
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llmops-langfuse-service
+  namespace: llm-ops
+spec:
+  selector:
+    app: llmops-langfuse-server
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000

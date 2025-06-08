@@ -4,185 +4,72 @@
 package wire
 
 import (
+	"log/slog"
+
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
-	
-	// Domain imports
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
-	
-	// Repository imports
+	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
+	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
+	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
-	
-	// Service imports
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
+	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	orgSvc "github.com/hexabase/hexabase-ai/api/internal/service/organization"
 	projectSvc "github.com/hexabase/hexabase-ai/api/internal/service/project"
 	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/service/workspace"
-	
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-// AuthSet is a Wire provider set for authentication
-var AuthSet = wire.NewSet(
-	authRepo.NewPostgresRepository,
-	wire.Bind(new(auth.Repository), new(*authRepo.PostgresRepository)),
-	
-	authRepo.NewOAuthRepository,
-	wire.Bind(new(auth.OAuthRepository), new(*authRepo.OAuthRepository)),
-	
-	authRepo.NewKeyRepository,
-	wire.Bind(new(auth.KeyRepository), new(*authRepo.KeyRepository)),
-	
-	authSvc.NewService,
-	wire.Bind(new(auth.Service), new(*authSvc.Service)),
-	
-	handlers.NewAuthHandler,
-)
+var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, handlers.NewAuthHandler)
+var BillingSet = wire.NewSet(billingRepo.NewPostgresRepository, ProvideStripeRepository, billingSvc.NewService, handlers.NewBillingHandler)
+var MonitoringSet = wire.NewSet(monitoringRepo.NewPostgresRepository, k8sRepo.NewKubernetesRepository, monitoringSvc.NewService, handlers.NewMonitoringHandler)
+var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, handlers.NewOrganizationHandler)
+var ProjectSet = wire.NewSet(projectRepo.NewPostgresRepository, projectRepo.NewKubernetesRepository, projectSvc.NewService, handlers.NewProjectHandler)
+var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, handlers.NewWorkspaceHandler)
+var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicdSvc.NewService, handlers.NewCICDHandler)
+var HelmSet = wire.NewSet(helm.NewService)
+var AIOpsProxySet = wire.NewSet(ProvideAIOpsServiceURL, handlers.NewAIOpsProxyHandler)
 
-// BillingSet is a Wire provider set for billing
-var BillingSet = wire.NewSet(
-	billingRepo.NewPostgresRepository,
-	wire.Bind(new(billing.Repository), new(*billingRepo.PostgresRepository)),
-	
-	billingRepo.NewStripeRepository,
-	wire.Bind(new(billing.StripeRepository), new(*billingRepo.StripeRepository)),
-	
-	billingSvc.NewService,
-	wire.Bind(new(billing.Service), new(*billingSvc.Service)),
-	
-	handlers.NewBillingHandler,
-)
-
-// MonitoringSet is a Wire provider set for monitoring
-var MonitoringSet = wire.NewSet(
-	monitoringRepo.NewPostgresRepository,
-	wire.Bind(new(monitoring.Repository), new(*monitoringRepo.PostgresRepository)),
-	
-	monitoringRepo.NewKubernetesRepository,
-	wire.Bind(new(kubernetes.Repository), new(*monitoringRepo.KubernetesRepository)),
-	
-	monitoringSvc.NewService,
-	wire.Bind(new(monitoring.Service), new(*monitoringSvc.Service)),
-	
-	handlers.NewMonitoringHandler,
-)
-
-// OrganizationSet is a Wire provider set for organizations
-var OrganizationSet = wire.NewSet(
-	orgRepo.NewPostgresRepository,
-	wire.Bind(new(organization.Repository), new(*orgRepo.PostgresRepository)),
-	
-	orgSvc.NewService,
-	wire.Bind(new(organization.Service), new(*orgSvc.Service)),
-	
-	handlers.NewOrganizationHandler,
-)
-
-// ProjectSet is a Wire provider set for projects
-var ProjectSet = wire.NewSet(
-	projectRepo.NewPostgresRepository,
-	wire.Bind(new(project.Repository), new(*projectRepo.PostgresRepository)),
-	
-	projectRepo.NewKubernetesRepository,
-	wire.Bind(new(project.KubernetesRepository), new(*projectRepo.KubernetesRepository)),
-	
-	projectSvc.NewService,
-	wire.Bind(new(project.Service), new(*projectSvc.Service)),
-	
-	handlers.NewProjectHandler,
-)
-
-// WorkspaceSet is a Wire provider set for workspaces
-var WorkspaceSet = wire.NewSet(
-	workspaceRepo.NewPostgresRepository,
-	wire.Bind(new(workspace.Repository), new(*workspaceRepo.PostgresRepository)),
-	
-	workspaceRepo.NewKubernetesRepository,
-	wire.Bind(new(workspace.KubernetesRepository), new(*workspaceRepo.KubernetesRepository)),
-	
-	workspaceSvc.NewService,
-	wire.Bind(new(workspace.Service), new(*workspaceSvc.Service)),
-	
-	handlers.NewWorkspaceHandler,
-)
-
-// ProvideOAuthConfig provides OAuth configuration
-func ProvideOAuthConfig(cfg *config.Config) map[string]*authRepo.ProviderConfig {
-	// Convert config to OAuth provider configs
-	providers := make(map[string]*authRepo.ProviderConfig)
-	// Add provider configurations from config
-	return providers
-}
-
-// ProvideStripeConfig provides Stripe configuration
-func ProvideStripeConfig(cfg *config.Config) (string, string) {
-	// Return API key and webhook secret from config
-	return "", "" // Replace with actual config values
-}
-
-// SharedDependencies provides shared dependencies
-var SharedDependencies = wire.NewSet(
-	wire.Bind(new(organization.AuthRepository), new(*authRepo.PostgresRepository)),
-	wire.Bind(new(organization.BillingRepository), new(*billingRepo.StripeRepository)),
-	wire.Bind(new(workspace.AuthRepository), new(*authRepo.PostgresRepository)),
-)
-
-// App represents the application with all handlers
 type App struct {
-	AuthHandler         *handlers.AuthHandler
-	BillingHandler      *handlers.BillingHandler
-	MonitoringHandler   *handlers.MonitoringHandler
-	OrganizationHandler *handlers.OrganizationHandler
-	ProjectHandler      *handlers.ProjectHandler
-	WorkspaceHandler    *handlers.WorkspaceHandler
+	AuthHandler *handlers.AuthHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler
 }
 
-// NewApp creates a new App instance
-func NewApp(
-	authHandler *handlers.AuthHandler,
-	billingHandler *handlers.BillingHandler,
-	monitoringHandler *handlers.MonitoringHandler,
-	organizationHandler *handlers.OrganizationHandler,
-	projectHandler *handlers.ProjectHandler,
-	workspaceHandler *handlers.WorkspaceHandler,
-) *App {
-	return &App{
-		AuthHandler:         authHandler,
-		BillingHandler:      billingHandler,
-		MonitoringHandler:   monitoringHandler,
-		OrganizationHandler: organizationHandler,
-		ProjectHandler:      projectHandler,
-		WorkspaceHandler:    workspaceHandler,
-	}
+func NewApp(authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler) *App {
+	return &App{AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH}
 }
 
-// InitializeApp creates the entire application with all dependencies
-func InitializeApp(
-	cfg *config.Config,
-	db *gorm.DB,
-	k8sClient kubernetes.Interface,
-	dynamicClient dynamic.Interface,
-	k8sConfig *rest.Config,
-	logger *zap.Logger,
-) (*App, error) {
+type StripeAPIKey string
+type StripeWebhookSecret string
+type AIOpsServiceURL string
+type CICDNamespace string
+
+func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*authRepo.ProviderConfig {
+	// TODO: Load from config
+	return make(map[string]*authRepo.ProviderConfig)
+}
+
+func ProvideStripeAPIKey(cfg *config.Config) StripeAPIKey { return StripeAPIKey(cfg.Stripe.APIKey) }
+func ProvideStripeWebhookSecret(cfg *config.Config) StripeWebhookSecret { return StripeWebhookSecret(cfg.Stripe.WebhookSecret) }
+func ProvideAIOpsServiceURL(cfg *config.Config) (string, error) { if cfg.AIOps.URL != "" { return cfg.AIOps.URL, nil }; return "http://ai-ops-service.ai-ops.svc.cluster.local:8000", nil }
+func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSecret) billing.StripeRepository { return billingRepo.NewStripeRepository(string(apiKey), string(webhookSecret)) }
+func ProvideCICDNamespace() CICDNamespace { return CICDNamespace("hexabase-cicd") }
+func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace CICDNamespace) cicd.ProviderFactory { return cicdRepo.NewProviderFactory(kubeClient, k8sConfig, string(namespace)) }
+func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicd.CredentialManager { return cicdRepo.NewKubernetesCredentialManager(kubeClient, string(namespace)) }
+
+func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interface, dynamicClient dynamic.Interface, k8sConfig *rest.Config, logger *slog.Logger) (*App, error) {
 	wire.Build(
 		AuthSet,
 		BillingSet,
@@ -190,9 +77,13 @@ func InitializeApp(
 		OrganizationSet,
 		ProjectSet,
 		WorkspaceSet,
-		SharedDependencies,
-		ProvideOAuthConfig,
-		ProvideStripeConfig,
+		CICDSet,
+		HelmSet,
+		AIOpsProxySet,
+		ProvideOAuthProviderConfigs,
+		ProvideStripeAPIKey,
+		ProvideStripeWebhookSecret,
+		ProvideCICDNamespace,
 		NewApp,
 	)
 	return nil, nil

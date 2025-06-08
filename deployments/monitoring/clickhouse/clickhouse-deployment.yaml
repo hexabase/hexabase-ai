@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  namespace: hexabase-monitoring
+  labels:
+    app: clickhouse
+    component: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clickhouse
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+    spec:
+      containers:
+      - name: clickhouse
+        image: clickhouse/clickhouse-server:23.8
+        ports:
+        - containerPort: 8123
+          name: http
+        - containerPort: 9000
+          name: native
+        env:
+        - name: CLICKHOUSE_DB
+          value: "hexabase_logs"
+        - name: CLICKHOUSE_USER
+          value: "hexabase"
+        - name: CLICKHOUSE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: clickhouse-secret
+              key: password
+        volumeMounts:
+        - name: clickhouse-data
+          mountPath: /var/lib/clickhouse
+        - name: clickhouse-config
+          mountPath: /etc/clickhouse-server/config.d
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8123
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 8123
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: clickhouse-data
+        persistentVolumeClaim:
+          claimName: clickhouse-pvc
+      - name: clickhouse-config
+        configMap:
+          name: clickhouse-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  namespace: hexabase-monitoring
+  labels:
+    app: clickhouse
+spec:
+  ports:
+  - port: 8123
+    targetPort: 8123
+    name: http
+  - port: 9000
+    targetPort: 9000
+    name: native
+  selector:
+    app: clickhouse
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-pvc
+  namespace: hexabase-monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clickhouse-secret
+  namespace: hexabase-monitoring
+type: Opaque
+data:
+  password: aGV4YWJhc2UtbG9ncw== # hexabase-logs (base64)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-config
+  namespace: hexabase-monitoring
+data:
+  logging.xml: |
+    <clickhouse>
+      <!-- Logging configuration -->
+      <logger>
+        <level>information</level>
+        <console>true</console>
+      </logger>
+      
+      <!-- Storage policy for logs -->
+      <storage_configuration>
+        <disks>
+          <default>
+            <path>/var/lib/clickhouse/</path>
+          </default>
+        </disks>
+        <policies>
+          <logs_policy>
+            <volumes>
+              <main>
+                <disk>default</disk>
+              </main>
+            </volumes>
+          </logs_policy>
+        </policies>
+      </storage_configuration>
+      
+      <!-- Memory and performance settings -->
+      <max_memory_usage>4000000000</max_memory_usage>
+      <max_concurrent_queries>100</max_concurrent_queries>
+      
+      <!-- Retention policies -->
+      <merge_tree>
+        <max_parts_in_total>10000</max_parts_in_total>
+        <max_bytes_to_merge_at_max_space_in_pool>161061273600</max_bytes_to_merge_at_max_space_in_pool>
+      </merge_tree>
+    </clickhouse>

@@ -74,3 +74,29 @@ type VClusterInfo struct {
 	Labels    map[string]string      `json:"labels"`
 	Metadata  map[string]interface{} `json:"metadata"`
 }
+
+// KubernetesRepository defines the interface for Kubernetes operations
+type KubernetesRepository interface {
+	CreateVCluster(ctx context.Context, workspaceID, plan string) error
+	DeleteVCluster(ctx context.Context, workspaceID string) error
+	WaitForVClusterReady(ctx context.Context, workspaceID string) error
+	WaitForVClusterDeleted(ctx context.Context, workspaceID string) error
+	GetVClusterStatus(ctx context.Context, workspaceID string) (string, error)
+	GetVClusterInfo(ctx context.Context, workspaceID string) (*ClusterInfo, error)
+	ScaleVCluster(ctx context.Context, workspaceID string, replicas int) error
+	ConfigureOIDC(ctx context.Context, workspaceID string) error
+	UpdateOIDCConfig(ctx context.Context, workspaceID string, config map[string]interface{}) error
+	ApplyResourceQuotas(ctx context.Context, workspaceID, plan string) error
+	GetResourceMetrics(ctx context.Context, workspaceID string) (*ResourceUsage, error)
+	ListVClusterNodes(ctx context.Context, workspaceID string) ([]Node, error)
+	ScaleVClusterDeployment(ctx context.Context, workspaceID, deploymentName string, replicas int) error
+}
+
+// AuthRepository defines an adapter for auth-related operations needed by the workspace domain
+type AuthRepository interface {
+	// GetUser retrieves user information
+	GetUser(ctx context.Context, userID string) (*User, error)
+	
+	// GenerateWorkspaceToken generates a token for workspace access
+	GenerateWorkspaceToken(ctx context.Context, userID, workspaceID string) (string, error)
+}

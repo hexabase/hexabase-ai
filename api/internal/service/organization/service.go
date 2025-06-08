@@ -7,14 +7,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 type service struct {
 	repo       organization.Repository
 	authRepo   organization.AuthRepository
 	billingRepo organization.BillingRepository
-	logger     *zap.Logger
+	logger     *slog.Logger
 }
 
 // NewService creates a new organization service
@@ -22,7 +22,7 @@ func NewService(
 	repo organization.Repository,
 	authRepo organization.AuthRepository,
 	billingRepo organization.BillingRepository,
-	logger *zap.Logger,
+	logger *slog.Logger,
 ) organization.Service {
 	return &service{
 		repo:        repo,
@@ -70,12 +70,12 @@ func (s *service) CreateOrganization(ctx context.Context, userID string, req *or
 	}
 
 	if err := s.repo.AddMember(ctx, member); err != nil {
-		s.logger.Error("failed to add owner as member", zap.Error(err))
+		s.logger.Error("failed to add owner as member", "error", err)
 	}
 
 	// Create billing customer
 	if _, err := s.billingRepo.CreateCustomer(ctx, org); err != nil {
-		s.logger.Error("failed to create billing customer", zap.Error(err))
+		s.logger.Error("failed to create billing customer", "error", err)
 	}
 
 	return org, nil
@@ -94,7 +94,7 @@ func (s *service) GetOrganization(ctx context.Context, orgID string) (*organizat
 	}
 	_, total, err := s.repo.ListMembers(ctx, filter)
 	if err != nil {
-		s.logger.Warn("failed to get member count", zap.Error(err))
+		s.logger.Warn("failed to get member count", "error", err)
 	} else {
 		org.MemberCount = total
 	}
@@ -102,7 +102,7 @@ func (s *service) GetOrganization(ctx context.Context, orgID string) (*organizat
 	// Get subscription info
 	subscription, err := s.billingRepo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
-		s.logger.Warn("failed to get subscription info", zap.Error(err))
+		s.logger.Warn("failed to get subscription info", "error", err)
 	} else {
 		org.SubscriptionInfo = &organization.SubscriptionInfo{
 			PlanID:    subscription.PlanID,
@@ -136,7 +136,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 		for _, orgID := range orgIDs {
 			org, err := s.repo.GetOrganization(ctx, orgID)
 			if err != nil {
-				s.logger.Warn("failed to get organization", zap.String("org_id", orgID), zap.Error(err))
+				s.logger.Warn("failed to get organization", "org_id", orgID, "error", err)
 				continue
 			}
 			organizations = append(organizations, org)
@@ -203,12 +203,12 @@ func (s *service) DeleteOrganization(ctx context.Context, orgID string) error {
 
 	// Cancel subscription
 	if err := s.billingRepo.CancelSubscription(ctx, orgID); err != nil {
-		s.logger.Error("failed to cancel subscription", zap.Error(err))
+		s.logger.Error("failed to cancel subscription", "error", err)
 	}
 
 	// Delete billing customer
 	if err := s.billingRepo.DeleteCustomer(ctx, orgID); err != nil {
-		s.logger.Error("failed to delete billing customer", zap.Error(err))
+		s.logger.Error("failed to delete billing customer", "error", err)
 	}
 
 	// Delete organization
@@ -276,7 +276,7 @@ func (s *service) ListMembers(ctx context.Context, filter organization.MemberFil
 		// Get user details
 		user, err := s.authRepo.GetUser(ctx, ou.UserID)
 		if err != nil {
-			s.logger.Warn("failed to get user details", zap.String("user_id", ou.UserID), zap.Error(err))
+			s.logger.Warn("failed to get user details", "user_id", ou.UserID, "error", err)
 			continue
 		}
 		

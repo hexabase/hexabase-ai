@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Python AI Ops Service
+  aiops:
+    build:
+      context: ./ai-ops
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=true
+      - JWT_PUBLIC_KEY_URL=http://api:8080/.well-known/jwks.json
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CLICKHOUSE_URL=clickhouse://default:@clickhouse:9000/default
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+      - clickhouse
+      - redis
+    networks:
+      - hexabase-ai
+
+  # Ollama for local LLM
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - hexabase-ai
+
+  # ClickHouse for analytics/logging
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    environment:
+      - CLICKHOUSE_DB=hexabase_aiops
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    networks:
+      - hexabase-ai
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - hexabase-ai
+
+networks:
+  hexabase-ai:
+    external: true
+
+volumes:
+  ollama_data:
+  clickhouse_data:
+  redis_data:
