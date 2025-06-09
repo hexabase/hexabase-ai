@@ -349,6 +349,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -416,6 +421,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -674,6 +824,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -741,6 +896,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -910,6 +1210,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -977,6 +1282,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -1164,6 +1614,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -1231,6 +1686,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -1526,6 +2126,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -1593,6 +2198,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -1822,6 +2572,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -1889,6 +2644,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -2245,6 +3145,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -2312,6 +3217,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
@@ -2693,6 +3743,11 @@ export const backupApi = {
   },
 
   // Backup Policy operations
+  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
+    return response;
+  },
+
   getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
     return response;
@@ -2760,6 +3815,151 @@ export const backupApi = {
   // Storage usage operations
   getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
+// Application Management Interfaces
+export interface Application {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  endpoints?: any;
+  // CronJob specific fields
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  last_execution_at?: string;
+  next_execution_at?: string;
+  // Function specific fields
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobExecution {
+  id: string;
+  application_id: string;
+  job_name: string;
+  started_at: string;
+  completed_at?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  exit_code?: number;
+  logs?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApplicationRequest {
+  name: string;
+  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
+  source_type: 'image' | 'git' | 'buildpack';
+  source_image?: string;
+  source_git_url?: string;
+  source_git_ref?: string;
+  config?: any;
+  // CronJob specific
+  cron_schedule?: string;
+  cron_command?: string[];
+  cron_args?: string[];
+  template_app_id?: string;
+  // Function specific
+  function_runtime?: string;
+  function_handler?: string;
+  function_timeout?: number;
+  function_memory?: number;
+  status?: string;
+}
+
+// Applications API functions
+export const applicationsApi = {
+  // List applications
+  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
+    type?: string; 
+    status?: string; 
+    is_template?: boolean 
+  }): Promise<{ data: { applications: Application[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/applications?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get application by ID
+  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
+    return response;
+  },
+
+  // Create application
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
+    return response;
+  },
+
+  // Update application
+  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Update application status
+  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
+    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
+    return response;
+  },
+
+  // Delete application
+  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
+  },
+
+  // CronJob specific operations
+  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
+    page?: number; 
+    page_size?: number 
+  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
+    return response;
+  },
+
+  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
+    return response;
+  },
+
+  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
+    return response;
+  },
+
+  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
     return response;
   },
 };
