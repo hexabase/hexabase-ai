@@ -201,6 +201,225 @@ export const workspacesApi = {
   },
 };
 
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
 // Task Management Interfaces
 export interface Task {
   id: string;
@@ -307,6 +526,225 @@ export const vclusterApi = {
   },
 };
 
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
 // Task Management Interfaces
 
 // Plans API functions
@@ -321,6 +759,225 @@ export const plansApi = {
   get: async (planId: string): Promise<Plan> => {
     const response = await apiClient.get(`/api/v1/plans/${planId}`);
     return response.data;
+  },
+};
+
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
   },
 };
 
@@ -356,6 +1013,225 @@ export const authApi = {
   logout: async (refreshToken?: string) => {
     const response = await apiClient.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
     return response.data;
+  },
+};
+
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
   },
 };
 
@@ -502,6 +1378,225 @@ export const projectsApi = {
   },
 };
 
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
+  },
+};
+
 // Task Management Interfaces
 
 // Namespaces API functions
@@ -576,6 +1671,225 @@ export const projectActivityApi = {
       params: { limit }
     });
     return response.data;
+  },
+};
+
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
   },
 };
 
@@ -780,6 +2094,225 @@ export const billingApi = {
   getBillingSettings: async (orgId: string): Promise<{ usage_threshold: number; email_notifications: boolean; slack_webhook?: string }> => {
     const response = await apiClient.get(`/api/v1/organizations/${orgId}/billing/settings`);
     return response.data;
+  },
+};
+
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
   },
 };
 
@@ -1009,6 +2542,225 @@ export const monitoringApi = {
       responseType: 'blob',
     });
     return response.data;
+  },
+};
+
+// Backup Management Interfaces
+export interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  proxmox_storage_id?: string;
+  proxmox_node_id?: string;
+  capacity_gb: number;
+  used_gb: number;
+  status: 'provisioning' | 'active' | 'error' | 'deleting';
+  connection_config?: Record<string, any>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupPolicy {
+  id: string;
+  application_id: string;
+  storage_id: string;
+  enabled: boolean;
+  schedule: string;
+  retention_days: number;
+  backup_type: 'full' | 'incremental' | 'application';
+  include_volumes: boolean;
+  include_database: boolean;
+  include_config: boolean;
+  compression_enabled: boolean;
+  encryption_enabled: boolean;
+  encryption_key_ref?: string;
+  pre_backup_hook?: string;
+  post_backup_hook?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupExecution {
+  id: string;
+  policy_id: string;
+  cronjob_execution_id?: string;
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
+  size_bytes: number;
+  compressed_size_bytes: number;
+  backup_path: string;
+  backup_manifest?: {
+    volumes?: string[];
+    databases?: string[];
+    config_maps?: string[];
+  };
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupRestore {
+  id: string;
+  backup_execution_id: string;
+  application_id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_id?: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  validation_results?: Record<string, any>;
+  created_at: string;
+}
+
+export interface BackupStorageUsage {
+  storage_id: string;
+  total_gb: number;
+  used_gb: number;
+  available_gb: number;
+  usage_percent: number;
+  backup_count: number;
+  oldest_backup?: string;
+  latest_backup?: string;
+}
+
+export interface CreateBackupStorageRequest {
+  name: string;
+  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
+  capacity_gb: number;
+  connection_config?: Record<string, any>;
+}
+
+export interface CreateBackupPolicyRequest {
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type?: 'full' | 'incremental' | 'application';
+  include_volumes?: boolean;
+  include_database?: boolean;
+  include_config?: boolean;
+  compression_enabled?: boolean;
+  encryption_enabled?: boolean;
+  enabled?: boolean;
+}
+
+export interface RestoreBackupRequest {
+  backup_execution_id: string;
+  restore_type: 'in_place' | 'new_application' | 'selective';
+  restore_options?: {
+    restore_volumes?: boolean;
+    restore_database?: boolean;
+    restore_config?: boolean;
+    stop_application?: boolean;
+  };
+  new_application_name?: string;
+}
+
+// Backup API functions
+export const backupApi = {
+  // Backup Storage operations
+  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+    return response;
+  },
+
+  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+    return response;
+  },
+
+  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
+    return response;
+  },
+
+  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
+    return response;
+  },
+
+  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
+  },
+
+  // Backup Policy operations
+  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
+    return response;
+  },
+
+  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
+    return response;
+  },
+
+  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
+    return response;
+  },
+
+  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
+  },
+
+  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
+    return response;
+  },
+
+  // Backup Execution operations
+  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
+    return response;
+  },
+
+  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
+    return response;
+  },
+
+  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
+    return response;
+  },
+
+  // Restore operations
+  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
+    return response;
+  },
+
+  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
+    return response;
+  },
+
+  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
+    
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
+    return response;
+  },
+
+  // Storage usage operations
+  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+    return response;
   },
 };
 
