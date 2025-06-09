@@ -177,6 +177,56 @@ func (m *MockApplicationService) GetCronJobStatus(ctx context.Context, applicati
 	return args.Get(0).(*application.CronJobStatus), args.Error(1)
 }
 
+// Function-related methods
+func (m *MockApplicationService) CreateFunction(ctx context.Context, workspaceID string, req application.CreateFunctionRequest) (*application.Application, error) {
+	args := m.Called(ctx, workspaceID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.Application), args.Error(1)
+}
+
+func (m *MockApplicationService) DeployFunctionVersion(ctx context.Context, applicationID string, sourceCode string) (*application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID, sourceCode)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockApplicationService) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID)
+	return args.Get(0).([]application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockApplicationService) SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error {
+	args := m.Called(ctx, applicationID, versionID)
+	return args.Error(0)
+}
+
+func (m *MockApplicationService) InvokeFunction(ctx context.Context, applicationID string, req application.InvokeFunctionRequest) (*application.InvokeFunctionResponse, error) {
+	args := m.Called(ctx, applicationID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.InvokeFunctionResponse), args.Error(1)
+}
+
+func (m *MockApplicationService) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	return args.Get(0).([]application.FunctionInvocation), args.Int(1), args.Error(2)
+}
+
+func (m *MockApplicationService) GetFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+	args := m.Called(ctx, applicationID, limit)
+	return args.Get(0).([]application.FunctionEvent), args.Error(1)
+}
+
+func (m *MockApplicationService) ProcessFunctionEvent(ctx context.Context, eventID string) error {
+	args := m.Called(ctx, eventID)
+	return args.Error(0)
+}
+
 // ApplicationHandlerTestSuite tests the application handlers
 type ApplicationHandlerTestSuite struct {
 	suite.Suite

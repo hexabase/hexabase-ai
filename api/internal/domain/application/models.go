@@ -449,3 +449,11 @@ type InvokeFunctionResponse struct {
 	ColdStart    bool                `json:"cold_start"`
 	Error        string              `json:"error,omitempty"`
 }
+
+// FunctionInvocationList represents a paginated list of function invocations
+type FunctionInvocationList struct {
+	Invocations []FunctionInvocation `json:"invocations"`
+	Total       int                  `json:"total"`
+	Page        int                  `json:"page"`
+	PageSize    int                  `json:"page_size"`
+}

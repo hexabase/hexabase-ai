@@ -228,6 +228,26 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			applications.POST("/:appId/trigger", app.ApplicationHandler.TriggerCronJob)
 			applications.GET("/:appId/executions", app.ApplicationHandler.GetCronJobExecutions)
 			applications.GET("/:appId/cronjob-status", app.ApplicationHandler.GetCronJobStatus)
+
+			// Function operations
+			applications.POST("/:appId/versions", app.ApplicationHandler.DeployFunctionVersion)
+			applications.GET("/:appId/versions", app.ApplicationHandler.GetFunctionVersions)
+			applications.PUT("/:appId/versions/:versionId/active", app.ApplicationHandler.SetActiveFunctionVersion)
+			applications.POST("/:appId/invoke", app.ApplicationHandler.InvokeFunction)
+			applications.GET("/:appId/invocations", app.ApplicationHandler.GetFunctionInvocations)
+			applications.GET("/:appId/function-events", app.ApplicationHandler.GetFunctionEvents)
+		}
+
+		// Function creation (workspace level, not under applications)
+		functions := workspaceScoped.Group("/functions")
+		{
+			functions.POST("/", app.ApplicationHandler.CreateFunction)
+		}
+
+		// Function event processing (not scoped to a specific function)
+		events := workspaceScoped.Group("/function-events")
+		{
+			events.POST("/:eventId/process", app.ApplicationHandler.ProcessFunctionEvent)
 		}
 
 		// CI/CD (workspace level)

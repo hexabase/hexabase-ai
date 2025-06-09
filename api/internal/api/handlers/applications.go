@@ -543,3 +543,205 @@ func (h *ApplicationHandler) GetCronJobStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, status)
 }
+
+// CreateFunction creates a new serverless function
+func (h *ApplicationHandler) CreateFunction(c *gin.Context) {
+	workspaceID := c.Param("wsId")
+	if workspaceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace ID is required"})
+		return
+	}
+
+	var req application.CreateFunctionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	app, err := h.appService.CreateFunction(c.Request.Context(), workspaceID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, app)
+}
+
+// DeployFunctionVersion creates and deploys a new version of a function
+func (h *ApplicationHandler) DeployFunctionVersion(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	var req struct {
+		SourceCode string `json:"source_code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	if req.SourceCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "source code is required"})
+		return
+	}
+
+	version, err := h.appService.DeployFunctionVersion(c.Request.Context(), appID, req.SourceCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, version)
+}
+
+// GetFunctionVersions retrieves all versions of a function
+func (h *ApplicationHandler) GetFunctionVersions(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	versions, err := h.appService.GetFunctionVersions(c.Request.Context(), appID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, versions)
+}
+
+// SetActiveFunctionVersion sets the active version for a function
+func (h *ApplicationHandler) SetActiveFunctionVersion(c *gin.Context) {
+	appID := c.Param("appId")
+	versionID := c.Param("versionId")
+	if appID == "" || versionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID and version ID are required"})
+		return
+	}
+
+	err := h.appService.SetActiveFunctionVersion(c.Request.Context(), appID, versionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "active version updated"})
+}
+
+// InvokeFunction invokes a function synchronously
+func (h *ApplicationHandler) InvokeFunction(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	var req application.InvokeFunctionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	// Set defaults if not provided
+	if req.Method == "" {
+		req.Method = "POST"
+	}
+	if req.Path == "" {
+		req.Path = "/"
+	}
+
+	resp, err := h.appService.InvokeFunction(c.Request.Context(), appID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetFunctionInvocations retrieves invocation history for a function
+func (h *ApplicationHandler) GetFunctionInvocations(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	// Parse pagination parameters
+	page := 1
+	perPage := 20
+	
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	
+	if perPageStr := c.Query("per_page"); perPageStr != "" {
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
+
+	offset := (page - 1) * perPage
+
+	invocations, total, err := h.appService.GetFunctionInvocations(c.Request.Context(), appID, perPage, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := application.FunctionInvocationList{
+		Invocations: invocations,
+		Total:       total,
+		Page:        page,
+		PageSize:    perPage,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetFunctionEvents retrieves pending events for a function
+func (h *ApplicationHandler) GetFunctionEvents(c *gin.Context) {
+	appID := c.Param("appId")
+	if appID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
+		return
+	}
+
+	limit := 100
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	events, err := h.appService.GetFunctionEvents(c.Request.Context(), appID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, events)
+}
+
+// ProcessFunctionEvent processes a function event
+func (h *ApplicationHandler) ProcessFunctionEvent(c *gin.Context) {
+	eventID := c.Param("eventId")
+	if eventID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "event ID is required"})
+		return
+	}
+
+	err := h.appService.ProcessFunctionEvent(c.Request.Context(), eventID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "event processed"})
+}
