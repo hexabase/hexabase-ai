@@ -62,7 +62,7 @@ config.local.yml
 
 # Log files
 *.log
-logs/
+api/tests/logs/
 
 # Docker volumes and data
 docker-data/
