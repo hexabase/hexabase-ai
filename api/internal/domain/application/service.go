@@ -41,9 +41,10 @@ type Service interface {
 	// CronJob operations
 	CreateCronJob(ctx context.Context, app *Application) error
 	UpdateCronJobSchedule(ctx context.Context, applicationID, newSchedule string) error
-	TriggerCronJob(ctx context.Context, applicationID string) error
+	TriggerCronJob(ctx context.Context, req *TriggerCronJobRequest) (*CronJobExecution, error)
 	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
 	GetCronJobStatus(ctx context.Context, applicationID string) (*CronJobStatus, error)
+	UpdateCronJobExecutionStatus(ctx context.Context, executionID string, status CronJobExecutionStatus) error
 
 	// Function operations
 	CreateFunction(ctx context.Context, workspaceID string, req CreateFunctionRequest) (*Application, error)

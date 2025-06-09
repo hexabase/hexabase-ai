@@ -63,6 +63,8 @@ type Application struct {
 	FunctionTriggerConfig map[string]interface{} `json:"function_trigger_config,omitempty"`
 	FunctionEnvVars       map[string]string      `json:"function_env_vars,omitempty"`
 	FunctionSecrets       map[string]string      `json:"function_secrets,omitempty"`
+	// Metadata for storing additional information like backup policy
+	Metadata              map[string]string      `json:"metadata,omitempty"`
 	CreatedAt             time.Time              `json:"created_at"`
 	UpdatedAt             time.Time              `json:"updated_at"`
 }
@@ -80,6 +82,7 @@ type ApplicationSource struct {
 type ApplicationConfig struct {
 	Replicas      int               `json:"replicas"`
 	Port          int               `json:"port"`
+	Environment   map[string]string `json:"environment,omitempty"`
 	EnvVars       map[string]string `json:"env_vars"`
 	Resources     ResourceRequests  `json:"resources"`
 	NodeSelector  map[string]string `json:"node_selector,omitempty"`  // For dedicated node scheduling
@@ -150,6 +153,8 @@ type CreateApplicationRequest struct {
 	CronCommand   []string `json:"cron_command,omitempty"`
 	CronArgs      []string `json:"cron_args,omitempty"`
 	TemplateAppID string   `json:"template_app_id,omitempty"`
+	// Metadata for storing additional information
+	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
 // UpdateApplicationRequest represents a request to update an application

@@ -28,6 +28,7 @@ type Repository interface {
 	Create(ctx context.Context, app *Application) error // Alias for CreateApplication
 	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
 	CreateCronJobExecution(ctx context.Context, execution *CronJobExecution) error
+	GetCronJobExecution(ctx context.Context, executionID string) (*CronJobExecution, error)
 	UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status CronJobExecutionStatus, exitCode *int, logs string) error
 	UpdateCronSchedule(ctx context.Context, applicationID, schedule string) error
 	GetCronJobExecutionByID(ctx context.Context, executionID string) (*CronJobExecution, error)
