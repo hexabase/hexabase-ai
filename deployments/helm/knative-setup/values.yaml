@@ -1,0 +1,217 @@
+# Default values for knative-setup
+# This is a YAML-formatted file
+
+# Knative version configuration
+knative:
+  version: "v1.13.0"
+  serving:
+    enabled: true
+    replicas:
+      controller: 1
+      webhook: 2
+      autoscaler: 2
+      activator: 3
+    resources:
+      controller:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+        limits:
+          cpu: 1000m
+          memory: 1000Mi
+      webhook:
+        requests:
+          cpu: 100m
+          memory: 50Mi
+        limits:
+          cpu: 500m
+          memory: 500Mi
+      autoscaler:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+        limits:
+          cpu: 1000m
+          memory: 1000Mi
+      activator:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+        limits:
+          cpu: 1000m
+          memory: 1000Mi
+  eventing:
+    enabled: true
+    replicas:
+      controller: 1
+      webhook: 2
+      mtBrokerController: 1
+      mtBrokerFilter: 2
+      mtBrokerIngress: 2
+
+# Kourier networking configuration
+kourier:
+  enabled: true
+  replicas:
+    gateway: 3
+    control: 1
+  service:
+    type: LoadBalancer
+    annotations: {}
+    # For AWS:
+    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # For GCP:
+    # cloud.google.com/load-balancer-type: "Internal"
+  resources:
+    gateway:
+      requests:
+        cpu: 200m
+        memory: 200Mi
+      limits:
+        cpu: 2000m
+        memory: 2000Mi
+    control:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 1000m
+        memory: 1000Mi
+
+# DNS configuration
+dns:
+  # Options: magic-dns, real-dns
+  type: magic-dns
+  # For real-dns, specify domain
+  domain: ""
+  # For Magic DNS (nip.io)
+  magicDNS:
+    enabled: true
+
+# TLS configuration
+tls:
+  enabled: false
+  certManager:
+    enabled: true
+    issuer:
+      # Options: letsencrypt-prod, letsencrypt-staging, self-signed
+      type: letsencrypt-prod
+      email: admin@hexabase.ai
+  # Auto-TLS for Knative services
+  autoTLS:
+    enabled: true
+
+# Autoscaling configuration
+autoscaling:
+  minScale: 0
+  maxScale: 100
+  initialScale: 1
+  scaleToZeroGracePeriod: 30s
+  stableWindow: 60s
+  panicWindow: 6s
+  targetConcurrency: 100
+  targetUtilizationPercentage: 70
+  # Custom autoscaling classes
+  classes:
+    # For ML/AI workloads
+    ml:
+      minScale: 1
+      maxScale: 50
+      metric: rps
+      target: 10
+      scaleUpRate: 10
+      scaleDownRate: 1
+      stableWindow: 300s
+      panicWindow: 30s
+
+# Resource quotas for namespaces
+resourceQuotas:
+  knativeServing:
+    requests:
+      cpu: "10"
+      memory: "20Gi"
+    limits:
+      cpu: "20"
+      memory: "40Gi"
+    persistentVolumeClaims: "10"
+  knativeEventing:
+    requests:
+      cpu: "5"
+      memory: "10Gi"
+    limits:
+      cpu: "10"
+      memory: "20Gi"
+    persistentVolumeClaims: "10"
+
+# Monitoring integration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitors:
+      enabled: true
+    prometheusRules:
+      enabled: true
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+
+# Logging configuration
+logging:
+  enabled: true
+  fluentbit:
+    enabled: true
+    output:
+      host: fluentd.monitoring.svc.cluster.local
+      port: 24224
+
+# Multi-tenancy configuration
+multiTenancy:
+  enabled: true
+  namespacePrefix: "tenant-"
+  defaultResourceQuota:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  networkPolicies:
+    enabled: true
+    allowedNamespaces:
+      - knative-serving
+      - knative-eventing
+      - kourier-system
+
+# Function defaults
+functionDefaults:
+  timeout: 300s
+  memory: "256Mi"
+  cpu: "100m"
+  concurrency: 100
+  maxRequestBodySize: "10Mi"
+
+# Global settings
+global:
+  # Image pull secrets
+  imagePullSecrets: []
+  # Node selector for Knative components
+  nodeSelector: {}
+  # Tolerations for Knative components
+  tolerations: []
+  # Affinity rules
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - activator
+              - controller
+              - webhook
+          topologyKey: kubernetes.io/hostname
