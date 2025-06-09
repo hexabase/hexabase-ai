@@ -817,3 +817,35 @@ func (r *KubernetesRepository) buildCronJobPodSpec(spec application.CronJobSpec)
 		NodeSelector:  spec.NodeSelector,
 	}
 }
+
+// CreateKnativeService creates a new Knative Service
+func (r *KubernetesRepository) CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec application.KnativeServiceSpec) error {
+	// TODO: Implement Knative Service creation
+	// This requires Knative Serving to be installed and configured
+	// For now, return a not implemented error
+	return fmt.Errorf("Knative Service creation not yet implemented")
+}
+
+// UpdateKnativeService updates a Knative Service
+func (r *KubernetesRepository) UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec application.KnativeServiceSpec) error {
+	// TODO: Implement Knative Service update
+	return fmt.Errorf("Knative Service update not yet implemented")
+}
+
+// DeleteKnativeService deletes a Knative Service
+func (r *KubernetesRepository) DeleteKnativeService(ctx context.Context, workspaceID, projectID, name string) error {
+	// TODO: Implement Knative Service deletion
+	return fmt.Errorf("Knative Service deletion not yet implemented")
+}
+
+// GetKnativeServiceStatus gets the status of a Knative Service
+func (r *KubernetesRepository) GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*application.KnativeServiceStatus, error) {
+	// TODO: Implement Knative Service status retrieval
+	return nil, fmt.Errorf("Knative Service status retrieval not yet implemented")
+}
+
+// GetKnativeServiceURL gets the URL of a Knative Service
+func (r *KubernetesRepository) GetKnativeServiceURL(ctx context.Context, workspaceID, projectID, name string) (string, error) {
+	// TODO: Implement Knative Service URL retrieval
+	return "", fmt.Errorf("Knative Service URL retrieval not yet implemented")
+}

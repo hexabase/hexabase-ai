@@ -347,6 +347,41 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 		UpdatedAt:       dbApp.UpdatedAt,
 	}
 
+	// Function specific fields
+	if dbApp.FunctionRuntime != nil {
+		app.FunctionRuntime = application.FunctionRuntime(*dbApp.FunctionRuntime)
+	}
+	if dbApp.FunctionHandler != nil {
+		app.FunctionHandler = *dbApp.FunctionHandler
+	}
+	if dbApp.FunctionTimeout != nil {
+		app.FunctionTimeout = *dbApp.FunctionTimeout
+	}
+	if dbApp.FunctionMemory != nil {
+		app.FunctionMemory = *dbApp.FunctionMemory
+	}
+	if dbApp.FunctionTriggerType != nil {
+		app.FunctionTriggerType = application.FunctionTriggerType(*dbApp.FunctionTriggerType)
+	}
+	if dbApp.FunctionTriggerConfig != nil {
+		var triggerConfig map[string]interface{}
+		if err := json.Unmarshal([]byte(dbApp.FunctionTriggerConfig), &triggerConfig); err == nil {
+			app.FunctionTriggerConfig = triggerConfig
+		}
+	}
+	if dbApp.FunctionEnvVars != nil {
+		var envVars map[string]string
+		if err := json.Unmarshal([]byte(dbApp.FunctionEnvVars), &envVars); err == nil {
+			app.FunctionEnvVars = envVars
+		}
+	}
+	if dbApp.FunctionSecrets != nil {
+		var secrets map[string]string
+		if err := json.Unmarshal([]byte(dbApp.FunctionSecrets), &secrets); err == nil {
+			app.FunctionSecrets = secrets
+		}
+	}
+
 	// Set source
 	app.Source.Type = application.SourceType(dbApp.SourceType)
 	app.Source.Image = dbApp.SourceImage
@@ -393,7 +428,432 @@ func (r *PostgresRepository) domainToDBApp(app *application.Application) (*db.Ap
 		UpdatedAt:       app.UpdatedAt,
 	}
 
+	// Function specific fields
+	if app.Type == application.ApplicationTypeFunction {
+		runtime := string(app.FunctionRuntime)
+		dbApp.FunctionRuntime = &runtime
+		dbApp.FunctionHandler = &app.FunctionHandler
+		dbApp.FunctionTimeout = &app.FunctionTimeout
+		dbApp.FunctionMemory = &app.FunctionMemory
+		triggerType := string(app.FunctionTriggerType)
+		dbApp.FunctionTriggerType = &triggerType
+
+		if app.FunctionTriggerConfig != nil {
+			triggerConfigJSON, _ := json.Marshal(app.FunctionTriggerConfig)
+			dbApp.FunctionTriggerConfig = db.JSON(triggerConfigJSON)
+		}
+		if app.FunctionEnvVars != nil {
+			envVarsJSON, _ := json.Marshal(app.FunctionEnvVars)
+			dbApp.FunctionEnvVars = db.JSON(envVarsJSON)
+		}
+		if app.FunctionSecrets != nil {
+			secretsJSON, _ := json.Marshal(app.FunctionSecrets)
+			dbApp.FunctionSecrets = db.JSON(secretsJSON)
+		}
+	}
+
 	return dbApp, nil
+}
+
+// CreateFunctionVersion creates a new function version
+func (r *PostgresRepository) CreateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	dbVersion := &db.FunctionVersion{
+		ID:            version.ID,
+		ApplicationID: version.ApplicationID,
+		VersionNumber: version.VersionNumber,
+		SourceCode:    version.SourceCode,
+		SourceType:    string(version.SourceType),
+		SourceURL:     version.SourceURL,
+		BuildLogs:     version.BuildLogs,
+		BuildStatus:   string(version.BuildStatus),
+		ImageURI:      version.ImageURI,
+		IsActive:      version.IsActive,
+		DeployedAt:    version.DeployedAt,
+		CreatedAt:     version.CreatedAt,
+		UpdatedAt:     version.UpdatedAt,
+	}
+
+	if err := r.db.WithContext(ctx).Create(dbVersion).Error; err != nil {
+		return err
+	}
+
+	version.ID = dbVersion.ID
+	version.CreatedAt = dbVersion.CreatedAt
+	version.UpdatedAt = dbVersion.UpdatedAt
+	return nil
+}
+
+// GetFunctionVersion retrieves a function version by ID
+func (r *PostgresRepository) GetFunctionVersion(ctx context.Context, versionID string) (*application.FunctionVersion, error) {
+	var dbVersion db.FunctionVersion
+	if err := r.db.WithContext(ctx).Where("id = ?", versionID).First(&dbVersion).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.dbToDomainFunctionVersion(&dbVersion), nil
+}
+
+// GetFunctionVersions retrieves all versions for an application
+func (r *PostgresRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+	var dbVersions []db.FunctionVersion
+	if err := r.db.WithContext(ctx).
+		Where("application_id = ?", applicationID).
+		Order("version_number DESC").
+		Find(&dbVersions).Error; err != nil {
+		return nil, err
+	}
+
+	var versions []application.FunctionVersion
+	for _, dbVersion := range dbVersions {
+		versions = append(versions, *r.dbToDomainFunctionVersion(&dbVersion))
+	}
+	return versions, nil
+}
+
+// GetActiveFunctionVersion retrieves the active function version for an application
+func (r *PostgresRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*application.FunctionVersion, error) {
+	var dbVersion db.FunctionVersion
+	if err := r.db.WithContext(ctx).
+		Where("application_id = ? AND is_active = ?", applicationID, true).
+		First(&dbVersion).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.dbToDomainFunctionVersion(&dbVersion), nil
+}
+
+// UpdateFunctionVersion updates a function version
+func (r *PostgresRepository) UpdateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	dbVersion := &db.FunctionVersion{
+		ID:          version.ID,
+		BuildLogs:   version.BuildLogs,
+		BuildStatus: string(version.BuildStatus),
+		ImageURI:    version.ImageURI,
+		IsActive:    version.IsActive,
+		DeployedAt:  version.DeployedAt,
+		UpdatedAt:   time.Now(),
+	}
+
+	return r.db.WithContext(ctx).Model(&db.FunctionVersion{}).
+		Where("id = ?", version.ID).
+		Updates(dbVersion).Error
+}
+
+// SetActiveFunctionVersion sets a specific version as active and deactivates others
+func (r *PostgresRepository) SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Deactivate all versions for this application
+		if err := tx.Model(&db.FunctionVersion{}).
+			Where("application_id = ?", applicationID).
+			Update("is_active", false).Error; err != nil {
+			return err
+		}
+
+		// Activate the specified version
+		now := time.Now()
+		if err := tx.Model(&db.FunctionVersion{}).
+			Where("id = ? AND application_id = ?", versionID, applicationID).
+			Updates(map[string]interface{}{
+				"is_active":   true,
+				"deployed_at": &now,
+			}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// CreateFunctionInvocation creates a new function invocation record
+func (r *PostgresRepository) CreateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	dbInvocation := r.domainToDBFunctionInvocation(invocation)
+
+	if err := r.db.WithContext(ctx).Create(dbInvocation).Error; err != nil {
+		return err
+	}
+
+	invocation.ID = dbInvocation.ID
+	invocation.CreatedAt = dbInvocation.CreatedAt
+	return nil
+}
+
+// GetFunctionInvocation retrieves a function invocation by ID
+func (r *PostgresRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*application.FunctionInvocation, error) {
+	var dbInvocation db.FunctionInvocation
+	if err := r.db.WithContext(ctx).Where("id = ?", invocationID).First(&dbInvocation).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.dbToDomainFunctionInvocation(&dbInvocation)
+}
+
+// GetFunctionInvocations retrieves invocations for an application
+func (r *PostgresRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).
+		Model(&db.FunctionInvocation{}).
+		Where("application_id = ?", applicationID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var dbInvocations []db.FunctionInvocation
+	if err := r.db.WithContext(ctx).
+		Where("application_id = ?", applicationID).
+		Order("started_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&dbInvocations).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var invocations []application.FunctionInvocation
+	for _, dbInvocation := range dbInvocations {
+		inv, err := r.dbToDomainFunctionInvocation(&dbInvocation)
+		if err != nil {
+			return nil, 0, err
+		}
+		invocations = append(invocations, *inv)
+	}
+
+	return invocations, int(total), nil
+}
+
+// UpdateFunctionInvocation updates a function invocation
+func (r *PostgresRepository) UpdateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	updates := map[string]interface{}{
+		"response_status":  invocation.ResponseStatus,
+		"response_headers": r.marshalJSONField(invocation.ResponseHeaders),
+		"response_body":    invocation.ResponseBody,
+		"error_message":    invocation.ErrorMessage,
+		"duration_ms":      invocation.DurationMs,
+		"memory_used":      invocation.MemoryUsed,
+		"completed_at":     invocation.CompletedAt,
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&db.FunctionInvocation{}).
+		Where("id = ?", invocation.ID).
+		Updates(updates).Error
+}
+
+// CreateFunctionEvent creates a new function event
+func (r *PostgresRepository) CreateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	dbEvent, err := r.domainToDBFunctionEvent(event)
+	if err != nil {
+		return err
+	}
+
+	if err := r.db.WithContext(ctx).Create(dbEvent).Error; err != nil {
+		return err
+	}
+
+	event.ID = dbEvent.ID
+	event.CreatedAt = dbEvent.CreatedAt
+	return nil
+}
+
+// GetFunctionEvent retrieves a function event by ID
+func (r *PostgresRepository) GetFunctionEvent(ctx context.Context, eventID string) (*application.FunctionEvent, error) {
+	var dbEvent db.FunctionEvent
+	if err := r.db.WithContext(ctx).Where("id = ?", eventID).First(&dbEvent).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.dbToDomainFunctionEvent(&dbEvent)
+}
+
+// GetPendingFunctionEvents retrieves pending events for an application
+func (r *PostgresRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+	var dbEvents []db.FunctionEvent
+	query := r.db.WithContext(ctx).
+		Where("application_id = ? AND processing_status IN ?", applicationID, []string{"pending", "retry"}).
+		Order("created_at ASC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if err := query.Find(&dbEvents).Error; err != nil {
+		return nil, err
+	}
+
+	var events []application.FunctionEvent
+	for _, dbEvent := range dbEvents {
+		event, err := r.dbToDomainFunctionEvent(&dbEvent)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, *event)
+	}
+
+	return events, nil
+}
+
+// UpdateFunctionEvent updates a function event
+func (r *PostgresRepository) UpdateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	updates := map[string]interface{}{
+		"processing_status": event.ProcessingStatus,
+		"retry_count":       event.RetryCount,
+		"invocation_id":     event.InvocationID,
+		"error_message":     event.ErrorMessage,
+		"processed_at":      event.ProcessedAt,
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&db.FunctionEvent{}).
+		Where("id = ?", event.ID).
+		Updates(updates).Error
+}
+
+// Helper methods for Function domain/db conversion
+func (r *PostgresRepository) dbToDomainFunctionVersion(dbVersion *db.FunctionVersion) *application.FunctionVersion {
+	return &application.FunctionVersion{
+		ID:            dbVersion.ID,
+		ApplicationID: dbVersion.ApplicationID,
+		VersionNumber: dbVersion.VersionNumber,
+		SourceCode:    dbVersion.SourceCode,
+		SourceType:    application.FunctionSourceType(dbVersion.SourceType),
+		SourceURL:     dbVersion.SourceURL,
+		BuildLogs:     dbVersion.BuildLogs,
+		BuildStatus:   application.FunctionBuildStatus(dbVersion.BuildStatus),
+		ImageURI:      dbVersion.ImageURI,
+		IsActive:      dbVersion.IsActive,
+		DeployedAt:    dbVersion.DeployedAt,
+		CreatedAt:     dbVersion.CreatedAt,
+		UpdatedAt:     dbVersion.UpdatedAt,
+	}
+}
+
+func (r *PostgresRepository) domainToDBFunctionInvocation(inv *application.FunctionInvocation) *db.FunctionInvocation {
+	return &db.FunctionInvocation{
+		ID:              inv.ID,
+		ApplicationID:   inv.ApplicationID,
+		VersionID:       inv.VersionID,
+		InvocationID:    inv.InvocationID,
+		TriggerSource:   inv.TriggerSource,
+		RequestMethod:   inv.RequestMethod,
+		RequestPath:     inv.RequestPath,
+		RequestHeaders:  r.marshalJSONField(inv.RequestHeaders),
+		RequestBody:     inv.RequestBody,
+		ResponseStatus:  inv.ResponseStatus,
+		ResponseHeaders: r.marshalJSONField(inv.ResponseHeaders),
+		ResponseBody:    inv.ResponseBody,
+		ErrorMessage:    inv.ErrorMessage,
+		DurationMs:      inv.DurationMs,
+		ColdStart:       inv.ColdStart,
+		MemoryUsed:      inv.MemoryUsed,
+		StartedAt:       inv.StartedAt,
+		CompletedAt:     inv.CompletedAt,
+		CreatedAt:       inv.CreatedAt,
+	}
+}
+
+func (r *PostgresRepository) dbToDomainFunctionInvocation(dbInv *db.FunctionInvocation) (*application.FunctionInvocation, error) {
+	inv := &application.FunctionInvocation{
+		ID:             dbInv.ID,
+		ApplicationID:  dbInv.ApplicationID,
+		VersionID:      dbInv.VersionID,
+		InvocationID:   dbInv.InvocationID,
+		TriggerSource:  dbInv.TriggerSource,
+		RequestMethod:  dbInv.RequestMethod,
+		RequestPath:    dbInv.RequestPath,
+		RequestBody:    dbInv.RequestBody,
+		ResponseStatus: dbInv.ResponseStatus,
+		ResponseBody:   dbInv.ResponseBody,
+		ErrorMessage:   dbInv.ErrorMessage,
+		DurationMs:     dbInv.DurationMs,
+		ColdStart:      dbInv.ColdStart,
+		MemoryUsed:     dbInv.MemoryUsed,
+		StartedAt:      dbInv.StartedAt,
+		CompletedAt:    dbInv.CompletedAt,
+		CreatedAt:      dbInv.CreatedAt,
+	}
+
+	// Unmarshal headers
+	if dbInv.RequestHeaders != nil {
+		var headers map[string][]string
+		if err := json.Unmarshal([]byte(dbInv.RequestHeaders), &headers); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal request headers: %w", err)
+		}
+		inv.RequestHeaders = headers
+	}
+
+	if dbInv.ResponseHeaders != nil {
+		var headers map[string][]string
+		if err := json.Unmarshal([]byte(dbInv.ResponseHeaders), &headers); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal response headers: %w", err)
+		}
+		inv.ResponseHeaders = headers
+	}
+
+	return inv, nil
+}
+
+func (r *PostgresRepository) domainToDBFunctionEvent(event *application.FunctionEvent) (*db.FunctionEvent, error) {
+	eventData, err := json.Marshal(event.EventData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal event data: %w", err)
+	}
+
+	return &db.FunctionEvent{
+		ID:               event.ID,
+		ApplicationID:    event.ApplicationID,
+		EventType:        event.EventType,
+		EventSource:      event.EventSource,
+		EventData:        db.JSON(eventData),
+		ProcessingStatus: event.ProcessingStatus,
+		RetryCount:       event.RetryCount,
+		MaxRetries:       event.MaxRetries,
+		InvocationID:     event.InvocationID,
+		ErrorMessage:     event.ErrorMessage,
+		CreatedAt:        event.CreatedAt,
+		ProcessedAt:      event.ProcessedAt,
+	}, nil
+}
+
+func (r *PostgresRepository) dbToDomainFunctionEvent(dbEvent *db.FunctionEvent) (*application.FunctionEvent, error) {
+	var eventData map[string]interface{}
+	if dbEvent.EventData != nil {
+		if err := json.Unmarshal([]byte(dbEvent.EventData), &eventData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal event data: %w", err)
+		}
+	}
+
+	return &application.FunctionEvent{
+		ID:               dbEvent.ID,
+		ApplicationID:    dbEvent.ApplicationID,
+		EventType:        dbEvent.EventType,
+		EventSource:      dbEvent.EventSource,
+		EventData:        eventData,
+		ProcessingStatus: dbEvent.ProcessingStatus,
+		RetryCount:       dbEvent.RetryCount,
+		MaxRetries:       dbEvent.MaxRetries,
+		InvocationID:     dbEvent.InvocationID,
+		ErrorMessage:     dbEvent.ErrorMessage,
+		CreatedAt:        dbEvent.CreatedAt,
+		ProcessedAt:      dbEvent.ProcessedAt,
+	}, nil
+}
+
+func (r *PostgresRepository) marshalJSONField(data interface{}) db.JSON {
+	if data == nil {
+		return nil
+	}
+	jsonData, _ := json.Marshal(data)
+	return db.JSON(jsonData)
 }
 
 // Helper functions

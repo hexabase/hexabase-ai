@@ -249,3 +249,115 @@ func (m *MockKubernetesRepository) TriggerCronJob(ctx context.Context, workspace
 	args := m.Called(ctx, workspaceID, projectID, name)
 	return args.Error(0)
 }
+
+// Function-specific methods for MockRepository
+func (m *MockRepository) CreateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockRepository) GetFunctionVersion(ctx context.Context, versionID string) (*application.FunctionVersion, error) {
+	args := m.Called(ctx, versionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID)
+	return args.Get(0).([]application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockRepository) UpdateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockRepository) SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error {
+	args := m.Called(ctx, applicationID, versionID)
+	return args.Error(0)
+}
+
+func (m *MockRepository) CreateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	args := m.Called(ctx, invocation)
+	return args.Error(0)
+}
+
+func (m *MockRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*application.FunctionInvocation, error) {
+	args := m.Called(ctx, invocationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionInvocation), args.Error(1)
+}
+
+func (m *MockRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	return args.Get(0).([]application.FunctionInvocation), args.Int(1), args.Error(2)
+}
+
+func (m *MockRepository) UpdateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	args := m.Called(ctx, invocation)
+	return args.Error(0)
+}
+
+func (m *MockRepository) CreateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockRepository) GetFunctionEvent(ctx context.Context, eventID string) (*application.FunctionEvent, error) {
+	args := m.Called(ctx, eventID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionEvent), args.Error(1)
+}
+
+func (m *MockRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+	args := m.Called(ctx, applicationID, limit)
+	return args.Get(0).([]application.FunctionEvent), args.Error(1)
+}
+
+func (m *MockRepository) UpdateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+// Knative-specific methods for MockKubernetesRepository
+func (m *MockKubernetesRepository) CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec application.KnativeServiceSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec application.KnativeServiceSpec) error {
+	args := m.Called(ctx, workspaceID, projectID, name, spec)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) DeleteKnativeService(ctx context.Context, workspaceID, projectID, name string) error {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.Error(0)
+}
+
+func (m *MockKubernetesRepository) GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*application.KnativeServiceStatus, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.KnativeServiceStatus), args.Error(1)
+}
+
+func (m *MockKubernetesRepository) GetKnativeServiceURL(ctx context.Context, workspaceID, projectID, name string) (string, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	return args.String(0), args.Error(1)
+}

@@ -44,4 +44,14 @@ type Service interface {
 	TriggerCronJob(ctx context.Context, applicationID string) error
 	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
 	GetCronJobStatus(ctx context.Context, applicationID string) (*CronJobStatus, error)
+
+	// Function operations
+	CreateFunction(ctx context.Context, workspaceID string, req CreateFunctionRequest) (*Application, error)
+	DeployFunctionVersion(ctx context.Context, applicationID string, sourceCode string) (*FunctionVersion, error)
+	GetFunctionVersions(ctx context.Context, applicationID string) ([]FunctionVersion, error)
+	SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error
+	InvokeFunction(ctx context.Context, applicationID string, req InvokeFunctionRequest) (*InvokeFunctionResponse, error)
+	GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]FunctionInvocation, int, error)
+	GetFunctionEvents(ctx context.Context, applicationID string, limit int) ([]FunctionEvent, error)
+	ProcessFunctionEvent(ctx context.Context, eventID string) error
 }

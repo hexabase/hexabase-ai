@@ -2,9 +2,12 @@ package application
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +19,7 @@ type Service struct {
 	repo    application.Repository
 	k8s     application.KubernetesRepository
 	k8sRepo application.KubernetesRepository // Alias for backward compatibility
+	logger  *slog.Logger
 }
 
 // NewService creates a new application service
@@ -24,6 +28,7 @@ func NewService(repo application.Repository, k8s application.KubernetesRepositor
 		repo:    repo,
 		k8s:     k8s,
 		k8sRepo: k8s, // Set alias
+		logger:  slog.Default(),
 	}
 }
 
@@ -863,4 +868,397 @@ func (s *Service) GetCronJobStatus(ctx context.Context, applicationID string) (*
 	}
 
 	return s.k8s.GetCronJobStatus(ctx, app.WorkspaceID, app.ProjectID, app.Name)
+}
+
+// CreateFunction creates a new serverless function application
+func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req application.CreateFunctionRequest) (*application.Application, error) {
+	// Validate request
+	if req.Name == "" {
+		return nil, errors.New("name is required")
+	}
+	if req.ProjectID == "" {
+		return nil, errors.New("project ID is required")
+	}
+	if req.Handler == "" {
+		return nil, errors.New("handler is required")
+	}
+	if req.SourceCode == "" {
+		return nil, errors.New("source code is required")
+	}
+
+	// Set defaults
+	if req.Timeout == 0 {
+		req.Timeout = 300 // 5 minutes default
+	}
+	if req.Memory == 0 {
+		req.Memory = 256 // 256MB default
+	}
+
+	// Create the application
+	app := &application.Application{
+		WorkspaceID:         workspaceID,
+		ProjectID:           req.ProjectID,
+		Name:                req.Name,
+		Type:                application.ApplicationTypeFunction,
+		Status:              application.ApplicationStatusPending,
+		FunctionRuntime:     req.Runtime,
+		FunctionHandler:     req.Handler,
+		FunctionTimeout:     req.Timeout,
+		FunctionMemory:      req.Memory,
+		FunctionTriggerType: req.TriggerType,
+		FunctionTriggerConfig: req.TriggerConfig,
+		FunctionEnvVars:     req.EnvVars,
+		FunctionSecrets:     req.Secrets,
+		Source: application.ApplicationSource{
+			Type: application.SourceTypeImage, // Will be built from source
+		},
+		Config: application.ApplicationConfig{
+			Replicas: 0, // Scale to zero when idle
+			Resources: application.ResourceRequests{
+				CPURequest:    "100m",
+				CPULimit:      "1000m",
+				MemoryRequest: fmt.Sprintf("%dMi", req.Memory),
+				MemoryLimit:   fmt.Sprintf("%dMi", req.Memory*2),
+			},
+		},
+	}
+
+	// Create application record
+	if err := s.repo.CreateApplication(ctx, app); err != nil {
+		return nil, fmt.Errorf("failed to create function: %w", err)
+	}
+
+	// Create initial version
+	version := &application.FunctionVersion{
+		ApplicationID: app.ID,
+		VersionNumber: 1,
+		SourceCode:    req.SourceCode,
+		SourceType:    req.SourceType,
+		SourceURL:     req.SourceURL,
+		BuildStatus:   application.FunctionBuildPending,
+		IsActive:      true,
+	}
+
+	if err := s.repo.CreateFunctionVersion(ctx, version); err != nil {
+		// Rollback application creation
+		s.repo.DeleteApplication(ctx, app.ID)
+		return nil, fmt.Errorf("failed to create function version: %w", err)
+	}
+
+	// TODO: Trigger build process asynchronously
+
+	return app, nil
+}
+
+// DeployFunctionVersion creates and deploys a new version of a function
+func (s *Service) DeployFunctionVersion(ctx context.Context, applicationID string, sourceCode string) (*application.FunctionVersion, error) {
+	// Get application
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return nil, errors.New("application is not a function")
+	}
+
+	// Get existing versions to determine next version number
+	versions, err := s.repo.GetFunctionVersions(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	nextVersionNumber := 1
+	if len(versions) > 0 {
+		nextVersionNumber = versions[0].VersionNumber + 1
+	}
+
+	// Create new version
+	version := &application.FunctionVersion{
+		ApplicationID: applicationID,
+		VersionNumber: nextVersionNumber,
+		SourceCode:    sourceCode,
+		SourceType:    application.FunctionSourceInline,
+		BuildStatus:   application.FunctionBuildPending,
+		IsActive:      false, // Not active until successfully built
+	}
+
+	if err := s.repo.CreateFunctionVersion(ctx, version); err != nil {
+		return nil, fmt.Errorf("failed to create version: %w", err)
+	}
+
+	// Start build process
+	// TODO: Make this configurable for testing
+	if s.logger != nil {
+		go s.buildFunctionVersion(context.Background(), app, version)
+	}
+
+	return version, nil
+}
+
+// buildFunctionVersion handles the asynchronous build process
+func (s *Service) buildFunctionVersion(ctx context.Context, app *application.Application, version *application.FunctionVersion) {
+	// Update status to building
+	version.BuildStatus = application.FunctionBuildBuilding
+	if err := s.repo.UpdateFunctionVersion(ctx, version); err != nil {
+		s.logger.Error("failed to update build status", "error", err)
+		return
+	}
+
+	// TODO: Implement actual build process
+	// For now, simulate a successful build
+	imageURI := fmt.Sprintf("registry.local/functions/%s:v%d", app.Name, version.VersionNumber)
+	
+	// Update with build results
+	version.BuildStatus = application.FunctionBuildSuccess
+	version.ImageURI = imageURI
+	if err := s.repo.UpdateFunctionVersion(ctx, version); err != nil {
+		s.logger.Error("failed to update build results", "error", err)
+		return
+	}
+
+	// If this is the first version, make it active
+	activeVersion, _ := s.repo.GetActiveFunctionVersion(ctx, app.ID)
+	if activeVersion == nil {
+		s.SetActiveFunctionVersion(ctx, app.ID, version.ID)
+	}
+}
+
+// GetFunctionVersions retrieves all versions of a function
+func (s *Service) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+	// Verify application exists and is a function
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return nil, errors.New("application is not a function")
+	}
+
+	return s.repo.GetFunctionVersions(ctx, applicationID)
+}
+
+// SetActiveFunctionVersion sets the active version for a function
+func (s *Service) SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error {
+	// Verify application exists and is a function
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return errors.New("application is not a function")
+	}
+
+	// Verify version exists and is built
+	version, err := s.repo.GetFunctionVersion(ctx, versionID)
+	if err != nil {
+		return err
+	}
+
+	if version.ApplicationID != applicationID {
+		return errors.New("version does not belong to this application")
+	}
+
+	if version.BuildStatus != application.FunctionBuildSuccess {
+		return errors.New("can only activate successfully built versions")
+	}
+
+	// Set active version
+	if err := s.repo.SetActiveFunctionVersion(ctx, applicationID, versionID); err != nil {
+		return err
+	}
+
+	// Deploy the new version to Knative
+	spec := application.KnativeServiceSpec{
+		Name:         app.Name,
+		Image:        version.ImageURI,
+		EnvVars:      app.FunctionEnvVars,
+		Secrets:      app.FunctionSecrets,
+		Resources:    app.Config.Resources,
+		Labels:       map[string]string{"app": app.Name, "version": fmt.Sprintf("v%d", version.VersionNumber)},
+		TimeoutSeconds: app.FunctionTimeout,
+	}
+
+	// Update or create Knative service
+	if app.Status == application.ApplicationStatusRunning {
+		return s.k8s.UpdateKnativeService(ctx, app.WorkspaceID, app.ProjectID, app.Name, spec)
+	} else {
+		if err := s.k8s.CreateKnativeService(ctx, app.WorkspaceID, app.ProjectID, spec); err != nil {
+			return err
+		}
+		// Update app status
+		app.Status = application.ApplicationStatusRunning
+		return s.repo.UpdateApplication(ctx, app)
+	}
+}
+
+// InvokeFunction invokes a function synchronously
+func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req application.InvokeFunctionRequest) (*application.InvokeFunctionResponse, error) {
+	// Get application
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return nil, errors.New("application is not a function")
+	}
+
+	if app.Status != application.ApplicationStatusRunning {
+		return nil, errors.New("function is not running")
+	}
+
+	// Get active version
+	activeVersion, err := s.repo.GetActiveFunctionVersion(ctx, applicationID)
+	if err != nil || activeVersion == nil {
+		return nil, errors.New("no active version found")
+	}
+
+	// Get function URL
+	_, err = s.k8s.GetKnativeServiceURL(ctx, app.WorkspaceID, app.ProjectID, app.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get function URL: %w", err)
+	}
+
+	// Create invocation record
+	invocation := &application.FunctionInvocation{
+		ApplicationID:  applicationID,
+		VersionID:      activeVersion.ID,
+		InvocationID:   uuid.New().String(),
+		TriggerSource:  "http",
+		RequestMethod:  req.Method,
+		RequestPath:    req.Path,
+		RequestHeaders: req.Headers,
+		RequestBody:    req.Body,
+		StartedAt:      time.Now(),
+	}
+
+	if err := s.repo.CreateFunctionInvocation(ctx, invocation); err != nil {
+		// Log but don't fail
+		s.logger.Error("failed to create invocation record", "error", err)
+	}
+
+	// TODO: Actually invoke the function via HTTP
+	// For now, return a mock response
+	response := &application.InvokeFunctionResponse{
+		InvocationID: invocation.InvocationID,
+		Status:       200,
+		Headers:      map[string][]string{"Content-Type": {"application/json"}},
+		Body:         base64.StdEncoding.EncodeToString([]byte(`{"message": "Hello from function"}`)),
+		DurationMs:   100,
+		ColdStart:    false,
+	}
+
+	// Update invocation record
+	completedAt := time.Now()
+	invocation.ResponseStatus = response.Status
+	invocation.ResponseHeaders = response.Headers
+	invocation.ResponseBody = response.Body
+	invocation.DurationMs = response.DurationMs
+	invocation.CompletedAt = &completedAt
+	
+	if err := s.repo.UpdateFunctionInvocation(ctx, invocation); err != nil {
+		s.logger.Error("failed to update invocation record", "error", err)
+	}
+
+	return response, nil
+}
+
+// GetFunctionInvocations retrieves invocation history for a function
+func (s *Service) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+	// Verify application exists and is a function
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return nil, 0, errors.New("application is not a function")
+	}
+
+	return s.repo.GetFunctionInvocations(ctx, applicationID, limit, offset)
+}
+
+// GetFunctionEvents retrieves pending events for a function
+func (s *Service) GetFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+	// Verify application exists and is a function
+	app, err := s.repo.GetApplication(ctx, applicationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.Type != application.ApplicationTypeFunction {
+		return nil, errors.New("application is not a function")
+	}
+
+	return s.repo.GetPendingFunctionEvents(ctx, applicationID, limit)
+}
+
+// ProcessFunctionEvent processes a function event
+func (s *Service) ProcessFunctionEvent(ctx context.Context, eventID string) error {
+	// Get event
+	event, err := s.repo.GetFunctionEvent(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	// Check if already processed
+	if event.ProcessingStatus == "success" {
+		return nil
+	}
+
+	// Update status to processing
+	event.ProcessingStatus = "processing"
+	if err := s.repo.UpdateFunctionEvent(ctx, event); err != nil {
+		return err
+	}
+
+	// Get application
+	app, err := s.repo.GetApplication(ctx, event.ApplicationID)
+	if err != nil {
+		return s.handleEventError(ctx, event, err)
+	}
+
+	// Prepare invocation request
+	eventData, _ := json.Marshal(event.EventData)
+	req := application.InvokeFunctionRequest{
+		Method: "POST",
+		Path:   "/event",
+		Headers: map[string][]string{
+			"X-Event-Type":   {event.EventType},
+			"X-Event-Source": {event.EventSource},
+			"X-Event-ID":     {event.ID},
+		},
+		Body: base64.StdEncoding.EncodeToString(eventData),
+	}
+
+	// Invoke function
+	resp, err := s.InvokeFunction(ctx, app.ID, req)
+	if err != nil {
+		return s.handleEventError(ctx, event, err)
+	}
+
+	// Update event as processed
+	now := time.Now()
+	event.ProcessingStatus = "success"
+	event.InvocationID = resp.InvocationID
+	event.ProcessedAt = &now
+	
+	return s.repo.UpdateFunctionEvent(ctx, event)
+}
+
+// handleEventError handles errors during event processing
+func (s *Service) handleEventError(ctx context.Context, event *application.FunctionEvent, err error) error {
+	event.ErrorMessage = err.Error()
+	event.RetryCount++
+
+	if event.RetryCount >= event.MaxRetries {
+		event.ProcessingStatus = "failed"
+	} else {
+		event.ProcessingStatus = "retry"
+	}
+
+	return s.repo.UpdateFunctionEvent(ctx, event)
 }
