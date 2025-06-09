@@ -1,0 +1,223 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-autoscaler
+  namespace: knative-serving
+data:
+  # Class-specific autoscaling configurations
+  # For CPU-intensive workloads
+  scale-to-zero-grace-period: "30s"
+  scale-to-zero-pod-retention-period: "0s"
+  
+  # Autoscaling metrics
+  metric: "concurrency"
+  target: "100"
+  
+  # Scaling rates
+  max-scale-up-rate: "1000"
+  max-scale-down-rate: "2"
+  
+  # Window configurations
+  scale-down-delay: "30s"
+  stable-window: "60s"
+  panic-window: "6s"
+  panic-window-percentage: "10"
+  panic-threshold-percentage: "200"
+  
+  # Activator settings
+  target-burst-capacity: "200"
+  activator-capacity: "100"
+
+---
+# Custom autoscaling class for ML/AI workloads
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-autoscaler-ml
+  namespace: knative-serving
+data:
+  # ML workloads typically need more startup time
+  scale-to-zero-grace-period: "300s"
+  initial-scale: "1"
+  min-scale: "1"
+  max-scale: "50"
+  
+  # Use RPS for ML workloads
+  metric: "rps"
+  target: "10"
+  
+  # Slower scaling for stability
+  max-scale-up-rate: "10"
+  max-scale-down-rate: "1"
+  
+  # Longer windows for ML workloads
+  stable-window: "300s"
+  panic-window: "30s"
+
+---
+# PodAutoscaler for function workloads
+apiVersion: autoscaling.internal.knative.dev/v1alpha1
+kind: PodAutoscaler
+metadata:
+  name: function-autoscaler-template
+  namespace: knative-serving
+spec:
+  scaleTargetRef:
+    apiVersion: v1
+    kind: Service
+    name: function-template
+  protocolType: http1
+  scalingMetric: concurrency
+  scaleTarget: 100
+  reachability: reachable
+  minScale: 0
+  maxScale: 100
+
+---
+# Metrics for custom autoscaling
+apiVersion: v1
+kind: Service
+metadata:
+  name: autoscaler-metrics
+  namespace: knative-serving
+  labels:
+    serving.knative.dev/release: "v1.13.0"
+spec:
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  - name: profiling
+    port: 8008
+    targetPort: 8008
+  selector:
+    app: autoscaler
+
+---
+# HPA for webhook
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webhook-hpa
+  namespace: knative-serving
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webhook
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+
+---
+# HPA for controller
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: controller-hpa
+  namespace: knative-serving
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: controller
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+
+---
+# VPA for autoscaler
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: autoscaler-vpa
+  namespace: knative-serving
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: autoscaler
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: autoscaler
+      minAllowed:
+        cpu: 100m
+        memory: 100Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 1000Mi
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: autoscaler-pdb
+  namespace: knative-serving
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: autoscaler
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: activator-pdb
+  namespace: knative-serving
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: activator
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: controller-pdb
+  namespace: knative-serving
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: controller
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: webhook-pdb
+  namespace: knative-serving
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: webhook

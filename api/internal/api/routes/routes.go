@@ -2,10 +2,52 @@ package routes
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
 )
+
+// requireInternalAuth is middleware that validates internal service authentication
+func requireInternalAuth(authHandler *handlers.AuthHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check for internal service token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+			c.Abort()
+			return
+		}
+
+		// Extract token
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+			c.Abort()
+			return
+		}
+
+		token := parts[1]
+
+		// Validate internal service token
+		// This should validate against service account tokens or special AI agent tokens
+		if !isValidInternalToken(token) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid internal service token"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// isValidInternalToken validates internal service tokens
+func isValidInternalToken(token string) bool {
+	// TODO: Implement proper validation against service account tokens
+	// For now, check for a specific prefix or validate against a service registry
+	return strings.HasPrefix(token, "internal_") || strings.HasPrefix(token, "ai_agent_")
+}
 
 // SetupRoutes configures all API routes
 func SetupRoutes(router *gin.Engine, app *wire.App) {
@@ -222,6 +264,51 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			// Node operations
 			applications.PUT("/:appId/node-affinity", app.ApplicationHandler.UpdateNodeAffinity)
 			applications.POST("/:appId/migrate", app.ApplicationHandler.MigrateToNode)
+
+			// CronJob operations
+			applications.PUT("/:appId/schedule", app.ApplicationHandler.UpdateCronJobSchedule)
+			applications.POST("/:appId/trigger", app.ApplicationHandler.TriggerCronJob)
+			applications.GET("/:appId/executions", app.ApplicationHandler.GetCronJobExecutions)
+			applications.GET("/:appId/cronjob-status", app.ApplicationHandler.GetCronJobStatus)
+
+			// Function operations
+			applications.POST("/:appId/versions", app.ApplicationHandler.DeployFunctionVersion)
+			applications.GET("/:appId/versions", app.ApplicationHandler.GetFunctionVersions)
+			applications.PUT("/:appId/versions/:versionId/active", app.ApplicationHandler.SetActiveFunctionVersion)
+			applications.POST("/:appId/invoke", app.ApplicationHandler.InvokeFunction)
+			applications.GET("/:appId/invocations", app.ApplicationHandler.GetFunctionInvocations)
+			applications.GET("/:appId/function-events", app.ApplicationHandler.GetFunctionEvents)
+
+			// Backup policies (application level - dedicated plan only)
+			applications.POST("/:appId/backup-policy", app.BackupHandler.CreateBackupPolicy)
+			applications.GET("/:appId/backup-policy", app.BackupHandler.GetBackupPolicy)
+			applications.PUT("/:appId/backup-policy", app.BackupHandler.UpdateBackupPolicy)
+			applications.DELETE("/:appId/backup-policy", app.BackupHandler.DeleteBackupPolicy)
+
+			// Backup operations (application level)
+			applications.POST("/:appId/backups/trigger", app.BackupHandler.TriggerManualBackup)
+			applications.GET("/:appId/backups", app.BackupHandler.ListBackupExecutions)
+			applications.GET("/:appId/backups/latest", app.BackupHandler.GetLatestBackup)
+			applications.GET("/:appId/backups/:backupId", app.BackupHandler.GetBackupExecution)
+			applications.GET("/:appId/backups/:backupId/manifest", app.BackupHandler.GetBackupManifest)
+			applications.GET("/:appId/backups/:backupId/download", app.BackupHandler.DownloadBackup)
+			applications.POST("/:appId/backups/:backupId/restore", app.BackupHandler.RestoreBackup)
+
+			// Restore operations (application level)
+			applications.GET("/:appId/restores", app.BackupHandler.ListBackupRestores)
+			applications.GET("/:appId/restores/:restoreId", app.BackupHandler.GetBackupRestore)
+		}
+
+		// Function creation (workspace level, not under applications)
+		functions := workspaceScoped.Group("/functions")
+		{
+			functions.POST("/", app.ApplicationHandler.CreateFunction)
+		}
+
+		// Function event processing (not scoped to a specific function)
+		events := workspaceScoped.Group("/function-events")
+		{
+			events.POST("/:eventId/process", app.ApplicationHandler.ProcessFunctionEvent)
 		}
 
 		// CI/CD (workspace level)
@@ -244,6 +331,20 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		// Provider config (workspace level)
 		workspaceScoped.GET("/provider-config", app.CICDHandler.GetProviderConfig)
 		workspaceScoped.PUT("/provider-config", app.CICDHandler.SetProviderConfig)
+
+		// Backup storage (workspace level - dedicated plan only)
+		backupStorages := workspaceScoped.Group("/backup-storages")
+		{
+			backupStorages.POST("/", app.BackupHandler.CreateBackupStorage)
+			backupStorages.GET("/", app.BackupHandler.ListBackupStorages)
+			backupStorages.GET("/:storageId", app.BackupHandler.GetBackupStorage)
+			backupStorages.PUT("/:storageId", app.BackupHandler.UpdateBackupStorage)
+			backupStorages.DELETE("/:storageId", app.BackupHandler.DeleteBackupStorage)
+			backupStorages.GET("/:storageId/usage", app.BackupHandler.GetStorageUsage)
+		}
+
+		// Storage usage (workspace level)
+		workspaceScoped.GET("/backup-storage-usage", app.BackupHandler.GetWorkspaceStorageUsage)
 	}
 
 	// Pipeline-specific routes (not workspace-scoped)
@@ -282,6 +383,43 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 	webhooks := router.Group("/webhooks")
 	{
 		webhooks.POST("/stripe", app.BillingHandler.HandleStripeWebhook)
+	}
+
+	// Internal API routes (for AI agents and internal services)
+	// These routes require special authentication (e.g., service account tokens)
+	internal := router.Group("/internal/v1")
+	internal.Use(requireInternalAuth(app.AuthHandler))
+	{
+		// System-wide operations
+		internal.GET("/health", app.InternalHandler.GetSystemHealth)
+
+		// Workspace operations
+		workspaceInternal := internal.Group("/workspaces/:workspaceId")
+		{
+			// Overview and insights
+			workspaceInternal.GET("/overview", app.InternalHandler.GetWorkspaceOverview)
+			workspaceInternal.POST("/insights", app.InternalHandler.GetAIInsights)
+			
+			// Operations
+			workspaceInternal.POST("/operations", app.InternalHandler.ExecuteWorkspaceOperation)
+			workspaceInternal.GET("/nodes", app.InternalHandler.GetNodes)
+			workspaceInternal.POST("/deployments/:deploymentName/scale", app.InternalHandler.ScaleDeployment)
+		}
+
+		// Application operations
+		applicationInternal := internal.Group("/applications/:appId")
+		{
+			applicationInternal.GET("/details", app.InternalHandler.GetApplicationDetails)
+			applicationInternal.POST("/autoscale", app.InternalHandler.AutoScaleApplication)
+			applicationInternal.POST("/backup", app.InternalHandler.TriggerBackup)
+			applicationInternal.GET("/performance", app.InternalHandler.AnalyzePerformance)
+		}
+
+		// Incident management
+		internal.POST("/incidents/:incidentId", app.InternalHandler.ManageIncident)
+
+		// Log queries
+		internal.POST("/logs/query", app.InternalHandler.QueryLogs)
 	}
 
 	// Health check endpoint

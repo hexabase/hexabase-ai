@@ -1,0 +1,64 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+Knative has been installed with the following configuration:
+- Knative Serving: {{ .Values.knative.serving.enabled }}
+- Knative Eventing: {{ .Values.knative.eventing.enabled }}
+- Kourier Networking: {{ .Values.kourier.enabled }}
+- TLS/cert-manager: {{ .Values.tls.enabled }}
+- Monitoring: {{ .Values.monitoring.enabled }}
+
+To verify the installation:
+
+1. Check Knative Serving components:
+   kubectl get pods -n knative-serving
+
+2. Check Kourier networking:
+   kubectl get pods -n kourier-system
+
+{{- if .Values.knative.eventing.enabled }}
+3. Check Knative Eventing components:
+   kubectl get pods -n knative-eventing
+{{- end }}
+
+4. Get the Kourier LoadBalancer IP/hostname:
+   kubectl get svc kourier -n kourier-system
+
+5. Deploy a test function:
+   kubectl apply -f - <<EOF
+   apiVersion: serving.knative.dev/v1
+   kind: Service
+   metadata:
+     name: hello
+     namespace: default
+   spec:
+     template:
+       spec:
+         containers:
+         - image: gcr.io/knative-samples/helloworld-go
+           env:
+           - name: TARGET
+             value: "Knative on {{ .Release.Name }}"
+   EOF
+
+6. Get the function URL:
+   kubectl get ksvc hello
+
+{{- if .Values.dns.type | eq "magic-dns" }}
+Note: You are using Magic DNS (nip.io). The function URLs will be in the format:
+http://<service>.<namespace>.<kourier-ip>.nip.io
+{{- else if .Values.dns.domain }}
+Note: Your custom domain is configured as: {{ .Values.dns.domain }}
+Make sure to configure your DNS provider accordingly.
+{{- end }}
+
+{{- if .Values.monitoring.enabled }}
+Monitoring dashboards are available:
+- Prometheus: kubectl port-forward -n monitoring svc/prometheus-operated 9090
+- Grafana: kubectl port-forward -n monitoring svc/{{ .Release.Name }}-grafana 3000:80
+{{- end }}
+
+For more information, visit:
+- Knative documentation: https://knative.dev/docs/
+- Hexabase AI documentation: https://docs.hexabase.ai/

@@ -23,6 +23,34 @@ type Repository interface {
 	// Query operations
 	GetApplicationsByNode(ctx context.Context, nodeID string) ([]Application, error)
 	GetApplicationsByStatus(ctx context.Context, workspaceID string, status ApplicationStatus) ([]Application, error)
+
+	// CronJob operations
+	Create(ctx context.Context, app *Application) error // Alias for CreateApplication
+	GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]CronJobExecution, int, error)
+	CreateCronJobExecution(ctx context.Context, execution *CronJobExecution) error
+	UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status CronJobExecutionStatus, exitCode *int, logs string) error
+	UpdateCronSchedule(ctx context.Context, applicationID, schedule string) error
+	GetCronJobExecutionByID(ctx context.Context, executionID string) (*CronJobExecution, error)
+
+	// Function operations
+	CreateFunctionVersion(ctx context.Context, version *FunctionVersion) error
+	GetFunctionVersion(ctx context.Context, versionID string) (*FunctionVersion, error)
+	GetFunctionVersions(ctx context.Context, applicationID string) ([]FunctionVersion, error)
+	GetActiveFunctionVersion(ctx context.Context, applicationID string) (*FunctionVersion, error)
+	UpdateFunctionVersion(ctx context.Context, version *FunctionVersion) error
+	SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error
+	
+	// Function invocation operations
+	CreateFunctionInvocation(ctx context.Context, invocation *FunctionInvocation) error
+	GetFunctionInvocation(ctx context.Context, invocationID string) (*FunctionInvocation, error)
+	GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]FunctionInvocation, int, error)
+	UpdateFunctionInvocation(ctx context.Context, invocation *FunctionInvocation) error
+	
+	// Function event operations
+	CreateFunctionEvent(ctx context.Context, event *FunctionEvent) error
+	GetFunctionEvent(ctx context.Context, eventID string) (*FunctionEvent, error)
+	GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]FunctionEvent, error)
+	UpdateFunctionEvent(ctx context.Context, event *FunctionEvent) error
 }
 
 // KubernetesRepository defines the interface for Kubernetes operations
@@ -61,6 +89,20 @@ type KubernetesRepository interface {
 
 	// Metrics operations
 	GetPodMetrics(ctx context.Context, workspaceID, projectID string, podNames []string) ([]PodMetrics, error)
+
+	// CronJob operations
+	CreateCronJob(ctx context.Context, workspaceID, projectID string, spec CronJobSpec) error
+	UpdateCronJob(ctx context.Context, workspaceID, projectID, name string, spec CronJobSpec) error
+	DeleteCronJob(ctx context.Context, workspaceID, projectID, name string) error
+	GetCronJobStatus(ctx context.Context, workspaceID, projectID, name string) (*CronJobStatus, error)
+	TriggerCronJob(ctx context.Context, workspaceID, projectID, name string) error
+
+	// Function operations (Knative)
+	CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec KnativeServiceSpec) error
+	UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec KnativeServiceSpec) error
+	DeleteKnativeService(ctx context.Context, workspaceID, projectID, name string) error
+	GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*KnativeServiceStatus, error)
+	GetKnativeServiceURL(ctx context.Context, workspaceID, projectID, name string) (string, error)
 }
 
 // DeploymentSpec represents the specification for a Kubernetes Deployment
@@ -162,4 +204,68 @@ type LogOptions struct {
 	Limit     int
 	Follow    bool
 	Previous  bool
+}
+
+// CronJobSpec represents the specification for a Kubernetes CronJob
+type CronJobSpec struct {
+	Name              string
+	Schedule          string
+	Image             string
+	Command           []string
+	Args              []string
+	EnvVars           map[string]string
+	Resources         ResourceRequests
+	NodeSelector      map[string]string
+	Labels            map[string]string
+	Annotations       map[string]string
+	RestartPolicy     string
+	ConcurrencyPolicy string // Allow, Forbid, Replace
+}
+
+// CronJobStatus represents the status of a Kubernetes CronJob
+type CronJobStatus struct {
+	Schedule          string
+	LastScheduleTime  *time.Time
+	LastSuccessfulTime *time.Time
+	Active            []ObjectReference
+}
+
+// ObjectReference represents a reference to a Kubernetes object
+type ObjectReference struct {
+	Name      string
+	Namespace string
+	UID       string
+}
+
+// KnativeServiceSpec represents the specification for a Knative Service
+type KnativeServiceSpec struct {
+	Name               string
+	Image              string
+	EnvVars            map[string]string
+	Secrets            map[string]string
+	Resources          ResourceRequests
+	NodeSelector       map[string]string
+	Labels             map[string]string
+	Annotations        map[string]string
+	ContainerConcurrency int
+	TimeoutSeconds     int
+	ServiceAccountName string
+}
+
+// KnativeServiceStatus represents the status of a Knative Service
+type KnativeServiceStatus struct {
+	Ready              bool
+	URL                string
+	LatestRevision     string
+	LatestReadyRevision string
+	Conditions         []KnativeCondition
+}
+
+// KnativeCondition represents a condition of a Knative Service
+type KnativeCondition struct {
+	Type               string
+	Status             string
+	LastTransitionTime time.Time
+	Reason             string
+	Message            string
 }

@@ -1,0 +1,269 @@
+# ServiceMonitor for Knative Serving metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: knative-serving-metrics
+  namespace: knative-serving
+  labels:
+    app: knative-serving
+spec:
+  selector:
+    matchLabels:
+      serving.knative.dev/release: "v1.13.0"
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+  - port: metrics-prometheus
+    interval: 30s
+    path: /metrics
+
+---
+# ServiceMonitor for Knative Eventing metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: knative-eventing-metrics
+  namespace: knative-eventing
+  labels:
+    app: knative-eventing
+spec:
+  selector:
+    matchLabels:
+      eventing.knative.dev/release: "v1.13.0"
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# ServiceMonitor for Kourier metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kourier-metrics
+  namespace: kourier-system
+  labels:
+    app: kourier
+spec:
+  selector:
+    matchLabels:
+      app: 3scale-kourier-control
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# ServiceMonitor for Activator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: activator-metrics
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      app: activator
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# ServiceMonitor for Autoscaler
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: autoscaler-metrics
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      app: autoscaler
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# ServiceMonitor for Controller
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: controller-metrics
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      app: controller
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# PrometheusRule for Knative alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: knative-alerts
+  namespace: knative-serving
+  labels:
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: knative.serving
+    interval: 30s
+    rules:
+    - alert: KnativeServingDown
+      expr: up{namespace="knative-serving"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: knative
+      annotations:
+        summary: "Knative Serving component is down"
+        description: "{{ $labels.job }} in namespace {{ $labels.namespace }} is down"
+    
+    - alert: KnativeHighRevisionCount
+      expr: count(knative_serving_revision_count) > 1000
+      for: 10m
+      labels:
+        severity: warning
+        component: knative
+      annotations:
+        summary: "High number of Knative revisions"
+        description: "There are {{ $value }} revisions. Consider garbage collection."
+    
+    - alert: KnativeHighQueueDepth
+      expr: knative_serving_activator_queued_requests > 100
+      for: 5m
+      labels:
+        severity: warning
+        component: knative
+      annotations:
+        summary: "High queue depth in Knative activator"
+        description: "Activator queue depth is {{ $value }}"
+    
+    - alert: KnativeRevisionFailure
+      expr: rate(knative_serving_revision_request_count{response_code=~"5.."}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: knative
+      annotations:
+        summary: "High error rate for Knative revision"
+        description: "Revision {{ $labels.revision_name }} has error rate {{ $value }}"
+
+  - name: knative.eventing
+    interval: 30s
+    rules:
+    - alert: KnativeEventingDown
+      expr: up{namespace="knative-eventing"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: knative
+      annotations:
+        summary: "Knative Eventing component is down"
+        description: "{{ $labels.job }} in namespace {{ $labels.namespace }} is down"
+    
+    - alert: KnativeBrokerUnhealthy
+      expr: knative_eventing_broker_ready == 0
+      for: 5m
+      labels:
+        severity: warning
+        component: knative
+      annotations:
+        summary: "Knative Broker is not ready"
+        description: "Broker {{ $labels.broker_name }} in namespace {{ $labels.namespace }} is not ready"
+
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knative-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  knative-overview.json: |
+    {
+      "dashboard": {
+        "title": "Knative Overview",
+        "panels": [
+          {
+            "title": "Revision Request Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(knative_serving_revision_request_count[5m])) by (revision_name)"
+              }
+            ]
+          },
+          {
+            "title": "Revision Response Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(knative_serving_revision_request_latencies_bucket[5m])) by (revision_name, le))"
+              }
+            ]
+          },
+          {
+            "title": "Activator Queue Depth",
+            "targets": [
+              {
+                "expr": "knative_serving_activator_queued_requests"
+              }
+            ]
+          },
+          {
+            "title": "Autoscaler Desired Pods",
+            "targets": [
+              {
+                "expr": "knative_serving_autoscaler_desired_pods"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# Fluentbit configuration for Knative logs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knative-fluent-bit-config
+  namespace: knative-serving
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Log_Level     info
+        Daemon        off
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*knative*.log
+        Parser            cri
+        Tag               knative.*
+        Refresh_Interval  5
+        Mem_Buf_Limit     5MB
+
+    [FILTER]
+        Name                kubernetes
+        Match               knative.*
+        Kube_URL            https://kubernetes.default.svc:443
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        Merge_Log           On
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+
+    [OUTPUT]
+        Name            forward
+        Match           knative.*
+        Host            fluentd.monitoring.svc.cluster.local
+        Port            24224

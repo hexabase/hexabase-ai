@@ -8,6 +8,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -644,4 +645,207 @@ func splitLines(s string) []string {
 		lines = append(lines, s[start:])
 	}
 	return lines
+}
+
+// CreateCronJob creates a new Kubernetes CronJob
+func (r *KubernetesRepository) CreateCronJob(ctx context.Context, workspaceID, projectID string, spec application.CronJobSpec) error {
+	namespace := r.getNamespace(workspaceID, projectID)
+	
+	// Build CronJob resource
+	cronJob := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        spec.Name,
+			Namespace:   namespace,
+			Labels:      spec.Labels,
+			Annotations: spec.Annotations,
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule:          spec.Schedule,
+			ConcurrencyPolicy: batchv1.ConcurrencyPolicy(spec.ConcurrencyPolicy),
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: spec.Labels,
+						},
+						Spec: r.buildCronJobPodSpec(spec),
+					},
+					BackoffLimit:            int32Ptr(3),
+					TTLSecondsAfterFinished: int32Ptr(86400), // 24 hours
+				},
+			},
+		},
+	}
+
+	_, err := r.clientset.BatchV1().CronJobs(namespace).Create(ctx, cronJob, metav1.CreateOptions{})
+	return err
+}
+
+// UpdateCronJob updates an existing Kubernetes CronJob
+func (r *KubernetesRepository) UpdateCronJob(ctx context.Context, workspaceID, projectID, name string, spec application.CronJobSpec) error {
+	namespace := r.getNamespace(workspaceID, projectID)
+	
+	// Get existing CronJob
+	cronJob, err := r.clientset.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get CronJob: %w", err)
+	}
+	
+	// Update spec
+	cronJob.Spec.Schedule = spec.Schedule
+	cronJob.Spec.ConcurrencyPolicy = batchv1.ConcurrencyPolicy(spec.ConcurrencyPolicy)
+	cronJob.Spec.JobTemplate.Spec.Template.Spec = r.buildCronJobPodSpec(spec)
+	if spec.Labels != nil {
+		cronJob.Labels = spec.Labels
+		cronJob.Spec.JobTemplate.Spec.Template.Labels = spec.Labels
+	}
+	if spec.Annotations != nil {
+		cronJob.Annotations = spec.Annotations
+	}
+	
+	// Update CronJob
+	_, err = r.clientset.BatchV1().CronJobs(namespace).Update(ctx, cronJob, metav1.UpdateOptions{})
+	return err
+}
+
+// DeleteCronJob deletes a Kubernetes CronJob
+func (r *KubernetesRepository) DeleteCronJob(ctx context.Context, workspaceID, projectID, name string) error {
+	namespace := r.getNamespace(workspaceID, projectID)
+	
+	// Delete CronJob (will also delete associated Jobs)
+	deletePolicy := metav1.DeletePropagationForeground
+	return r.clientset.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	})
+}
+
+// GetCronJobStatus retrieves the status of a Kubernetes CronJob
+func (r *KubernetesRepository) GetCronJobStatus(ctx context.Context, workspaceID, projectID, name string) (*application.CronJobStatus, error) {
+	namespace := r.getNamespace(workspaceID, projectID)
+	
+	// Get CronJob
+	cronJob, err := r.clientset.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CronJob: %w", err)
+	}
+	
+	// Convert to domain status
+	status := &application.CronJobStatus{
+		Schedule:           cronJob.Spec.Schedule,
+		LastScheduleTime:   nil,
+		LastSuccessfulTime: nil,
+		Active:             make([]application.ObjectReference, 0),
+	}
+	
+	// Set LastScheduleTime if available
+	if cronJob.Status.LastScheduleTime != nil {
+		status.LastScheduleTime = &cronJob.Status.LastScheduleTime.Time
+	}
+	
+	// Set LastSuccessfulTime if available
+	if cronJob.Status.LastSuccessfulTime != nil {
+		status.LastSuccessfulTime = &cronJob.Status.LastSuccessfulTime.Time
+	}
+	
+	// Convert active job references
+	for _, ref := range cronJob.Status.Active {
+		status.Active = append(status.Active, application.ObjectReference{
+			Name:      ref.Name,
+			Namespace: ref.Namespace,
+			UID:       string(ref.UID),
+		})
+	}
+	
+	return status, nil
+}
+
+// TriggerCronJob manually triggers a CronJob by creating a Job from the CronJob template
+func (r *KubernetesRepository) TriggerCronJob(ctx context.Context, workspaceID, projectID, name string) error {
+	namespace := r.getNamespace(workspaceID, projectID)
+	
+	// Get CronJob
+	cronJob, err := r.clientset.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get CronJob: %w", err)
+	}
+	
+	// Create Job from CronJob template
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-manual-%d", name, time.Now().Unix()),
+			Namespace: namespace,
+			Labels: map[string]string{
+				"cronjob-name": name,
+				"triggered-by": "manual",
+			},
+			Annotations: map[string]string{
+				"hexabase.io/triggered-at": time.Now().Format(time.RFC3339),
+			},
+		},
+		Spec: cronJob.Spec.JobTemplate.Spec,
+	}
+	
+	// Create the Job
+	_, err = r.clientset.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+	return err
+}
+
+// buildCronJobPodSpec builds a PodSpec from CronJobSpec
+func (r *KubernetesRepository) buildCronJobPodSpec(spec application.CronJobSpec) corev1.PodSpec {
+	// Convert environment variables
+	envVars := r.convertEnvVars(spec.EnvVars)
+	
+	// Build container
+	container := corev1.Container{
+		Name:      spec.Name,
+		Image:     spec.Image,
+		Command:   spec.Command,
+		Args:      spec.Args,
+		Env:       envVars,
+		Resources: r.convertResources(spec.Resources),
+	}
+	
+	// Build pod spec
+	restartPolicy := corev1.RestartPolicyOnFailure
+	if spec.RestartPolicy != "" {
+		restartPolicy = corev1.RestartPolicy(spec.RestartPolicy)
+	}
+	
+	return corev1.PodSpec{
+		Containers:    []corev1.Container{container},
+		RestartPolicy: restartPolicy,
+		NodeSelector:  spec.NodeSelector,
+	}
+}
+
+// CreateKnativeService creates a new Knative Service
+func (r *KubernetesRepository) CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec application.KnativeServiceSpec) error {
+	// TODO: Implement Knative Service creation
+	// This requires Knative Serving to be installed and configured
+	// For now, return a not implemented error
+	return fmt.Errorf("Knative Service creation not yet implemented")
+}
+
+// UpdateKnativeService updates a Knative Service
+func (r *KubernetesRepository) UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec application.KnativeServiceSpec) error {
+	// TODO: Implement Knative Service update
+	return fmt.Errorf("Knative Service update not yet implemented")
+}
+
+// DeleteKnativeService deletes a Knative Service
+func (r *KubernetesRepository) DeleteKnativeService(ctx context.Context, workspaceID, projectID, name string) error {
+	// TODO: Implement Knative Service deletion
+	return fmt.Errorf("Knative Service deletion not yet implemented")
+}
+
+// GetKnativeServiceStatus gets the status of a Knative Service
+func (r *KubernetesRepository) GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*application.KnativeServiceStatus, error) {
+	// TODO: Implement Knative Service status retrieval
+	return nil, fmt.Errorf("Knative Service status retrieval not yet implemented")
+}
+
+// GetKnativeServiceURL gets the URL of a Knative Service
+func (r *KubernetesRepository) GetKnativeServiceURL(ctx context.Context, workspaceID, projectID, name string) (string, error) {
+	// TODO: Implement Knative Service URL retrieval
+	return "", fmt.Errorf("Knative Service URL retrieval not yet implemented")
 }
