@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+// Workspace plan constants
+const (
+	WorkspacePlanShared    = "shared"
+	WorkspacePlanDedicated = "dedicated"
+)
+
 // Workspace represents a vCluster workspace
 type Workspace struct {
 	ID             string                 `json:"id"`

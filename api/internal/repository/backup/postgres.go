@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -317,8 +318,9 @@ func (r *PostgresRepository) ListBackupRestores(ctx context.Context, application
 	}
 	
 	restores := make([]backup.BackupRestore, len(dbRestores))
-	for i, r := range dbRestores {
-		restores[i] = *r.dbToDomainRestore(&r)
+	for i := range dbRestores {
+		dbRestore := dbRestores[i]
+		restores[i] = *r.dbToDomainRestore(&dbRestore)
 	}
 	
 	return restores, int(total), nil
@@ -413,7 +415,7 @@ func (r *PostgresRepository) domainToDBStorage(storage *backup.BackupStorage) *d
 		CapacityGB:       storage.CapacityGB,
 		UsedGB:           storage.UsedGB,
 		Status:           string(storage.Status),
-		ConnectionConfig: db.JSON(storage.ConnectionConfig),
+		ConnectionConfig: mapToJSON(storage.ConnectionConfig),
 		ErrorMessage:     storage.ErrorMessage,
 		CreatedAt:        storage.CreatedAt,
 		UpdatedAt:        storage.UpdatedAt,
@@ -431,7 +433,7 @@ func (r *PostgresRepository) dbToDomainStorage(dbStorage *db.BackupStorage) *bac
 		CapacityGB:       dbStorage.CapacityGB,
 		UsedGB:           dbStorage.UsedGB,
 		Status:           backup.StorageStatus(dbStorage.Status),
-		ConnectionConfig: map[string]interface{}(dbStorage.ConnectionConfig),
+		ConnectionConfig: jsonToMap(dbStorage.ConnectionConfig),
 		ErrorMessage:     dbStorage.ErrorMessage,
 		CreatedAt:        dbStorage.CreatedAt,
 		UpdatedAt:        dbStorage.UpdatedAt,
@@ -496,11 +498,11 @@ func (r *PostgresRepository) domainToDBExecution(execution *backup.BackupExecuti
 		SizeBytes:           execution.SizeBytes,
 		CompressedSizeBytes: execution.CompressedSizeBytes,
 		BackupPath:          execution.BackupPath,
-		BackupManifest:      db.JSON(execution.BackupManifest),
+		BackupManifest:      mapToJSON(execution.BackupManifest),
 		StartedAt:           execution.StartedAt,
 		CompletedAt:         execution.CompletedAt,
 		ErrorMessage:        execution.ErrorMessage,
-		Metadata:            db.JSON(execution.Metadata),
+		Metadata:            mapToJSON(execution.Metadata),
 		CreatedAt:           execution.CreatedAt,
 	}
 }
@@ -519,11 +521,11 @@ func (r *PostgresRepository) dbToDomainExecution(dbExecution *db.BackupExecution
 		SizeBytes:           dbExecution.SizeBytes,
 		CompressedSizeBytes: dbExecution.CompressedSizeBytes,
 		BackupPath:          dbExecution.BackupPath,
-		BackupManifest:      map[string]interface{}(dbExecution.BackupManifest),
+		BackupManifest:      jsonToMap(dbExecution.BackupManifest),
 		StartedAt:           dbExecution.StartedAt,
 		CompletedAt:         dbExecution.CompletedAt,
 		ErrorMessage:        dbExecution.ErrorMessage,
-		Metadata:            map[string]interface{}(dbExecution.Metadata),
+		Metadata:            jsonToMap(dbExecution.Metadata),
 		CreatedAt:           dbExecution.CreatedAt,
 	}
 }
@@ -540,12 +542,12 @@ func (r *PostgresRepository) domainToDBRestore(restore *backup.BackupRestore) *d
 		ApplicationID:     restore.ApplicationID,
 		Status:            string(restore.Status),
 		RestoreType:       string(restore.RestoreType),
-		RestoreOptions:    db.JSON(restore.RestoreOptions),
+		RestoreOptions:    mapToJSON(restore.RestoreOptions),
 		NewApplicationID:  newApplicationID,
 		StartedAt:         restore.StartedAt,
 		CompletedAt:       restore.CompletedAt,
 		ErrorMessage:      restore.ErrorMessage,
-		ValidationResults: db.JSON(restore.ValidationResults),
+		ValidationResults: mapToJSON(restore.ValidationResults),
 		CreatedAt:         restore.CreatedAt,
 	}
 }
@@ -562,12 +564,35 @@ func (r *PostgresRepository) dbToDomainRestore(dbRestore *db.BackupRestore) *bac
 		ApplicationID:     dbRestore.ApplicationID,
 		Status:            backup.RestoreStatus(dbRestore.Status),
 		RestoreType:       backup.RestoreType(dbRestore.RestoreType),
-		RestoreOptions:    map[string]interface{}(dbRestore.RestoreOptions),
+		RestoreOptions:    jsonToMap(dbRestore.RestoreOptions),
 		NewApplicationID:  newApplicationID,
 		StartedAt:         dbRestore.StartedAt,
 		CompletedAt:       dbRestore.CompletedAt,
 		ErrorMessage:      dbRestore.ErrorMessage,
-		ValidationResults: map[string]interface{}(dbRestore.ValidationResults),
+		ValidationResults: jsonToMap(dbRestore.ValidationResults),
 		CreatedAt:         dbRestore.CreatedAt,
 	}
+}
+
+// Helper functions for JSON conversion
+func mapToJSON(m map[string]interface{}) db.JSON {
+	if m == nil {
+		return db.JSON("null")
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return db.JSON("{}")
+	}
+	return db.JSON(b)
+}
+
+func jsonToMap(j db.JSON) map[string]interface{} {
+	if len(j) == 0 || string(j) == "null" {
+		return nil
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(j), &m); err != nil {
+		return nil
+	}
+	return m
 }

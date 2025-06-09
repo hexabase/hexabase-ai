@@ -11,12 +11,17 @@ import (
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
+	application3 "github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	auth3 "github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	backup2 "github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	billing3 "github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	cicd3 "github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	node3 "github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	workspace3 "github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
@@ -25,9 +30,11 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/repository/node"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/project"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
 	application2 "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	auth2 "github.com/hexabase/hexabase-ai/api/internal/service/auth"
+	backup3 "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billing2 "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicd2 "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 	logs2 "github.com/hexabase/hexabase-ai/api/internal/service/logs"
@@ -66,6 +73,11 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	}
 	authService := auth2.NewService(authRepository, oAuthRepository, keyRepository, logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
+	backupRepository := backup.NewPostgresRepository(db)
+	proxmoxRepository := ProvideBackupProxmoxRepository(cfg)
+	workspaceRepository := workspace.NewPostgresRepository(db)
+	backupService := ProvideBackupService(backupRepository, proxmoxRepository, repository, workspaceRepository, k8sClient, cfg)
+	backupHandler := handlers.NewBackupHandler(backupService)
 	billingRepository := billing.NewPostgresRepository(db)
 	stripeAPIKey := ProvideStripeAPIKey(cfg)
 	stripeWebhookSecret := ProvideStripeWebhookSecret(cfg)
@@ -78,9 +90,9 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService, logger)
 	postgresRepository := node.NewPostgresRepository(db)
 	nodeRepository := ProvideNodeRepository(postgresRepository)
-	proxmoxRepository := ProvideProxmoxRepository(cfg)
-	nodeProxmoxRepository := ProvideProxmoxRepositoryInterface(proxmoxRepository)
-	nodeService := node2.NewService(nodeRepository, nodeProxmoxRepository)
+	nodeProxmoxRepository := ProvideProxmoxRepository(cfg)
+	proxmoxRepository2 := ProvideProxmoxRepositoryInterface(nodeProxmoxRepository)
+	nodeService := node2.NewService(nodeRepository, proxmoxRepository2)
 	service2 := ProvideNodeService(nodeService)
 	nodeHandler := handlers.NewNodeHandler(service2, logger)
 	organizationRepository := organization.NewPostgresRepository(db)
@@ -92,7 +104,6 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	projectKubernetesRepository := project.NewKubernetesRepository(k8sClient, dynamicClient, k8sConfig)
 	projectService := project2.NewService(projectRepository, projectKubernetesRepository, logger)
 	projectHandler := handlers.NewProjectHandler(projectService, logger)
-	workspaceRepository := workspace.NewPostgresRepository(db)
 	workspaceKubernetesRepository := workspace.NewKubernetesRepository(k8sClient, dynamicClient, k8sConfig)
 	workspaceAuthRepository := workspace.NewAuthRepositoryAdapter(authRepository)
 	helmService := helm.NewService(k8sConfig, logger)
@@ -104,11 +115,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	credentialManager := ProvideCICDCredentialManager(k8sClient, cicdNamespace)
 	cicdService := cicd2.NewService(cicdRepository, providerFactory, credentialManager, logger)
 	cicdHandler := handlers.NewCICDHandler(cicdService, logger)
-	string2, err := ProvideAIOpsServiceURL(cfg)
-	if err != nil {
-		return nil, err
-	}
-	aiOpsProxyHandler, err := handlers.NewAIOpsProxyHandler(authService, logger, string2)
+	aiOpsProxyHandler, err := ProvideAIOpsProxyHandler(authService, logger, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +126,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	logsRepository := logs.NewClickHouseRepository(v2)
 	logsService := logs2.NewLogService(logsRepository, logger)
 	internalHandler := handlers.NewInternalHandler(workspaceService, logsService, logger)
-	app := NewApp(applicationHandler, authHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, aiOpsProxyHandler, internalHandler)
+	app := NewApp(applicationHandler, authHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, aiOpsProxyHandler, internalHandler)
 	return app, nil
 }
 
@@ -128,6 +135,10 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 var ApplicationSet = wire.NewSet(application.NewPostgresRepository, application.NewKubernetesRepository, application2.NewService, handlers.NewApplicationHandler)
 
 var AuthSet = wire.NewSet(auth.NewPostgresRepository, auth.NewOAuthRepository, auth.NewKeyRepository, auth2.NewService, handlers.NewAuthHandler)
+
+var BackupSet = wire.NewSet(backup.NewPostgresRepository, ProvideBackupProxmoxRepository,
+	ProvideBackupService, handlers.NewBackupHandler,
+)
 
 var BillingSet = wire.NewSet(billing.NewPostgresRepository, ProvideStripeRepository, billing2.NewService, handlers.NewBillingHandler)
 
@@ -145,7 +156,9 @@ var CICDSet = wire.NewSet(cicd.NewPostgresRepository, ProvideCICDProviderFactory
 
 var HelmSet = wire.NewSet(helm.NewService)
 
-var AIOpsProxySet = wire.NewSet(ProvideAIOpsServiceURL, handlers.NewAIOpsProxyHandler)
+var AIOpsProxySet = wire.NewSet(
+	ProvideAIOpsProxyHandler,
+)
 
 var LogSet = wire.NewSet(ProvideClickHouseConnection, logs.NewClickHouseRepository, logs2.NewLogService)
 
@@ -154,6 +167,7 @@ var InternalSet = wire.NewSet(handlers.NewInternalHandler)
 type App struct {
 	ApplicationHandler  *handlers.ApplicationHandler
 	AuthHandler         *handlers.AuthHandler
+	BackupHandler       *handlers.BackupHandler
 	BillingHandler      *handlers.BillingHandler
 	MonitoringHandler   *handlers.MonitoringHandler
 	NodeHandler         *handlers.NodeHandler
@@ -165,8 +179,8 @@ type App struct {
 	InternalHandler     *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
-	return &App{ApplicationHandler: appH, AuthHandler: authH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
+func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
 type StripeAPIKey string
@@ -176,6 +190,8 @@ type StripeWebhookSecret string
 type AIOpsServiceURL string
 
 type CICDNamespace string
+
+type BackupEncryptionKey string
 
 func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*auth.ProviderConfig {
 
@@ -188,11 +204,11 @@ func ProvideStripeWebhookSecret(cfg *config.Config) StripeWebhookSecret {
 	return StripeWebhookSecret(cfg.Stripe.WebhookSecret)
 }
 
-func ProvideAIOpsServiceURL(cfg *config.Config) (string, error) {
+func ProvideAIOpsServiceURL(cfg *config.Config) (AIOpsServiceURL, error) {
 	if cfg.AIOps.URL != "" {
-		return cfg.AIOps.URL, nil
+		return AIOpsServiceURL(cfg.AIOps.URL), nil
 	}
-	return "http://ai-ops-service.ai-ops.svc.cluster.local:8000", nil
+	return AIOpsServiceURL("http://ai-ops-service.ai-ops.svc.cluster.local:8000"), nil
 }
 
 func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSecret) billing3.StripeRepository {
@@ -242,4 +258,33 @@ func ProvideNodeRepository(repo *node.PostgresRepository) node3.Repository {
 
 func ProvideProxmoxRepositoryInterface(repo *node.ProxmoxRepository) node3.ProxmoxRepository {
 	return repo
+}
+
+func ProvideBackupProxmoxRepository(cfg *config.Config) backup2.ProxmoxRepository {
+
+	client := proxmox.NewClient("https://proxmox.example.com/api2/json", "root@pam", "tokenID", "tokenSecret")
+	return backup.NewProxmoxRepository(client)
+}
+
+func ProvideBackupService(
+	repo backup2.Repository,
+	proxmoxRepo backup2.ProxmoxRepository,
+	appRepo application3.Repository,
+	workspaceRepo workspace3.Repository,
+	k8sClient kubernetes.Interface,
+	cfg *config.Config,
+) backup2.Service {
+
+	encryptionKey := "your-backup-encryption-key"
+	return backup3.NewService(repo, proxmoxRepo, appRepo, workspaceRepo, k8sClient, encryptionKey)
+}
+
+func ProvideAIOpsProxyHandler(authSvc auth3.Service, logger *slog.Logger, cfg *config.Config) (*handlers.AIOpsProxyHandler, error) {
+	var aiopsURL string
+	if cfg.AIOps.URL != "" {
+		aiopsURL = cfg.AIOps.URL
+	} else {
+		aiopsURL = "http://ai-ops-service.ai-ops.svc.cluster.local:8000"
+	}
+	return handlers.NewAIOpsProxyHandler(authSvc, logger, aiopsURL)
 }

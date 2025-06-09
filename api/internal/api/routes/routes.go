@@ -236,6 +236,25 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			applications.POST("/:appId/invoke", app.ApplicationHandler.InvokeFunction)
 			applications.GET("/:appId/invocations", app.ApplicationHandler.GetFunctionInvocations)
 			applications.GET("/:appId/function-events", app.ApplicationHandler.GetFunctionEvents)
+
+			// Backup policies (application level - dedicated plan only)
+			applications.POST("/:appId/backup-policy", app.BackupHandler.CreateBackupPolicy)
+			applications.GET("/:appId/backup-policy", app.BackupHandler.GetBackupPolicy)
+			applications.PUT("/:appId/backup-policy", app.BackupHandler.UpdateBackupPolicy)
+			applications.DELETE("/:appId/backup-policy", app.BackupHandler.DeleteBackupPolicy)
+
+			// Backup operations (application level)
+			applications.POST("/:appId/backups/trigger", app.BackupHandler.TriggerManualBackup)
+			applications.GET("/:appId/backups", app.BackupHandler.ListBackupExecutions)
+			applications.GET("/:appId/backups/latest", app.BackupHandler.GetLatestBackup)
+			applications.GET("/:appId/backups/:backupId", app.BackupHandler.GetBackupExecution)
+			applications.GET("/:appId/backups/:backupId/manifest", app.BackupHandler.GetBackupManifest)
+			applications.GET("/:appId/backups/:backupId/download", app.BackupHandler.DownloadBackup)
+			applications.POST("/:appId/backups/:backupId/restore", app.BackupHandler.RestoreBackup)
+
+			// Restore operations (application level)
+			applications.GET("/:appId/restores", app.BackupHandler.ListBackupRestores)
+			applications.GET("/:appId/restores/:restoreId", app.BackupHandler.GetBackupRestore)
 		}
 
 		// Function creation (workspace level, not under applications)
@@ -270,6 +289,20 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		// Provider config (workspace level)
 		workspaceScoped.GET("/provider-config", app.CICDHandler.GetProviderConfig)
 		workspaceScoped.PUT("/provider-config", app.CICDHandler.SetProviderConfig)
+
+		// Backup storage (workspace level - dedicated plan only)
+		backupStorages := workspaceScoped.Group("/backup-storages")
+		{
+			backupStorages.POST("/", app.BackupHandler.CreateBackupStorage)
+			backupStorages.GET("/", app.BackupHandler.ListBackupStorages)
+			backupStorages.GET("/:storageId", app.BackupHandler.GetBackupStorage)
+			backupStorages.PUT("/:storageId", app.BackupHandler.UpdateBackupStorage)
+			backupStorages.DELETE("/:storageId", app.BackupHandler.DeleteBackupStorage)
+			backupStorages.GET("/:storageId/usage", app.BackupHandler.GetStorageUsage)
+		}
+
+		// Storage usage (workspace level)
+		workspaceScoped.GET("/backup-storage-usage", app.BackupHandler.GetWorkspaceStorageUsage)
 	}
 
 	// Pipeline-specific routes (not workspace-scoped)
