@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -249,6 +248,170 @@ func (m *MockApplicationRepository) GetApplication(ctx context.Context, applicat
 	return args.Get(0).(*application.Application), args.Error(1)
 }
 
+// Implement all required methods for application.Repository interface
+func (m *MockApplicationRepository) CreateApplication(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*application.Application, error) {
+	args := m.Called(ctx, workspaceID, projectID, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.Application), args.Error(1)
+}
+
+func (m *MockApplicationRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]application.Application, error) {
+	args := m.Called(ctx, workspaceID, projectID)
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+func (m *MockApplicationRepository) UpdateApplication(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) DeleteApplication(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) CreateEvent(ctx context.Context, event *application.ApplicationEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]application.ApplicationEvent, error) {
+	args := m.Called(ctx, applicationID, limit)
+	return args.Get(0).([]application.ApplicationEvent), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]application.Application, error) {
+	args := m.Called(ctx, nodeID)
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status application.ApplicationStatus) ([]application.Application, error) {
+	args := m.Called(ctx, workspaceID, status)
+	return args.Get(0).([]application.Application), args.Error(1)
+}
+
+func (m *MockApplicationRepository) Create(ctx context.Context, app *application.Application) error {
+	args := m.Called(ctx, app)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	return args.Get(0).([]application.CronJobExecution), args.Int(1), args.Error(2)
+}
+
+func (m *MockApplicationRepository) CreateCronJobExecution(ctx context.Context, execution *application.CronJobExecution) error {
+	args := m.Called(ctx, execution)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status application.CronJobExecutionStatus, exitCode *int, logs string) error {
+	args := m.Called(ctx, executionID, completedAt, status, exitCode, logs)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) UpdateCronSchedule(ctx context.Context, applicationID, schedule string) error {
+	args := m.Called(ctx, applicationID, schedule)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+	args := m.Called(ctx, executionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.CronJobExecution), args.Error(1)
+}
+
+func (m *MockApplicationRepository) CreateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetFunctionVersion(ctx context.Context, versionID string) (*application.FunctionVersion, error) {
+	args := m.Called(ctx, versionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID)
+	return args.Get(0).([]application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*application.FunctionVersion, error) {
+	args := m.Called(ctx, applicationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+}
+
+func (m *MockApplicationRepository) UpdateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) SetActiveFunctionVersion(ctx context.Context, applicationID, versionID string) error {
+	args := m.Called(ctx, applicationID, versionID)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) CreateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	args := m.Called(ctx, invocation)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*application.FunctionInvocation, error) {
+	args := m.Called(ctx, invocationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionInvocation), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	return args.Get(0).([]application.FunctionInvocation), args.Int(1), args.Error(2)
+}
+
+func (m *MockApplicationRepository) UpdateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+	args := m.Called(ctx, invocation)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) CreateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockApplicationRepository) GetFunctionEvent(ctx context.Context, eventID string) (*application.FunctionEvent, error) {
+	args := m.Called(ctx, eventID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.FunctionEvent), args.Error(1)
+}
+
+func (m *MockApplicationRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+	args := m.Called(ctx, applicationID, limit)
+	return args.Get(0).([]application.FunctionEvent), args.Error(1)
+}
+
+func (m *MockApplicationRepository) UpdateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
 type MockWorkspaceRepository struct {
 	mock.Mock
 }
@@ -259,6 +422,116 @@ func (m *MockWorkspaceRepository) GetWorkspace(ctx context.Context, workspaceID 
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*workspace.Workspace), args.Error(1)
+}
+
+// Implement all required methods for workspace.Repository interface
+func (m *MockWorkspaceRepository) CreateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+	args := m.Called(ctx, ws)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*workspace.Workspace, error) {
+	args := m.Called(ctx, name, orgID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*workspace.Workspace), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) ([]*workspace.Workspace, int, error) {
+	args := m.Called(ctx, filter)
+	return args.Get(0).([]*workspace.Workspace), args.Int(1), args.Error(2)
+}
+
+func (m *MockWorkspaceRepository) UpdateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+	args := m.Called(ctx, ws)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) DeleteWorkspace(ctx context.Context, workspaceID string) error {
+	args := m.Called(ctx, workspaceID)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) CreateTask(ctx context.Context, task *workspace.Task) error {
+	args := m.Called(ctx, task)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
+	args := m.Called(ctx, taskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*workspace.Task), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
+	args := m.Called(ctx, workspaceID)
+	return args.Get(0).([]*workspace.Task), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) UpdateTask(ctx context.Context, task *workspace.Task) error {
+	args := m.Called(ctx, task)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspace.Task, error) {
+	args := m.Called(ctx, taskType, limit)
+	return args.Get(0).([]*workspace.Task), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) SaveWorkspaceStatus(ctx context.Context, status *workspace.WorkspaceStatus) error {
+	args := m.Called(ctx, status)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
+	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*workspace.WorkspaceStatus), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) SaveKubeconfig(ctx context.Context, workspaceID, kubeconfig string) error {
+	args := m.Called(ctx, workspaceID, kubeconfig)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) GetKubeconfig(ctx context.Context, workspaceID string) (string, error) {
+	args := m.Called(ctx, workspaceID)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) CleanupExpiredTasks(ctx context.Context, before time.Time) error {
+	args := m.Called(ctx, before)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) CleanupDeletedWorkspaces(ctx context.Context, before time.Time) error {
+	args := m.Called(ctx, before)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspace.WorkspaceMember, error) {
+	args := m.Called(ctx, workspaceID)
+	return args.Get(0).([]*workspace.WorkspaceMember), args.Error(1)
+}
+
+func (m *MockWorkspaceRepository) AddWorkspaceMember(ctx context.Context, member *workspace.WorkspaceMember) error {
+	args := m.Called(ctx, member)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error {
+	args := m.Called(ctx, workspaceID, userID)
+	return args.Error(0)
+}
+
+func (m *MockWorkspaceRepository) CreateResourceUsage(ctx context.Context, usage *workspace.ResourceUsage) error {
+	args := m.Called(ctx, usage)
+	return args.Error(0)
 }
 
 // Tests
@@ -293,6 +566,13 @@ func TestCreateBackupStorage(t *testing.T) {
 				s.Status == backup.StorageStatusPending
 		})).Return(nil)
 
+		// Mock UpdateBackupStorage for the async provisioning
+		mockRepo.On("UpdateBackupStorage", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		// Mock the Proxmox operations for async provisioning
+		mockProxmoxRepo.On("CreateStorage", mock.Anything, mock.Anything, mock.Anything).Return("nfs-storage-id", nil).Maybe()
+		mockProxmoxRepo.On("SetStorageQuota", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
 		req := backup.CreateBackupStorageRequest{
 			Name:             "test-storage",
 			Type:             backup.StorageTypeNFS,
@@ -309,7 +589,8 @@ func TestCreateBackupStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, storage)
 		assert.Equal(t, "test-storage", storage.Name)
-		assert.Equal(t, backup.StorageStatusPending, storage.Status)
+		// The status is set to creating when the provisioning starts
+		assert.Contains(t, []backup.StorageStatus{backup.StorageStatusPending, backup.StorageStatusCreating}, storage.Status)
 
 		mockWorkspaceRepo.AssertExpectations(t)
 		mockRepo.AssertExpectations(t)

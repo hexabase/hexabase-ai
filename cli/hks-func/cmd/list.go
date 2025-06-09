@@ -94,7 +94,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	// Add rows
 	for _, fn := range functions {
-		age := formatAge(fn.CreatedAt)
+		age := formatAge(fn.Created)
 		status := formatStatus(fn.Ready)
 		url := fn.URL
 		if url == "" {

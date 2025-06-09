@@ -63,7 +63,7 @@ graph TD
         direction LR
         UserChatAgent[UserChatAgent]
         OrchestrationAgent[Orchestration Agent]
-        WorkerAgents[Worker Agents <br/> - Kubernetes Agent <br/> - Prometheus Agent <br/> - ClickHouse Agent <br/> - Storage Agent <br/> - etc.]
+        WorkerAgents[Worker Agents <br/> - Kubernetes Agent <br/> - Prometheus Agent <br/> - ClickHouse Agent <br/> - Storage Agent <br/> - Helm Agent <br/> - etc.]
 
         UserChatAgent -- "User Query" --> OrchestrationAgent
         OrchestrationAgent -- "Sub-task" --> WorkerAgents
@@ -101,7 +101,7 @@ graph TD
   - It synthesizes the results from the workers into a coherent final answer for the `UserChatAgent`.
 
 - **Worker Agents**: A collection of specialized, tool-using agents.
-  - Each worker is an expert on a specific domain (e.g., interacting with the Kubernetes API, querying Prometheus, analyzing logs in ClickHouse, monitoring storage).
+  - Each worker is an expert on a specific domain (e.g., interacting with the Kubernetes API, querying Prometheus, analyzing logs in ClickHouse, monitoring storage, managing Helm releases).
   - They execute concrete tasks using predefined tools and APIs. These agents may use smaller, local LLMs for simple data processing but often do not require an LLM for their core function.
   - All actions that modify the HKS state are performed by making secure calls to the HKS Internal Operations API, never directly.
 

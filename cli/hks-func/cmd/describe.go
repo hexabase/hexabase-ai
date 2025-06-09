@@ -46,90 +46,65 @@ func runDescribe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get function details
-	function, err := apiClient.GetFunction(ctx, functionName, describeNamespace)
+	function, err := apiClient.GetFunction(ctx, functionName)
 	if err != nil {
 		return fmt.Errorf("failed to get function: %w", err)
 	}
 
+	// Convert to FunctionDetails for display
+	details := &client.FunctionDetails{
+		FunctionInfo: *function,
+	}
+
 	// Display function information
-	fmt.Printf("Name:      %s\n", function.Name)
-	fmt.Printf("Namespace: %s\n", function.Namespace)
-	fmt.Printf("Status:    %s\n", getStatusString(function))
-	fmt.Printf("URL:       %s\n", function.URL)
-	fmt.Printf("Created:   %s\n", function.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated:   %s\n", function.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Name:      %s\n", details.Name)
+	fmt.Printf("Namespace: %s\n", details.Namespace)
+	fmt.Printf("Status:    %s\n", getStatusString(details))
+	fmt.Printf("URL:       %s\n", details.URL)
+	fmt.Printf("Created:   %s\n", details.Created.Format("2006-01-02 15:04:05"))
 
 	// Runtime information
 	fmt.Println("\nRuntime:")
 	fmt.Printf("  Image:   %s\n", function.Image)
-	fmt.Printf("  Timeout: %ds\n", function.Timeout)
-	if function.Concurrency > 0 {
-		fmt.Printf("  Concurrency: %d\n", function.Concurrency)
-	}
+	// TODO: Add timeout, concurrency, and resources when available in FunctionInfo
+	// fmt.Printf("  Timeout: %ds\n", function.Timeout)
+	// if function.Concurrency > 0 {
+	// 	fmt.Printf("  Concurrency: %d\n", function.Concurrency)
+	// }
 
-	// Resources
-	if function.Resources != nil {
-		fmt.Println("\nResources:")
-		if function.Resources.Requests != nil {
-			fmt.Println("  Requests:")
-			if function.Resources.Requests.CPU != "" {
-				fmt.Printf("    CPU:    %s\n", function.Resources.Requests.CPU)
-			}
-			if function.Resources.Requests.Memory != "" {
-				fmt.Printf("    Memory: %s\n", function.Resources.Requests.Memory)
-			}
-		}
-		if function.Resources.Limits != nil {
-			fmt.Println("  Limits:")
-			if function.Resources.Limits.CPU != "" {
-				fmt.Printf("    CPU:    %s\n", function.Resources.Limits.CPU)
-			}
-			if function.Resources.Limits.Memory != "" {
-				fmt.Printf("    Memory: %s\n", function.Resources.Limits.Memory)
-			}
-		}
-	}
+	// TODO: Add autoscaling details when available
+	// if function.Autoscaling != nil {
+	// 	fmt.Println("\nAutoscaling:")
+	// 	fmt.Printf("  Min Scale: %d\n", function.Autoscaling.MinScale)
+	// 	fmt.Printf("  Max Scale: %d\n", function.Autoscaling.MaxScale)
+	// }
 
-	// Autoscaling
-	if function.Autoscaling != nil {
-		fmt.Println("\nAutoscaling:")
-		fmt.Printf("  Min Scale: %d\n", function.Autoscaling.MinScale)
-		fmt.Printf("  Max Scale: %d\n", function.Autoscaling.MaxScale)
-		fmt.Printf("  Metric:    %s\n", function.Autoscaling.Metric)
-		fmt.Printf("  Target:    %d\n", function.Autoscaling.Target)
-	}
-
-	// Environment variables
-	if len(function.Environment) > 0 {
-		fmt.Println("\nEnvironment Variables:")
-		for k, v := range function.Environment {
-			// Mask sensitive values
-			displayValue := v
-			if isSensitiveKey(k) {
-				displayValue = "***"
-			}
-			fmt.Printf("  %s: %s\n", k, displayValue)
-		}
-	}
+	// TODO: Add environment variables when available
+	// if len(function.Environment) > 0 {
+	// 	fmt.Println("\nEnvironment Variables:")
+	// 	for k, v := range function.Environment {
+	// 		fmt.Printf("  %s: %s\n", k, v)
+	// 	}
+	// }
 
 	// Labels
-	if len(function.Labels) > 0 {
+	if len(details.Labels) > 0 {
 		fmt.Println("\nLabels:")
-		for k, v := range function.Labels {
+		for k, v := range details.Labels {
 			fmt.Printf("  %s: %s\n", k, v)
 		}
 	}
 
 	// Annotations
-	if verbose && len(function.Annotations) > 0 {
+	if verbose && len(details.Annotations) > 0 {
 		fmt.Println("\nAnnotations:")
-		for k, v := range function.Annotations {
+		for k, v := range details.Annotations {
 			fmt.Printf("  %s: %s\n", k, v)
 		}
 	}
 
-	// Revisions
-	if len(function.Revisions) > 0 {
+	// TODO: Add revisions when available
+	// if len(details.Revisions) > 0 {
 		fmt.Println("\nRevisions:")
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"NAME", "READY", "TRAFFIC", "CREATED"})
@@ -137,41 +112,41 @@ func runDescribe(cmd *cobra.Command, args []string) error {
 		table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		
-		for _, rev := range function.Revisions {
-			traffic := "-"
-			if rev.TrafficPercent > 0 {
-				traffic = fmt.Sprintf("%d%%", rev.TrafficPercent)
-			}
-			ready := "No"
-			if rev.Ready {
-				ready = "Yes"
-			}
-			table.Append([]string{
-				rev.Name,
-				ready,
-				traffic,
-				rev.CreatedAt.Format("2006-01-02 15:04"),
-			})
-		}
-		table.Render()
-	}
+	// 	for _, rev := range details.Revisions {
+	// 		traffic := "-"
+	// 		if rev.TrafficPercent > 0 {
+	// 			traffic = fmt.Sprintf("%d%%", rev.TrafficPercent)
+	// 		}
+	// 		ready := "No"
+	// 		if rev.Ready {
+	// 			ready = "Yes"
+	// 		}
+	// 		table.Append([]string{
+	// 			rev.Name,
+	// 			ready,
+	// 			traffic,
+	// 			rev.CreatedAt.Format("2006-01-02 15:04"),
+	// 		})
+	// 	}
+	// 	table.Render()
+	// }
 
-	// Traffic distribution
-	if len(function.Traffic) > 0 {
-		fmt.Println("\nTraffic Distribution:")
-		for _, t := range function.Traffic {
-			if t.Tag != "" {
-				fmt.Printf("  %s (%s): %d%%\n", t.RevisionName, t.Tag, t.Percent)
-			} else {
-				fmt.Printf("  %s: %d%%\n", t.RevisionName, t.Percent)
-			}
-		}
-	}
+	// TODO: Add traffic distribution when available
+	// if len(function.Traffic) > 0 {
+	// 	fmt.Println("\nTraffic Distribution:")
+	// 	for _, t := range function.Traffic {
+	// 		if t.Tag != "" {
+	// 			fmt.Printf("  %s (%s): %d%%\n", t.RevisionName, t.Tag, t.Percent)
+	// 		} else {
+	// 			fmt.Printf("  %s: %d%%\n", t.RevisionName, t.Percent)
+	// 		}
+	// 	}
+	// }
 
 	// Events (if any)
-	if len(function.Events) > 0 {
+	if len(details.Events) > 0 {
 		fmt.Println("\nEvent Triggers:")
-		for _, e := range function.Events {
+		for _, e := range details.Events {
 			fmt.Printf("  Type: %s, Source: %s\n", e.Type, e.Source)
 		}
 	}
@@ -179,12 +154,12 @@ func runDescribe(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getStatusString(function *client.FunctionDetails) string {
-	if function.Ready {
+func getStatusString(details *client.FunctionDetails) string {
+	if details.Ready {
 		return "Ready"
 	}
-	if function.Error != "" {
-		return fmt.Sprintf("Error: %s", function.Error)
+	if details.Error != "" {
+		return fmt.Sprintf("Error: %s", details.Error)
 	}
 	return "Not Ready"
 }

@@ -11,14 +11,19 @@ import (
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
+	aiops3 "github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	application3 "github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	auth3 "github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	backup2 "github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	billing3 "github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	cicd3 "github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	logs3 "github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	monitoring3 "github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	node3 "github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	project3 "github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	workspace3 "github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/backup"
@@ -32,6 +37,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
+	aiops2 "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
 	application2 "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	auth2 "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	backup3 "github.com/hexabase/hexabase-ai/api/internal/service/backup"
@@ -125,7 +131,10 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	}
 	logsRepository := logs.NewClickHouseRepository(v2)
 	logsService := logs2.NewLogService(logsRepository, logger)
-	internalHandler := handlers.NewInternalHandler(workspaceService, logsService, logger)
+	llmService := ProvideOllamaService(cfg)
+	aiopsRepository := aiops.NewPostgresRepository(db)
+	aiopsService := aiops2.NewService(llmService, aiopsRepository, logger)
+	internalHandler := ProvideInternalHandler(workspaceService, projectService, service, service2, logsService, monitoringService, aiopsService, cicdService, backupService, logger)
 	app := NewApp(applicationHandler, authHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, aiOpsProxyHandler, internalHandler)
 	return app, nil
 }
@@ -160,9 +169,11 @@ var AIOpsProxySet = wire.NewSet(
 	ProvideAIOpsProxyHandler,
 )
 
+var AIOpsSet = wire.NewSet(aiops.NewPostgresRepository, ProvideOllamaService, aiops2.NewService)
+
 var LogSet = wire.NewSet(ProvideClickHouseConnection, logs.NewClickHouseRepository, logs2.NewLogService)
 
-var InternalSet = wire.NewSet(handlers.NewInternalHandler)
+var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
 	ApplicationHandler  *handlers.ApplicationHandler
@@ -287,4 +298,38 @@ func ProvideAIOpsProxyHandler(authSvc auth3.Service, logger *slog.Logger, cfg *c
 		aiopsURL = "http://ai-ops-service.ai-ops.svc.cluster.local:8000"
 	}
 	return handlers.NewAIOpsProxyHandler(authSvc, logger, aiopsURL)
+}
+
+func ProvideOllamaService(cfg *config.Config) aiops3.LLMService {
+
+	ollamaURL := "http://ollama.ollama.svc.cluster.local:11434"
+	timeout := 30 * time.Second
+	headers := make(map[string]string)
+	return aiops.NewOllamaProvider(ollamaURL, timeout, headers)
+}
+
+func ProvideInternalHandler(
+	workspaceSvc workspace3.Service,
+	projectSvc project3.Service,
+	applicationSvc application3.Service,
+	nodeSvc node3.Service,
+	logSvc logs3.Service,
+	monitoringSvc monitoring3.Service,
+	aiopsSvc aiops3.Service,
+	cicdSvc cicd3.Service,
+	backupSvc backup2.Service,
+	logger *slog.Logger,
+) *handlers.InternalHandler {
+	return handlers.NewInternalHandler(
+		workspaceSvc,
+		projectSvc,
+		applicationSvc,
+		nodeSvc,
+		logSvc,
+		monitoringSvc,
+		aiopsSvc,
+		cicdSvc,
+		backupSvc,
+		logger,
+	)
 }

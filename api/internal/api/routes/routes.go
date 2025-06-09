@@ -2,10 +2,52 @@ package routes
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
 )
+
+// requireInternalAuth is middleware that validates internal service authentication
+func requireInternalAuth(authHandler *handlers.AuthHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check for internal service token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+			c.Abort()
+			return
+		}
+
+		// Extract token
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+			c.Abort()
+			return
+		}
+
+		token := parts[1]
+
+		// Validate internal service token
+		// This should validate against service account tokens or special AI agent tokens
+		if !isValidInternalToken(token) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid internal service token"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// isValidInternalToken validates internal service tokens
+func isValidInternalToken(token string) bool {
+	// TODO: Implement proper validation against service account tokens
+	// For now, check for a specific prefix or validate against a service registry
+	return strings.HasPrefix(token, "internal_") || strings.HasPrefix(token, "ai_agent_")
+}
 
 // SetupRoutes configures all API routes
 func SetupRoutes(router *gin.Engine, app *wire.App) {
@@ -341,6 +383,43 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 	webhooks := router.Group("/webhooks")
 	{
 		webhooks.POST("/stripe", app.BillingHandler.HandleStripeWebhook)
+	}
+
+	// Internal API routes (for AI agents and internal services)
+	// These routes require special authentication (e.g., service account tokens)
+	internal := router.Group("/internal/v1")
+	internal.Use(requireInternalAuth(app.AuthHandler))
+	{
+		// System-wide operations
+		internal.GET("/health", app.InternalHandler.GetSystemHealth)
+
+		// Workspace operations
+		workspaceInternal := internal.Group("/workspaces/:workspaceId")
+		{
+			// Overview and insights
+			workspaceInternal.GET("/overview", app.InternalHandler.GetWorkspaceOverview)
+			workspaceInternal.POST("/insights", app.InternalHandler.GetAIInsights)
+			
+			// Operations
+			workspaceInternal.POST("/operations", app.InternalHandler.ExecuteWorkspaceOperation)
+			workspaceInternal.GET("/nodes", app.InternalHandler.GetNodes)
+			workspaceInternal.POST("/deployments/:deploymentName/scale", app.InternalHandler.ScaleDeployment)
+		}
+
+		// Application operations
+		applicationInternal := internal.Group("/applications/:appId")
+		{
+			applicationInternal.GET("/details", app.InternalHandler.GetApplicationDetails)
+			applicationInternal.POST("/autoscale", app.InternalHandler.AutoScaleApplication)
+			applicationInternal.POST("/backup", app.InternalHandler.TriggerBackup)
+			applicationInternal.GET("/performance", app.InternalHandler.AnalyzePerformance)
+		}
+
+		// Incident management
+		internal.POST("/incidents/:incidentId", app.InternalHandler.ManageIncident)
+
+		// Log queries
+		internal.POST("/logs/query", app.InternalHandler.QueryLogs)
 	}
 
 	// Health check endpoint

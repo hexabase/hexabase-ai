@@ -12,12 +12,16 @@ import (
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
@@ -33,6 +37,8 @@ import (
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
+	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
+	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
@@ -70,8 +76,13 @@ var HelmSet = wire.NewSet(helm.NewService)
 var AIOpsProxySet = wire.NewSet(
 	ProvideAIOpsProxyHandler,
 )
+var AIOpsSet = wire.NewSet(
+	aiopsRepo.NewPostgresRepository,
+	ProvideOllamaService,
+	aiopsSvc.NewService,
+)
 var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepository, logSvc.NewLogService)
-var InternalSet = wire.NewSet(handlers.NewInternalHandler)
+var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
 	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *handlers.AuthHandler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
@@ -169,6 +180,39 @@ func ProvideAIOpsProxyHandler(authSvc auth.Service, logger *slog.Logger, cfg *co
 	return handlers.NewAIOpsProxyHandler(authSvc, logger, aiopsURL)
 }
 
+func ProvideOllamaService(cfg *config.Config) aiops.LLMService {
+	// TODO: Get Ollama configuration from config
+	ollamaURL := "http://ollama.ollama.svc.cluster.local:11434"
+	timeout := 30 * time.Second
+	headers := make(map[string]string)
+	return aiopsRepo.NewOllamaProvider(ollamaURL, timeout, headers)
+}
+
+func ProvideInternalHandler(
+	workspaceSvc workspace.Service,
+	projectSvc project.Service,
+	applicationSvc application.Service,
+	nodeSvc node.Service,
+	logSvc logs.Service,
+	monitoringSvc monitoring.Service,
+	aiopsSvc aiops.Service,
+	cicdSvc cicd.Service,
+	backupSvc backup.Service,
+	logger *slog.Logger,
+) *handlers.InternalHandler {
+	return handlers.NewInternalHandler(
+		workspaceSvc,
+		projectSvc,
+		applicationSvc,
+		nodeSvc,
+		logSvc,
+		monitoringSvc,
+		aiopsSvc,
+		cicdSvc,
+		backupSvc,
+		logger,
+	)
+}
 
 func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interface, dynamicClient dynamic.Interface, k8sConfig *rest.Config, logger *slog.Logger) (*App, error) {
 	wire.Build(
@@ -184,6 +228,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		CICDSet,
 		HelmSet,
 		AIOpsProxySet,
+		AIOpsSet,
 		LogSet,
 		InternalSet,
 		ProvideOAuthProviderConfigs,

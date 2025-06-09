@@ -83,6 +83,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		Dockerfile: config.Build.Dockerfile,
 		Platform:   buildPlatform,
 		Registry:   config.Deploy.Registry,
+		Push:       buildPush,
 	}
 
 	// Build image
@@ -93,24 +94,11 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	}
 
 	s.Stop()
-	printSuccess("Built image: %s", image)
-
-	// Push if requested
+	
 	if buildPush {
-		if config.Deploy.Registry == "" {
-			return fmt.Errorf("no registry configured in function.yaml")
-		}
-
-		s.Suffix = " Pushing image to registry..."
-		s.Start()
-
-		if err := b.Push(ctx, image); err != nil {
-			s.Stop()
-			return fmt.Errorf("push failed: %w", err)
-		}
-
-		s.Stop()
-		printSuccess("Pushed image to registry")
+		printSuccess("Built and pushed image: %s", image)
+	} else {
+		printSuccess("Built image: %s", image)
 	}
 
 	// Show next steps

@@ -13,29 +13,29 @@ import (
 )
 
 var (
-	runtime  string
-	template string
+	functionRuntime string
+	template        string
 )
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init [name]",
 	Short: "Initialize a new function project",
-	Long: `Initialize a new function project with the specified runtime and template.
+	Long: `Initialize a new function project with the specified functionRuntime and template.
 
 This command creates a new function project directory with:
   - function.yaml configuration file
-  - Source code template for the selected runtime
+  - Source code template for the selected functionRuntime
   - README with deployment instructions
   - .gitignore file
   - Test files (if applicable)
 
 Examples:
   # Initialize a Python function
-  hks-func init my-function --runtime python
+  hks-func init my-function --functionRuntime python
 
   # Initialize a Node.js function with HTTP template
-  hks-func init my-api --runtime node --template http
+  hks-func init my-api --functionRuntime node --template http
 
   # Interactive initialization
   hks-func init my-function`,
@@ -44,7 +44,7 @@ Examples:
 }
 
 func init() {
-	initCmd.Flags().StringVarP(&runtime, "runtime", "r", "", "function runtime (node|python|go|java|dotnet|ruby|php|rust)")
+	initCmd.Flags().StringVarP(&functionRuntime, "functionRuntime", "r", "", "function functionRuntime (node|python|go|java|dotnet|ruby|php|rust)")
 	initCmd.Flags().StringVarP(&template, "template", "t", "http", "function template (http|event|scheduled|stream)")
 }
 
@@ -69,10 +69,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid function name: must contain only lowercase letters, numbers, and hyphens")
 	}
 
-	// Get runtime if not specified
-	if runtime == "" {
+	// Get functionRuntime if not specified
+	if functionRuntime == "" {
 		prompt := &survey.Select{
-			Message: "Select runtime:",
+			Message: "Select functionRuntime:",
 			Options: []string{
 				"node",
 				"python",
@@ -85,7 +85,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			},
 			Default: "node",
 		}
-		if err := survey.AskOne(prompt, &runtime); err != nil {
+		if err := survey.AskOne(prompt, &functionRuntime); err != nil {
 			return err
 		}
 	}
@@ -113,24 +113,24 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create function directory: %w", err)
 	}
 
-	printInfo("Initializing function '%s' with runtime '%s' and template '%s'", functionName, runtime, template)
+	printInfo("Initializing function '%s' with functionRuntime '%s' and template '%s'", functionName, functionRuntime, template)
 
 	// Create function configuration
 	config := &function.Config{
 		Name:        functionName,
-		Runtime:     runtime,
-		Handler:     getDefaultHandler(runtime),
+		Runtime:     functionRuntime,
+		Handler:     getDefaultHandler(functionRuntime),
 		Description: fmt.Sprintf("%s function created with hks-func", functionName),
 		Version:     "0.0.1",
 		Template:    template,
 		Environment: map[string]string{},
 		Build: function.BuildConfig{
-			Builder: getDefaultBuilder(runtime),
+			Builder: getDefaultBuilder(functionRuntime),
 		},
 		Deploy: function.DeployConfig{
 			Namespace:   "default",
 			Autoscaling: getDefaultAutoscaling(template),
-			Resources:   getDefaultResources(runtime),
+			Resources:   getDefaultResources(functionRuntime),
 		},
 	}
 
@@ -142,7 +142,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	printSuccess("Created function.yaml")
 
 	// Generate template files
-	tmpl, err := templates.GetTemplate(runtime, template)
+	tmpl, err := templates.GetTemplate(functionRuntime, template)
 	if err != nil {
 		return fmt.Errorf("failed to get template: %w", err)
 	}
@@ -176,7 +176,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Create README.md
 	readmePath := filepath.Join(functionDir, "README.md")
-	readme := generateReadme(functionName, runtime, template)
+	readme := generateReadme(functionName, functionRuntime, template)
 	if err := os.WriteFile(readmePath, []byte(readme), 0644); err != nil {
 		return fmt.Errorf("failed to create README.md: %w", err)
 	}
@@ -207,8 +207,8 @@ func isValidFunctionName(name string) bool {
 	return true
 }
 
-func getDefaultHandler(runtime string) string {
-	switch runtime {
+func getDefaultHandler(functionRuntime string) string {
+	switch functionRuntime {
 	case "node":
 		return "index.handler"
 	case "python":
@@ -230,8 +230,8 @@ func getDefaultHandler(runtime string) string {
 	}
 }
 
-func getDefaultBuilder(runtime string) string {
-	switch runtime {
+func getDefaultBuilder(functionRuntime string) string {
+	switch functionRuntime {
 	case "node":
 		return "pack"
 	case "python":
@@ -293,8 +293,8 @@ func getDefaultAutoscaling(template string) function.AutoscalingConfig {
 	}
 }
 
-func getDefaultResources(runtime string) function.ResourceConfig {
-	switch runtime {
+func getDefaultResources(functionRuntime string) function.ResourceConfig {
+	switch functionRuntime {
 	case "go", "rust":
 		return function.ResourceConfig{
 			Memory: "128Mi",
@@ -313,7 +313,7 @@ func getDefaultResources(runtime string) function.ResourceConfig {
 	}
 }
 
-func generateReadme(name, runtime, template string) string {
+func generateReadme(name, functionRuntime, template string) string {
 	return fmt.Sprintf(`# %s
 
 A %s function created with hks-func CLI.
@@ -322,7 +322,7 @@ A %s function created with hks-func CLI.
 
 ### Prerequisites
 - hks-func CLI installed
-- %s runtime installed
+- %s functionRuntime installed
 - Docker (optional, for local testing)
 
 ### Local Development
@@ -373,11 +373,11 @@ View metrics:
 ` + "```bash" + `
 hks-func describe
 ` + "```" + `
-`, name, runtime, runtime, getDependencyInstallCommand(runtime), name, name)
+`, name, functionRuntime, functionRuntime, getDependencyInstallCommand(functionRuntime), name, name)
 }
 
-func getDependencyInstallCommand(runtime string) string {
-	switch runtime {
+func getDependencyInstallCommand(functionRuntime string) string {
+	switch functionRuntime {
 	case "node":
 		return "`npm install`"
 	case "python":
@@ -395,6 +395,6 @@ func getDependencyInstallCommand(runtime string) string {
 	case "rust":
 		return "`cargo build`"
 	default:
-		return "See runtime documentation"
+		return "See functionRuntime documentation"
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/hexabase/hexabase-ai/cli/hks-func/pkg/builder"
-	"github.com/hexabase/hexabase-ai/cli/hks-func/pkg/deployer"
+	"github.com/hexabase/hexabase-ai/cli/hks-func/pkg/client"
 	"github.com/hexabase/hexabase-ai/cli/hks-func/pkg/function"
 	"github.com/spf13/cobra"
 )
@@ -100,15 +100,13 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		printSuccess("Function deployed successfully!")
 		
 		// Get function URL
-		d, err := deployer.New(config)
-		if err != nil {
-			return err
-		}
-		
-		url, err := d.GetFunctionURL(ctx, config.Name, config.Deploy.Namespace)
-		if err == nil && url != "" {
-			fmt.Println()
-			printInfo("Function URL: %s", url)
+		apiClient, err := client.NewAPIClient()
+		if err == nil {
+			fn, err := apiClient.GetFunction(ctx, config.Name)
+			if err == nil && fn.URL != "" {
+				fmt.Println()
+				printInfo("Function URL: %s", fn.URL)
+			}
 		}
 		
 		// Show next steps
@@ -142,7 +140,7 @@ func buildFunction(ctx context.Context, config *function.Config, workspaceRoot, 
 		Tag:        tag,
 		Runtime:    config.Runtime,
 		Handler:    config.Handler,
-		BuildArgs:  config.Build.Args,
+		BuildArgs:  config.Build.BuildArgs,
 		Dockerfile: config.Build.Dockerfile,
 	}
 
@@ -160,78 +158,20 @@ func buildFunction(ctx context.Context, config *function.Config, workspaceRoot, 
 		s.Suffix = " Pushing image..."
 		s.Start()
 
-		if err := b.Push(ctx, image); err != nil {
+		// Build with push option
+		opts.Push = true
+		pushImage, err := b.Build(ctx, opts)
+		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
 		}
 
 		s.Stop()
-		printSuccess("Pushed image to registry")
+		printSuccess("Pushed image: %s", pushImage)
 	}
 
 	return nil
 }
 
-func deployFunction(ctx context.Context, config *function.Config, tag string) error {
-	// Create deployer
-	d, err := deployer.New(config)
-	if err != nil {
-		return err
-	}
-
-	// Prepare deployment options
-	opts := deployer.DeployOptions{
-		Name:        config.Name,
-		Namespace:   config.Deploy.Namespace,
-		Image:       fmt.Sprintf("%s:%s", config.GetImageName(), tag),
-		Env:         config.Environment,
-		Secrets:     config.Secrets,
-		Autoscaling: config.Deploy.Autoscaling,
-		Resources:   config.Deploy.Resources,
-		Annotations: config.Deploy.Annotations,
-		Labels:      config.Deploy.Labels,
-		DryRun:      deployDryRun,
-		NoTraffic:   deployNoTraffic,
-	}
-
-	if deployDryRun {
-		// Generate and print manifest
-		manifest, err := d.GenerateManifest(opts)
-		if err != nil {
-			return err
-		}
-		fmt.Println(manifest)
-		return nil
-	}
-
-	// Create spinner
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = " Deploying to Knative..."
-	s.Start()
-	defer s.Stop()
-
-	// Deploy
-	if err := d.Deploy(ctx, opts); err != nil {
-		return err
-	}
-
-	s.Stop()
-	printSuccess("Deployed to Knative")
-
-	// Wait for ready
-	s.Suffix = " Waiting for function to be ready..."
-	s.Start()
-
-	if err := d.WaitForReady(ctx, config.Name, config.Deploy.Namespace, 5*time.Minute); err != nil {
-		s.Stop()
-		printWarning("Function deployment in progress, use 'hks-func describe' to check status")
-		return nil
-	}
-
-	s.Stop()
-	printSuccess("Function is ready")
-
-	return nil
-}
 
 func checkAuth() error {
 	// Check for authentication

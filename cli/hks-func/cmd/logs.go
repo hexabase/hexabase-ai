@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/fatih/color"
@@ -73,26 +72,24 @@ func runLogs(cmd *cobra.Command, args []string) error {
 		since = &duration
 	}
 
-	// Get logs options
-	opts := client.LogOptions{
-		Namespace: logsNamespace,
-		Container: logsContainer,
-		Follow:    logsFollow,
-		Tail:      logsTail,
-		Since:     since,
-	}
-
 	printInfo("Fetching logs for function '%s' in namespace '%s'", functionName, logsNamespace)
 
-	// Get log stream
-	logStream, err := apiClient.GetLogs(ctx, functionName, opts)
+	// Get logs
+	var duration time.Duration
+	if since != nil {
+		duration = *since
+	}
+	logs, err := apiClient.GetLogs(ctx, functionName, duration)
 	if err != nil {
 		return fmt.Errorf("failed to get logs: %w", err)
 	}
-	defer logStream.Close()
 
-	// Read and display logs
-	return streamLogs(logStream)
+	// Display logs
+	for _, line := range logs {
+		fmt.Println(colorizeLogs(line))
+	}
+
+	return nil
 }
 
 func streamLogs(reader io.ReadCloser) error {

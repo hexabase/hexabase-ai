@@ -12,7 +12,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/hexabase/hexabase-ai/api/internal/db"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 )
 
