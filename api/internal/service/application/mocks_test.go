@@ -361,3 +361,12 @@ func (m *MockKubernetesRepository) GetKnativeServiceURL(ctx context.Context, wor
 	args := m.Called(ctx, workspaceID, projectID, name)
 	return args.String(0), args.Error(1)
 }
+
+// Add missing method to MockRepository
+func (m *MockRepository) GetCronJobExecution(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+	args := m.Called(ctx, executionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.CronJobExecution), args.Error(1)
+}

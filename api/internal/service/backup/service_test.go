@@ -322,6 +322,14 @@ func (m *MockApplicationRepository) UpdateCronSchedule(ctx context.Context, appl
 	return args.Error(0)
 }
 
+func (m *MockApplicationRepository) GetCronJobExecution(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+	args := m.Called(ctx, executionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.CronJobExecution), args.Error(1)
+}
+
 func (m *MockApplicationRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
 	args := m.Called(ctx, executionID)
 	if args.Get(0) == nil {

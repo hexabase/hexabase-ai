@@ -6,6 +6,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -193,7 +194,7 @@ type MockBackupService struct {
 	mock.Mock
 }
 
-func (m *MockBackupService) CreateBackupPolicy(ctx context.Context, applicationID string, req *backup.CreateBackupPolicyRequest) (*backup.BackupPolicy, error) {
+func (m *MockBackupService) CreateBackupPolicy(ctx context.Context, applicationID string, req backup.CreateBackupPolicyRequest) (*backup.BackupPolicy, error) {
 	args := m.Called(ctx, applicationID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -227,12 +228,12 @@ type MockProjectRepository struct {
 	mock.Mock
 }
 
-func (m *MockProjectRepository) GetByID(ctx context.Context, id string) (*Project, error) {
+func (m *MockProjectRepository) GetByID(ctx context.Context, id string) (*project.Project, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Project), args.Error(1)
+	return args.Get(0).(*project.Project), args.Error(1)
 }
 
 // MockMonitoringService mocks the monitoring service
@@ -240,8 +241,175 @@ type MockMonitoringService struct {
 	mock.Mock
 }
 
-// Project represents a project (simplified for testing)
-type Project struct {
-	ID        string
-	Namespace string
+// Add all missing backup service methods
+func (m *MockBackupService) CreateBackupStorage(ctx context.Context, workspaceID string, req backup.CreateBackupStorageRequest) (*backup.BackupStorage, error) {
+	args := m.Called(ctx, workspaceID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupStorage), args.Error(1)
 }
+
+func (m *MockBackupService) GetBackupStorage(ctx context.Context, storageID string) (*backup.BackupStorage, error) {
+	args := m.Called(ctx, storageID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupStorage), args.Error(1)
+}
+
+func (m *MockBackupService) ListBackupStorages(ctx context.Context, workspaceID string) ([]backup.BackupStorage, error) {
+	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]backup.BackupStorage), args.Error(1)
+}
+
+func (m *MockBackupService) UpdateBackupStorage(ctx context.Context, storageID string, req backup.UpdateBackupStorageRequest) (*backup.BackupStorage, error) {
+	args := m.Called(ctx, storageID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupStorage), args.Error(1)
+}
+
+func (m *MockBackupService) DeleteBackupStorage(ctx context.Context, storageID string) error {
+	args := m.Called(ctx, storageID)
+	return args.Error(0)
+}
+
+func (m *MockBackupService) GetStorageUsage(ctx context.Context, storageID string) (*backup.BackupStorageUsage, error) {
+	args := m.Called(ctx, storageID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupStorageUsage), args.Error(1)
+}
+
+func (m *MockBackupService) GetWorkspaceStorageUsage(ctx context.Context, workspaceID string) ([]backup.BackupStorageUsage, error) {
+	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]backup.BackupStorageUsage), args.Error(1)
+}
+
+func (m *MockBackupService) GetBackupPolicy(ctx context.Context, policyID string) (*backup.BackupPolicy, error) {
+	args := m.Called(ctx, policyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupPolicy), args.Error(1)
+}
+
+func (m *MockBackupService) GetBackupPolicyByApplication(ctx context.Context, applicationID string) (*backup.BackupPolicy, error) {
+	args := m.Called(ctx, applicationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupPolicy), args.Error(1)
+}
+
+func (m *MockBackupService) UpdateBackupPolicy(ctx context.Context, policyID string, req backup.UpdateBackupPolicyRequest) (*backup.BackupPolicy, error) {
+	args := m.Called(ctx, policyID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupPolicy), args.Error(1)
+}
+
+func (m *MockBackupService) DeleteBackupPolicy(ctx context.Context, policyID string) error {
+	args := m.Called(ctx, policyID)
+	return args.Error(0)
+}
+
+func (m *MockBackupService) TriggerManualBackup(ctx context.Context, applicationID string, req backup.TriggerBackupRequest) (*backup.BackupExecution, error) {
+	args := m.Called(ctx, applicationID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+}
+
+func (m *MockBackupService) GetBackupExecution(ctx context.Context, executionID string) (*backup.BackupExecution, error) {
+	args := m.Called(ctx, executionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+}
+
+func (m *MockBackupService) ListBackupExecutions(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupExecution, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]backup.BackupExecution), args.Int(1), args.Error(2)
+}
+
+func (m *MockBackupService) GetLatestBackup(ctx context.Context, applicationID string) (*backup.BackupExecution, error) {
+	args := m.Called(ctx, applicationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+}
+
+func (m *MockBackupService) ProcessScheduledBackup(ctx context.Context, policyID string) (*backup.BackupExecution, error) {
+	args := m.Called(ctx, policyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+}
+
+func (m *MockBackupService) RestoreBackup(ctx context.Context, backupExecutionID string, req backup.RestoreBackupRequest) (*backup.BackupRestore, error) {
+	args := m.Called(ctx, backupExecutionID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupRestore), args.Error(1)
+}
+
+func (m *MockBackupService) GetBackupRestore(ctx context.Context, restoreID string) (*backup.BackupRestore, error) {
+	args := m.Called(ctx, restoreID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*backup.BackupRestore), args.Error(1)
+}
+
+func (m *MockBackupService) ListBackupRestores(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupRestore, int, error) {
+	args := m.Called(ctx, applicationID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]backup.BackupRestore), args.Int(1), args.Error(2)
+}
+
+func (m *MockBackupService) ValidateBackup(ctx context.Context, backupExecutionID string) error {
+	args := m.Called(ctx, backupExecutionID)
+	return args.Error(0)
+}
+
+func (m *MockBackupService) GetBackupManifest(ctx context.Context, backupExecutionID string) (map[string]interface{}, error) {
+	args := m.Called(ctx, backupExecutionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]interface{}), args.Error(1)
+}
+
+func (m *MockBackupService) DownloadBackup(ctx context.Context, backupExecutionID string) (string, error) {
+	args := m.Called(ctx, backupExecutionID)
+	return args.String(0), args.Error(1)
+}
+
+// Add monitoring service methods
+func (m *MockMonitoringService) AcknowledgeAlert(ctx context.Context, alertID string, userID string) error {
+	args := m.Called(ctx, alertID, userID)
+	return args.Error(0)
+}
+
+// Note: Other monitoring service methods are already defined in cronjob_backup_test.go

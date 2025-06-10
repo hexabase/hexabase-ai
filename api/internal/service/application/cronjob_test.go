@@ -253,7 +253,10 @@ func TestService_TriggerCronJob(t *testing.T) {
 			
 			tt.setupMocks(mockRepo, mockK8sRepo)
 			
-			err := service.TriggerCronJob(ctx, tt.applicationID)
+			req := &application.TriggerCronJobRequest{
+				ApplicationID: tt.applicationID,
+			}
+			_, err := service.TriggerCronJob(ctx, req)
 			
 			if tt.expectedError != nil {
 				assert.Error(t, err)

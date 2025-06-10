@@ -94,41 +94,10 @@ type mockK8sRepository struct {
 	mock.Mock
 }
 
-func (m *mockK8sRepository) GetNamespace(ctx context.Context, name string) (*kubernetes.Namespace, error) {
-	args := m.Called(ctx, name)
+func (m *mockK8sRepository) GetNodeMetrics(ctx context.Context) (*kubernetes.NodeMetricsList, error) {
+	args := m.Called(ctx)
 	if args.Get(0) != nil {
-		return args.Get(0).(*kubernetes.Namespace), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockK8sRepository) CreateNamespace(ctx context.Context, namespace *kubernetes.Namespace) error {
-	args := m.Called(ctx, namespace)
-	return args.Error(0)
-}
-
-func (m *mockK8sRepository) UpdateNamespace(ctx context.Context, namespace *kubernetes.Namespace) error {
-	args := m.Called(ctx, namespace)
-	return args.Error(0)
-}
-
-func (m *mockK8sRepository) DeleteNamespace(ctx context.Context, name string) error {
-	args := m.Called(ctx, name)
-	return args.Error(0)
-}
-
-func (m *mockK8sRepository) ListNamespaces(ctx context.Context, labelSelector string) ([]*kubernetes.Namespace, error) {
-	args := m.Called(ctx, labelSelector)
-	if args.Get(0) != nil {
-		return args.Get(0).([]*kubernetes.Namespace), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockK8sRepository) GetResourceQuota(ctx context.Context, namespace, name string) (*kubernetes.ResourceQuota, error) {
-	args := m.Called(ctx, namespace, name)
-	if args.Get(0) != nil {
-		return args.Get(0).(*kubernetes.ResourceQuota), args.Error(1)
+		return args.Get(0).(*kubernetes.NodeMetricsList), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -141,20 +110,6 @@ func (m *mockK8sRepository) GetNamespaceResourceQuota(ctx context.Context, names
 	return nil, args.Error(1)
 }
 
-func (m *mockK8sRepository) CreateResourceQuota(ctx context.Context, namespace string, quota *kubernetes.ResourceQuota) error {
-	args := m.Called(ctx, namespace, quota)
-	return args.Error(0)
-}
-
-func (m *mockK8sRepository) UpdateResourceQuota(ctx context.Context, namespace string, quota *kubernetes.ResourceQuota) error {
-	args := m.Called(ctx, namespace, quota)
-	return args.Error(0)
-}
-
-func (m *mockK8sRepository) DeleteResourceQuota(ctx context.Context, namespace, name string) error {
-	args := m.Called(ctx, namespace, name)
-	return args.Error(0)
-}
 
 func (m *mockK8sRepository) GetPodMetrics(ctx context.Context, namespace string) (*kubernetes.PodMetricsList, error) {
 	args := m.Called(ctx, namespace)
@@ -170,6 +125,14 @@ func (m *mockK8sRepository) CheckComponentHealth(ctx context.Context) (map[strin
 		return args.Get(0).(map[string]kubernetes.ComponentStatus), args.Error(1)
 	}
 	return nil, args.Error(1)
+}
+
+func (m *mockK8sRepository) GetClusterInfo(ctx context.Context) (*kubernetes.ClusterInfo, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kubernetes.ClusterInfo), args.Error(1)
 }
 
 func TestService_GetWorkspaceMetrics(t *testing.T) {
@@ -349,11 +312,11 @@ func TestService_GetResourceUsage(t *testing.T) {
 
 		quota := &kubernetes.ResourceQuota{
 			Name: "resource-quota",
-			Hard: kubernetes.ResourceList{
+			Hard: map[string]string{
 				"cpu":    "2000m",
 				"memory": "8Gi",
 			},
-			Used: kubernetes.ResourceList{
+			Used: map[string]string{
 				"cpu":    "500m",
 				"memory": "2Gi",
 			},
