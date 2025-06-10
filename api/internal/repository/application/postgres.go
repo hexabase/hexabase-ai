@@ -315,7 +315,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 	// Parse config JSON
 	var config application.ApplicationConfig
 	if dbApp.Config != nil {
-		if err := json.Unmarshal([]byte(dbApp.Config), &config); err != nil {
+		if err := json.Unmarshal(dbApp.Config, &config); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 		}
 	}
@@ -323,7 +323,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 	// Parse endpoints JSON
 	var endpoints []application.Endpoint
 	if dbApp.Endpoints != nil {
-		if err := json.Unmarshal([]byte(dbApp.Endpoints), &endpoints); err != nil {
+		if err := json.Unmarshal(dbApp.Endpoints, &endpoints); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal endpoints: %w", err)
 		}
 	}
@@ -365,19 +365,19 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 	}
 	if dbApp.FunctionTriggerConfig != nil {
 		var triggerConfig map[string]interface{}
-		if err := json.Unmarshal([]byte(dbApp.FunctionTriggerConfig), &triggerConfig); err == nil {
+		if err := json.Unmarshal(dbApp.FunctionTriggerConfig, &triggerConfig); err == nil {
 			app.FunctionTriggerConfig = triggerConfig
 		}
 	}
 	if dbApp.FunctionEnvVars != nil {
 		var envVars map[string]string
-		if err := json.Unmarshal([]byte(dbApp.FunctionEnvVars), &envVars); err == nil {
+		if err := json.Unmarshal(dbApp.FunctionEnvVars, &envVars); err == nil {
 			app.FunctionEnvVars = envVars
 		}
 	}
 	if dbApp.FunctionSecrets != nil {
 		var secrets map[string]string
-		if err := json.Unmarshal([]byte(dbApp.FunctionSecrets), &secrets); err == nil {
+		if err := json.Unmarshal(dbApp.FunctionSecrets, &secrets); err == nil {
 			app.FunctionSecrets = secrets
 		}
 	}
@@ -869,4 +869,9 @@ func stringToPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// GetCronJobExecution retrieves a CronJob execution by ID
+func (r *PostgresRepository) GetCronJobExecution(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+	return r.GetCronJobExecutionByID(ctx, executionID)
 }

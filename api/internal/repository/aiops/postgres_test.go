@@ -50,8 +50,8 @@ func TestPostgresRepository_SaveChatSession(t *testing.T) {
 		}
 		
 		// Mock checking for existing record (GORM uses SELECT 1)
-		mock.ExpectQuery(`SELECT 1 FROM "chat_sessions" WHERE id = \$1 LIMIT 1`).
-			WithArgs(session.ID).
+		mock.ExpectQuery(`SELECT 1 FROM "chat_sessions" WHERE id = \$1 LIMIT \$2`).
+			WithArgs(session.ID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 		
 		// Mock the insert
@@ -102,8 +102,8 @@ func TestPostgresRepository_SaveChatSession(t *testing.T) {
 		
 		// Mock checking for existing record - return any value to indicate it exists
 		rows := sqlmock.NewRows([]string{"exists"}).AddRow(true)
-		mock.ExpectQuery(`SELECT 1 FROM "chat_sessions" WHERE id = \$1 LIMIT 1`).
-			WithArgs(session.ID).
+		mock.ExpectQuery(`SELECT 1 FROM "chat_sessions" WHERE id = \$1 LIMIT \$2`).
+			WithArgs(session.ID, 1).
 			WillReturnRows(rows)
 		
 		// Mock the update
@@ -146,8 +146,8 @@ func TestPostgresRepository_GetChatSession(t *testing.T) {
 			expectedMessages, pq.Array([]int64{}), []byte("{}"), time.Now(), time.Now(),
 		)
 		
-		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE id = \$1`).
-			WithArgs(sessionID).
+		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE id = \$1 ORDER BY "chat_sessions"\."id" LIMIT \$2`).
+			WithArgs(sessionID, 1).
 			WillReturnRows(rows)
 		
 		// Act
@@ -169,8 +169,8 @@ func TestPostgresRepository_GetChatSession(t *testing.T) {
 		
 		sessionID := uuid.New().String()
 		
-		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE id = \$1`).
-			WithArgs(sessionID).
+		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE id = \$1 ORDER BY "chat_sessions"\."id" LIMIT \$2`).
+			WithArgs(sessionID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 		
 		// Act
@@ -207,8 +207,8 @@ func TestPostgresRepository_ListChatSessions(t *testing.T) {
 				[]byte("[]"), pq.Array([]int64{}), []byte("{}"), time.Now(), time.Now(),
 			)
 		
-		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE workspace_id = \$1 ORDER BY updated_at DESC LIMIT 10`).
-			WithArgs(workspaceID).
+		mock.ExpectQuery(`SELECT \* FROM "chat_sessions" WHERE workspace_id = \$1 ORDER BY updated_at DESC LIMIT \$2`).
+			WithArgs(workspaceID, limit).
 			WillReturnRows(rows)
 		
 		// Act

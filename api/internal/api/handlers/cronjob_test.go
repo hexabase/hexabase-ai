@@ -123,13 +123,16 @@ func TestApplicationHandler_CreateCronJob(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{
-				{Key: "workspaceID", Value: "ws-123"},
+				{Key: "wsId", Value: "ws-123"},
 			}
 			
 			// Call handler
 			handler.CreateApplication(c)
 			
 			// Assert response
+			if w.Code != tt.expectedStatus {
+				t.Logf("Response body: %s", w.Body.String())
+			}
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			
 			if !tt.expectedError {
@@ -190,7 +193,7 @@ func TestApplicationHandler_UpdateCronJobSchedule(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{
-				{Key: "applicationID", Value: tt.applicationID},
+				{Key: "appId", Value: tt.applicationID},
 			}
 			
 			// Call handler
@@ -220,7 +223,13 @@ func TestApplicationHandler_TriggerCronJob(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
 			setupMocks: func(svc *MockApplicationService) {
-				svc.On("TriggerCronJob", mock.Anything, "app-123").Return(nil)
+				req := &application.TriggerCronJobRequest{ApplicationID: "app-123"}
+				execution := &application.CronJobExecution{
+					ID:            "cje-123",
+					ApplicationID: "app-123",
+					Status:        application.CronJobExecutionStatusSucceeded,
+				}
+				svc.On("TriggerCronJob", mock.Anything, req).Return(execution, nil)
 			},
 		},
 	}
@@ -244,7 +253,7 @@ func TestApplicationHandler_TriggerCronJob(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{
-				{Key: "applicationID", Value: tt.applicationID},
+				{Key: "appId", Value: tt.applicationID},
 			}
 			
 			// Call handler
@@ -322,7 +331,7 @@ func TestApplicationHandler_GetCronJobExecutions(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = req
 			c.Params = gin.Params{
-				{Key: "applicationID", Value: tt.applicationID},
+				{Key: "appId", Value: tt.applicationID},
 			}
 			
 			// Call handler
