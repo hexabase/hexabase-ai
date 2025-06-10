@@ -197,6 +197,17 @@ const (
 	InvocationModeAsync InvocationMode = "async"
 )
 
+// FunctionAuditEvent represents an audit event related to a function
+type FunctionAuditEvent struct {
+	ID           string            `json:"id"`
+	WorkspaceID  string            `json:"workspace_id"`
+	FunctionID   string            `json:"function_id"`
+	Type         string            `json:"type"` // created, updated, deployed, invoked, error
+	Description  string            `json:"description"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	CreatedAt    string            `json:"created_at"`
+}
+
 // BuildOptions represents options for building a function
 type BuildOptions struct {
 	BuildCmd     string            `json:"build_cmd,omitempty"`

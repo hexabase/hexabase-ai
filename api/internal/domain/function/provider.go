@@ -43,8 +43,11 @@ type Provider interface {
 
 // FunctionDef represents a serverless function definition
 type FunctionDef struct {
+	ID           string            `json:"id"`
 	Name         string            `json:"name"`
 	Namespace    string            `json:"namespace"`
+	WorkspaceID  string            `json:"workspace_id"`
+	ProjectID    string            `json:"project_id"`
 	Runtime      Runtime           `json:"runtime"`
 	Handler      string            `json:"handler"`
 	ActiveVersion string           `json:"active_version,omitempty"`
@@ -69,6 +72,8 @@ const (
 // FunctionVersionDef represents a specific version of a function
 type FunctionVersionDef struct {
 	ID          string         `json:"id"`
+	WorkspaceID string         `json:"workspace_id"`
+	FunctionID  string         `json:"function_id"`
 	FunctionName string        `json:"function_name"`
 	Version     int            `json:"version"`
 	SourceCode  string         `json:"source_code,omitempty"`
@@ -91,6 +96,9 @@ const (
 
 // FunctionTrigger represents a function trigger
 type FunctionTrigger struct {
+	ID           string            `json:"id"`
+	WorkspaceID  string            `json:"workspace_id"`
+	FunctionID   string            `json:"function_id"`
 	Name         string            `json:"name"`
 	Type         TriggerType       `json:"type"`
 	FunctionName string            `json:"function_name"`
@@ -122,6 +130,8 @@ type InvokeResponse struct {
 // InvocationStatus represents the status of an async invocation
 type InvocationStatus struct {
 	InvocationID string        `json:"invocation_id"`
+	WorkspaceID  string        `json:"workspace_id"`
+	FunctionID   string        `json:"function_id"`
 	Status       string        `json:"status"`
 	StartedAt    time.Time     `json:"started_at"`
 	CompletedAt  *time.Time    `json:"completed_at,omitempty"`
