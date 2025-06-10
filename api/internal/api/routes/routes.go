@@ -299,10 +299,43 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			applications.GET("/:appId/restores/:restoreId", app.BackupHandler.GetBackupRestore)
 		}
 
-		// Function creation (workspace level, not under applications)
+		// Function management (workspace level)
 		functions := workspaceScoped.Group("/functions")
 		{
-			functions.POST("/", app.ApplicationHandler.CreateFunction)
+			// Function CRUD
+			functions.POST("/", app.FunctionHandler.CreateFunctionGin)
+			functions.GET("/", app.FunctionHandler.ListFunctionsGin)
+			functions.GET("/:functionId", app.FunctionHandler.GetFunctionGin)
+			functions.PUT("/:functionId", app.FunctionHandler.UpdateFunctionGin)
+			functions.DELETE("/:functionId", app.FunctionHandler.DeleteFunctionGin)
+
+			// Version management
+			functions.POST("/:functionId/versions", app.FunctionHandler.DeployVersionGin)
+			functions.GET("/:functionId/versions", app.FunctionHandler.ListVersionsGin)
+			functions.GET("/:functionId/versions/:versionId", app.FunctionHandler.GetVersionGin)
+			functions.PUT("/:functionId/versions/:versionId/active", app.FunctionHandler.SetActiveVersionGin)
+			functions.POST("/:functionId/rollback", app.FunctionHandler.RollbackVersionGin)
+
+			// Trigger management
+			functions.POST("/:functionId/triggers", app.FunctionHandler.CreateTriggerGin)
+			functions.GET("/:functionId/triggers", app.FunctionHandler.ListTriggersGin)
+			functions.PUT("/:functionId/triggers/:triggerId", app.FunctionHandler.UpdateTriggerGin)
+			functions.DELETE("/:functionId/triggers/:triggerId", app.FunctionHandler.DeleteTriggerGin)
+
+			// Invocation
+			functions.POST("/:functionId/invoke", app.FunctionHandler.InvokeFunctionGin)
+			functions.POST("/:functionId/invoke-async", app.FunctionHandler.InvokeFunctionAsyncGin)
+			functions.GET("/invocations/:invocationId", app.FunctionHandler.GetInvocationStatusGin)
+			functions.GET("/:functionId/invocations", app.FunctionHandler.ListInvocationsGin)
+
+			// Monitoring
+			functions.GET("/:functionId/logs", app.FunctionHandler.GetFunctionLogsGin)
+			functions.GET("/:functionId/metrics", app.FunctionHandler.GetFunctionMetricsGin)
+			functions.GET("/:functionId/events", app.FunctionHandler.GetFunctionEventsGin)
+
+			// Provider capabilities
+			functions.GET("/provider/capabilities", app.FunctionHandler.GetProviderCapabilitiesGin)
+			functions.GET("/provider/health", app.FunctionHandler.GetProviderHealthGin)
 		}
 
 		// Function event processing (not scoped to a specific function)

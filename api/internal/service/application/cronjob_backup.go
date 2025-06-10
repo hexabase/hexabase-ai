@@ -9,7 +9,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 )
+
+// Update to use project.Service instead of direct repository
+type ExtendedService struct {
+	*Service
+	projectService    project.Service  // Change from Repository to Service
+	backupService     backup.Service
+	monitoringService monitoring.Service
+}
 
 // CreateApplicationWithBackupPolicy creates a CronJob application with an associated backup policy
 func (s *ExtendedService) CreateApplicationWithBackupPolicy(
@@ -47,7 +57,8 @@ func (s *ExtendedService) CreateApplicationWithBackupPolicy(
 
 	// Create backup policy if requested
 	if backupPolicyReq != nil {
-		policy, err := s.backupService.CreateBackupPolicy(ctx, app.ID, backupPolicyReq)
+		// Pass the value, not pointer
+		policy, err := s.backupService.CreateBackupPolicy(ctx, app.ID, *backupPolicyReq)
 		if err != nil {
 			// Rollback application creation
 			_ = s.DeleteApplication(ctx, app.ID)
@@ -80,8 +91,8 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.T
 		return nil, fmt.Errorf("CronJob is not in running state")
 	}
 
-	// Get project for namespace
-	project, err := s.projectRepo.GetByID(ctx, app.ProjectID)
+	// Get project using service instead of repository
+	project, err := s.projectService.GetProject(ctx, app.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -97,10 +108,7 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.T
 		UpdatedAt:     time.Now(),
 	}
 	
-	if err := s.k8s.TriggerCronJob(ctx, project.Namespace, app.Name, app.ID); err != nil {
-		return nil, fmt.Errorf("failed to trigger CronJob: %w", err)
-	}
-	if err != nil {
+	if err := s.k8s.TriggerCronJob(ctx, app.WorkspaceID, project.ID, app.Name); err != nil {
 		return nil, fmt.Errorf("failed to trigger CronJob: %w", err)
 	}
 
@@ -111,28 +119,24 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.T
 
 	// Check if backup is enabled
 	if app.Metadata != nil && app.Metadata["backup_enabled"] == "true" {
-		policyID := app.Metadata["backup_policy_id"]
-		if policyID != "" {
-			// Create backup execution linked to CronJob execution
-			backupExec := &backup.BackupExecution{
-				PolicyID:           policyID,
-				CronJobExecutionID: execution.ID,
-				Status:             backup.BackupExecutionStatusRunning,
-				StartedAt:          time.Now(),
-				Metadata: map[string]interface{}{
-					"triggered_by": "cronjob",
-					"cronjob_name": app.Name,
-				},
-			}
+		// Trigger backup through the backup service
+		backupReq := backup.TriggerBackupRequest{
+			ApplicationID: app.ID,
+			BackupType:    backup.BackupTypeFull,
+			Metadata: map[string]interface{}{
+				"triggered_by":        "cronjob",
+				"cronjob_name":        app.Name,
+				"cronjob_execution_id": execution.ID,
+			},
+		}
 
-			_, err := s.backupService.CreateBackupExecution(ctx, backupExec)
-			if err != nil {
-				// Log error but don't fail the CronJob trigger
-				s.logger.Error("failed to create backup execution",
-					"error", err,
-					"cronjob_execution_id", execution.ID,
-					"policy_id", policyID)
-			}
+		_, err := s.backupService.TriggerManualBackup(ctx, app.ID, backupReq)
+		if err != nil {
+			// Log error but don't fail the CronJob trigger
+			s.logger.Error("failed to trigger backup",
+				"error", err,
+				"cronjob_execution_id", execution.ID,
+				"application_id", app.ID)
 		}
 	}
 
@@ -159,31 +163,9 @@ func (s *ExtendedService) UpdateCronJobExecutionStatus(
 		return fmt.Errorf("failed to update CronJob execution: %w", err)
 	}
 
-	// Check if there's an associated backup execution
-	backupExec, err := s.backupService.GetBackupExecutionByCronJobID(ctx, executionID)
-	if err != nil {
-		// No backup execution found, which is fine
-		return nil
-	}
-
-	// Update backup status based on CronJob status
-	var backupStatus backup.BackupExecutionStatus
-	switch status {
-	case application.CronJobExecutionStatusSucceeded:
-		backupStatus = backup.BackupExecutionStatusSucceeded
-	case application.CronJobExecutionStatusFailed:
-		backupStatus = backup.BackupExecutionStatusFailed
-	default:
-		// Keep current status
-		return nil
-	}
-
-	if err := s.backupService.UpdateBackupExecutionStatus(ctx, backupExec.ID, backupStatus); err != nil {
-		s.logger.Error("failed to update backup execution status",
-			"error", err,
-			"backup_execution_id", backupExec.ID,
-			"new_status", backupStatus)
-	}
+	// Note: Backup execution status is managed internally by the backup service
+	// when triggered through TriggerManualBackup. The backup service will handle
+	// its own status updates based on the actual backup operation results.
 
 	return nil
 }

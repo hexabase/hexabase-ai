@@ -159,9 +159,12 @@ func (m *MockApplicationService) UpdateCronJobSchedule(ctx context.Context, appl
 	return args.Error(0)
 }
 
-func (m *MockApplicationService) TriggerCronJob(ctx context.Context, applicationID string) error {
-	args := m.Called(ctx, applicationID)
-	return args.Error(0)
+func (m *MockApplicationService) TriggerCronJob(ctx context.Context, req *application.TriggerCronJobRequest) (*application.CronJobExecution, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*application.CronJobExecution), args.Error(1)
 }
 
 func (m *MockApplicationService) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
@@ -175,6 +178,11 @@ func (m *MockApplicationService) GetCronJobStatus(ctx context.Context, applicati
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*application.CronJobStatus), args.Error(1)
+}
+
+func (m *MockApplicationService) UpdateCronJobExecutionStatus(ctx context.Context, executionID string, status application.CronJobExecutionStatus) error {
+	args := m.Called(ctx, executionID, status)
+	return args.Error(0)
 }
 
 // Function-related methods

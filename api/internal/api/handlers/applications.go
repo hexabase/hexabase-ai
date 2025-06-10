@@ -35,8 +35,8 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 		return
 	}
 
-	// Validate source type
-	if !req.Source.Type.IsValid() {
+	// Validate source type (only if not using template)
+	if req.TemplateAppID == "" && !req.Source.Type.IsValid() {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid source type"})
 		return
 	}
@@ -476,13 +476,17 @@ func (h *ApplicationHandler) TriggerCronJob(c *gin.Context) {
 		return
 	}
 
-	err := h.appService.TriggerCronJob(c.Request.Context(), appID)
+	req := &application.TriggerCronJobRequest{
+		ApplicationID: appID,
+	}
+
+	execution, err := h.appService.TriggerCronJob(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "cronjob triggered successfully"})
+	c.JSON(http.StatusOK, execution)
 }
 
 // GetCronJobExecutions retrieves executions for a CronJob

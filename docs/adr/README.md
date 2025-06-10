@@ -17,7 +17,7 @@ We use the following format for our ADRs:
 ```markdown
 # Title
 
-**Date**: YYYY-MM-DD  
+**Date**: YYYY-MM-DD HH:MI
 **Status**: Proposed | Accepted | Deprecated | Superseded  
 **Deciders**: List of people involved  
 **Tags**: architecture, security, performance, etc.
@@ -33,12 +33,15 @@ What is the change that we're proposing and/or doing?
 ## Consequences
 
 ### Positive
+
 - What becomes easier or more possible?
 
 ### Negative
+
 - What becomes harder or less possible?
 
 ### Risks
+
 - What risks are we accepting?
 
 ## Alternatives Considered
@@ -68,12 +71,13 @@ Links to related documents, discussions, or external resources.
 ### 📊 Implementation Status
 
 For current implementation progress and work status, see:
+
 - [WORK-STATUS.md](./WORK-STATUS.md) - Live tracking of current sprint and priorities
 
 ## How to Create a New ADR
 
 1. Copy the template from above
-2. Create a new file in `records/` with format: `YYYY-MM-DD_short-title.md`
+2. Create a new file in `records/` with format: `YYYY-MM-DD_HH_MM_short-title.md`
 3. Fill out all sections
 4. Submit PR for review
 5. Update this README with the new ADR
@@ -105,10 +109,11 @@ grep -l "Status: Deprecated" docs/adr/records/*.md
 ## Questions?
 
 If you have questions about ADRs or need help creating one, please:
+
 - Check existing ADRs for examples
 - Ask in the #architecture Slack channel
 - Create a GitHub discussion
 
 ---
 
-*The ADR process helps us make better decisions by forcing us to think through the implications and document our reasoning.*
+_The ADR process helps us make better decisions by forcing us to think through the implications and document our reasoning._

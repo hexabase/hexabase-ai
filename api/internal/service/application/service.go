@@ -805,26 +805,27 @@ func (s *Service) UpdateCronJobSchedule(ctx context.Context, applicationID, newS
 }
 
 // TriggerCronJob manually triggers a CronJob
-func (s *Service) TriggerCronJob(ctx context.Context, applicationID string) error {
+func (s *Service) TriggerCronJob(ctx context.Context, req *application.TriggerCronJobRequest) (*application.CronJobExecution, error) {
 	// Get application
-	app, err := s.repo.GetApplication(ctx, applicationID)
+	app, err := s.repo.GetApplication(ctx, req.ApplicationID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if app.Type != application.ApplicationTypeCronJob {
-		return errors.New("application is not a cronjob")
+		return nil, errors.New("application is not a cronjob")
 	}
 
 	// Trigger in Kubernetes
-	if err := s.k8s.TriggerCronJob(ctx, app.WorkspaceID, app.ProjectID, app.Name); err != nil {
-		return fmt.Errorf("failed to trigger cronjob: %w", err)
+	err = s.k8s.TriggerCronJob(ctx, app.WorkspaceID, app.ProjectID, app.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to trigger cronjob: %w", err)
 	}
 
 	// Create execution record
 	execution := &application.CronJobExecution{
 		ID:            uuid.New().String(),
-		ApplicationID: applicationID,
+		ApplicationID: req.ApplicationID,
 		JobName:       fmt.Sprintf("%s-manual-%d", app.Name, time.Now().Unix()),
 		StartedAt:     time.Now(),
 		Status:        application.CronJobExecutionStatusRunning,
@@ -834,10 +835,12 @@ func (s *Service) TriggerCronJob(ctx context.Context, applicationID string) erro
 
 	if err := s.repo.CreateCronJobExecution(ctx, execution); err != nil {
 		// Log error but don't fail the trigger
-		fmt.Printf("failed to create execution record: %v\n", err)
+		if s.logger != nil {
+			s.logger.Error("failed to create execution record", "error", err)
+		}
 	}
 
-	return nil
+	return execution, nil
 }
 
 // GetCronJobExecutions retrieves executions for a CronJob
@@ -1261,4 +1264,33 @@ func (s *Service) handleEventError(ctx context.Context, event *application.Funct
 	}
 
 	return s.repo.UpdateFunctionEvent(ctx, event)
+}
+
+// UpdateCronJobExecutionStatus updates the status of a CronJob execution
+func (s *Service) UpdateCronJobExecutionStatus(ctx context.Context, executionID string, status application.CronJobExecutionStatus) error {
+	execution, err := s.repo.GetCronJobExecution(ctx, executionID)
+	if err != nil {
+		return err
+	}
+
+	execution.Status = status
+	execution.UpdatedAt = time.Now()
+
+	var completedAt *time.Time
+	var exitCode *int
+	if status == application.CronJobExecutionStatusSucceeded || status == application.CronJobExecutionStatusFailed {
+		now := time.Now()
+		completedAt = &now
+		execution.CompletedAt = completedAt
+		
+		if status == application.CronJobExecutionStatusSucceeded {
+			code := 0
+			exitCode = &code
+		} else {
+			code := 1
+			exitCode = &code
+		}
+	}
+
+	return s.repo.UpdateCronJobExecution(ctx, executionID, completedAt, status, exitCode, "")
 }
