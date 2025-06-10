@@ -8,10 +8,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/function/fission"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/function/knative"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/function/mock"
-	// Future imports:
-	// "hexabase-ai/api/internal/repository/function/fission"
-	// "hexabase-ai/api/internal/repository/function/knative"
 )
 
 // ProviderFactory creates function providers based on configuration
@@ -28,25 +27,35 @@ func NewProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.I
 	}
 }
 
-// CreateProvider creates a provider instance based on type and configuration
-func (f *ProviderFactory) CreateProvider(ctx context.Context, providerType function.ProviderType, config map[string]interface{}) (function.Provider, error) {
-	switch providerType {
+// CreateProvider creates a provider instance based on configuration
+func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig function.ProviderConfig) (function.Provider, error) {
+	switch providerConfig.Type {
 	case function.ProviderTypeKnative:
-		// TODO: Implement Knative provider
-		// return knative.NewKnativeProvider(f.kubeClient, f.dynamicClient, config)
-		return nil, fmt.Errorf("knative provider not yet implemented")
+		// Extract namespace from config or use default
+		namespace := "default"
+		if ns, ok := providerConfig.Config["namespace"].(string); ok {
+			namespace = ns
+		}
+		return knative.NewProvider(f.kubeClient, f.dynamicClient, namespace), nil
 		
 	case function.ProviderTypeFission:
-		// TODO: Implement Fission provider
-		// return fission.NewFissionProvider(config)
-		return nil, fmt.Errorf("fission provider not yet implemented")
+		// Extract required config for Fission
+		endpoint, ok := providerConfig.Config["endpoint"].(string)
+		if !ok {
+			return nil, fmt.Errorf("fission provider requires 'endpoint' in config")
+		}
+		namespace := "fission-function"
+		if ns, ok := providerConfig.Config["namespace"].(string); ok {
+			namespace = ns
+		}
+		return fission.NewProvider(endpoint, namespace), nil
 		
 	case function.ProviderTypeMock:
 		// Mock provider for testing
 		return mock.NewFunctionProvider(), nil
 		
 	default:
-		return nil, fmt.Errorf("unsupported provider type: %s", providerType)
+		return nil, fmt.Errorf("unsupported provider type: %s", providerConfig.Type)
 	}
 }
 
@@ -57,6 +66,11 @@ func (f *ProviderFactory) GetAvailableProviders() []function.ProviderType {
 		function.ProviderTypeFission,
 		function.ProviderTypeMock, // For testing
 	}
+}
+
+// GetSupportedProviders returns the list of supported provider types
+func (f *ProviderFactory) GetSupportedProviders() []function.ProviderType {
+	return f.GetAvailableProviders()
 }
 
 // ValidateProviderConfig validates the configuration for a specific provider type

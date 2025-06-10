@@ -3,10 +3,10 @@ package function
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
-	"github.com/hexabase/hexabase-ai/api/internal/logging"
 )
 
 // Service implements the function.Service interface
@@ -14,14 +14,14 @@ type Service struct {
 	repo           function.Repository
 	providerFactory function.ProviderFactory
 	providers      map[string]function.Provider // cache of initialized providers per workspace
-	logger         logging.Logger
+	logger         *slog.Logger
 }
 
 // NewService creates a new function service instance
 func NewService(
 	repo function.Repository,
 	providerFactory function.ProviderFactory,
-	logger logging.Logger,
+	logger *slog.Logger,
 ) *Service {
 	return &Service{
 		repo:            repo,
@@ -55,7 +55,7 @@ func (s *Service) getProvider(ctx context.Context, workspaceID string) (function
 	}
 
 	// Create provider instance
-	provider, err := s.providerFactory.CreateProvider(ctx, config.Type, config.Config)
+	provider, err := s.providerFactory.CreateProvider(ctx, *config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
@@ -333,10 +333,9 @@ func (s *Service) RollbackVersion(ctx context.Context, workspaceID, functionID s
 	}
 
 	// Find current active and previous version
-	var currentActive, previousVersion *function.FunctionVersionDef
+	var previousVersion *function.FunctionVersionDef
 	for i, v := range versions {
 		if v.IsActive {
-			currentActive = v
 			if i > 0 {
 				previousVersion = versions[i-1]
 			}

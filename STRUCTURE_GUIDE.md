@@ -36,9 +36,16 @@ api/
 │   │   └── [domain]/         # Domain-specific logic
 │   │       ├── models.go     # Domain models
 │   │       ├── repository.go # Repository interface
-│   │       └── service.go    # Business logic
+│   │       ├── service.go    # Business logic
+│   │       ├── provider.go   # Provider interface (if applicable)
+│   │       └── types.go      # Common types
 │   ├── repository/           # Data access layer
 │   │   └── [domain]/         # Domain-specific implementations
+│   │       ├── postgres.go   # PostgreSQL implementation
+│   │       ├── [provider]/   # Provider implementations (e.g., fission/, knative/)
+│   │       │   └── provider.go
+│   │       ├── factory.go    # Provider factory (if multi-provider)
+│   │       └── config.go     # Configuration management
 │   ├── service/              # Service implementations
 │   │   └── [domain]/         # Domain-specific services
 │   ├── infrastructure/       # Infrastructure code

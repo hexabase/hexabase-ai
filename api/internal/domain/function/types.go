@@ -172,6 +172,7 @@ const (
 	ErrCodeInternal      = "INTERNAL"
 	ErrCodeUnauthorized  = "UNAUTHORIZED"
 	ErrCodeQuotaExceeded = "QUOTA_EXCEEDED"
+	ErrCodeNotSupported  = "NOT_SUPPORTED"
 )
 
 // NewProviderError creates a new provider error

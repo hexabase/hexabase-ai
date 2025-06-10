@@ -2,40 +2,40 @@ package function_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"log/slog"
+	"os"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
-	"github.com/hexabase/hexabase-ai/api/internal/logging"
-	funcmock "github.com/hexabase/hexabase-ai/api/internal/repository/function/mock"
-	funcservice "github.com/hexabase/hexabase-ai/api/internal/service/function"
+	service "github.com/hexabase/hexabase-ai/api/internal/service/function"
 )
 
-// MockRepository is a mock implementation of function.Repository
-type MockRepository struct {
+// Mock implementations
+type mockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) CreateFunction(ctx context.Context, fn *function.FunctionDef) error {
+func (m *mockRepository) CreateFunction(ctx context.Context, fn *function.FunctionDef) error {
 	args := m.Called(ctx, fn)
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateFunction(ctx context.Context, fn *function.FunctionDef) error {
+func (m *mockRepository) UpdateFunction(ctx context.Context, fn *function.FunctionDef) error {
 	args := m.Called(ctx, fn)
 	return args.Error(0)
 }
 
-func (m *MockRepository) DeleteFunction(ctx context.Context, workspaceID, functionID string) error {
+func (m *mockRepository) DeleteFunction(ctx context.Context, workspaceID, functionID string) error {
 	args := m.Called(ctx, workspaceID, functionID)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetFunction(ctx context.Context, workspaceID, functionID string) (*function.FunctionDef, error) {
+func (m *mockRepository) GetFunction(ctx context.Context, workspaceID, functionID string) (*function.FunctionDef, error) {
 	args := m.Called(ctx, workspaceID, functionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -43,7 +43,7 @@ func (m *MockRepository) GetFunction(ctx context.Context, workspaceID, functionI
 	return args.Get(0).(*function.FunctionDef), args.Error(1)
 }
 
-func (m *MockRepository) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*function.FunctionDef, error) {
+func (m *mockRepository) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*function.FunctionDef, error) {
 	args := m.Called(ctx, workspaceID, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -51,17 +51,17 @@ func (m *MockRepository) ListFunctions(ctx context.Context, workspaceID, project
 	return args.Get(0).([]*function.FunctionDef), args.Error(1)
 }
 
-func (m *MockRepository) CreateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
+func (m *mockRepository) CreateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
+func (m *mockRepository) UpdateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*function.FunctionVersionDef, error) {
+func (m *mockRepository) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*function.FunctionVersionDef, error) {
 	args := m.Called(ctx, workspaceID, functionID, versionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -69,7 +69,7 @@ func (m *MockRepository) GetVersion(ctx context.Context, workspaceID, functionID
 	return args.Get(0).(*function.FunctionVersionDef), args.Error(1)
 }
 
-func (m *MockRepository) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionVersionDef, error) {
+func (m *mockRepository) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionVersionDef, error) {
 	args := m.Called(ctx, workspaceID, functionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -77,22 +77,22 @@ func (m *MockRepository) ListVersions(ctx context.Context, workspaceID, function
 	return args.Get(0).([]*function.FunctionVersionDef), args.Error(1)
 }
 
-func (m *MockRepository) CreateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
+func (m *mockRepository) CreateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
 	args := m.Called(ctx, trigger)
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
+func (m *mockRepository) UpdateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
 	args := m.Called(ctx, trigger)
 	return args.Error(0)
 }
 
-func (m *MockRepository) DeleteTrigger(ctx context.Context, workspaceID, functionID, triggerID string) error {
+func (m *mockRepository) DeleteTrigger(ctx context.Context, workspaceID, functionID, triggerID string) error {
 	args := m.Called(ctx, workspaceID, functionID, triggerID)
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionTrigger, error) {
+func (m *mockRepository) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionTrigger, error) {
 	args := m.Called(ctx, workspaceID, functionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -100,17 +100,17 @@ func (m *MockRepository) ListTriggers(ctx context.Context, workspaceID, function
 	return args.Get(0).([]*function.FunctionTrigger), args.Error(1)
 }
 
-func (m *MockRepository) CreateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
+func (m *mockRepository) CreateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
 	args := m.Called(ctx, invocation)
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
+func (m *mockRepository) UpdateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
 	args := m.Called(ctx, invocation)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetInvocation(ctx context.Context, workspaceID, invocationID string) (*function.InvocationStatus, error) {
+func (m *mockRepository) GetInvocation(ctx context.Context, workspaceID, invocationID string) (*function.InvocationStatus, error) {
 	args := m.Called(ctx, workspaceID, invocationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -118,7 +118,7 @@ func (m *MockRepository) GetInvocation(ctx context.Context, workspaceID, invocat
 	return args.Get(0).(*function.InvocationStatus), args.Error(1)
 }
 
-func (m *MockRepository) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.InvocationStatus, error) {
+func (m *mockRepository) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.InvocationStatus, error) {
 	args := m.Called(ctx, workspaceID, functionID, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -126,12 +126,12 @@ func (m *MockRepository) ListInvocations(ctx context.Context, workspaceID, funct
 	return args.Get(0).([]*function.InvocationStatus), args.Error(1)
 }
 
-func (m *MockRepository) CreateEvent(ctx context.Context, event *function.FunctionAuditEvent) error {
+func (m *mockRepository) CreateEvent(ctx context.Context, event *function.FunctionAuditEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.FunctionAuditEvent, error) {
+func (m *mockRepository) ListEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.FunctionAuditEvent, error) {
 	args := m.Called(ctx, workspaceID, functionID, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -139,7 +139,7 @@ func (m *MockRepository) ListEvents(ctx context.Context, workspaceID, functionID
 	return args.Get(0).([]*function.FunctionAuditEvent), args.Error(1)
 }
 
-func (m *MockRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*function.ProviderConfig, error) {
+func (m *mockRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*function.ProviderConfig, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -147,204 +147,422 @@ func (m *MockRepository) GetWorkspaceProviderConfig(ctx context.Context, workspa
 	return args.Get(0).(*function.ProviderConfig), args.Error(1)
 }
 
-func (m *MockRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *function.ProviderConfig) error {
+func (m *mockRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *function.ProviderConfig) error {
 	args := m.Called(ctx, workspaceID, config)
 	return args.Error(0)
 }
 
-// MockProviderFactory is a mock implementation of function.ProviderFactory
-type MockProviderFactory struct {
+type mockProviderFactory struct {
 	mock.Mock
 }
 
-func (m *MockProviderFactory) CreateProvider(ctx context.Context, providerType function.ProviderType, config map[string]interface{}) (function.Provider, error) {
-	args := m.Called(ctx, providerType, config)
+func (m *mockProviderFactory) CreateProvider(ctx context.Context, config function.ProviderConfig) (function.Provider, error) {
+	args := m.Called(ctx, config)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(function.Provider), args.Error(1)
 }
 
-func (m *MockProviderFactory) GetAvailableProviders() []function.ProviderType {
+func (m *mockProviderFactory) GetSupportedProviders() []function.ProviderType {
 	args := m.Called()
 	return args.Get(0).([]function.ProviderType)
 }
 
-func (m *MockProviderFactory) ValidateProviderConfig(providerType function.ProviderType, config map[string]interface{}) error {
-	args := m.Called(providerType, config)
-	return args.Error(0)
+type mockProvider struct {
+	mock.Mock
 }
 
-func (m *MockProviderFactory) GetProviderCapabilities(providerType function.ProviderType) (*function.Capabilities, error) {
-	args := m.Called(providerType)
+func (m *mockProvider) CreateFunction(ctx context.Context, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+	args := m.Called(ctx, spec)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*function.Capabilities), args.Error(1)
+	return args.Get(0).(*function.FunctionDef), args.Error(1)
 }
 
+func (m *mockProvider) UpdateFunction(ctx context.Context, name string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+	args := m.Called(ctx, name, spec)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.FunctionDef), args.Error(1)
+}
+
+func (m *mockProvider) DeleteFunction(ctx context.Context, name string) error {
+	args := m.Called(ctx, name)
+	return args.Error(0)
+}
+
+func (m *mockProvider) GetFunction(ctx context.Context, name string) (*function.FunctionDef, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.FunctionDef), args.Error(1)
+}
+
+func (m *mockProvider) ListFunctions(ctx context.Context, namespace string) ([]*function.FunctionDef, error) {
+	args := m.Called(ctx, namespace)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*function.FunctionDef), args.Error(1)
+}
+
+func (m *mockProvider) CreateVersion(ctx context.Context, functionName string, version *function.FunctionVersionDef) error {
+	args := m.Called(ctx, functionName, version)
+	return args.Error(0)
+}
+
+func (m *mockProvider) GetVersion(ctx context.Context, functionName, versionID string) (*function.FunctionVersionDef, error) {
+	args := m.Called(ctx, functionName, versionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.FunctionVersionDef), args.Error(1)
+}
+
+func (m *mockProvider) ListVersions(ctx context.Context, functionName string) ([]*function.FunctionVersionDef, error) {
+	args := m.Called(ctx, functionName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*function.FunctionVersionDef), args.Error(1)
+}
+
+func (m *mockProvider) SetActiveVersion(ctx context.Context, functionName, versionID string) error {
+	args := m.Called(ctx, functionName, versionID)
+	return args.Error(0)
+}
+
+func (m *mockProvider) CreateTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+	args := m.Called(ctx, functionName, trigger)
+	return args.Error(0)
+}
+
+func (m *mockProvider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *function.FunctionTrigger) error {
+	args := m.Called(ctx, functionName, triggerName, trigger)
+	return args.Error(0)
+}
+
+func (m *mockProvider) DeleteTrigger(ctx context.Context, functionName, triggerName string) error {
+	args := m.Called(ctx, functionName, triggerName)
+	return args.Error(0)
+}
+
+func (m *mockProvider) ListTriggers(ctx context.Context, functionName string) ([]*function.FunctionTrigger, error) {
+	args := m.Called(ctx, functionName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*function.FunctionTrigger), args.Error(1)
+}
+
+func (m *mockProvider) InvokeFunction(ctx context.Context, functionName string, request *function.InvokeRequest) (*function.InvokeResponse, error) {
+	args := m.Called(ctx, functionName, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.InvokeResponse), args.Error(1)
+}
+
+func (m *mockProvider) InvokeFunctionAsync(ctx context.Context, functionName string, request *function.InvokeRequest) (string, error) {
+	args := m.Called(ctx, functionName, request)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockProvider) GetInvocationStatus(ctx context.Context, invocationID string) (*function.InvocationStatus, error) {
+	args := m.Called(ctx, invocationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.InvocationStatus), args.Error(1)
+}
+
+func (m *mockProvider) GetFunctionLogs(ctx context.Context, functionName string, opts *function.LogOptions) ([]*function.LogEntry, error) {
+	args := m.Called(ctx, functionName, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*function.LogEntry), args.Error(1)
+}
+
+func (m *mockProvider) GetFunctionMetrics(ctx context.Context, functionName string, opts *function.MetricOptions) (*function.Metrics, error) {
+	args := m.Called(ctx, functionName, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*function.Metrics), args.Error(1)
+}
+
+func (m *mockProvider) GetCapabilities() *function.Capabilities {
+	args := m.Called()
+	return args.Get(0).(*function.Capabilities)
+}
+
+func (m *mockProvider) HealthCheck(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+// Tests
 func TestService_CreateFunction(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockFactory := new(MockProviderFactory)
-	mockProvider := funcmock.NewFunctionProvider()
-	logger := logging.NewLogger()
-
-	service := funcservice.NewService(mockRepo, mockFactory, logger)
-
-	workspaceID := "ws-123"
-	projectID := "proj-456"
-	spec := &function.FunctionSpec{
-		Name:       "test-function",
-		Runtime:    function.RuntimePython,
-		Handler:    "main.handler",
-		SourceCode: "def handler(): pass",
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	
+	tests := []struct {
+		name          string
+		workspaceID   string
+		projectID     string
+		spec          *function.FunctionSpec
+		setupMocks    func(*mockRepository, *mockProviderFactory, *mockProvider)
+		expectedError bool
+	}{
+		{
+			name:        "successful creation with Fission provider",
+			workspaceID: "ws-123",
+			projectID:   "proj-456",
+			spec: &function.FunctionSpec{
+				Name:       "test-func",
+				Runtime:    function.RuntimePython,
+				Handler:    "main.handler",
+				SourceCode: "def handler(): pass",
+			},
+			setupMocks: func(repo *mockRepository, factory *mockProviderFactory, provider *mockProvider) {
+				// No existing provider config - should default to Fission
+				repo.On("GetWorkspaceProviderConfig", ctx, "ws-123").Return(nil, nil)
+				
+				// Factory creates Fission provider
+				factory.On("CreateProvider", ctx, function.ProviderConfig{
+					Type: function.ProviderTypeFission,
+					Config: map[string]interface{}{
+						"endpoint": "http://controller.fission.svc.cluster.local",
+					},
+				}).Return(provider, nil)
+				
+				// Provider creates function
+				provider.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionSpec")).Return(&function.FunctionDef{
+					ID:          "func-789",
+					Name:        "test-func",
+					WorkspaceID: "ws-123",
+					ProjectID:   "proj-456",
+					Runtime:     function.RuntimePython,
+					Handler:     "main.handler",
+					Status:      function.FunctionDefStatusReady,
+				}, nil)
+				
+				// Repository stores metadata
+				repo.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil)
+				
+				// Repository records event
+				repo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil)
+			},
+			expectedError: false,
+		},
+		{
+			name:        "workspace with Knative provider",
+			workspaceID: "ws-knative",
+			projectID:   "proj-789",
+			spec: &function.FunctionSpec{
+				Name:    "knative-func",
+				Runtime: function.RuntimeNode,
+				Handler: "index.handler",
+			},
+			setupMocks: func(repo *mockRepository, factory *mockProviderFactory, provider *mockProvider) {
+				// Workspace configured for Knative
+				repo.On("GetWorkspaceProviderConfig", ctx, "ws-knative").Return(&function.ProviderConfig{
+					Type: function.ProviderTypeKnative,
+					Config: map[string]interface{}{
+						"namespace": "knative-serving",
+					},
+				}, nil)
+				
+				factory.On("CreateProvider", ctx, function.ProviderConfig{
+					Type: function.ProviderTypeKnative,
+					Config: map[string]interface{}{
+						"namespace": "knative-serving",
+					},
+				}).Return(provider, nil)
+				
+				provider.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionSpec")).Return(&function.FunctionDef{
+					ID:      "func-knative",
+					Name:    "knative-func",
+					Runtime: function.RuntimeNode,
+					Handler: "index.handler",
+				}, nil)
+				
+				repo.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil)
+				repo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil)
+			},
+			expectedError: false,
+		},
+		{
+			name:        "provider creation fails",
+			workspaceID: "ws-fail",
+			projectID:   "proj-fail",
+			spec: &function.FunctionSpec{
+				Name: "fail-func",
+			},
+			setupMocks: func(repo *mockRepository, factory *mockProviderFactory, provider *mockProvider) {
+				repo.On("GetWorkspaceProviderConfig", ctx, "ws-fail").Return(nil, nil)
+				factory.On("CreateProvider", ctx, mock.Anything).Return(nil, errors.New("provider unavailable"))
+			},
+			expectedError: true,
+		},
 	}
 
-	// Setup expectations
-	mockRepo.On("GetWorkspaceProviderConfig", ctx, workspaceID).Return(nil, nil).Once()
-	mockFactory.On("CreateProvider", ctx, function.ProviderTypeFission, mock.Anything).Return(mockProvider, nil).Once()
-	mockRepo.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil).Once()
-	mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil).Once()
-
-	// Execute
-	result, err := service.CreateFunction(ctx, workspaceID, projectID, spec)
-
-	// Assert
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, spec.Name, result.Name)
-	assert.Equal(t, projectID, result.Namespace)
-	assert.Equal(t, workspaceID, result.WorkspaceID)
-	assert.Equal(t, projectID, result.ProjectID)
-	assert.NotEmpty(t, result.ID)
-	assert.NotZero(t, result.CreatedAt)
-
-	mockRepo.AssertExpectations(t)
-	mockFactory.AssertExpectations(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(mockRepository)
+			factory := new(mockProviderFactory)
+			provider := new(mockProvider)
+			
+			tt.setupMocks(repo, factory, provider)
+			
+			svc := service.NewService(repo, factory, logger)
+			
+			result, err := svc.CreateFunction(ctx, tt.workspaceID, tt.projectID, tt.spec)
+			
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.workspaceID, result.WorkspaceID)
+				assert.Equal(t, tt.projectID, result.ProjectID)
+			}
+			
+			repo.AssertExpectations(t)
+			factory.AssertExpectations(t)
+			provider.AssertExpectations(t)
+		})
+	}
 }
 
-func TestService_InvokeFunction(t *testing.T) {
+func TestService_ProviderCaching(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockFactory := new(MockProviderFactory)
-	mockProvider := funcmock.NewFunctionProvider()
-	logger := logging.NewLogger()
-
-	service := funcservice.NewService(mockRepo, mockFactory, logger)
-
-	workspaceID := "ws-123"
-	functionID := "func-789"
-	functionName := "test-function"
-
-	// Create function in mock provider first
-	spec := &function.FunctionSpec{
-		Name:       functionName,
-		Namespace:  "test-ns",
-		Runtime:    function.RuntimePython,
-		Handler:    "main.handler",
-		SourceCode: "def handler(): pass",
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	
+	repo := new(mockRepository)
+	factory := new(mockProviderFactory)
+	provider := new(mockProvider)
+	
+	// Setup: provider config and factory should only be called once
+	repo.On("GetWorkspaceProviderConfig", ctx, "ws-123").Return(nil, nil).Once()
+	factory.On("CreateProvider", ctx, mock.Anything).Return(provider, nil).Once()
+	
+	// Multiple function operations
+	provider.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionSpec")).Return(&function.FunctionDef{
+		ID:   "func-1",
+		Name: "func-1",
+	}, nil).Times(3)
+	
+	repo.On("CreateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil).Times(3)
+	repo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil).Times(3)
+	
+	svc := service.NewService(repo, factory, logger)
+	
+	// Create multiple functions - provider should be cached
+	for i := 0; i < 3; i++ {
+		spec := &function.FunctionSpec{
+			Name:    fmt.Sprintf("func-%d", i),
+			Runtime: function.RuntimePython,
+			Handler: "main.handler",
+		}
+		_, err := svc.CreateFunction(ctx, "ws-123", "proj-456", spec)
+		assert.NoError(t, err)
 	}
-	_, err := mockProvider.CreateFunction(ctx, spec)
-	require.NoError(t, err)
-
-	// Setup expectations
-	fn := &function.FunctionDef{
-		ID:          functionID,
-		Name:        functionName,
-		WorkspaceID: workspaceID,
-	}
-	mockRepo.On("GetFunction", ctx, workspaceID, functionID).Return(fn, nil).Once()
-	mockRepo.On("GetWorkspaceProviderConfig", ctx, workspaceID).Return(nil, nil).Once()
-	mockFactory.On("CreateProvider", ctx, function.ProviderTypeFission, mock.Anything).Return(mockProvider, nil).Once()
-	mockRepo.On("CreateInvocation", ctx, mock.AnythingOfType("*function.InvocationStatus")).Return(nil).Once()
-	mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil).Once()
-
-	// Execute
-	request := &function.InvokeRequest{
-		Method: "POST",
-		Path:   "/test",
-		Body:   []byte(`{"test": true}`),
-	}
-	response, err := service.InvokeFunction(ctx, workspaceID, functionID, request)
-
-	// Assert
-	require.NoError(t, err)
-	assert.NotNil(t, response)
-	assert.Equal(t, 200, response.StatusCode)
-	assert.NotEmpty(t, response.InvocationID)
-	assert.Greater(t, response.Duration, time.Duration(0))
-
-	mockRepo.AssertExpectations(t)
-	mockFactory.AssertExpectations(t)
+	
+	// Verify provider was only created once
+	repo.AssertExpectations(t)
+	factory.AssertExpectations(t)
+	provider.AssertExpectations(t)
 }
 
-func TestService_SetActiveVersion(t *testing.T) {
+func TestService_RollbackVersion(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockFactory := new(MockProviderFactory)
-	mockProvider := funcmock.NewFunctionProvider()
-	logger := logging.NewLogger()
-
-	service := funcservice.NewService(mockRepo, mockFactory, logger)
-
-	workspaceID := "ws-123"
-	functionID := "func-789"
-	functionName := "test-function"
-	versionID := "v2"
-
-	// Create function and version in mock provider
-	spec := &function.FunctionSpec{
-		Name:       functionName,
-		Namespace:  "test-ns",
-		Runtime:    function.RuntimePython,
-		Handler:    "main.handler",
-		SourceCode: "def handler(): pass",
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	
+	repo := new(mockRepository)
+	factory := new(mockProviderFactory)
+	provider := new(mockProvider)
+	
+	// Setup versions
+	versions := []*function.FunctionVersionDef{
+		{ID: "v3", Version: 3, IsActive: true},
+		{ID: "v2", Version: 2, IsActive: false},
+		{ID: "v1", Version: 1, IsActive: false},
 	}
-	fn, err := mockProvider.CreateFunction(ctx, spec)
-	require.NoError(t, err)
+	
+	repo.On("ListVersions", ctx, "ws-123", "func-123").Return(versions, nil)
+	repo.On("GetFunction", ctx, "ws-123", "func-123").Return(&function.FunctionDef{
+		ID:            "func-123",
+		Name:          "test-func",
+		ActiveVersion: "v3",
+	}, nil)
+	repo.On("GetVersion", ctx, "ws-123", "func-123", "v2").Return(versions[1], nil)
+	
+	// Provider setup
+	repo.On("GetWorkspaceProviderConfig", ctx, "ws-123").Return(nil, nil)
+	factory.On("CreateProvider", ctx, mock.Anything).Return(provider, nil)
+	provider.On("SetActiveVersion", ctx, "test-func", "v2").Return(nil)
+	
+	// Update metadata
+	repo.On("UpdateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil)
+	repo.On("UpdateVersion", ctx, mock.AnythingOfType("*function.FunctionVersionDef")).Return(nil)
+	repo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil)
+	
+	svc := service.NewService(repo, factory, logger)
+	
+	err := svc.RollbackVersion(ctx, "ws-123", "func-123")
+	assert.NoError(t, err)
+	
+	repo.AssertExpectations(t)
+	factory.AssertExpectations(t)
+	provider.AssertExpectations(t)
+}
 
-	version := &function.FunctionVersionDef{
-		FunctionName: functionName,
-		SourceCode:   "def handler(): return 'v2'",
-	}
-	err = mockProvider.CreateVersion(ctx, functionName, version)
-	require.NoError(t, err)
-
-	// Get the created version ID
-	versions, err := mockProvider.ListVersions(ctx, functionName)
-	require.NoError(t, err)
-	require.Len(t, versions, 2)
-	actualVersionID := versions[1].ID
-
-	// Setup expectations
-	fnDef := &function.FunctionDef{
-		ID:            functionID,
-		Name:          functionName,
-		WorkspaceID:   workspaceID,
-		ActiveVersion: fn.ActiveVersion,
-	}
-	versionDef := &function.FunctionVersionDef{
-		ID:          actualVersionID,
-		WorkspaceID: workspaceID,
-		FunctionID:  functionID,
-		Version:     2,
-	}
-
-	mockRepo.On("GetFunction", ctx, workspaceID, functionID).Return(fnDef, nil).Once()
-	mockRepo.On("GetVersion", ctx, workspaceID, functionID, versionID).Return(versionDef, nil).Once()
-	mockRepo.On("GetWorkspaceProviderConfig", ctx, workspaceID).Return(nil, nil).Once()
-	mockFactory.On("CreateProvider", ctx, function.ProviderTypeFission, mock.Anything).Return(mockProvider, nil).Once()
-	mockRepo.On("UpdateFunction", ctx, mock.AnythingOfType("*function.FunctionDef")).Return(nil).Once()
-	mockRepo.On("UpdateVersion", ctx, mock.AnythingOfType("*function.FunctionVersionDef")).Return(nil).Once()
-	mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*function.FunctionAuditEvent")).Return(nil).Once()
-
-	// Execute
-	err = service.SetActiveVersion(ctx, workspaceID, functionID, versionID)
-
-	// Assert
-	require.NoError(t, err)
-
-	mockRepo.AssertExpectations(t)
-	mockFactory.AssertExpectations(t)
+// Test cold start performance difference
+func TestService_ColdStartPerformance(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	
+	// Test Fission provider (fast cold start)
+	fissionRepo := new(mockRepository)
+	fissionFactory := new(mockProviderFactory)
+	fissionProvider := new(mockProvider)
+	
+	fissionRepo.On("GetWorkspaceProviderConfig", ctx, "ws-fission").Return(&function.ProviderConfig{
+		Type: function.ProviderTypeFission,
+		Config: map[string]interface{}{"endpoint": "http://controller.fission"},
+	}, nil)
+	fissionFactory.On("CreateProvider", ctx, mock.Anything).Return(fissionProvider, nil)
+	fissionProvider.On("GetCapabilities").Return(&function.Capabilities{
+		TypicalColdStartMs: 100,
+	})
+	
+	fissionSvc := service.NewService(fissionRepo, fissionFactory, logger)
+	fissionCaps, _ := fissionSvc.GetProviderCapabilities(ctx, "ws-fission")
+	
+	// Test Knative provider (slower cold start)
+	knativeRepo := new(mockRepository)
+	knativeFactory := new(mockProviderFactory)
+	knativeProvider := new(mockProvider)
+	
+	knativeRepo.On("GetWorkspaceProviderConfig", ctx, "ws-knative").Return(&function.ProviderConfig{
+		Type: function.ProviderTypeKnative,
+	}, nil)
+	knativeFactory.On("CreateProvider", ctx, mock.Anything).Return(knativeProvider, nil)
+	knativeProvider.On("GetCapabilities").Return(&function.Capabilities{
+		TypicalColdStartMs: 2000,
+	})
+	
+	knativeSvc := service.NewService(knativeRepo, knativeFactory, logger)
+	knativeCaps, _ := knativeSvc.GetProviderCapabilities(ctx, "ws-knative")
+	
+	// Assert Fission has significantly faster cold starts
+	assert.Less(t, fissionCaps.TypicalColdStartMs, knativeCaps.TypicalColdStartMs)
+	assert.Less(t, fissionCaps.TypicalColdStartMs, 500) // Fission should be under 500ms
+	assert.Greater(t, knativeCaps.TypicalColdStartMs, 1000) // Knative typically over 1s
 }

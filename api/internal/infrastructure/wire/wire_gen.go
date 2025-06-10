@@ -7,6 +7,7 @@
 package wire
 
 import (
+	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
@@ -17,6 +18,7 @@ import (
 	backup2 "github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	billing3 "github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	cicd3 "github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	function3 "github.com/hexabase/hexabase-ai/api/internal/domain/function"
 	logs3 "github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	monitoring3 "github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	node3 "github.com/hexabase/hexabase-ai/api/internal/domain/node"
@@ -29,6 +31,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/function"
 	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
@@ -43,6 +46,7 @@ import (
 	backup3 "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billing2 "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicd2 "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
+	function2 "github.com/hexabase/hexabase-ai/api/internal/service/function"
 	logs2 "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoring2 "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	node2 "github.com/hexabase/hexabase-ai/api/internal/service/node"
@@ -121,6 +125,16 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	credentialManager := ProvideCICDCredentialManager(k8sClient, cicdNamespace)
 	cicdService := cicd2.NewService(cicdRepository, providerFactory, credentialManager, logger)
 	cicdHandler := handlers.NewCICDHandler(cicdService, logger)
+	sqlDB, err := ProvideSQLDB(db)
+	if err != nil {
+		return nil, err
+	}
+	functionPostgresRepository := function.NewPostgresRepository(sqlDB)
+	functionRepository := ProvideFunctionRepository(functionPostgresRepository)
+	functionProviderFactory := ProvideFunctionProviderFactory(k8sClient, dynamicClient)
+	functionService := function2.NewService(functionRepository, functionProviderFactory, logger)
+	service3 := ProvideFunctionService(functionService)
+	functionHandler := handlers.NewFunctionHandler(service3, logger)
 	aiOpsProxyHandler, err := ProvideAIOpsProxyHandler(authService, logger, cfg)
 	if err != nil {
 		return nil, err
@@ -135,7 +149,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	aiopsRepository := aiops.NewPostgresRepository(db)
 	aiopsService := aiops2.NewService(llmService, aiopsRepository, logger)
 	internalHandler := ProvideInternalHandler(workspaceService, projectService, service, service2, logsService, monitoringService, aiopsService, cicdService, backupService, logger)
-	app := NewApp(applicationHandler, authHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, aiOpsProxyHandler, internalHandler)
+	app := NewApp(applicationHandler, authHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, functionHandler, aiOpsProxyHandler, internalHandler)
 	return app, nil
 }
 
@@ -163,6 +177,11 @@ var WorkspaceSet = wire.NewSet(workspace.NewPostgresRepository, workspace.NewKub
 
 var CICDSet = wire.NewSet(cicd.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicd2.NewService, handlers.NewCICDHandler)
 
+var FunctionSet = wire.NewSet(
+	ProvideSQLDB, function.NewPostgresRepository, ProvideFunctionRepository,
+	ProvideFunctionProviderFactory, function2.NewService, ProvideFunctionService, handlers.NewFunctionHandler,
+)
+
 var HelmSet = wire.NewSet(helm.NewService)
 
 var AIOpsProxySet = wire.NewSet(
@@ -186,12 +205,13 @@ type App struct {
 	ProjectHandler      *handlers.ProjectHandler
 	WorkspaceHandler    *handlers.WorkspaceHandler
 	CICDHandler         *handlers.CICDHandler
+	FunctionHandler     *handlers.FunctionHandler
 	AIOpsProxyHandler   *handlers.AIOpsProxyHandler
 	InternalHandler     *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
-	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
+func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
 type StripeAPIKey string
@@ -234,6 +254,22 @@ func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest
 
 func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicd3.CredentialManager {
 	return cicd.NewKubernetesCredentialManager(kubeClient, string(namespace))
+}
+
+func ProvideFunctionProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) function3.ProviderFactory {
+	return function.NewProviderFactory(kubeClient, dynamicClient)
+}
+
+func ProvideFunctionService(service *function2.Service) function3.Service {
+	return service
+}
+
+func ProvideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
+	return gormDB.DB()
+}
+
+func ProvideFunctionRepository(repo *function.PostgresRepository) function3.Repository {
+	return repo
 }
 
 func ProvideClickHouseConnection(cfg *config.Config) (clickhouse.Conn, error) {
