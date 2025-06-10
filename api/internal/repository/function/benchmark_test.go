@@ -151,10 +151,11 @@ func TestProviderColdStartComparison(t *testing.T) {
 		},
 	}
 
-	for name, tc := range providers {
+	for name, testCase := range providers {
 		t.Run(name, func(t *testing.T) {
 			// Would measure actual cold start time and compare
 			// against expected values with tolerance
+			_ = testCase // TODO: Implement actual cold start measurement
 		})
 	}
 }

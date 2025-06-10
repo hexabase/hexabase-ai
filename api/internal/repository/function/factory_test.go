@@ -21,38 +21,52 @@ func TestProviderFactory_CreateProvider(t *testing.T) {
 	factory := NewProviderFactory(kubeClient, dynamicClient)
 	
 	t.Run("CreateMockProvider", func(t *testing.T) {
-		provider, err := factory.CreateProvider(ctx, function.ProviderTypeMock, nil)
+		config := function.ProviderConfig{
+			Type:   function.ProviderTypeMock,
+			Config: nil,
+		}
+		provider, err := factory.CreateProvider(ctx, config)
 		require.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 	
 	t.Run("CreateKnativeProvider", func(t *testing.T) {
-		// Currently not implemented
-		_, err := factory.CreateProvider(ctx, function.ProviderTypeKnative, nil)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not yet implemented")
+		config := function.ProviderConfig{
+			Type:   function.ProviderTypeKnative,
+			Config: nil,
+		}
+		provider, err := factory.CreateProvider(ctx, config)
+		require.NoError(t, err)
+		assert.NotNil(t, provider)
 	})
 	
 	t.Run("CreateFissionProvider", func(t *testing.T) {
-		// Currently not implemented
-		_, err := factory.CreateProvider(ctx, function.ProviderTypeFission, map[string]interface{}{
-			"endpoint": "http://fission.example.com",
-		})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not yet implemented")
+		config := function.ProviderConfig{
+			Type: function.ProviderTypeFission,
+			Config: map[string]interface{}{
+				"endpoint": "http://fission.example.com",
+			},
+		}
+		provider, err := factory.CreateProvider(ctx, config)
+		require.NoError(t, err)
+		assert.NotNil(t, provider)
 	})
 	
 	t.Run("CreateUnknownProvider", func(t *testing.T) {
-		_, err := factory.CreateProvider(ctx, function.ProviderType("unknown"), nil)
+		config := function.ProviderConfig{
+			Type:   function.ProviderType("unknown"),
+			Config: nil,
+		}
+		_, err := factory.CreateProvider(ctx, config)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported provider type")
 	})
 }
 
-func TestProviderFactory_GetAvailableProviders(t *testing.T) {
+func TestProviderFactory_GetSupportedProviders(t *testing.T) {
 	factory := NewProviderFactory(nil, nil)
 	
-	providers := factory.GetAvailableProviders()
+	providers := factory.GetSupportedProviders()
 	assert.Contains(t, providers, function.ProviderTypeKnative)
 	assert.Contains(t, providers, function.ProviderTypeFission)
 	assert.Contains(t, providers, function.ProviderTypeMock)
