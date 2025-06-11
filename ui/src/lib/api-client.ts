@@ -726,6 +726,18 @@ export const authApi = {
     const response = await apiClient.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
     return response.data;
   },
+
+  // Get user profile
+  getProfile: async (): Promise<{ data: any }> => {
+    const response = await apiClient.get('/api/v1/auth/profile');
+    return response;
+  },
+
+  // Update user profile
+  updateProfile: async (data: any): Promise<{ data: any }> => {
+    const response = await apiClient.put('/api/v1/auth/profile', data);
+    return response;
+  },
 };
 
 // Project types
@@ -1375,3 +1387,12 @@ export const monitoringApi = {
   },
 };
 
+
+// Unified API client - for backwards compatibility
+(apiClient as any).auth = authApi;
+(apiClient as any).organizations = organizationsApi;
+(apiClient as any).workspaces = workspacesApi;
+(apiClient as any).backup = backupApi;
+(apiClient as any).applications = applicationsApi;
+(apiClient as any).billing = billingApi;
+(apiClient as any).monitoring = monitoringApi;

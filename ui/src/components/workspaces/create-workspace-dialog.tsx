@@ -1,265 +1,187 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Check } from 'lucide-react';
-import { plansApi, type Plan } from '@/lib/api-client';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Card } from '@/components/ui/card';
+import { AlertCircle, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const formSchema = z.object({
-  name: z.string()
-    .min(3, 'Workspace name must be at least 3 characters')
-    .max(50, 'Workspace name must be less than 50 characters')
-    .regex(/^[a-zA-Z0-9-_\s]+$/, 'Workspace name can only contain letters, numbers, hyphens, underscores, and spaces'),
-  plan_id: z.string().min(1, 'Please select a plan'),
-});
-
-type FormData = z.infer<typeof formSchema>;
+interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  resource_limits?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+  };
+}
 
 interface CreateWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: FormData) => Promise<void>;
+  plans: Plan[];
+  onSubmit: (name: string, planId: string) => Promise<void>;
 }
 
-export function CreateWorkspaceDialog({ open, onOpenChange, onSubmit }: CreateWorkspaceDialogProps) {
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [plansLoading, setPlansLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+export function CreateWorkspaceDialog({
+  open,
+  onOpenChange,
+  plans,
+  onSubmit,
+}: CreateWorkspaceDialogProps) {
+  const [name, setName] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      plan_id: '',
-    },
-  });
-
-  // Load plans when dialog opens
-  useEffect(() => {
-    if (open) {
-      loadPlans();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name.trim()) {
+      setError('Workspace name is required');
+      return;
     }
-  }, [open]);
+    
+    if (!selectedPlanId) {
+      setError('Please select a plan');
+      return;
+    }
 
-  const loadPlans = async () => {
+    setIsLoading(true);
+    setError('');
+
     try {
-      setPlansLoading(true);
-      const response = await plansApi.list();
-      setPlans(response.plans);
-    } catch (error) {
-      console.error('Failed to load plans:', error);
-      // Set mock plans for testing
-      setPlans([
-        {
-          id: 'plan-basic',
-          name: 'Basic Plan',
-          description: 'Basic resources for development',
-          price: 10.00,
-          currency: 'usd',
-        },
-        {
-          id: 'plan-pro',
-          name: 'Pro Plan',
-          description: 'Enhanced resources for production',
-          price: 50.00,
-          currency: 'usd',
-        },
-      ]);
+      await onSubmit(name.trim(), selectedPlanId);
+      setName('');
+      setSelectedPlanId('');
+    } catch (err) {
+      setError('Failed to create workspace. Please try again.');
     } finally {
-      setPlansLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSubmit = async (data: FormData) => {
-    try {
-      setSubmitting(true);
-      await onSubmit(data);
-      form.reset();
-    } catch {
-      // Error handling is done in parent component
-    } finally {
-      setSubmitting(false);
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setName('');
+      setSelectedPlanId('');
+      setError('');
     }
-  };
-
-  const handleClose = () => {
-    form.reset();
-    onOpenChange(false);
+    onOpenChange(open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]" data-testid="create-workspace-modal">
-        <DialogHeader>
-          <DialogTitle>Create New Workspace</DialogTitle>
-          <DialogDescription>
-            Set up a new Kubernetes workspace with vCluster isolation.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create New Workspace</DialogTitle>
+            <DialogDescription>
+              Choose a plan and name for your new workspace.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Workspace Name */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Workspace Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter workspace name" 
-                      {...field}
-                      data-testid="workspace-name-input"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Choose a descriptive name for your workspace
-                  </FormDescription>
-                  <FormMessage data-testid="name-error" />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="workspace-name">Workspace Name</Label>
+              <Input
+                id="workspace-name"
+                placeholder="e.g., Production, Development"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
 
-            {/* Plan Selection */}
-            <FormField
-              control={form.control}
-              name="plan_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Plan</FormLabel>
-                  <FormControl>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                      data-testid="plan-selection"
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a plan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plansLoading ? (
-                          <div className="flex items-center justify-center p-4">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Loading plans...</span>
-                          </div>
-                        ) : (
-                          plans.map((plan) => (
-                            <SelectItem key={plan.id} value={plan.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{plan.name}</span>
-                                <Badge variant="outline">
-                                  ${plan.price}/{plan.currency}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormDescription>
-                    Choose the resource plan for your workspace
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Plan Details */}
-            {form.watch('plan_id') && (
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium">Plan Details</h4>
-                {plans
-                  .filter(plan => plan.id === form.watch('plan_id'))
-                  .map((plan) => (
-                    <Card key={plan.id}>
-                      <CardHeader className="pb-2">
+            <div className="space-y-3">
+              <Label>Select a Plan</Label>
+              <RadioGroup value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                {plans.map((plan) => (
+                  <Card
+                    key={plan.id}
+                    className={cn(
+                      'relative p-4 cursor-pointer hover:shadow-md transition-shadow',
+                      selectedPlanId === plan.id && 'ring-2 ring-primary'
+                    )}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem
+                        value={plan.id}
+                        id={plan.id}
+                        aria-label={plan.name}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">{plan.name}</CardTitle>
-                          <Badge>
-                            ${plan.price}/{plan.currency}
-                          </Badge>
+                          <Label htmlFor={plan.id} className="text-base font-medium cursor-pointer">
+                            {plan.name}
+                          </Label>
+                          <span className="text-lg font-semibold">
+                            {plan.price === 0 ? (
+                              <span className="text-green-600">$0/month</span>
+                            ) : (
+                              `$${plan.price}/month`
+                            )}
+                          </span>
                         </div>
-                        <CardDescription>{plan.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="pt-2">
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center">
-                            <Check className="h-4 w-4 text-green-600 mr-2" />
-                            <span>Dedicated vCluster instance</span>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {plan.description}
+                        </p>
+                        {plan.resource_limits && (
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            <span className="font-medium">Resources:</span>{' '}
+                            {plan.resource_limits.cpu} CPU,{' '}
+                            {plan.resource_limits.memory} Memory,{' '}
+                            {plan.resource_limits.storage} Storage
                           </div>
-                          <div className="flex items-center">
-                            <Check className="h-4 w-4 text-green-600 mr-2" />
-                            <span>Kubernetes namespace isolation</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Check className="h-4 w-4 text-green-600 mr-2" />
-                            <span>Resource quotas and limits</span>
-                          </div>
-                          {plan.id === 'plan-pro' && (
-                            <div className="flex items-center">
-                              <Check className="h-4 w-4 text-green-600 mr-2" />
-                              <span>Enhanced monitoring and alerts</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        )}
+                      </div>
+                      {selectedPlanId === plan.id && (
+                        <Check className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {error}
               </div>
             )}
+          </div>
 
-            {/* Submit Buttons */}
-            <div className="flex justify-end space-x-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                data-testid="submit-workspace"
-              >
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Workspace
-              </Button>
-            </div>
-          </form>
-        </Form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading || !name || !selectedPlanId}>
+              {isLoading ? 'Creating...' : 'Create Workspace'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
