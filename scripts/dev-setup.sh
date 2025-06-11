@@ -146,7 +146,7 @@ cd "$PROJECT_ROOT"
 
 # Create docker-compose.override.yml for development (if not exists)
 if [ -f "docker-compose.override.yml" ]; then
-    echo "docker-compose.override.yml already exists, skipping creation"
+    print_success "docker-compose.override.yml already exists, skipping creation"
 else
     cat > docker-compose.override.yml <<EOF
 version: '3.8'
