@@ -747,14 +747,21 @@ export interface Project {
   description?: string;
   workspace_id: string;
   workspace_name?: string;
-  status: 'active' | 'inactive' | 'archived';
+  namespace: string;
+  status: 'active' | 'creating' | 'error' | 'suspended' | 'inactive' | 'archived';
   namespace_count?: number;
-  namespace_name?: string;
-  resource_quotas?: {
-    cpu_limit: string;
-    memory_limit: string;
-    storage_limit: string;
-    pod_limit?: string;
+  resource_quota?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods?: string;
+  };
+  resources?: {
+    deployments: number;
+    services: number;
+    pods: number;
+    configmaps: number;
+    secrets: number;
   };
   resource_usage?: {
     cpu: string;
@@ -768,13 +775,12 @@ export interface Project {
 export interface CreateProjectRequest {
   name: string;
   description?: string;
-  workspace_id: string;
-  namespace_name?: string;
-  resource_quotas?: {
-    cpu_limit: string;
-    memory_limit: string;
-    storage_limit: string;
-    pod_limit?: string;
+  namespace?: string;
+  resource_quota?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods?: string;
   };
 }
 
@@ -858,20 +864,20 @@ export const projectsApi = {
   },
 
   // Create new project
-  create: async (orgId: string, data: CreateProjectRequest): Promise<Project> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/projects/`, data);
+  create: async (orgId: string, workspaceId: string, data: CreateProjectRequest): Promise<Project> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/`, data);
     return response.data;
   },
 
   // Update project
-  update: async (orgId: string, projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/projects/${projectId}`, data);
+  update: async (orgId: string, workspaceId: string, projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}`, data);
     return response.data;
   },
 
   // Delete project
-  delete: async (orgId: string, projectId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/projects/${projectId}`);
+  delete: async (orgId: string, workspaceId: string, projectId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}`);
   },
 
   // Get project statistics
