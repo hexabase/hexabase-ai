@@ -266,7 +266,7 @@ fi
 # Add entries to /etc/hosts
 print_step "Updating /etc/hosts..."
 
-if grep -q "# Hexabase KaaS Development" /etc/hosts; then
+if grep -q "api.localhost" /etc/hosts && grep -q "app.localhost" /etc/hosts; then
     echo "/etc/hosts already configured"
 else
     echo "Adding entries to /etc/hosts (requires sudo)..."
