@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, Organization } from '@/lib/api-client';
 import { OrganizationCard } from './organization-card';
-import { CreateOrganizationDialog } from '../create-organization-dialog';
-import { EditOrganizationDialog } from '../edit-organization-dialog';
+import CreateOrganizationDialog from '../create-organization-dialog';
+import EditOrganizationDialog from '../edit-organization-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -180,17 +180,17 @@ export function OrganizationList() {
       </div>
 
       <CreateOrganizationDialog
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
-        onSubmit={handleCreateOrganization}
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreate={handleCreateOrganization}
       />
 
       {editingOrg && (
         <EditOrganizationDialog
           organization={editingOrg}
-          open={!!editingOrg}
-          onOpenChange={(open) => !open && setEditingOrg(null)}
-          onSubmit={(name) => handleUpdateOrganization(editingOrg.id, name)}
+          isOpen={!!editingOrg}
+          onClose={() => setEditingOrg(null)}
+          onUpdate={(name) => handleUpdateOrganization(editingOrg.id, name)}
         />
       )}
 

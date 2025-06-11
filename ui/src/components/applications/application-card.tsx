@@ -40,21 +40,21 @@ export function ApplicationCard({
 }: ApplicationCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'running':
       case 'active':
-        return 'bg-success';
+        return 'default';
       case 'pending':
       case 'creating':
-        return 'bg-warning';
+        return 'secondary';
       case 'error':
-        return 'bg-destructive';
+        return 'destructive';
       case 'suspended':
       case 'terminating':
-        return 'bg-secondary';
+        return 'outline';
       default:
-        return 'bg-muted';
+        return 'secondary';
     }
   };
 
@@ -139,10 +139,8 @@ export function ApplicationCard({
             <CardTitle className="text-lg">{application.name}</CardTitle>
           </div>
           <Badge
-            className={cn(
-              'flex items-center gap-1',
-              getStatusColor(application.status)
-            )}
+            variant={getStatusVariant(application.status)}
+            className="flex items-center gap-1"
           >
             {getStatusIcon(application.status)}
             {application.status}

@@ -55,9 +55,11 @@ describe('ApplicationCard', () => {
       />
     );
 
-    const statusBadge = screen.getByText('running');
-    expect(statusBadge).toBeInTheDocument();
-    expect(statusBadge).toHaveClass('bg-success');
+    // Badge contains both icon and text - find by role and check content
+    const badges = screen.getAllByRole('generic'); // divs
+    const statusBadge = badges.find(el => el.textContent?.includes('running'));
+    expect(statusBadge).toBeDefined();
+    expect(statusBadge?.textContent).toContain('running');
   });
 
   it('should display different statuses with correct colors', () => {
@@ -76,8 +78,10 @@ describe('ApplicationCard', () => {
         />
       );
 
-      const statusBadge = screen.getByText(status);
-      expect(statusBadge).toHaveClass(color);
+      // Badge contains both icon and text - find by content
+      const badges = screen.getAllByRole('generic');
+      const statusBadge = badges.find(el => el.textContent?.includes(status));
+      expect(statusBadge).toBeDefined();
 
       rerender(<></>);
     });

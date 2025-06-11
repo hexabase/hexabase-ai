@@ -40,13 +40,13 @@ export function WorkspaceCard({
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
-        return 'success';
+        return 'default';
       case 'provisioning':
-        return 'warning';
+        return 'secondary';
       case 'error':
         return 'destructive';
       case 'suspended':
-        return 'secondary';
+        return 'outline';
       default:
         return 'default';
     }

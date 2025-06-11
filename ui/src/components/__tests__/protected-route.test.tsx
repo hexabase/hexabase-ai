@@ -16,6 +16,8 @@ describe('ProtectedRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+    // Reset the mock auth
+    (mockUseAuth as any).mockReset?.();
   });
 
   it('should show loading spinner while authentication is loading', () => {

@@ -48,9 +48,10 @@ const config: Config = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/(?!(msw)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
+  moduleDirectories: ['node_modules', '<rootDir>/'],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
     '<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}',

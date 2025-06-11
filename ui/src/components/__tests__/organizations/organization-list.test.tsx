@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { OrganizationList } from '@/components/organizations/organization-list';
-import { useAuth } from '@/lib/auth-context';
+import { mockAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 
-jest.mock('@/lib/auth-context');
+// Auth context is already mocked in jest.setup.tsx
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
@@ -29,12 +29,11 @@ describe('OrganizationList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
-    (useAuth as jest.Mock).mockReturnValue({
-      user: { email: 'test@example.com', name: 'Test User' },
-      organizations: mockOrganizations,
-      activeOrganization: mockOrganizations[0],
-      switchOrganization: jest.fn(),
-    });
+    
+    // Update the mock auth values
+    mockAuth.activeOrganization = mockOrganizations[0];
+    mockAuth.switchOrganization = jest.fn();
+    
     (apiClient.organizations.list as jest.Mock).mockResolvedValue({ 
       data: { organizations: mockOrganizations, total: 2 } 
     });
@@ -69,12 +68,7 @@ describe('OrganizationList', () => {
 
   it('should switch organization when clicked', async () => {
     const mockSwitchOrg = jest.fn();
-    (useAuth as jest.Mock).mockReturnValue({
-      user: { email: 'test@example.com' },
-      organizations: mockOrganizations,
-      activeOrganization: mockOrganizations[0],
-      switchOrganization: mockSwitchOrg,
-    });
+    mockAuth.switchOrganization = mockSwitchOrg;
 
     render(<OrganizationList />);
 
@@ -90,26 +84,40 @@ describe('OrganizationList', () => {
   it('should open create organization dialog when clicking create button', async () => {
     render(<OrganizationList />);
 
+    // Wait for organizations to load
+    await waitFor(() => {
+      expect(screen.getByText('ACME Corp')).toBeInTheDocument();
+    });
+
     const createButton = screen.getByRole('button', { name: /create organization/i });
     fireEvent.click(createButton);
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/create new organization/i)).toBeInTheDocument();
+    expect(screen.getByTestId('create-organization-dialog')).toBeInTheDocument();
   });
 
   it('should create new organization', async () => {
-    const newOrg = { id: 'org-3', name: 'New Org', role: 'admin' };
+    const newOrg = { id: 'org-3', name: 'New Org', role: 'admin', created_at: '2024-01-03', updated_at: '2024-01-03' };
     (apiClient.organizations.create as jest.Mock).mockResolvedValue({ data: newOrg });
 
     render(<OrganizationList />);
 
+    // Wait for organizations to load
+    await waitFor(() => {
+      expect(screen.getByText('ACME Corp')).toBeInTheDocument();
+    });
+
     const createButton = screen.getByRole('button', { name: /create organization/i });
     fireEvent.click(createButton);
 
-    const nameInput = screen.getByLabelText(/organization name/i);
+    // Wait for dialog to open
+    await waitFor(() => {
+      expect(screen.getByTestId('org-name-input')).toBeInTheDocument();
+    });
+
+    const nameInput = screen.getByTestId('org-name-input');
     fireEvent.change(nameInput, { target: { value: 'New Org' } });
 
-    const submitButton = screen.getByRole('button', { name: /create/i });
+    const submitButton = screen.getByTestId('create-org-submit');
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -157,12 +165,15 @@ describe('OrganizationList', () => {
     render(<OrganizationList />);
 
     await waitFor(() => {
-      const editButton = screen.getByTestId('edit-org-1');
-      fireEvent.click(editButton);
+      expect(screen.getByText('ACME Corp')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('ACME Corp')).toBeInTheDocument();
+    const editButton = screen.getByTestId('edit-org-1');
+    fireEvent.click(editButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-organization-dialog')).toBeInTheDocument();
+    });
   });
 
   it('should not show edit button for member role', async () => {

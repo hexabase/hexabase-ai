@@ -572,6 +572,228 @@ export const applicationsApi = {
   },
 };
 
+// Functions API Interfaces
+export interface FunctionConfig {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  runtime: string; // 'nodejs18' | 'python39' | 'go119' etc
+  handler: string;
+  timeout: number; // in seconds
+  memory: number; // in MB
+  environment_vars?: Record<string, string>;
+  triggers: string[]; // 'http' | 'event' | 'schedule'
+  status: 'active' | 'updating' | 'error' | 'inactive';
+  version: string;
+  last_deployed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FunctionVersion {
+  version: string;
+  deployed_at: string;
+  deployed_by: string;
+  status: 'active' | 'inactive';
+  size_bytes?: number;
+}
+
+export interface FunctionInvocation {
+  invocation_id: string;
+  function_id: string;
+  status: 'success' | 'error' | 'timeout';
+  trigger_type: string;
+  payload?: any;
+  output?: any;
+  error?: string;
+  duration_ms?: number;
+  logs?: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+export interface CreateFunctionRequest {
+  name: string;
+  description?: string;
+  runtime: string;
+  handler: string;
+  timeout?: number;
+  memory?: number;
+  environment_vars?: Record<string, string>;
+  triggers?: string[];
+  source?: File;
+}
+
+export interface DeployFunctionRequest {
+  version?: string;
+  source?: File;
+  environment_vars?: Record<string, string>;
+  rollback_to?: string;
+}
+
+// Functions API
+export const functionsApi = {
+  // List functions
+  list: async (
+    orgId: string, 
+    workspaceId: string, 
+    projectId?: string,
+    params?: { 
+      runtime?: string;
+      status?: string;
+      trigger?: string;
+    }
+  ): Promise<{ data: { functions: FunctionConfig[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.runtime) searchParams.append('runtime', params.runtime);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.trigger) searchParams.append('trigger', params.trigger);
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/functions?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get function by ID
+  get: async (orgId: string, workspaceId: string, functionId: string): Promise<{ data: FunctionConfig }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`);
+    return response;
+  },
+
+  // Create function
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateFunctionRequest): Promise<{ data: FunctionConfig }> => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'source' && value instanceof File) {
+        formData.append(key, value);
+      } else if (key === 'environment_vars' || key === 'triggers') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/functions`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  },
+
+  // Update function
+  update: async (orgId: string, workspaceId: string, functionId: string, data: Partial<CreateFunctionRequest>): Promise<{ data: FunctionConfig }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`, data);
+    return response;
+  },
+
+  // Deploy function
+  deploy: async (orgId: string, workspaceId: string, functionId: string, data: DeployFunctionRequest): Promise<{ data: { version: string; status: string } }> => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'source' && value instanceof File) {
+        formData.append(key, value);
+      } else if (key === 'environment_vars') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/deploy`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  },
+
+  // Delete function
+  delete: async (orgId: string, workspaceId: string, functionId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`);
+  },
+
+  // Invoke function
+  invoke: async (orgId: string, workspaceId: string, functionId: string, data: { trigger_type?: string; payload?: any; http_method?: string; headers?: Record<string, string> }): Promise<{ data: FunctionInvocation }> => {
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/invoke`,
+      data
+    );
+    return response;
+  },
+
+  // Get function logs
+  getLogs: async (
+    orgId: string, 
+    workspaceId: string, 
+    functionId: string,
+    params?: { 
+      start_time?: string;
+      end_time?: string;
+      limit?: number;
+      invocation_id?: string;
+    }
+  ): Promise<{ data: { logs: string[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_time) searchParams.append('start_time', params.start_time);
+    if (params?.end_time) searchParams.append('end_time', params.end_time);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.invocation_id) searchParams.append('invocation_id', params.invocation_id);
+    
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/logs?${searchParams}`
+    );
+    return response;
+  },
+
+  // Get function versions
+  getVersions: async (orgId: string, workspaceId: string, functionId: string): Promise<{ data: { versions: FunctionVersion[] } }> => {
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/versions`
+    );
+    return response;
+  },
+
+  // Get function metrics
+  getMetrics: async (
+    orgId: string, 
+    workspaceId: string, 
+    functionId: string,
+    params?: { 
+      metric?: string;
+      start_time?: string;
+      end_time?: string;
+      interval?: string;
+    }
+  ): Promise<{ data: { metrics: any } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.metric) searchParams.append('metric', params.metric);
+    if (params?.start_time) searchParams.append('start_time', params.start_time);
+    if (params?.end_time) searchParams.append('end_time', params.end_time);
+    if (params?.interval) searchParams.append('interval', params.interval);
+    
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/metrics?${searchParams}`
+    );
+    return response;
+  },
+};
+
 
 // Task Management Interfaces
 export interface Task {
@@ -1400,5 +1622,6 @@ export const monitoringApi = {
 (apiClient as any).workspaces = workspacesApi;
 (apiClient as any).backup = backupApi;
 (apiClient as any).applications = applicationsApi;
+(apiClient as any).functions = functionsApi;
 (apiClient as any).billing = billingApi;
 (apiClient as any).monitoring = monitoringApi;

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ProjectList } from '@/components/projects/project-list';
 import { useRouter, useParams } from 'next/navigation';
-import { projectsApi } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -9,11 +9,13 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/lib/api-client', () => ({
-  projectsApi: {
-    list: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
+  apiClient: {
+    projects: {
+      list: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
   },
 }));
 
@@ -115,7 +117,7 @@ describe('ProjectList', () => {
       orgId: 'org-1',
       workspaceId: 'ws-1' 
     });
-    (projectsApi.list as jest.Mock).mockResolvedValue({
+    (apiClient.projects.list as jest.Mock).mockResolvedValue({
       projects: mockProjects,
       total: 2,
     });
@@ -193,7 +195,7 @@ describe('ProjectList', () => {
       created_at: '2024-01-03',
       updated_at: '2024-01-03',
     };
-    (projectsApi.create as jest.Mock).mockResolvedValue(newProject);
+    (apiClient.projects.create as jest.Mock).mockResolvedValue(newProject);
 
     render(<ProjectList />);
 
@@ -213,7 +215,7 @@ describe('ProjectList', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(projectsApi.create).toHaveBeenCalledWith('org-1', 'ws-1', {
+      expect(apiClient.projects.create).toHaveBeenCalledWith('org-1', 'ws-1', {
         name: 'New Project',
         description: 'Test description',
         resource_quota: { cpu: '2', memory: '4Gi', storage: '10Gi' }
@@ -222,7 +224,7 @@ describe('ProjectList', () => {
   });
 
   it('should show loading state while fetching projects', () => {
-    (projectsApi.list as jest.Mock).mockImplementation(
+    (apiClient.projects.list as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
@@ -232,7 +234,7 @@ describe('ProjectList', () => {
   });
 
   it('should handle error when fetching projects fails', async () => {
-    (projectsApi.list as jest.Mock).mockRejectedValue(
+    (apiClient.projects.list as jest.Mock).mockRejectedValue(
       new Error('Failed to fetch projects')
     );
 
@@ -245,7 +247,7 @@ describe('ProjectList', () => {
   });
 
   it('should show empty state when no projects', async () => {
-    (projectsApi.list as jest.Mock).mockResolvedValue({
+    (apiClient.projects.list as jest.Mock).mockResolvedValue({
       projects: [],
       total: 0,
     });
@@ -259,7 +261,7 @@ describe('ProjectList', () => {
   });
 
   it('should delete project with confirmation', async () => {
-    (projectsApi.delete as jest.Mock).mockResolvedValue({});
+    (apiClient.projects.delete as jest.Mock).mockResolvedValue({});
 
     render(<ProjectList />);
 
@@ -276,7 +278,7 @@ describe('ProjectList', () => {
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
-      expect(projectsApi.delete).toHaveBeenCalledWith('org-1', 'ws-1', 'proj-1');
+      expect(apiClient.projects.delete).toHaveBeenCalledWith('org-1', 'ws-1', 'proj-1');
     });
   });
 
@@ -286,7 +288,7 @@ describe('ProjectList', () => {
       name: 'Updated Web App',
       description: 'Updated description',
     };
-    (projectsApi.update as jest.Mock).mockResolvedValue(updatedProject);
+    (apiClient.projects.update as jest.Mock).mockResolvedValue(updatedProject);
 
     render(<ProjectList />);
 

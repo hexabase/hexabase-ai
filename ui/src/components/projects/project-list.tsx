@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Project, projectsApi } from '@/lib/api-client';
+import { Project, apiClient } from '@/lib/api-client';
 import { ProjectCard } from './project-card';
 import { CreateProjectDialog } from './create-project-dialog';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ export function ProjectList() {
     try {
       setLoading(true);
       setError(null);
-      const response = await projectsApi.list(orgId, { workspace_id: workspaceId });
+      const response = await apiClient.projects.list(orgId, { workspace_id: workspaceId });
       setProjects(response.projects);
     } catch (error) {
       setError('Failed to load projects');
@@ -57,7 +57,7 @@ export function ProjectList() {
 
   const handleCreateProject = async (data: any) => {
     try {
-      const newProject = await projectsApi.create(orgId, workspaceId, data);
+      const newProject = await apiClient.projects.create(orgId, workspaceId, data);
       setProjects([...projects, newProject]);
       setCreateDialogOpen(false);
       toast({
@@ -80,7 +80,7 @@ export function ProjectList() {
 
   const handleDeleteProject = async (projectId: string) => {
     try {
-      await projectsApi.delete(orgId, workspaceId, projectId);
+      await apiClient.projects.delete(orgId, workspaceId, projectId);
       setProjects(projects.filter(p => p.id !== projectId));
       setDeleteProject(null);
       toast({
