@@ -455,13 +455,6 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		internal.POST("/logs/query", app.InternalHandler.QueryLogs)
 	}
 
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-		})
-	})
-
 	// Catch-all for undefined routes
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
