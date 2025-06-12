@@ -111,7 +111,7 @@ type WorkspaceNodeAllocation struct {
 	
 	// Associations
 	Workspace      Workspace       `json:"workspace,omitempty"`
-	DedicatedNodes []DedicatedNode `json:"dedicated_nodes,omitempty"`
+	DedicatedNodes []DedicatedNode `gorm:"foreignKey:WorkspaceID;references:WorkspaceID" json:"dedicated_nodes,omitempty"`
 }
 
 // SharedQuota represents resource quota for shared plan workspaces
