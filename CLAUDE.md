@@ -318,3 +318,61 @@ logger.Info("creating backup storage",
 - Log all API requests with correlation IDs
 - Track SLIs: latency, error rate, throughput
 - Store metrics in ClickHouse for long-term analysis
+
+## Architecture Decision Records (ADRs)
+
+### Creating New ADRs
+
+When creating or updating Architecture Decision Records, follow this standard format:
+
+```markdown
+# ADR-XXX: [Title]
+
+**Date**: YYYY-MM-DD  
+**Status**: [Proposed|Accepted|Implemented|Deprecated]  
+**Authors**: [Team/Person]
+
+## 1. Background
+
+[Context and problem statement - why this decision is needed]
+
+## 2. Status
+
+[Current state of the decision/implementation]
+
+## 3. Other Options Considered
+
+[List and briefly describe alternative solutions]
+
+## 4. What Was Decided
+
+[Clear statement of the chosen solution]
+
+## 5. Why Did You Choose It?
+
+[Rationale and benefits of the chosen solution]
+
+## 6. Why Didn't You Choose the Other Options?
+
+[Specific reasons for rejecting each alternative]
+
+## 7. What Has Not Been Decided
+
+[Open questions and future decisions]
+
+## 8. Considerations
+
+[Implementation details, security, performance, costs, etc.]
+```
+
+### ADR Guidelines
+
+1. **Location**: Place ADRs in `/docs/adr/`
+2. **Naming**: Use format `XXX-descriptive-name.md` (e.g., `009-caching-strategy.md`)
+3. **Updates**: Update status and add notes rather than deleting old ADRs
+4. **Linking**: Reference ADRs in code comments where relevant
+5. **Review**: All ADRs should be reviewed by at least one other team member
+
+### Current ADRs
+
+See `/docs/adr/README.md` for the complete index of architectural decisions.

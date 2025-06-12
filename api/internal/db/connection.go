@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -116,6 +117,8 @@ func MigrateDatabase(db *gorm.DB) error {
 		&PipelineTemplate{},
 		&WorkspaceProviderConfig{},
 		&CICDCredential{},
+		// Auth models
+		&auth.AuthState{},
 	)
 }
 

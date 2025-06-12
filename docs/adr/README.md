@@ -1,119 +1,69 @@
-# Architecture Decision Records (ADRs)
+# Architecture Decision Records (ADRs) - Organized
 
-## What is an ADR?
+This directory contains the organized and consolidated Architecture Decision Records for Hexabase AI. Each ADR follows a consistent format and covers a specific technical theme.
 
-An Architecture Decision Record (ADR) is a document that captures an important architectural decision made along with its context and consequences. ADRs help us:
+## ADR Index
 
-- Document why decisions were made
-- Track the evolution of our architecture
-- Onboard new team members effectively
-- Avoid repeating past mistakes
-- Understand the trade-offs we've accepted
+| ADR                                               | Title                                                | Status                     | Date       |
+| ------------------------------------------------- | ---------------------------------------------------- | -------------------------- | ---------- |
+| [ADR-001](001-platform-architecture.md)           | Multi-tenant Kubernetes Platform Architecture        | Implemented                | 2025-06-01 |
+| [ADR-002](002-authentication-security.md)         | OAuth2/OIDC Authentication and Security Architecture | Implemented                | 2025-06-02 |
+| [ADR-003](003-function-service-architecture.md)   | Function as a Service (FaaS) Architecture            | Implemented with Migration | 2025-06-08 |
+| [ADR-004](004-aiops-architecture.md)              | AI Operations (AIOps) Architecture                   | Implemented                | 2025-06-06 |
+| [ADR-005](005-cicd-architecture.md)               | CI/CD Architecture with Provider Abstraction         | Implemented                | 2025-06-07 |
+| [ADR-006](006-logging-monitoring-architecture.md) | Logging and Monitoring Architecture                  | Implemented                | 2025-06-09 |
+| [ADR-007](007-backup-disaster-recovery.md)        | Backup and Disaster Recovery Architecture            | Partially Implemented      | 2025-06-09 |
+| [ADR-008](008-domain-driven-design.md)            | Domain-Driven Design and Code Organization           | Implemented and Enforced   | 2025-06-03 |
 
 ## ADR Format
 
-We use the following format for our ADRs:
+Each ADR follows this structure:
 
-```markdown
-# Title
+1. **Background** - Context and problem statement
+2. **Status** - Current implementation status
+3. **Other options considered** - Alternative solutions evaluated
+4. **What was decided** - The chosen solution
+5. **Why did you choose it?** - Rationale for the decision
+6. **Why didn't you choose the other option** - Reasons for rejecting alternatives
+7. **What has not been decided** - Open questions and future decisions
+8. **Considerations** - Implementation details, security, performance, etc.
 
-**Date**: YYYY-MM-DD HH:MI
-**Status**: Proposed | Accepted | Deprecated | Superseded  
-**Deciders**: List of people involved  
-**Tags**: architecture, security, performance, etc.
+## Architecture Evolution Timeline
 
-## Context
+### June 1-3, 2025: Foundation
 
-What is the issue that we're seeing that is motivating this decision or change?
+- Platform architecture with vCluster
+- Security architecture with OAuth2/OIDC
+- Domain-driven design adoption
 
-## Decision
+### June 6-7, 2025: Core Services
 
-What is the change that we're proposing and/or doing?
+- AI Operations architecture
+- CI/CD provider abstraction
 
-## Consequences
+### June 8-9, 2025: Operations & Scaling
 
-### Positive
+- Function service with Fission migration
+- Logging with ClickHouse
+- Backup and disaster recovery
 
-- What becomes easier or more possible?
+### June 10-11, 2025: Optimization
 
-### Negative
+- Fission provider implementation
+- Performance improvements
 
-- What becomes harder or less possible?
+## Key Architectural Principles
 
-### Risks
+1. **Provider Abstraction** - Avoid vendor lock-in with clean interfaces
+2. **Security First** - Zero-trust, encryption, audit trails
+3. **Performance Focused** - Optimize for sub-second operations
+4. **Cost Effective** - Choose solutions that scale economically
+5. **Domain Driven** - Clear boundaries and ownership
+6. **Test Driven** - 90% coverage requirement
 
-- What risks are we accepting?
+## Using These ADRs
 
-## Alternatives Considered
-
-What other options did we consider? Why didn't we choose them?
-
-## References
-
-Links to related documents, discussions, or external resources.
-```
-
-## ADR Lifecycle
-
-1. **Proposed**: The ADR is a proposal under discussion
-2. **Accepted**: The decision has been made and is being implemented
-3. **Deprecated**: The decision is no longer relevant or has been reversed
-4. **Superseded**: The decision has been replaced by a newer ADR
-
-## Current ADRs
-
-### 🟢 Active Decisions
-
-- [2024-12-16 Logging Strategy](./records/2024-12-16_logging-strategy.md) - ClickHouse for centralized logging
-- [2024-12-17 Package Management](./records/2024-12-17_package-management.md) - Node.js package management architecture
-- [2025-06-09 AI-Ops Architecture](./records/2025-06-09_aiops-architecture.md) - Integration with LLMs and AI agents
-
-### 📊 Implementation Status
-
-For current implementation progress and work status, see:
-
-- [WORK-STATUS.md](./WORK-STATUS.md) - Live tracking of current sprint and priorities
-
-## How to Create a New ADR
-
-1. Copy the template from above
-2. Create a new file in `records/` with format: `YYYY-MM-DD_HH_MM_short-title.md`
-3. Fill out all sections
-4. Submit PR for review
-5. Update this README with the new ADR
-
-## Rules and Guidelines
-
-1. **One Decision Per ADR**: Each ADR should document a single architectural decision
-2. **Immutable Once Accepted**: Don't edit accepted ADRs; create new ones to supersede
-3. **Include Context**: Always explain why the decision was needed
-4. **Document Trade-offs**: Be honest about what we're giving up
-5. **Link Related ADRs**: Reference previous decisions that this relates to
-6. **Keep It Concise**: Aim for 1-2 pages maximum
-
-## Search ADRs
-
-To find relevant ADRs:
-
-```bash
-# Search by content
-grep -r "pattern" docs/adr/records/
-
-# List by date
-ls -la docs/adr/records/ | sort
-
-# Find by status
-grep -l "Status: Deprecated" docs/adr/records/*.md
-```
-
-## Questions?
-
-If you have questions about ADRs or need help creating one, please:
-
-- Check existing ADRs for examples
-- Ask in the #architecture Slack channel
-- Create a GitHub discussion
-
----
-
-_The ADR process helps us make better decisions by forcing us to think through the implications and document our reasoning._
+- For new features, check relevant ADRs for patterns and decisions
+- When proposing changes, create new ADRs following the format
+- Update ADR status when implementations change
+- Link to ADRs in code comments for context
