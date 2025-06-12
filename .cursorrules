@@ -1,0 +1,128 @@
+# Cursor AI Instructions for Hexabase AI
+
+## Project Overview
+Hexabase AI is a multi-tenant Kubernetes as a Service platform built on K3s and vCluster. Follow the architectural decisions and patterns documented in `/docs/adr/organized/`.
+
+## Code Style and Standards
+
+### General Rules
+1. Follow Test-Driven Development (TDD) - write tests FIRST
+2. Target 90% test coverage for all new code
+3. Use Domain-Driven Design patterns (see ADR-008)
+4. Follow the dependency rules: domain → repository → service → handlers
+
+### Go Development
+- Use the established package structure in `/api/internal/`
+- Follow Go idioms and effective Go guidelines
+- Use structured logging with zap
+- Handle errors explicitly, wrap with context
+- Use dependency injection, avoid global state
+
+### TypeScript/React Development
+- Use TypeScript strict mode
+- Follow React hooks best practices
+- Use the established test utilities in `/ui/src/test-utils/`
+- Implement proper loading and error states
+- Use React Query for server state management
+
+## Architecture Decision Records (ADRs)
+
+When proposing architectural changes:
+
+1. Check existing ADRs in `/docs/adr/organized/`
+2. Create new ADRs following the standard format (see CLAUDE.md)
+3. Reference ADR numbers in code comments
+4. Update ADR status when implementing changes
+
+## Key Architectural Patterns
+
+### 1. Provider Abstraction
+Always use provider interfaces for external services:
+```go
+type Provider interface {
+    // Define operations
+}
+```
+
+### 2. Repository Pattern
+```go
+// Domain defines interface
+type Repository interface {
+    Create(ctx context.Context, model *Model) error
+}
+
+// Repository implements
+type postgresRepo struct {
+    db *gorm.DB
+}
+```
+
+### 3. Service Layer
+Business logic goes in services, not handlers or repositories.
+
+### 4. Error Handling
+```go
+if err != nil {
+    return fmt.Errorf("failed to perform operation: %w", err)
+}
+```
+
+## Testing Requirements
+
+### Unit Tests
+- Mock all external dependencies
+- Use table-driven tests
+- Test both success and error cases
+- Use the mock factories provided
+
+### Integration Tests
+- Test with real databases when possible
+- Use test containers for external services
+- Clean up test data after tests
+
+## Security First
+
+1. Never log sensitive data (passwords, tokens, keys)
+2. Always validate user input
+3. Use prepared statements for SQL
+4. Follow OAuth2/OIDC patterns (see ADR-002)
+5. Implement proper RBAC checks
+
+## Performance Guidelines
+
+1. Use database indexes for frequently queried fields
+2. Implement pagination for list operations
+3. Cache in Redis when appropriate
+4. Monitor query performance
+5. Use batch operations where possible
+
+## Documentation
+
+1. Write clear commit messages
+2. Document public APIs with GoDoc/JSDoc
+3. Update ADRs for architectural changes
+4. Keep README files current
+5. Add inline comments for complex logic
+
+## Common Commands
+
+### API Development
+```bash
+cd api
+go test ./... -v
+go run cmd/api/main.go
+```
+
+### UI Development
+```bash
+cd ui
+npm test
+npm run dev
+```
+
+## Resources
+
+- Architecture decisions: `/docs/adr/organized/README.md`
+- API structure guide: `/STRUCTURE_GUIDE.md`
+- Project instructions: `/CLAUDE.md`
+- UI development plan: `/ui/UI_DEVELOPMENT_PLAN.md`
