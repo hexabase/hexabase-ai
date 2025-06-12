@@ -16,9 +16,9 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
@@ -26,6 +26,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
 	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
@@ -40,7 +41,6 @@ import (
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
-	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
@@ -112,8 +112,19 @@ type CICDNamespace string
 type BackupEncryptionKey string
 
 func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*authRepo.ProviderConfig {
-	// TODO: Load from config
-	return make(map[string]*authRepo.ProviderConfig)
+	providers := make(map[string]*authRepo.ProviderConfig)
+	if cfg.Auth.ExternalProviders == nil {
+		return providers
+	}
+	for name, p := range cfg.Auth.ExternalProviders {
+		providers[name] = &authRepo.ProviderConfig{
+			ClientID:     p.ClientID,
+			ClientSecret: p.ClientSecret,
+			RedirectURL:  p.RedirectURL,
+			Scopes:       p.Scopes,
+		}
+	}
+	return providers
 }
 
 func ProvideStripeAPIKey(cfg *config.Config) StripeAPIKey { return StripeAPIKey(cfg.Stripe.APIKey) }

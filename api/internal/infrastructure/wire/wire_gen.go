@@ -225,8 +225,19 @@ type CICDNamespace string
 type BackupEncryptionKey string
 
 func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*auth.ProviderConfig {
-
-	return make(map[string]*auth.ProviderConfig)
+	providers := make(map[string]*auth.ProviderConfig)
+	if cfg.Auth.ExternalProviders == nil {
+		return providers
+	}
+	for name, p := range cfg.Auth.ExternalProviders {
+		providers[name] = &auth.ProviderConfig{
+			ClientID:     p.ClientID,
+			ClientSecret: p.ClientSecret,
+			RedirectURL:  p.RedirectURL,
+			Scopes:       p.Scopes,
+		}
+	}
+	return providers
 }
 
 func ProvideStripeAPIKey(cfg *config.Config) StripeAPIKey { return StripeAPIKey(cfg.Stripe.APIKey) }
