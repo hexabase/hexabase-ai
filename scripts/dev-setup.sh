@@ -144,8 +144,11 @@ print_step "Starting infrastructure services..."
 
 cd "$PROJECT_ROOT"
 
-# Create docker-compose.override.yml for development
-cat > docker-compose.override.yml <<EOF
+# Create docker-compose.override.yml for development (if not exists)
+if [ -f "docker-compose.override.yml" ]; then
+    print_success "docker-compose.override.yml already exists, skipping creation"
+else
+    cat > docker-compose.override.yml <<EOF
 version: '3.8'
 
 services:
@@ -174,6 +177,8 @@ services:
 volumes:
   nats-data:
 EOF
+    print_success "docker-compose.override.yml created"
+fi
 
 docker-compose up -d postgres redis nats
 print_success "Infrastructure services started"
@@ -261,7 +266,7 @@ fi
 # Add entries to /etc/hosts
 print_step "Updating /etc/hosts..."
 
-if grep -q "hexabase-dev" /etc/hosts; then
+if grep -q "api.localhost" /etc/hosts && grep -q "app.localhost" /etc/hosts; then
     echo "/etc/hosts already configured"
 else
     echo "Adding entries to /etc/hosts (requires sudo)..."

@@ -49,7 +49,18 @@ rm -f "$PROJECT_ROOT/ui/.env.local"
 rm -rf "$PROJECT_ROOT/api/keys"
 
 # Remove docker-compose override
-rm -f "$PROJECT_ROOT/docker-compose.override.yml"
+if [ -f "$PROJECT_ROOT/docker-compose.override.yml" ]; then
+    echo -e "\n${YELLOW}▶ docker-compose.override.yml found${NC}"
+    echo -n "Remove docker-compose.override.yml? (y/N): "
+    read -r response
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        rm -f "$PROJECT_ROOT/docker-compose.override.yml"
+        echo -e "${GREEN}✓ docker-compose.override.yml removed${NC}"
+    else
+        echo "Keeping docker-compose.override.yml"
+    fi
+fi
 
 echo -e "${GREEN}✓ Generated files removed${NC}"
 
