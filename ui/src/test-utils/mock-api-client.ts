@@ -461,6 +461,10 @@ export const createMockApiClient = () => ({
     getApplicationMetrics: jest.fn().mockResolvedValue({
       metrics: []
     }),
+    getActivityLogs: jest.fn().mockResolvedValue({
+      logs: [],
+      total: 0,
+    }),
   },
   
   aiops: {

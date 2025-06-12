@@ -31,7 +31,17 @@ describe('Workspace Flow Integration Tests', () => {
 
   it('should complete full workspace creation and resource deployment flow', async () => {
     // Step 1: Create Organization
-    const { rerender } = render(<OrganizationsList />);
+    const mockOrganizations: any[] = [];
+    const mockOnDelete = jest.fn();
+    const mockOnUpdate = jest.fn();
+    
+    const { rerender } = render(
+      <OrganizationsList 
+        organizations={mockOrganizations}
+        onDelete={mockOnDelete}
+        onUpdate={mockOnUpdate}
+      />
+    );
     
     await createOrganization(user, 'Integration Test Org');
     
@@ -43,7 +53,17 @@ describe('Workspace Flow Integration Tests', () => {
     });
     
     // Step 2: Create Workspace
-    rerender(<WorkspaceList />);
+    const mockWorkspaces: any[] = [];
+    const mockWorkspaceCreate = jest.fn();
+    const mockWorkspaceDelete = jest.fn();
+    
+    rerender(
+      <WorkspaceList 
+        workspaces={mockWorkspaces}
+        onCreateWorkspace={mockWorkspaceCreate}
+        onDeleteWorkspace={mockWorkspaceDelete}
+      />
+    );
     
     await createWorkspace(user, 'org-test-1', 'Production Workspace', 'dedicated');
     
@@ -56,7 +76,17 @@ describe('Workspace Flow Integration Tests', () => {
     });
     
     // Step 3: Create Project
-    rerender(<ProjectList />);
+    const mockProjects: any[] = [];
+    const mockProjectCreate = jest.fn();
+    const mockProjectDelete = jest.fn();
+    
+    rerender(
+      <ProjectList 
+        projects={mockProjects}
+        onCreate={mockProjectCreate}
+        onDelete={mockProjectDelete}
+      />
+    );
     
     const createProjButton = screen.getByRole('button', { name: /create project/i });
     await user.click(createProjButton);

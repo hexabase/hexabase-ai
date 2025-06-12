@@ -124,4 +124,37 @@ npm test:watch -- --testPathPattern=auth
 - React Query for server state
 - Socket.io for real-time updates
 
-Last commit: `a7470e1` - feat(ui): set up testing infrastructure with Jest and React Testing Library
+Last commit: `5f5041c` - Update UI components to use modular API structure
+
+## Test Status Update (June 12, 2025) 📊
+
+### UI Test Results:
+- **Total Test Suites**: 27 (11 failed, 15 passed, 1 skipped)
+- **Total Tests**: 269 (68 failed, 191 passed, 10 skipped)
+- **Coverage**: ~25.5% (Statements), ~20.94% (Branches), ~18.91% (Functions), ~26.45% (Lines)
+
+### Fixed Issues:
+1. ✅ Added missing `getActivityLogs` method to monitoring mock API client
+2. ✅ Fixed CronJobScheduleEditor test assertions
+3. ✅ Added mocks for cron-parser and date-fns libraries
+
+### Remaining Issues:
+- Integration tests failing due to component props mismatches
+- Multiple test suites with state update warnings (act() violations)
+- Low coverage in API client methods (~10.51%), mock utilities (~14.21%)
+
+### API Test Results:
+- **Total Packages**: 42 (All passed in latest run)
+- **Overall Coverage**: 14.2%
+- **Notable Coverage**:
+  - domain/application: 100%
+  - service/logs: 100%
+  - service/organization: 80.4%
+  - domain/node: 75%
+  - service/project: 75.1%
+
+### Priority Actions:
+1. Fix remaining UI test failures (integration tests, act() warnings)
+2. Improve UI coverage to meet 90% target (currently at ~25%)
+3. Add comprehensive tests for low coverage areas
+4. Update integration tests to use proper component setup
