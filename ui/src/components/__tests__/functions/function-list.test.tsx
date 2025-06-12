@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { FunctionList } from '@/components/functions/function-list';
 import { useRouter, useParams } from 'next/navigation';
-import { apiClient } from '@/lib/api-client';
+import { functionsApi } from '@/lib/api-client';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -9,17 +9,15 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/lib/api-client', () => ({
-  apiClient: {
-    functions: {
-      list: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      deploy: jest.fn(),
-      invoke: jest.fn(),
-      getLogs: jest.fn(),
-      getVersions: jest.fn(),
-    },
+  functionsApi: {
+    list: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deploy: jest.fn(),
+    invoke: jest.fn(),
+    getLogs: jest.fn(),
+    getVersions: jest.fn(),
   },
 }));
 
@@ -73,7 +71,7 @@ describe('FunctionList', () => {
       workspaceId: 'ws-1',
       projectId: 'proj-1',
     });
-    (apiClient.functions.list as jest.Mock).mockResolvedValue({
+    (functionsApi.list as jest.Mock).mockResolvedValue({
       data: {
         functions: mockFunctions,
         total: 2,
@@ -143,7 +141,7 @@ describe('FunctionList', () => {
         output: { result: 'ok' },
       },
     };
-    (apiClient.functions.invoke as jest.Mock).mockResolvedValue(mockInvokeResponse);
+    (functionsApi.invoke as jest.Mock).mockResolvedValue(mockInvokeResponse);
 
     render(<FunctionList />);
 
@@ -152,7 +150,7 @@ describe('FunctionList', () => {
       fireEvent.click(invokeButton);
     });
 
-    expect(apiClient.functions.invoke).toHaveBeenCalledWith('org-1', 'ws-1', 'func-1', {});
+    expect(functionsApi.invoke).toHaveBeenCalledWith('org-1', 'ws-1', 'func-1', {});
   });
 
   it('should deploy new version', async () => {
@@ -162,7 +160,7 @@ describe('FunctionList', () => {
         status: 'deploying',
       },
     };
-    (apiClient.functions.deploy as jest.Mock).mockResolvedValue(mockDeployResponse);
+    (functionsApi.deploy as jest.Mock).mockResolvedValue(mockDeployResponse);
 
     render(<FunctionList />);
 
@@ -201,7 +199,7 @@ describe('FunctionList', () => {
     fireEvent.click(nodejsOption);
 
     await waitFor(() => {
-      expect(apiClient.functions.list).toHaveBeenCalledWith(
+      expect(functionsApi.list).toHaveBeenCalledWith(
         'org-1', 'ws-1', 'proj-1',
         expect.objectContaining({ runtime: 'nodejs' })
       );
@@ -209,7 +207,7 @@ describe('FunctionList', () => {
   });
 
   it('should show empty state', async () => {
-    (apiClient.functions.list as jest.Mock).mockResolvedValue({
+    (functionsApi.list as jest.Mock).mockResolvedValue({
       data: {
         functions: [],
         total: 0,
