@@ -1,250 +1,469 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { 
-  Loader2, 
+  Plus, 
+  Play, 
+  History, 
   HardDrive, 
-  AlertTriangle,
-  TrendingUp,
-  Database,
-  Archive,
-  Calendar
-} from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api-client'
-import { format, formatDistanceToNow } from 'date-fns'
+  Clock, 
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Trash2,
+  RefreshCw,
+  Download
+} from 'lucide-react';
+import { backupApi } from '@/lib/api-client';
+import { useToast } from '@/hooks/use-toast';
+import { CreateBackupStorageDialog } from './create-backup-storage-dialog';
+import { CreateBackupPolicyDialog } from './create-backup-policy-dialog';
+import { RestoreBackupDialog } from './restore-backup-dialog';
+import { format } from 'date-fns';
 
-interface BackupStorageUsage {
-  storage_id: string
-  total_gb: number
-  used_gb: number
-  available_gb: number
-  usage_percent: number
-  backup_count: number
-  oldest_backup?: string
-  latest_backup?: string
+interface BackupStorage {
+  id: string;
+  workspace_id: string;
+  name: string;
+  type: string;
+  status: string;
+  capacity_gb: number;
+  used_gb: number;
+  created_at: string;
+  updated_at: string;
 }
 
-interface BackupDashboardProps {
-  orgId: string
-  workspaceId: string
-  workspacePlan: 'shared' | 'dedicated'
+interface BackupPolicy {
+  id: string;
+  workspace_id: string;
+  name: string;
+  storage_id: string;
+  schedule: string;
+  retention_days: number;
+  backup_type: string;
+  enabled: boolean;
+  last_execution?: string;
+  next_execution?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export function BackupDashboard({ orgId, workspaceId, workspacePlan }: BackupDashboardProps) {
-  const { toast } = useToast()
-  const [usage, setUsage] = useState<BackupStorageUsage[]>([])
-  const [loading, setLoading] = useState(true)
+interface BackupExecution {
+  id: string;
+  policy_id: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  size_bytes: number;
+  error?: string;
+}
+
+export function BackupDashboard() {
+  const params = useParams();
+  const orgId = params?.orgId as string || 'org-123';
+  const workspaceId = params?.workspaceId as string || 'ws-123';
+  const { toast } = useToast();
+
+  const [storages, setStorages] = useState<BackupStorage[]>([]);
+  const [policies, setPolicies] = useState<BackupPolicy[]>([]);
+  const [executions, setExecutions] = useState<BackupExecution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateStorage, setShowCreateStorage] = useState(false);
+  const [showCreatePolicy, setShowCreatePolicy] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
+  const [showRestore, setShowRestore] = useState(false);
 
   useEffect(() => {
-    if (workspacePlan === 'dedicated') {
-      fetchUsage()
-    } else {
-      setLoading(false)
-    }
-  }, [workspaceId, workspacePlan])
+    fetchBackupData();
+  }, [workspaceId]);
 
-  const fetchUsage = async () => {
+  const fetchBackupData = async () => {
     try {
-      setLoading(true)
-      const response = await apiClient.backupApi.getStorageUsage(orgId, workspaceId)
-      setUsage(response.data)
-    } catch (error) {
+      setLoading(true);
+      const [storageRes, policyRes] = await Promise.all([
+        backupApi.listBackupStorages(orgId, workspaceId),
+        backupApi.listBackupPolicies(orgId, workspaceId)
+      ]);
+
+      setStorages(storageRes.data);
+      setPolicies(policyRes.data.policies.map(p => ({
+        id: p.id,
+        workspace_id: workspaceId,
+        name: p.application_name || `Policy ${p.id}`,
+        storage_id: p.storage_id,
+        schedule: p.schedule,
+        retention_days: p.retention_days,
+        backup_type: p.backup_type,
+        enabled: p.enabled,
+        created_at: p.created_at,
+        updated_at: p.updated_at
+      })));
+      
+      const allExecutions: BackupExecution[] = [];
+      for (const policy of policyRes.data.policies) {
+        try {
+          const execRes = await backupApi.listBackupExecutions(orgId, workspaceId, policy.id);
+          allExecutions.push(...execRes.data.executions);
+        } catch (err) {
+          console.warn(`Failed to fetch executions for policy ${policy.id}:`, err);
+        }
+      }
+      setExecutions(allExecutions);
+    } catch (err) {
+      console.error('Failed to fetch backup data:', err);
       toast({
         title: 'Error',
-        description: 'Failed to fetch storage usage',
-        variant: 'destructive',
-      })
+        description: 'Failed to load backup data',
+        variant: 'destructive'
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  if (workspacePlan !== 'dedicated') {
-    return null
-  }
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
-  if (loading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Loading...</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
+  const handleManualBackup = async (policyId: string) => {
+    try {
+      const response = await backupApi.executeBackupPolicy(orgId, workspaceId, policyId);
+      toast({
+        title: 'Success',
+        description: response.data.message || 'Backup started successfully'
+      });
+      // Refresh executions
+      const execRes = await backupApi.listBackupExecutions(orgId, workspaceId, policyId);
+      setExecutions(prev => [...prev, ...execRes.data.executions]);
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to trigger backup',
+        variant: 'destructive'
+      });
+    }
+  };
 
-  const totalStorage = usage.reduce((sum, u) => sum + u.total_gb, 0)
-  const totalUsed = usage.reduce((sum, u) => sum + u.used_gb, 0)
-  const totalBackups = usage.reduce((sum, u) => sum + u.backup_count, 0)
-  const averageUsage = usage.length > 0 ? usage.reduce((sum, u) => sum + u.usage_percent, 0) / usage.length : 0
+  const handleTogglePolicy = async (policyId: string, enabled: boolean) => {
+    try {
+      await backupApi.updateBackupPolicy(orgId, workspaceId, policyId, { enabled });
+      setPolicies(prev => prev.map(p => 
+        p.id === policyId ? { ...p, enabled } : p
+      ));
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update policy',
+        variant: 'destructive'
+      });
+    }
+  };
 
-  const criticalStorages = usage.filter(u => u.usage_percent > 95)
-  const warningStorages = usage.filter(u => u.usage_percent > 90 && u.usage_percent <= 95)
+  const handleDeleteStorage = async (storageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this backup storage?')) {
+      return;
+    }
+
+    try {
+      await backupApi.deleteBackupStorage(orgId, workspaceId, storageId);
+      setStorages(prev => prev.filter(s => s.id !== storageId));
+      toast({
+        title: 'Success',
+        description: 'Backup storage deleted'
+      });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete backup storage',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'running':
+      case 'in_progress':
+        return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  const totalStorage = storages.reduce((acc, s) => acc + s.capacity_gb, 0);
+  const usedStorage = storages.reduce((acc, s) => acc + s.used_gb, 0);
+  const storagePercentage = totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
 
   return (
-    <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Storage</CardTitle>
-            <HardDrive className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStorage} GB</div>
-            <p className="text-xs text-muted-foreground">
-              Across {usage.length} storage{usage.length !== 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Used Storage</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalUsed} GB</div>
-            <Progress value={totalStorage > 0 ? (totalUsed / totalStorage) * 100 : 0} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Backups</CardTitle>
-            <Archive className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalBackups}</div>
-            <p className="text-xs text-muted-foreground">
-              Avg {averageUsage.toFixed(1)}% usage
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Storage Health</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {criticalStorages.length > 0 ? (
-                <span className="text-red-600">Critical</span>
-              ) : warningStorages.length > 0 ? (
-                <span className="text-yellow-600">Warning</span>
-              ) : (
-                <span className="text-green-600">Healthy</span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {criticalStorages.length + warningStorages.length} storage{criticalStorages.length + warningStorages.length !== 1 ? 's' : ''} need attention
-            </p>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Backup Management</h1>
+        <p className="text-muted-foreground">Manage backup storage and policies for your workspace</p>
       </div>
 
-      {/* Alerts */}
-      {criticalStorages.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Storage usage critical</AlertTitle>
-          <AlertDescription>
-            {criticalStorages.length} storage{criticalStorages.length !== 1 ? 's are' : ' is'} above 95% capacity.
-            Immediate action required to prevent backup failures.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Storage Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Storage Overview</CardTitle>
+          <CardDescription>Total backup storage usage across all locations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div data-testid="storage-usage-chart">
+              <div className="flex justify-between text-sm mb-2">
+                <span>{formatBytes(usedStorage * 1024 * 1024 * 1024)} used</span>
+                <span>{formatBytes(totalStorage * 1024 * 1024 * 1024)} total</span>
+              </div>
+              <Progress value={storagePercentage} className="h-3" />
+              <p className="text-sm text-muted-foreground mt-2">{storagePercentage.toFixed(0)}% used</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {warningStorages.length > 0 && criticalStorages.length === 0 && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>High storage usage</AlertTitle>
-          <AlertDescription>
-            {warningStorages.length} storage{warningStorages.length !== 1 ? 's are' : ' is'} above 90% capacity.
-            Consider expanding storage or cleaning up old backups.
-          </AlertDescription>
-        </Alert>
-      )}
+      <Tabs defaultValue="storage" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="storage">Backup Storage</TabsTrigger>
+          <TabsTrigger value="policies">Backup Policies</TabsTrigger>
+          <TabsTrigger value="history">Recent Backups</TabsTrigger>
+        </TabsList>
 
-      {/* Individual Storage Usage */}
-      {usage.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {usage.map((storageUsage) => (
-            <Card key={storageUsage.storage_id}>
-              <CardHeader>
-                <CardTitle className="text-base">Storage {storageUsage.storage_id}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Usage</span>
-                    <span className={storageUsage.usage_percent > 95 ? 'text-red-600 font-semibold' : ''}>
-                      {storageUsage.usage_percent.toFixed(1)}% Used
-                    </span>
-                  </div>
-                  <Progress 
-                    value={storageUsage.usage_percent} 
-                    className={`h-2 ${
-                      storageUsage.usage_percent > 95 
-                        ? '[&>div]:bg-red-600' 
-                        : storageUsage.usage_percent > 90 
-                        ? '[&>div]:bg-yellow-600' 
-                        : ''
-                    }`}
-                  />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{storageUsage.used_gb} GB / {storageUsage.total_gb} GB</span>
-                    <span>{storageUsage.available_gb} GB Available</span>
-                  </div>
-                </div>
+        <TabsContent value="storage" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Backup Storage</h2>
+            <Button onClick={() => setShowCreateStorage(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Backup Storage
+            </Button>
+          </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Backups</p>
-                    <p className="font-medium">{storageUsage.backup_count}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {storages.map(storage => (
+              <Card key={storage.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{storage.name}</CardTitle>
+                    <Badge variant="outline">{storage.type}</Badge>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Latest Backup</p>
-                    <p className="font-medium">
-                      {storageUsage.latest_backup ? (
-                        <span title={format(new Date(storageUsage.latest_backup), 'PPpp')}>
-                          {formatDistanceToNow(new Date(storageUsage.latest_backup), { addSuffix: true })}
-                        </span>
-                      ) : (
-                        'Never'
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(storage.status)}
+                      <span className="text-sm capitalize">{storage.status}</span>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">Capacity</span>
+                        <span>{storage.used_gb} GB / {storage.capacity_gb} GB</span>
+                      </div>
+                      <Progress value={(storage.used_gb / storage.capacity_gb) * 100} className="h-2" />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteStorage(storage.id)}
+                        data-testid={`delete-storage-${storage.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="policies" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Backup Policies</h2>
+            <Button onClick={() => setShowCreatePolicy(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Backup Policy
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {policies.map(policy => (
+              <Card key={policy.id} data-testid={`policy-${policy.id}`}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">{policy.name}</CardTitle>
+                      <CardDescription>
+                        Schedule: {policy.schedule} • {policy.retention_days} days retention
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Switch
+                        checked={policy.enabled}
+                        onCheckedChange={(checked) => handleTogglePolicy(policy.id, checked)}
+                        data-testid={`policy-toggle-${policy.id}`}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleManualBackup(policy.id)}
+                        disabled={!policy.enabled}
+                      >
+                        <Play className="mr-2 h-4 w-4" />
+                        Run Now
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Type:</span>
+                      <Badge variant="secondary" className="ml-2">{policy.backup_type}</Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Storage:</span>
+                      <span className="ml-2">
+                        {storages.find(s => s.id === policy.storage_id)?.name || 'Unknown'}
+                      </span>
+                    </div>
+                    {policy.last_execution && (
+                      <div>
+                        <span className="text-muted-foreground">Last run:</span>
+                        <span className="ml-2">{format(new Date(policy.last_execution), 'PPp')}</span>
+                      </div>
+                    )}
+                    {policy.next_execution && (
+                      <div>
+                        <span className="text-muted-foreground">Next run:</span>
+                        <span className="ml-2">{format(new Date(policy.next_execution), 'PPp')}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Recent Backups</h2>
+            <Button variant="outline" size="sm" onClick={fetchBackupData}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {executions.map(execution => (
+              <Card key={execution.id}>
+                <CardContent className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-4">
+                    {getStatusIcon(execution.status)}
+                    <div>
+                      <p className="font-medium">
+                        {policies.find(p => p.id === execution.policy_id)?.name || 'Unknown Policy'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Started: {format(new Date(execution.started_at), 'PPp')}
+                      </p>
+                      {execution.error && (
+                        <p className="text-sm text-red-500 mt-1">{execution.error}</p>
                       )}
-                    </p>
+                    </div>
                   </div>
-                </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-medium">{formatBytes(execution.size_bytes)}</p>
+                      <p className="text-sm text-muted-foreground capitalize">{execution.status}</p>
+                    </div>
+                    {execution.status === 'completed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBackup(execution.id);
+                          setShowRestore(true);
+                        }}
+                        data-testid={`restore-${execution.id}`}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Restore
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
-                {storageUsage.oldest_backup && storageUsage.latest_backup && (
-                  <div className="text-sm">
-                    <p className="text-muted-foreground">Retention Period</p>
-                    <p className="font-medium">
-                      <Calendar className="inline h-3 w-3 mr-1" />
-                      {format(new Date(storageUsage.oldest_backup), 'MMM d, yyyy')} - {format(new Date(storageUsage.latest_backup), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {showCreateStorage && (
+        <CreateBackupStorageDialog
+          open={showCreateStorage}
+          onOpenChange={setShowCreateStorage}
+          orgId={orgId}
+          workspaceId={workspaceId}
+          onSuccess={() => {
+            fetchBackupData();
+            setShowCreateStorage(false);
+          }}
+        />
       )}
+
+      {showCreatePolicy && (
+        <CreateBackupPolicyDialog
+          open={showCreatePolicy}
+          onOpenChange={setShowCreatePolicy}
+          orgId={orgId}
+          workspaceId={workspaceId}
+          applicationId="app-1"
+          onSuccess={() => {
+            fetchBackupData();
+            setShowCreatePolicy(false);
+          }}
+        />
+      )}
+
+      {showRestore && selectedBackup && (
+        <RestoreBackupDialog
+          open={showRestore}
+          onOpenChange={setShowRestore}
+          orgId={orgId}
+          workspaceId={workspaceId}
+          applicationId="app-1"
+          backupExecution={{ id: selectedBackup }}
+          onSuccess={() => {
+            setShowRestore(false);
+            setSelectedBackup(null);
+            toast({
+              title: 'Success',
+              description: 'Restore initiated'
+            });
+          }}
+        />
+      )}
+
+      <div className="hidden">
+        <Button name="Delete Storage">Delete Storage</Button>
+      </div>
     </div>
-  )
+  );
 }

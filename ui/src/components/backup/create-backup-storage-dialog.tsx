@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api-client'
+import { backupApi } from '@/lib/api-client'
 import { TaskMonitor } from '@/components/task-monitor'
 
 interface CreateBackupStorageDialogProps {
@@ -69,9 +69,9 @@ export function CreateBackupStorageDialog({
 
     try {
       setLoading(true)
-      const response = await apiClient.backupApi.createBackupStorage(orgId, workspaceId, {
+      const response = await backupApi.createBackupStorage(orgId, workspaceId, {
         name: formData.name,
-        type: formData.type,
+        type: formData.type as 'nfs' | 'ceph' | 'local' | 'proxmox',
         capacity_gb: formData.capacity_gb,
       })
 
