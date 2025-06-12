@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ApplicationList } from '@/components/applications/application-list';
 import { useRouter, useParams } from 'next/navigation';
-import { apiClient } from '@/lib/api-client';
+import { applicationsApi } from '@/lib/api-client';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -10,14 +10,12 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/lib/api-client', () => ({
-  apiClient: {
-    applications: {
-      list: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      updateStatus: jest.fn(),
-      delete: jest.fn(),
-    },
+  applicationsApi: {
+    list: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateStatus: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -120,7 +118,7 @@ describe('ApplicationList', () => {
       workspaceId: 'ws-1',
       projectId: 'proj-1',
     });
-    (apiClient.applications.list as jest.Mock).mockResolvedValue({
+    (applicationsApi.list as jest.Mock).mockResolvedValue({
       data: {
         applications: mockApplications,
         total: 2,
@@ -138,7 +136,7 @@ describe('ApplicationList', () => {
   });
 
   it('should show loading state', () => {
-    (apiClient.applications.list as jest.Mock).mockImplementation(
+    (applicationsApi.list as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
@@ -148,7 +146,7 @@ describe('ApplicationList', () => {
   });
 
   it('should handle error state', async () => {
-    (apiClient.applications.list as jest.Mock).mockRejectedValue(
+    (applicationsApi.list as jest.Mock).mockRejectedValue(
       new Error('Failed to fetch applications')
     );
 
@@ -161,7 +159,7 @@ describe('ApplicationList', () => {
   });
 
   it('should show empty state', async () => {
-    (apiClient.applications.list as jest.Mock).mockResolvedValue({
+    (applicationsApi.list as jest.Mock).mockResolvedValue({
       data: {
         applications: [],
         total: 0,
@@ -190,7 +188,7 @@ describe('ApplicationList', () => {
     fireEvent.click(statelessOption.parentElement!);
 
     await waitFor(() => {
-      expect(apiClient.applications.list).toHaveBeenCalledWith(
+      expect(applicationsApi.list).toHaveBeenCalledWith(
         'org-1', 'ws-1', 'proj-1',
         expect.objectContaining({ type: 'stateless' })
       );
@@ -211,7 +209,7 @@ describe('ApplicationList', () => {
     fireEvent.click(runningOption.parentElement!);
 
     await waitFor(() => {
-      expect(apiClient.applications.list).toHaveBeenCalledWith(
+      expect(applicationsApi.list).toHaveBeenCalledWith(
         'org-1', 'ws-1', 'proj-1',
         expect.objectContaining({ status: 'running' })
       );
@@ -248,7 +246,7 @@ describe('ApplicationList', () => {
   });
 
   it('should update application status', async () => {
-    (apiClient.applications.updateStatus as jest.Mock).mockResolvedValue({
+    (applicationsApi.updateStatus as jest.Mock).mockResolvedValue({
       data: { ...mockApplications[0], status: 'suspended' },
     });
 
@@ -260,7 +258,7 @@ describe('ApplicationList', () => {
     });
 
     await waitFor(() => {
-      expect(apiClient.applications.updateStatus).toHaveBeenCalledWith(
+      expect(applicationsApi.updateStatus).toHaveBeenCalledWith(
         'org-1', 'ws-1', 'app-1',
         { status: 'suspended' }
       );
@@ -268,7 +266,7 @@ describe('ApplicationList', () => {
   });
 
   it('should delete application with confirmation', async () => {
-    (apiClient.applications.delete as jest.Mock).mockResolvedValue({});
+    (applicationsApi.delete as jest.Mock).mockResolvedValue({});
 
     render(<ApplicationList />);
 
@@ -283,7 +281,7 @@ describe('ApplicationList', () => {
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
-      expect(apiClient.applications.delete).toHaveBeenCalledWith(
+      expect(applicationsApi.delete).toHaveBeenCalledWith(
         'org-1', 'ws-1', 'proj-1', 'app-1'
       );
     });
@@ -298,7 +296,7 @@ describe('ApplicationList', () => {
       source_type: 'image',
       source_image: 'node:latest',
     };
-    (apiClient.applications.create as jest.Mock).mockResolvedValue({ data: newApp });
+    (applicationsApi.create as jest.Mock).mockResolvedValue({ data: newApp });
 
     render(<ApplicationList />);
 
@@ -314,7 +312,7 @@ describe('ApplicationList', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(apiClient.applications.list).toHaveBeenCalledTimes(2); // Initial load + refresh
+      expect(applicationsApi.list).toHaveBeenCalledTimes(2); // Initial load + refresh
     });
   });
 });

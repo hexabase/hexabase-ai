@@ -1,14 +1,12 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { WorkspaceMetrics } from '@/components/monitoring/workspace-metrics-detail';
-import { apiClient } from '@/lib/api-client';
+import { monitoringApi } from '@/lib/api-client';
 
 jest.mock('@/lib/api-client', () => ({
-  apiClient: {
-    monitoring: {
-      getWorkspaceMetrics: jest.fn(),
-      getResourceUsageHistory: jest.fn(),
-      getApplicationMetrics: jest.fn(),
-    },
+  monitoringApi: {
+    getWorkspaceMetrics: jest.fn(),
+    getResourceUsageHistory: jest.fn(),
+    getApplicationMetrics: jest.fn(),
   },
 }));
 
@@ -41,8 +39,8 @@ describe('WorkspaceMetrics', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (apiClient.monitoring.getWorkspaceMetrics as jest.Mock).mockResolvedValue({ metrics: mockMetrics });
-    (apiClient.monitoring.getResourceUsageHistory as jest.Mock).mockResolvedValue({ history: mockHistory });
+    (monitoringApi.getWorkspaceMetrics as jest.Mock).mockResolvedValue({ metrics: mockMetrics });
+    (monitoringApi.getResourceUsageHistory as jest.Mock).mockResolvedValue({ history: mockHistory });
   });
 
   it('should display workspace metrics', async () => {
@@ -80,7 +78,7 @@ describe('WorkspaceMetrics', () => {
   });
 
   it('should show loading state', () => {
-    (apiClient.monitoring.getWorkspaceMetrics as jest.Mock).mockImplementation(
+    (monitoringApi.getWorkspaceMetrics as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
     
@@ -90,7 +88,7 @@ describe('WorkspaceMetrics', () => {
   });
 
   it('should handle error state', async () => {
-    (apiClient.monitoring.getWorkspaceMetrics as jest.Mock).mockRejectedValue(
+    (monitoringApi.getWorkspaceMetrics as jest.Mock).mockRejectedValue(
       new Error('Failed to fetch metrics')
     );
     
@@ -108,14 +106,14 @@ describe('WorkspaceMetrics', () => {
     render(<WorkspaceMetrics workspaceId={mockWorkspaceId} />);
     
     await waitFor(() => {
-      expect(apiClient.monitoring.getWorkspaceMetrics).toHaveBeenCalledTimes(1);
+      expect(monitoringApi.getWorkspaceMetrics).toHaveBeenCalledTimes(1);
     });
     
     // Advance time by 30 seconds (default refresh interval)
     jest.advanceTimersByTime(30000);
     
     await waitFor(() => {
-      expect(apiClient.monitoring.getWorkspaceMetrics).toHaveBeenCalledTimes(2);
+      expect(monitoringApi.getWorkspaceMetrics).toHaveBeenCalledTimes(2);
     });
     
     jest.useRealTimers();
@@ -128,7 +126,7 @@ describe('WorkspaceMetrics', () => {
       memory_usage: 92,
     };
     
-    (apiClient.monitoring.getWorkspaceMetrics as jest.Mock).mockResolvedValue({ 
+    (monitoringApi.getWorkspaceMetrics as jest.Mock).mockResolvedValue({ 
       metrics: criticalMetrics 
     });
     
@@ -144,7 +142,7 @@ describe('WorkspaceMetrics', () => {
     render(<WorkspaceMetrics workspaceId={mockWorkspaceId} showHistory />);
     
     await waitFor(() => {
-      expect(apiClient.monitoring.getResourceUsageHistory).toHaveBeenCalledWith(
+      expect(monitoringApi.getResourceUsageHistory).toHaveBeenCalledWith(
         mockWorkspaceId,
         expect.objectContaining({
           period: '1h',
