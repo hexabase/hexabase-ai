@@ -59,16 +59,16 @@ type Session struct {
 	LastUsedAt   time.Time `json:"last_used_at"`
 }
 
-// AuthState represents OAuth state data
+// AuthState represents OAuth state data stored temporarily during the auth flow.
 type AuthState struct {
-	State        string    `json:"state"`
-	Provider     string    `json:"provider"`
+	State        string    `gorm:"primaryKey" json:"state"` // gorm:primaryKey - Uniquely identifies the auth request.
+	Provider     string    `gorm:"not null" json:"provider"`   // gorm:not null - Required to identify the auth provider on callback.
 	RedirectURL  string    `json:"redirect_url,omitempty"`
 	CodeVerifier string    `json:"code_verifier,omitempty"`
 	ClientIP     string    `json:"client_ip"`
 	UserAgent    string    `json:"user_agent"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ExpiresAt    time.Time `gorm:"index;not null" json:"expires_at"` // gorm:index - For efficient lookup of active states. gorm:not null - States must expire.
+	CreatedAt    time.Time `gorm:"not null" json:"created_at"`       // gorm:not null - Ensures creation timestamp exists for auditing.
 }
 
 // SecurityEvent represents a security-related event
