@@ -114,6 +114,8 @@ func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, toke
 	switch provider {
 	case "google":
 		return r.getGoogleUserInfo(ctx, client)
+	case "github":
+		return r.getGithubUserInfo(ctx, client)
 	default:
 		return nil, fmt.Errorf("user info not implemented for provider %s", provider)
 	}
@@ -175,6 +177,37 @@ func (r *oauthRepository) getGoogleUserInfo(ctx context.Context, client *http.Cl
 		Name:     googleUser.Name,
 		Picture:  googleUser.Picture,
 		Provider: "google",
+	}, nil
+}
+
+func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Client) (*auth.UserInfo, error) {
+	resp, err := client.Get("https://api.github.com/user")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get user info: status %d", resp.StatusCode)
+	}
+
+	var githubUser struct {
+		ID        int64  `json:"id"`
+		Email     string `json:"email"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&githubUser); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	return &auth.UserInfo{
+		ID:       fmt.Sprintf("%d", githubUser.ID),
+		Email:    githubUser.Email,
+		Name:     githubUser.Login,
+		Picture:  githubUser.AvatarURL,
+		Provider: "github",
 	}, nil
 }
 
