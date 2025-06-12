@@ -1,7 +1,7 @@
 # Cursor AI Instructions for Hexabase AI
 
 ## Project Overview
-Hexabase AI is a multi-tenant Kubernetes as a Service platform built on K3s and vCluster. Follow the architectural decisions and patterns documented in `/docs/adr/organized/`.
+Hexabase AI is a multi-tenant Kubernetes as a Service platform built on K3s and vCluster. Follow the architectural decisions and patterns documented in `/docs/adr/`.
 
 ## Code Style and Standards
 
@@ -29,7 +29,7 @@ Hexabase AI is a multi-tenant Kubernetes as a Service platform built on K3s and 
 
 When proposing architectural changes:
 
-1. Check existing ADRs in `/docs/adr/organized/`
+1. Check existing ADRs in `/docs/adr/`
 2. Create new ADRs following the standard format (see CLAUDE.md)
 3. Reference ADR numbers in code comments
 4. Update ADR status when implementing changes
@@ -122,7 +122,7 @@ npm run dev
 
 ## Resources
 
-- Architecture decisions: `/docs/adr/organized/README.md`
+- Architecture decisions: `/docs/adr/README.md`
 - API structure guide: `/STRUCTURE_GUIDE.md`
 - Project instructions: `/CLAUDE.md`
 - UI development plan: `/ui/UI_DEVELOPMENT_PLAN.md`
