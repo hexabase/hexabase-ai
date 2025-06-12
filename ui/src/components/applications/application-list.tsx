@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Application, apiClient } from '@/lib/api-client';
+import { Application, applicationsApi } from '@/lib/api-client';
 import { ApplicationCard } from './application-card';
 import { DeployApplicationDialog } from './deploy-application-dialog';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ export function ApplicationList() {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.applications.list(orgId, workspaceId, projectId, filters);
+      const response = await applicationsApi.list(orgId, workspaceId, projectId, filters);
       setApplications(response.data.applications);
     } catch (error) {
       setError('Failed to load applications');
@@ -65,7 +65,7 @@ export function ApplicationList() {
 
   const handleDeploy = async (data: any) => {
     try {
-      const newApp = await apiClient.applications.create(orgId, workspaceId, projectId, data);
+      const newApp = await applicationsApi.create(orgId, workspaceId, projectId, data);
       setDeployDialogOpen(false);
       toast({
         title: 'Application deployed',
@@ -89,7 +89,7 @@ export function ApplicationList() {
 
   const handleDeleteApplication = async (applicationId: string) => {
     try {
-      await apiClient.applications.delete(orgId, workspaceId, projectId, applicationId);
+      await applicationsApi.delete(orgId, workspaceId, projectId, applicationId);
       setApplications(applications.filter(app => app.id !== applicationId));
       setDeleteApp(null);
       toast({
@@ -107,7 +107,7 @@ export function ApplicationList() {
 
   const handleStatusChange = async (applicationId: string, newStatus: string) => {
     try {
-      const response = await apiClient.applications.updateStatus(orgId, workspaceId, applicationId, { 
+      const response = await applicationsApi.updateStatus(orgId, workspaceId, applicationId, { 
         status: newStatus 
       });
       setApplications(applications.map(app => 
@@ -223,7 +223,7 @@ export function ApplicationList() {
             application={application}
             onClick={handleApplicationClick}
             onEdit={handleEditApplication}
-            onDelete={setDeleteApp}
+            onDelete={(applicationId: string) => setDeleteApp(applications.find(app => app.id === applicationId) || null)}
             onStatusChange={handleStatusChange}
           />
         ))}

@@ -21,7 +21,7 @@ import {
   RefreshCw,
   Download
 } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { backupApi } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { CreateBackupStorageDialog } from './create-backup-storage-dialog';
 import { CreateBackupPolicyDialog } from './create-backup-policy-dialog';
@@ -67,6 +67,7 @@ interface BackupExecution {
 
 export function BackupDashboard() {
   const params = useParams();
+  const orgId = params?.orgId as string || 'org-123';
   const workspaceId = params?.workspaceId as string || 'ws-123';
   const { toast } = useToast();
 
@@ -86,15 +87,35 @@ export function BackupDashboard() {
   const fetchBackupData = async () => {
     try {
       setLoading(true);
-      const [storageRes, policyRes, executionRes] = await Promise.all([
-        apiClient.backup.listStorages(workspaceId),
-        apiClient.backup.listPolicies(workspaceId),
-        apiClient.backup.listExecutions(workspaceId)
+      const [storageRes, policyRes] = await Promise.all([
+        backupApi.listBackupStorages(orgId, workspaceId),
+        backupApi.listBackupPolicies(orgId, workspaceId)
       ]);
 
-      setStorages(storageRes.storages);
-      setPolicies(policyRes.policies);
-      setExecutions(executionRes.executions);
+      setStorages(storageRes.data);
+      setPolicies(policyRes.data.policies.map(p => ({
+        id: p.id,
+        workspace_id: workspaceId,
+        name: p.application_name || `Policy ${p.id}`,
+        storage_id: p.storage_id,
+        schedule: p.schedule,
+        retention_days: p.retention_days,
+        backup_type: p.backup_type,
+        enabled: p.enabled,
+        created_at: p.created_at,
+        updated_at: p.updated_at
+      })));
+      
+      const allExecutions: BackupExecution[] = [];
+      for (const policy of policyRes.data.policies) {
+        try {
+          const execRes = await backupApi.listBackupExecutions(orgId, workspaceId, policy.id);
+          allExecutions.push(...execRes.data.executions);
+        } catch (err) {
+          console.warn(`Failed to fetch executions for policy ${policy.id}:`, err);
+        }
+      }
+      setExecutions(allExecutions);
     } catch (err) {
       console.error('Failed to fetch backup data:', err);
       toast({
@@ -117,14 +138,14 @@ export function BackupDashboard() {
 
   const handleManualBackup = async (policyId: string) => {
     try {
-      const response = await apiClient.backup.triggerBackup(workspaceId, policyId);
+      const response = await backupApi.executeBackupPolicy(orgId, workspaceId, policyId);
       toast({
         title: 'Success',
-        description: response.message || 'Backup started successfully'
+        description: response.data.message || 'Backup started successfully'
       });
       // Refresh executions
-      const executionRes = await apiClient.backup.listExecutions(workspaceId);
-      setExecutions(executionRes.executions);
+      const execRes = await backupApi.listBackupExecutions(orgId, workspaceId, policyId);
+      setExecutions(prev => [...prev, ...execRes.data.executions]);
     } catch (err) {
       toast({
         title: 'Error',
@@ -136,7 +157,7 @@ export function BackupDashboard() {
 
   const handleTogglePolicy = async (policyId: string, enabled: boolean) => {
     try {
-      await apiClient.backup.updatePolicy(workspaceId, policyId, { enabled });
+      await backupApi.updateBackupPolicy(orgId, workspaceId, policyId, { enabled });
       setPolicies(prev => prev.map(p => 
         p.id === policyId ? { ...p, enabled } : p
       ));
@@ -155,7 +176,7 @@ export function BackupDashboard() {
     }
 
     try {
-      await apiClient.backup.deleteStorage(workspaceId, storageId);
+      await backupApi.deleteBackupStorage(orgId, workspaceId, storageId);
       setStorages(prev => prev.filter(s => s.id !== storageId));
       toast({
         title: 'Success',
@@ -396,10 +417,12 @@ export function BackupDashboard() {
 
       {showCreateStorage && (
         <CreateBackupStorageDialog
+          open={showCreateStorage}
+          onOpenChange={setShowCreateStorage}
+          orgId={orgId}
           workspaceId={workspaceId}
-          onClose={() => setShowCreateStorage(false)}
-          onSuccess={(storage) => {
-            setStorages(prev => [...prev, storage]);
+          onSuccess={() => {
+            fetchBackupData();
             setShowCreateStorage(false);
           }}
         />
@@ -407,11 +430,13 @@ export function BackupDashboard() {
 
       {showCreatePolicy && (
         <CreateBackupPolicyDialog
+          open={showCreatePolicy}
+          onOpenChange={setShowCreatePolicy}
+          orgId={orgId}
           workspaceId={workspaceId}
-          storages={storages}
-          onClose={() => setShowCreatePolicy(false)}
-          onSuccess={(policy) => {
-            setPolicies(prev => [...prev, policy]);
+          applicationId="app-1"
+          onSuccess={() => {
+            fetchBackupData();
             setShowCreatePolicy(false);
           }}
         />
@@ -419,12 +444,12 @@ export function BackupDashboard() {
 
       {showRestore && selectedBackup && (
         <RestoreBackupDialog
+          open={showRestore}
+          onOpenChange={setShowRestore}
+          orgId={orgId}
           workspaceId={workspaceId}
-          backupId={selectedBackup}
-          onClose={() => {
-            setShowRestore(false);
-            setSelectedBackup(null);
-          }}
+          applicationId="app-1"
+          backupExecution={{ id: selectedBackup }}
           onSuccess={() => {
             setShowRestore(false);
             setSelectedBackup(null);

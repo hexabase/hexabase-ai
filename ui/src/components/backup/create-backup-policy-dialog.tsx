@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Loader2, Info } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api-client'
+import { backupApi } from '@/lib/api-client'
 import {
   Tooltip,
   TooltipContent,
@@ -82,7 +82,7 @@ export function CreateBackupPolicyDialog({
 
   const fetchStorages = async () => {
     try {
-      const response = await apiClient.backupApi.listBackupStorages(orgId, workspaceId)
+      const response = await backupApi.listBackupStorages(orgId, workspaceId)
       setStorages(response.data.filter((s: BackupStorage) => s.status === 'active'))
       
       // Auto-select first storage if none selected
@@ -112,13 +112,13 @@ export function CreateBackupPolicyDialog({
       setLoading(true)
       
       if (existingPolicy) {
-        await apiClient.backupApi.updateBackupPolicy(orgId, workspaceId, existingPolicy.id, formData)
+        await backupApi.updateBackupPolicy(orgId, workspaceId, existingPolicy.id, formData)
         toast({
           title: 'Success',
           description: 'Backup policy updated successfully',
         })
       } else {
-        await apiClient.backupApi.createBackupPolicy(orgId, workspaceId, applicationId, formData)
+        await backupApi.createBackupPolicy(orgId, workspaceId, applicationId, formData)
         toast({
           title: 'Success',
           description: 'Backup policy created successfully',

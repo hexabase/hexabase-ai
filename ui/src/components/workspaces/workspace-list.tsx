@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { apiClient, workspacesApi, plansApi, Workspace } from '@/lib/api-client';
+import { apiClient, workspacesApi, plansApi, Workspace, Plan } from '@/lib/api-client';
 import { WorkspaceCard } from './workspace-card';
 import { CreateWorkspaceDialog } from './create-workspace-dialog';
 import { Button } from '@/components/ui/button';
@@ -21,18 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  resource_limits?: {
-    cpu: string;
-    memory: string;
-    storage: string;
-  };
-}
+
 
 export function WorkspaceList() {
   const router = useRouter();
@@ -56,7 +45,7 @@ export function WorkspaceList() {
         plansApi.list(),
       ]);
       setWorkspaces(workspacesResponse.workspaces);
-      setPlans(plansResponse.plans);
+      setPlans(plansResponse.plans || []);
     } catch (err) {
       setError('Failed to load workspaces');
       console.error('Error fetching workspaces:', err);

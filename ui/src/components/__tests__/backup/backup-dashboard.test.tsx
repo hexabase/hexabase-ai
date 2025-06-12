@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BackupDashboard } from '@/components/backup/backup-dashboard';
-import { apiClient } from '@/lib/api-client';
+import { backupApi } from '@/lib/api-client';
 import { useParams } from 'next/navigation';
 
 jest.mock('next/navigation', () => ({
@@ -9,20 +9,18 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/lib/api-client', () => ({
-  apiClient: {
-    backup: {
-      listStorages: jest.fn(),
-      createStorage: jest.fn(),
-      deleteStorage: jest.fn(),
-      listPolicies: jest.fn(),
-      createPolicy: jest.fn(),
-      updatePolicy: jest.fn(),
-      deletePolicy: jest.fn(),
-      listExecutions: jest.fn(),
-      triggerBackup: jest.fn(),
-      getBackupDetails: jest.fn(),
-      restoreBackup: jest.fn(),
-    },
+  backupApi: {
+    listBackupStorages: jest.fn(),
+    createBackupStorage: jest.fn(),
+    deleteBackupStorage: jest.fn(),
+    listBackupPolicies: jest.fn(),
+    createBackupPolicy: jest.fn(),
+    updateBackupPolicy: jest.fn(),
+    deleteBackupPolicy: jest.fn(),
+    listBackupExecutions: jest.fn(),
+    executeBackupPolicy: jest.fn(),
+    validateBackup: jest.fn(),
+    restoreBackup: jest.fn(),
   },
 }));
 
@@ -88,19 +86,16 @@ describe('BackupDashboard', () => {
       workspaceId: 'ws-123',
     });
     
-    (apiClient.backup.listStorages as jest.Mock).mockResolvedValue({
-      storages: mockStorages,
-      total: mockStorages.length,
+    (backupApi.listBackupStorages as jest.Mock).mockResolvedValue({
+      data: mockStorages,
     });
     
-    (apiClient.backup.listPolicies as jest.Mock).mockResolvedValue({
-      policies: mockPolicies,
-      total: mockPolicies.length,
+    (backupApi.listBackupPolicies as jest.Mock).mockResolvedValue({
+      data: { policies: mockPolicies },
     });
     
-    (apiClient.backup.listExecutions as jest.Mock).mockResolvedValue({
-      executions: mockExecutions,
-      total: mockExecutions.length,
+    (backupApi.listBackupExecutions as jest.Mock).mockResolvedValue({
+      data: { executions: mockExecutions },
     });
   });
 
@@ -126,7 +121,7 @@ describe('BackupDashboard', () => {
   });
 
   it('should create new backup storage', async () => {
-    (apiClient.backup.createStorage as jest.Mock).mockResolvedValue({
+    (backupApi.createBackupStorage as jest.Mock).mockResolvedValue({
       id: 'bs-new',
       workspace_id: 'ws-123',
       name: 'Secondary Storage',
@@ -154,7 +149,7 @@ describe('BackupDashboard', () => {
     await user.click(submitButton);
     
     await waitFor(() => {
-      expect(apiClient.backup.createStorage).toHaveBeenCalledWith('ws-123', {
+      expect(backupApi.createBackupStorage).toHaveBeenCalledWith('org-123', 'ws-123', {
         name: 'Secondary Storage',
         type: 'proxmox',
         capacity_gb: 500,
@@ -173,7 +168,7 @@ describe('BackupDashboard', () => {
   });
 
   it('should create new backup policy', async () => {
-    (apiClient.backup.createPolicy as jest.Mock).mockResolvedValue({
+    (backupApi.createBackupPolicy as jest.Mock).mockResolvedValue({
       id: 'bp-new',
       workspace_id: 'ws-123',
       name: 'Weekly Backup',
@@ -209,7 +204,7 @@ describe('BackupDashboard', () => {
     await user.click(submitButton);
     
     await waitFor(() => {
-      expect(apiClient.backup.createPolicy).toHaveBeenCalledWith('ws-123', {
+      expect(backupApi.createBackupPolicy).toHaveBeenCalledWith('org-123', 'ws-123', 'app-1', {
         name: 'Weekly Backup',
         storage_id: 'bs-1',
         schedule: '0 3 * * 0',
@@ -232,7 +227,7 @@ describe('BackupDashboard', () => {
   });
 
   it('should trigger manual backup', async () => {
-    (apiClient.backup.triggerBackup as jest.Mock).mockResolvedValue({
+    (backupApi.executeBackupPolicy as jest.Mock).mockResolvedValue({
       execution_id: 'be-manual',
       status: 'running',
       message: 'Backup started successfully',
@@ -247,13 +242,13 @@ describe('BackupDashboard', () => {
     });
     
     await waitFor(() => {
-      expect(apiClient.backup.triggerBackup).toHaveBeenCalledWith('ws-123', 'bp-1');
+      expect(backupApi.executeBackupPolicy).toHaveBeenCalledWith('org-123', 'ws-123', 'bp-1');
       expect(screen.getByText(/backup started successfully/i)).toBeInTheDocument();
     });
   });
 
   it('should restore from backup', async () => {
-    (apiClient.backup.getBackupDetails as jest.Mock).mockResolvedValue({
+    (backupApi.validateBackup as jest.Mock).mockResolvedValue({
       backup: {
         id: 'be-1',
         policy_name: 'Daily Backup',
@@ -263,7 +258,7 @@ describe('BackupDashboard', () => {
       },
     });
     
-    (apiClient.backup.restoreBackup as jest.Mock).mockResolvedValue({
+    (backupApi.restoreBackup as jest.Mock).mockResolvedValue({
       restore_id: 'res-123',
       status: 'in_progress',
       message: 'Restore initiated',
@@ -286,15 +281,21 @@ describe('BackupDashboard', () => {
     await user.click(confirmButton);
     
     await waitFor(() => {
-      expect(apiClient.backup.restoreBackup).toHaveBeenCalledWith('ws-123', 'be-1', {
-        target_workspace_id: 'ws-123',
+      expect(backupApi.restoreBackup).toHaveBeenCalledWith('org-123', 'ws-123', 'app-1', {
+        backup_execution_id: 'be-1',
+        restore_type: 'in_place',
+        restore_options: {
+          restore_volumes: true,
+          restore_database: true,
+          restore_config: true,
+        },
       });
       expect(screen.getByText(/restore initiated/i)).toBeInTheDocument();
     });
   });
 
   it('should handle backup policy toggle', async () => {
-    (apiClient.backup.updatePolicy as jest.Mock).mockResolvedValue({
+    (backupApi.updateBackupPolicy as jest.Mock).mockResolvedValue({
       ...mockPolicies[0],
       enabled: false,
     });
@@ -307,14 +308,14 @@ describe('BackupDashboard', () => {
     });
     
     await waitFor(() => {
-      expect(apiClient.backup.updatePolicy).toHaveBeenCalledWith('ws-123', 'bp-1', {
+      expect(backupApi.updateBackupPolicy).toHaveBeenCalledWith('org-123', 'ws-123', 'bp-1', {
         enabled: false,
       });
     });
   });
 
   it('should delete backup storage with confirmation', async () => {
-    (apiClient.backup.deleteStorage as jest.Mock).mockResolvedValue({});
+    (backupApi.deleteBackupStorage as jest.Mock).mockResolvedValue({});
     
     render(<BackupDashboard />);
     
@@ -330,7 +331,7 @@ describe('BackupDashboard', () => {
     await user.click(confirmButton);
     
     await waitFor(() => {
-      expect(apiClient.backup.deleteStorage).toHaveBeenCalledWith('ws-123', 'bs-1');
+      expect(backupApi.deleteBackupStorage).toHaveBeenCalledWith('org-123', 'ws-123', 'bs-1');
     });
   });
 
