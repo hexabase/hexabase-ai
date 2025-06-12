@@ -123,6 +123,7 @@ export const organizationsApi = {
   },
 };
 
+
 // Workspace types
 export interface Workspace {
   id: string;
@@ -201,7 +202,7 @@ export const workspacesApi = {
   },
 };
 
-// Backup Management Interfaces
+
 export interface BackupStorage {
   id: string;
   workspace_id: string;
@@ -425,6 +426,7 @@ export const backupApi = {
   },
 };
 
+
 // Application Management Interfaces
 export interface Application {
   id: string;
@@ -569,6 +571,229 @@ export const applicationsApi = {
     return response;
   },
 };
+
+// Functions API Interfaces
+export interface FunctionConfig {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  runtime: string; // 'nodejs18' | 'python39' | 'go119' etc
+  handler: string;
+  timeout: number; // in seconds
+  memory: number; // in MB
+  environment_vars?: Record<string, string>;
+  triggers: string[]; // 'http' | 'event' | 'schedule'
+  status: 'active' | 'updating' | 'error' | 'inactive';
+  version: string;
+  last_deployed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FunctionVersion {
+  version: string;
+  deployed_at: string;
+  deployed_by: string;
+  status: 'active' | 'inactive';
+  size_bytes?: number;
+}
+
+export interface FunctionInvocation {
+  invocation_id: string;
+  function_id: string;
+  status: 'success' | 'error' | 'timeout';
+  trigger_type: string;
+  payload?: any;
+  output?: any;
+  error?: string;
+  duration_ms?: number;
+  logs?: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+export interface CreateFunctionRequest {
+  name: string;
+  description?: string;
+  runtime: string;
+  handler: string;
+  timeout?: number;
+  memory?: number;
+  environment_vars?: Record<string, string>;
+  triggers?: string[];
+  source?: File;
+}
+
+export interface DeployFunctionRequest {
+  version?: string;
+  source?: File;
+  environment_vars?: Record<string, string>;
+  rollback_to?: string;
+}
+
+// Functions API
+export const functionsApi = {
+  // List functions
+  list: async (
+    orgId: string, 
+    workspaceId: string, 
+    projectId?: string,
+    params?: { 
+      runtime?: string;
+      status?: string;
+      trigger?: string;
+    }
+  ): Promise<{ data: { functions: FunctionConfig[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.runtime) searchParams.append('runtime', params.runtime);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.trigger) searchParams.append('trigger', params.trigger);
+    
+    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
+    if (projectId) {
+      url += `/projects/${projectId}`;
+    }
+    url += `/functions?${searchParams}`;
+    
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Get function by ID
+  get: async (orgId: string, workspaceId: string, functionId: string): Promise<{ data: FunctionConfig }> => {
+    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`);
+    return response;
+  },
+
+  // Create function
+  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateFunctionRequest): Promise<{ data: FunctionConfig }> => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'source' && value instanceof File) {
+        formData.append(key, value);
+      } else if (key === 'environment_vars' || key === 'triggers') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/functions`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  },
+
+  // Update function
+  update: async (orgId: string, workspaceId: string, functionId: string, data: Partial<CreateFunctionRequest>): Promise<{ data: FunctionConfig }> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`, data);
+    return response;
+  },
+
+  // Deploy function
+  deploy: async (orgId: string, workspaceId: string, functionId: string, data: DeployFunctionRequest): Promise<{ data: { version: string; status: string } }> => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'source' && value instanceof File) {
+        formData.append(key, value);
+      } else if (key === 'environment_vars') {
+        formData.append(key, JSON.stringify(value));
+      } else if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/deploy`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  },
+
+  // Delete function
+  delete: async (orgId: string, workspaceId: string, functionId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}`);
+  },
+
+  // Invoke function
+  invoke: async (orgId: string, workspaceId: string, functionId: string, data: { trigger_type?: string; payload?: any; http_method?: string; headers?: Record<string, string> }): Promise<{ data: FunctionInvocation }> => {
+    const response = await apiClient.post(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/invoke`,
+      data
+    );
+    return response;
+  },
+
+  // Get function logs
+  getLogs: async (
+    orgId: string, 
+    workspaceId: string, 
+    functionId: string,
+    params?: { 
+      start_time?: string;
+      end_time?: string;
+      limit?: number;
+      invocation_id?: string;
+    }
+  ): Promise<{ data: { logs: string[]; total: number } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_time) searchParams.append('start_time', params.start_time);
+    if (params?.end_time) searchParams.append('end_time', params.end_time);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.invocation_id) searchParams.append('invocation_id', params.invocation_id);
+    
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/logs?${searchParams}`
+    );
+    return response;
+  },
+
+  // Get function versions
+  getVersions: async (orgId: string, workspaceId: string, functionId: string): Promise<{ data: { versions: FunctionVersion[] } }> => {
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/versions`
+    );
+    return response;
+  },
+
+  // Get function metrics
+  getMetrics: async (
+    orgId: string, 
+    workspaceId: string, 
+    functionId: string,
+    params?: { 
+      metric?: string;
+      start_time?: string;
+      end_time?: string;
+      interval?: string;
+    }
+  ): Promise<{ data: { metrics: any } }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.metric) searchParams.append('metric', params.metric);
+    if (params?.start_time) searchParams.append('start_time', params.start_time);
+    if (params?.end_time) searchParams.append('end_time', params.end_time);
+    if (params?.interval) searchParams.append('interval', params.interval);
+    
+    const response = await apiClient.get(
+      `/api/v1/organizations/${orgId}/workspaces/${workspaceId}/functions/${functionId}/metrics?${searchParams}`
+    );
+    return response;
+  },
+};
+
 
 // Task Management Interfaces
 export interface Task {
@@ -625,6 +850,7 @@ export const taskApi = {
   },
 };
 
+
 // VCluster API functions
 export const vclusterApi = {
   // Get vCluster status
@@ -676,377 +902,6 @@ export const vclusterApi = {
   },
 };
 
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
-
 // Plans API functions
 export const plansApi = {
   // List available plans
@@ -1061,377 +916,6 @@ export const plansApi = {
     return response.data;
   },
 };
-
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
 
 // Auth API functions
 export const authApi = {
@@ -1464,378 +948,19 @@ export const authApi = {
     const response = await apiClient.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
     return response.data;
   },
-};
 
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
+  // Get user profile
+  getProfile: async (): Promise<{ data: any }> => {
+    const response = await apiClient.get('/api/v1/auth/profile');
     return response;
   },
 
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
+  // Update user profile
+  updateProfile: async (data: any): Promise<{ data: any }> => {
+    const response = await apiClient.put('/api/v1/auth/profile', data);
     return response;
   },
 };
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
 
 // Project types
 export interface Project {
@@ -1844,14 +969,21 @@ export interface Project {
   description?: string;
   workspace_id: string;
   workspace_name?: string;
-  status: 'active' | 'inactive' | 'archived';
+  namespace: string;
+  status: 'active' | 'creating' | 'error' | 'suspended' | 'inactive' | 'archived';
   namespace_count?: number;
-  namespace_name?: string;
-  resource_quotas?: {
-    cpu_limit: string;
-    memory_limit: string;
-    storage_limit: string;
-    pod_limit?: string;
+  resource_quota?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods?: string;
+  };
+  resources?: {
+    deployments: number;
+    services: number;
+    pods: number;
+    configmaps: number;
+    secrets: number;
   };
   resource_usage?: {
     cpu: string;
@@ -1865,13 +997,12 @@ export interface Project {
 export interface CreateProjectRequest {
   name: string;
   description?: string;
-  workspace_id: string;
-  namespace_name?: string;
-  resource_quotas?: {
-    cpu_limit: string;
-    memory_limit: string;
-    storage_limit: string;
-    pod_limit?: string;
+  namespace?: string;
+  resource_quota?: {
+    cpu: string;
+    memory: string;
+    storage: string;
+    pods?: string;
   };
 }
 
@@ -1955,20 +1086,20 @@ export const projectsApi = {
   },
 
   // Create new project
-  create: async (orgId: string, data: CreateProjectRequest): Promise<Project> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/projects/`, data);
+  create: async (orgId: string, workspaceId: string, data: CreateProjectRequest): Promise<Project> => {
+    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/`, data);
     return response.data;
   },
 
   // Update project
-  update: async (orgId: string, projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/projects/${projectId}`, data);
+  update: async (orgId: string, workspaceId: string, projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
+    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}`, data);
     return response.data;
   },
 
   // Delete project
-  delete: async (orgId: string, projectId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/projects/${projectId}`);
+  delete: async (orgId: string, workspaceId: string, projectId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}`);
   },
 
   // Get project statistics
@@ -1977,377 +1108,6 @@ export const projectsApi = {
     return response.data;
   },
 };
-
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
 
 // Namespaces API functions
 export const namespacesApi = {
@@ -2387,6 +1147,7 @@ export const namespacesApi = {
   },
 };
 
+
 // Project Members API
 export const projectMembersApi = {
   // List project members
@@ -2413,6 +1174,7 @@ export const projectMembersApi = {
   },
 };
 
+
 // Project Activity API
 export const projectActivityApi = {
   // Get project activity timeline
@@ -2423,377 +1185,6 @@ export const projectActivityApi = {
     return response.data;
   },
 };
-
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
 
 // Billing & Subscription Interfaces
 export interface Subscription {
@@ -2996,377 +1387,6 @@ export const billingApi = {
     return response.data;
   },
 };
-
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
 
 // Monitoring & Observability Interfaces
 export interface ClusterHealth {
@@ -3595,373 +1615,13 @@ export const monitoringApi = {
   },
 };
 
-// Backup Management Interfaces
-export interface BackupStorage {
-  id: string;
-  workspace_id: string;
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  proxmox_storage_id?: string;
-  proxmox_node_id?: string;
-  capacity_gb: number;
-  used_gb: number;
-  status: 'provisioning' | 'active' | 'error' | 'deleting';
-  connection_config?: Record<string, any>;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
 
-export interface BackupPolicy {
-  id: string;
-  application_id: string;
-  storage_id: string;
-  enabled: boolean;
-  schedule: string;
-  retention_days: number;
-  backup_type: 'full' | 'incremental' | 'application';
-  include_volumes: boolean;
-  include_database: boolean;
-  include_config: boolean;
-  compression_enabled: boolean;
-  encryption_enabled: boolean;
-  encryption_key_ref?: string;
-  pre_backup_hook?: string;
-  post_backup_hook?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupExecution {
-  id: string;
-  policy_id: string;
-  cronjob_execution_id?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  size_bytes: number;
-  compressed_size_bytes: number;
-  backup_path: string;
-  backup_manifest?: {
-    volumes?: string[];
-    databases?: string[];
-    config_maps?: string[];
-  };
-  started_at: string;
-  completed_at?: string;
-  error_message?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupRestore {
-  id: string;
-  backup_execution_id: string;
-  application_id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_id?: string;
-  started_at?: string;
-  completed_at?: string;
-  error_message?: string;
-  validation_results?: Record<string, any>;
-  created_at: string;
-}
-
-export interface BackupStorageUsage {
-  storage_id: string;
-  total_gb: number;
-  used_gb: number;
-  available_gb: number;
-  usage_percent: number;
-  backup_count: number;
-  oldest_backup?: string;
-  latest_backup?: string;
-}
-
-export interface CreateBackupStorageRequest {
-  name: string;
-  type: 'nfs' | 'ceph' | 'local' | 'proxmox';
-  capacity_gb: number;
-  connection_config?: Record<string, any>;
-}
-
-export interface CreateBackupPolicyRequest {
-  storage_id: string;
-  schedule: string;
-  retention_days: number;
-  backup_type?: 'full' | 'incremental' | 'application';
-  include_volumes?: boolean;
-  include_database?: boolean;
-  include_config?: boolean;
-  compression_enabled?: boolean;
-  encryption_enabled?: boolean;
-  enabled?: boolean;
-}
-
-export interface RestoreBackupRequest {
-  backup_execution_id: string;
-  restore_type: 'in_place' | 'new_application' | 'selective';
-  restore_options?: {
-    restore_volumes?: boolean;
-    restore_database?: boolean;
-    restore_config?: boolean;
-    stop_application?: boolean;
-  };
-  new_application_name?: string;
-}
-
-// Backup API functions
-export const backupApi = {
-  // Backup Storage operations
-  listBackupStorages: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`);
-    return response;
-  },
-
-  getBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-    return response;
-  },
-
-  createBackupStorage: async (orgId: string, workspaceId: string, data: CreateBackupStorageRequest): Promise<{ data: BackupStorage & { task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages`, data);
-    return response;
-  },
-
-  updateBackupStorage: async (orgId: string, workspaceId: string, storageId: string, data: Partial<CreateBackupStorageRequest>): Promise<{ data: BackupStorage }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`, data);
-    return response;
-  },
-
-  deleteBackupStorage: async (orgId: string, workspaceId: string, storageId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/${storageId}`);
-  },
-
-  // Backup Policy operations
-  listBackupPolicies: async (orgId: string, workspaceId: string): Promise<{ data: { policies: (BackupPolicy & { application_name?: string })[]; total: number } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies`);
-    return response;
-  },
-
-  getBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policy`);
-    return response;
-  },
-
-  createBackupPolicy: async (orgId: string, workspaceId: string, applicationId: string, data: CreateBackupPolicyRequest): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/backup-policies`, data);
-    return response;
-  },
-
-  updateBackupPolicy: async (orgId: string, workspaceId: string, policyId: string, data: Partial<CreateBackupPolicyRequest>): Promise<{ data: BackupPolicy }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`, data);
-    return response;
-  },
-
-  deleteBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}`);
-  },
-
-  executeBackupPolicy: async (orgId: string, workspaceId: string, policyId: string): Promise<{ data: { execution_id: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/execute`);
-    return response;
-  },
-
-  // Backup Execution operations
-  listBackupExecutions: async (orgId: string, workspaceId: string, policyId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { executions: BackupExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-policies/${policyId}/executions?${searchParams}`);
-    return response;
-  },
-
-  getBackupExecution: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: BackupExecution }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}`);
-    return response;
-  },
-
-  validateBackup: async (orgId: string, workspaceId: string, executionId: string): Promise<{ data: { valid: boolean; integrity_check: string; backup_manifest: any } }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-executions/${executionId}/validate`);
-    return response;
-  },
-
-  // Restore operations
-  restoreBackup: async (orgId: string, workspaceId: string, applicationId: string, data: RestoreBackupRequest): Promise<{ data: { restore_id: string; status: string; message: string; task_id?: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restore`, data);
-    return response;
-  },
-
-  getRestoreStatus: async (orgId: string, workspaceId: string, restoreId: string): Promise<{ data: BackupRestore }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-restores/${restoreId}`);
-    return response;
-  },
-
-  listRestores: async (orgId: string, workspaceId: string, applicationId: string, params?: { page?: number; page_size?: number }): Promise<{ data: { restores: BackupRestore[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${applicationId}/restores?${searchParams}`);
-    return response;
-  },
-
-  // Storage usage operations
-  getStorageUsage: async (orgId: string, workspaceId: string): Promise<{ data: BackupStorageUsage[] }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/backup-storages/usage`);
-    return response;
-  },
-};
-
-// Application Management Interfaces
-export interface Application {
-  id: string;
-  workspace_id: string;
-  project_id: string;
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  status: 'pending' | 'running' | 'active' | 'suspended' | 'error' | 'terminating';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  endpoints?: any;
-  // CronJob specific fields
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  last_execution_at?: string;
-  next_execution_at?: string;
-  // Function specific fields
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CronJobExecution {
-  id: string;
-  application_id: string;
-  job_name: string;
-  started_at: string;
-  completed_at?: string;
-  status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  exit_code?: number;
-  logs?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateApplicationRequest {
-  name: string;
-  type: 'stateless' | 'stateful' | 'cronjob' | 'function';
-  source_type: 'image' | 'git' | 'buildpack';
-  source_image?: string;
-  source_git_url?: string;
-  source_git_ref?: string;
-  config?: any;
-  // CronJob specific
-  cron_schedule?: string;
-  cron_command?: string[];
-  cron_args?: string[];
-  template_app_id?: string;
-  // Function specific
-  function_runtime?: string;
-  function_handler?: string;
-  function_timeout?: number;
-  function_memory?: number;
-  status?: string;
-}
-
-// Applications API functions
-export const applicationsApi = {
-  // List applications
-  list: async (orgId: string, workspaceId: string, projectId: string | null, params?: { 
-    type?: string; 
-    status?: string; 
-    is_template?: boolean 
-  }): Promise<{ data: { applications: Application[]; total: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.type) searchParams.append('type', params.type);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.is_template !== undefined) searchParams.append('is_template', params.is_template.toString());
-    
-    let url = `/api/v1/organizations/${orgId}/workspaces/${workspaceId}`;
-    if (projectId) {
-      url += `/projects/${projectId}`;
-    }
-    url += `/applications?${searchParams}`;
-    
-    const response = await apiClient.get(url);
-    return response;
-  },
-
-  // Get application by ID
-  get: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: Application }> => {
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`);
-    return response;
-  },
-
-  // Create application
-  create: async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest): Promise<{ data: Application }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications`, data);
-    return response;
-  },
-
-  // Update application
-  update: async (orgId: string, workspaceId: string, appId: string, data: Partial<CreateApplicationRequest>): Promise<{ data: Application }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Update application status
-  updateStatus: async (orgId: string, workspaceId: string, appId: string, data: { status: string }): Promise<{ data: Application }> => {
-    const response = await apiClient.patch(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}`, data);
-    return response;
-  },
-
-  // Delete application
-  delete: async (orgId: string, workspaceId: string, projectId: string, appId: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/projects/${projectId}/applications/${appId}`);
-  },
-
-  // CronJob specific operations
-  getCronJobExecutions: async (orgId: string, workspaceId: string, appId: string, params?: { 
-    page?: number; 
-    page_size?: number 
-  }): Promise<{ data: { executions: CronJobExecution[]; total: number; page: number; page_size: number } }> => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.page_size) searchParams.append('page_size', params.page_size.toString());
-    
-    const response = await apiClient.get(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/executions?${searchParams}`);
-    return response;
-  },
-
-  triggerCronJob: async (orgId: string, workspaceId: string, appId: string): Promise<{ data: { execution_id: string; job_name: string; status: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/trigger`);
-    return response;
-  },
-
-  updateCronSchedule: async (orgId: string, workspaceId: string, appId: string, data: { schedule: string }): Promise<{ data: { id: string; cron_schedule: string; next_execution_at?: string } }> => {
-    const response = await apiClient.put(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/schedule`, data);
-    return response;
-  },
-
-  saveAsTemplate: async (orgId: string, workspaceId: string, appId: string, data: { template_name: string; template_description?: string }): Promise<{ data: { template_id: string; message: string } }> => {
-    const response = await apiClient.post(`/api/v1/organizations/${orgId}/workspaces/${workspaceId}/applications/${appId}/save-as-template`, data);
-    return response;
-  },
-};
-
-// Task Management Interfaces
+// Unified API client - for backwards compatibility
+(apiClient as any).auth = authApi;
+(apiClient as any).organizations = organizationsApi;
+(apiClient as any).workspaces = workspacesApi;
+(apiClient as any).backup = backupApi;
+(apiClient as any).applications = applicationsApi;
+(apiClient as any).functions = functionsApi;
+(apiClient as any).billing = billingApi;
+(apiClient as any).monitoring = monitoringApi;

@@ -1,190 +1,182 @@
 'use client';
 
+import { useState } from 'react';
 import { Workspace } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Play, 
-  Square, 
-  MoreHorizontal, 
-  ExternalLink,
-  Activity,
-  Clock,
-  AlertCircle,
-  CheckCircle
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { Download, Trash2, Server, AlertCircle, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WorkspaceCardProps {
   workspace: Workspace;
-  onStart?: (workspaceId: string) => void;
-  onStop?: (workspaceId: string) => void;
-  onView?: (workspaceId: string) => void;
+  plan?: {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+    resource_limits?: {
+      cpu: string;
+      memory: string;
+      storage: string;
+    };
+  };
+  onClick: (workspaceId: string) => void;
   onDelete?: (workspaceId: string) => void;
+  onDownloadKubeconfig?: (workspaceId: string) => void;
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'RUNNING':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'STOPPED':
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-    case 'PENDING_CREATION':
-    case 'STARTING':
-    case 'STOPPING':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'ERROR':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-};
+export function WorkspaceCard({
+  workspace,
+  plan,
+  onClick,
+  onDelete,
+  onDownloadKubeconfig,
+}: WorkspaceCardProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'RUNNING':
-      return <CheckCircle className="w-4 h-4" />;
-    case 'STOPPED':
-      return <Square className="w-4 h-4" />;
-    case 'PENDING_CREATION':
-    case 'STARTING':
-    case 'STOPPING':
-      return <Clock className="w-4 h-4" />;
-    case 'ERROR':
-      return <AlertCircle className="w-4 h-4" />;
-    default:
-      return <Activity className="w-4 h-4" />;
-  }
-};
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'default';
+      case 'provisioning':
+        return 'secondary';
+      case 'error':
+        return 'destructive';
+      case 'suspended':
+        return 'outline';
+      default:
+        return 'default';
+    }
+  };
 
-const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-};
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Server className="h-3 w-3" />;
+      case 'provisioning':
+        return <Clock className="h-3 w-3" />;
+      case 'error':
+        return <AlertCircle className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
 
-export function WorkspaceCard({ workspace, onStart, onStop, onView, onDelete }: WorkspaceCardProps) {
-  const isRunning = workspace.vcluster_status === 'RUNNING';
-  const isStopped = workspace.vcluster_status === 'STOPPED';
-  const isTransitioning = ['PENDING_CREATION', 'STARTING', 'STOPPING', 'CONFIGURING_HNC'].includes(workspace.vcluster_status);
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger card click if clicking on action buttons
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onClick(workspace.id);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(workspace.id);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDownloadKubeconfig = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDownloadKubeconfig) return;
+    
+    setIsDownloading(true);
+    try {
+      await onDownloadKubeconfig(workspace.id);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer"
-      data-testid="workspace-card"
-      onClick={() => onView?.(workspace.id)}
+      className="cursor-pointer hover:shadow-lg transition-shadow"
+      onClick={handleCardClick}
+      data-testid={`workspace-card-${workspace.id}`}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-semibold">{workspace.name}</CardTitle>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="h-8 w-8 p-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onView?.(workspace.id);
-            }}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Details
-            </DropdownMenuItem>
-            {isRunning && (
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onStop?.(workspace.id);
-              }}>
-                <Square className="mr-2 h-4 w-4" />
-                Stop vCluster
-              </DropdownMenuItem>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg">{workspace.name}</CardTitle>
+          <Badge 
+            variant={getStatusBadgeVariant(workspace.vcluster_status) as any}
+            className={cn(
+              'flex items-center gap-1',
+              `bg-${getStatusBadgeVariant(workspace.vcluster_status)}`
             )}
-            {isStopped && (
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                onStart?.(workspace.id);
-              }}>
-                <Play className="mr-2 h-4 w-4" />
-                Start vCluster
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem 
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(workspace.id);
-              }}
-              className="text-red-600"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          >
+            {getStatusIcon(workspace.vcluster_status)}
+            {workspace.vcluster_status}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {/* Status Badge */}
-          <div className="flex items-center space-x-2">
-            <Badge 
-              variant="outline" 
-              className={getStatusColor(workspace.vcluster_status)}
-              data-testid={`status-${workspace.vcluster_status.toLowerCase()}`}
-            >
-              {getStatusIcon(workspace.vcluster_status)}
-              <span className="ml-1">{formatStatus(workspace.vcluster_status)}</span>
-            </Badge>
-          </div>
-
-          {/* Workspace Info */}
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>Plan: <span className="font-medium">{workspace.plan_id}</span></div>
-            <div>Created: {new Date(workspace.created_at).toLocaleDateString()}</div>
-            {workspace.vcluster_instance_name && (
-              <div>Instance: <span className="font-mono text-xs">{workspace.vcluster_instance_name}</span></div>
-            )}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex space-x-2 pt-2">
-            {isRunning && (
-              <Button 
-                size="sm" 
+        <div className="space-y-4">
+          {plan && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Plan</span>
+                <span className="font-medium">{plan.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Price</span>
+                <span className="font-medium">
+                  {plan.price === 0 ? 'Free' : `$${plan.price}/month`}
+                </span>
+              </div>
+              {plan.resource_limits && (
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground mb-1">Resources</p>
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">CPU</span>
+                      <span>{plan.resource_limits.cpu}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Memory</span>
+                      <span>{plan.resource_limits.memory}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Storage</span>
+                      <span>{plan.resource_limits.storage}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-2">
+            {onDownloadKubeconfig && (
+              <Button
+                size="sm"
                 variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStop?.(workspace.id);
-                }}
-                data-testid="stop-vcluster"
+                onClick={handleDownloadKubeconfig}
+                disabled={workspace.vcluster_status !== 'active' || isDownloading}
+                data-testid={`download-kubeconfig-${workspace.id}`}
               >
-                <Square className="w-3 h-3 mr-1" />
-                Stop
+                <Download className="h-4 w-4 mr-1" />
+                {isDownloading ? 'Downloading...' : 'Kubeconfig'}
               </Button>
             )}
-            {isStopped && (
-              <Button 
-                size="sm" 
+            {onDelete && (
+              <Button
+                size="sm"
                 variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStart?.(workspace.id);
-                }}
-                data-testid="start-vcluster"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                data-testid={`delete-${workspace.id}`}
               >
-                <Play className="w-3 h-3 mr-1" />
-                Start
-              </Button>
-            )}
-            {isTransitioning && (
-              <Button size="sm" variant="outline" disabled>
-                <Clock className="w-3 h-3 mr-1" />
-                {formatStatus(workspace.vcluster_status)}
+                <Trash2 className="h-4 w-4 mr-1" />
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
             )}
           </div>

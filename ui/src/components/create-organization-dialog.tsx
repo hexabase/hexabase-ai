@@ -61,7 +61,7 @@ export default function CreateOrganizationDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" data-testid="create-organization-dialog">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-slide-in">
         <div className="px-6 py-5 border-b border-gray-100">
           <div className="flex items-center justify-between">
@@ -106,6 +106,7 @@ export default function CreateOrganizationDialog({
                 placeholder="Enter organization name"
                 maxLength={100}
                 autoFocus
+                data-testid="org-name-input"
               />
               {error && (
                 <p className="mt-2 text-sm text-danger-600 flex items-center">
@@ -141,6 +142,7 @@ export default function CreateOrganizationDialog({
               type="submit"
               disabled={isLoading || !name.trim()}
               className="rounded-lg shadow-md hover:shadow-lg"
+              data-testid="create-org-submit"
             >
               {isLoading ? (
                 <>

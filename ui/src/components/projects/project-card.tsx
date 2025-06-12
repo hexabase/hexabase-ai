@@ -1,139 +1,187 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
+import { Project } from '@/lib/api-client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Package, Users, Cpu, Database, Calendar } from 'lucide-react';
-import { type Project } from '@/lib/api-client';
-import { formatDateTime } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Edit, 
+  Trash2, 
+  Package, 
+  Server, 
+  HardDrive,
+  Cpu,
+  MemoryStick,
+  AlertCircle,
+  Clock,
+  CheckCircle
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
   project: Project;
-  onClick: () => void;
+  onClick: (projectId: string) => void;
+  onEdit?: (project: Project) => void;
+  onDelete?: (projectId: string) => void;
 }
 
-export function ProjectCard({ project, onClick }: ProjectCardProps) {
-  const getStatusColor = (status: string) => {
+export function ProjectCard({
+  project,
+  onClick,
+  onEdit,
+  onDelete,
+}: ProjectCardProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'archived':
-        return 'bg-gray-100 text-gray-800';
+        return 'default';
+      case 'creating':
+        return 'secondary';
+      case 'error':
+        return 'destructive';
+      case 'suspended':
+        return 'secondary';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'outline';
     }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-3 w-3" />;
+      case 'creating':
+        return <Clock className="h-3 w-3" />;
+      case 'error':
+        return <AlertCircle className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger card click if clicking on action buttons
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onClick(project.id);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(project);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDelete) return;
+    
+    setIsDeleting(true);
+    onDelete(project.id);
+    setIsDeleting(false);
   };
 
   return (
     <Card 
-      className="hover:shadow-lg transition-shadow cursor-pointer group"
-      onClick={onClick}
-      data-testid="project-card"
-      data-project-id={`project-card-${project.name.toLowerCase().replace(/\s+/g, '-')}`}
-      data-status={project.status}
+      className="cursor-pointer hover:shadow-lg transition-shadow"
+      onClick={handleCardClick}
+      data-testid={`project-card-${project.id}`}
     >
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Package className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-lg font-semibold" data-testid="project-name">
-                {project.name}
-              </CardTitle>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge 
-                  className={getStatusColor(project.status)}
-                  data-testid="project-status"
-                >
-                  {project.status}
-                </Badge>
-              </div>
-            </div>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg">{project.name}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {project.namespace}
+            </p>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Package className="h-4 w-4 mr-2" />
-                View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Users className="h-4 w-4 mr-2" />
-                Manage Access
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
-                Archive Project
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Badge 
+            variant={getStatusBadgeVariant(project.status) as 'default' | 'destructive' | 'secondary' | 'outline'}
+            className={cn(
+              'flex items-center gap-1'
+            )}
+          >
+            {getStatusIcon(project.status)}
+            {project.status}
+          </Badge>
         </div>
       </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Description */}
-        {project.description && (
-          <CardDescription className="text-sm" data-testid="project-description">
-            {project.description}
-          </CardDescription>
-        )}
+      <CardContent>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {project.description || 'No description'}
+          </p>
 
-        {/* Workspace Info */}
-        <div className="flex items-center text-sm text-gray-600" data-testid="project-workspace">
-          <div className="h-2 w-2 bg-blue-500 rounded-full mr-2"></div>
-          <span>{project.workspace_name || 'Unknown Workspace'}</span>
-        </div>
-
-        {/* Resource Usage */}
-        {project.resource_usage && (
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Cpu className="h-4 w-4 text-gray-400 mr-1" />
-                <span className="text-xs text-gray-500">CPU</span>
+          {project.resources && (
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="text-center">
+                <Package className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <div className="font-semibold">{project.resources.deployments}</div>
+                <div className="text-xs text-muted-foreground">Deployments</div>
               </div>
-              <div className="text-sm font-medium">{project.resource_usage.cpu}</div>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Database className="h-4 w-4 text-gray-400 mr-1" />
-                <span className="text-xs text-gray-500">Memory</span>
+              <div className="text-center">
+                <Server className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <div className="font-semibold">{project.resources.services}</div>
+                <div className="text-xs text-muted-foreground">Services</div>
               </div>
-              <div className="text-sm font-medium">{project.resource_usage.memory}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Namespace Count */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-          <div className="flex items-center text-sm text-gray-600">
-            <Package className="h-4 w-4 mr-2" />
-            <span data-testid="project-namespace-count">
-              {project.namespace_count} namespace{project.namespace_count !== 1 ? 's' : ''}
-            </span>
-          </div>
-          
-          {project.resource_usage && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Users className="h-4 w-4 mr-2" />
-              <span>{project.resource_usage.pods} pods</span>
+              <div className="text-center">
+                <HardDrive className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                <div className="font-semibold">{project.resources.pods}</div>
+                <div className="text-xs text-muted-foreground">Pods</div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Created Date */}
-        <div className="flex items-center text-xs text-gray-500 pt-2">
-          <Calendar className="h-3 w-3 mr-1" />
-          <span>Created {formatDateTime(project.created_at)}</span>
+          {project.resource_quota && (
+            <div className="pt-3 border-t">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Resource Quotas</p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <Cpu className="h-3 w-3" />
+                  <span>{project.resource_quota.cpu} CPU</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MemoryStick className="h-3 w-3" />
+                  <span>{project.resource_quota.memory} Memory</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <HardDrive className="h-3 w-3" />
+                  <span>{project.resource_quota.storage} Storage</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-2">
+            {onEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleEdit}
+                data-testid={`edit-${project.id}`}
+              >
+                <Edit className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                data-testid={`delete-${project.id}`}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

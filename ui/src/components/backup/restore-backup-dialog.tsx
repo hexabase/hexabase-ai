@@ -22,7 +22,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, AlertTriangle, Info } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { apiClient } from '@/lib/api-client'
+import { backupApi } from '@/lib/api-client'
 import { TaskMonitor } from '@/components/task-monitor'
 
 interface RestoreBackupDialogProps {
@@ -67,7 +67,7 @@ export function RestoreBackupDialog({
   const handleValidate = async () => {
     try {
       setValidating(true)
-      const response = await apiClient.backupApi.validateBackup(
+      const response = await backupApi.validateBackup(
         orgId,
         workspaceId,
         backupExecution.id
@@ -87,13 +87,13 @@ export function RestoreBackupDialog({
   const handleRestore = async () => {
     try {
       setLoading(true)
-      const response = await apiClient.backupApi.restoreBackup(
+      const response = await backupApi.restoreBackup(
         orgId,
         workspaceId,
         applicationId,
         {
           backup_execution_id: backupExecution.id,
-          restore_type: formData.restore_type,
+          restore_type: formData.restore_type as 'in_place' | 'new_application' | 'selective',
           restore_options: {
             restore_volumes: formData.restore_volumes,
             restore_database: formData.restore_database,
