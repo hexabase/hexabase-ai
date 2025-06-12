@@ -122,6 +122,8 @@ func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*authRepo.Provid
 			ClientSecret: p.ClientSecret,
 			RedirectURL:  p.RedirectURL,
 			Scopes:       p.Scopes,
+			AuthURL:      p.AuthURL,
+			TokenURL:     p.TokenURL,
 		}
 	}
 	return providers
