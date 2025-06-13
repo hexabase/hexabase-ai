@@ -10,70 +10,108 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         display: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        japanese: ['Noto Sans JP', 'var(--font-inter)', 'sans-serif'],
       },
       colors: {
-        // Modern admin dashboard color palette
+        // Hexabase Design System Colors
+        // Brand Colors
+        black: '#000000',
+        white: '#FFFFFF',
+        
+        // Hexa Green Scale (Primary Accent)
+        'hexa-green': {
+          900: '#00907D',
+          800: '#00A08B',
+          700: '#00B29A',
+          600: '#00C6AB', // Primary CTA
+          500: '#00DABC', // Hover
+          400: '#00F0CF',
+          300: '#09FFDD',
+          200: '#AAFFF3',
+          100: '#D4FFF9',
+          DEFAULT: '#00C6AB',
+        },
+        
+        // Hexa Pink Scale (Secondary Accent)
+        'hexa-pink': {
+          900: '#DF003D',
+          800: '#F80044',
+          700: '#FF1555',
+          600: '#FF346B', // Secondary CTA
+          500: '#FF5381', // Hover
+          400: '#FF759A',
+          300: '#FF9AB5',
+          200: '#FFC3D3',
+          100: '#FFF0F4',
+          DEFAULT: '#FF346B',
+        },
+        
+        // System Colors
         gray: {
-          50: '#F9FAFB',
-          100: '#F3F4F6',
-          200: '#E5E7EB',
-          300: '#D1D5DB',
-          400: '#9CA3AF',
-          500: '#6B7280',
-          600: '#4B5563',
-          700: '#374151',
-          800: '#1F2937',
-          900: '#111827',
-          950: '#030712',
+          DEFAULT: '#CCCCCC',
+          cancel: '#9e9e9e',
+          'cancel-hover': '#b5b5b5',
+          disabled: '#e6e6e6',
         },
+        
+        // Text Colors
+        text: {
+          primary: '#FFFFFF',
+          placeholder: '#E6E6E6',
+        },
+        
+        // Background Colors
+        background: {
+          DEFAULT: '#28292D', // Dark default
+          sidebar: '#333336', // Thin/Side Bar
+        },
+        
+        // Border Colors
+        border: {
+          DEFAULT: '#555558',
+          hover: '#656569',
+          disabled: '#3D3D3F',
+        },
+        
+        // Input Colors
+        input: {
+          DEFAULT: '#38383B',
+          hover: '#3A3A3E',
+          disabled: '#2B2B2E',
+        },
+        
+        // Error/Delete Colors
+        error: {
+          DEFAULT: '#FF7979',
+          hover: '#FF9B9B',
+        },
+        
+        // Legacy color mappings for compatibility
         primary: {
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93BBFC',
-          400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB',
-          700: '#1D4ED8',
-          800: '#1E40AF',
-          900: '#1E3A8A',
-          950: '#172554',
-        },
-        success: {
-          50: '#F0FDF4',
-          100: '#DCFCE7',
-          200: '#BBF7D0',
-          300: '#86EFAC',
-          400: '#4ADE80',
-          500: '#22C55E',
-          600: '#16A34A',
-          700: '#15803D',
-          800: '#166534',
-          900: '#14532D',
-        },
-        warning: {
-          50: '#FFFBEB',
-          100: '#FEF3C7',
-          200: '#FDE68A',
-          300: '#FCD34D',
-          400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
-          700: '#B45309',
-          800: '#92400E',
-          900: '#78350F',
+          DEFAULT: '#00C6AB',
+          50: '#D4FFF9',
+          100: '#AAFFF3',
+          200: '#09FFDD',
+          300: '#00F0CF',
+          400: '#00DABC',
+          500: '#00C6AB',
+          600: '#00B29A',
+          700: '#00A08B',
+          800: '#00907D',
+          900: '#00907D',
         },
         danger: {
-          50: '#FEF2F2',
-          100: '#FEE2E2',
-          200: '#FECACA',
-          300: '#FCA5A5',
-          400: '#F87171',
-          500: '#EF4444',
-          600: '#DC2626',
-          700: '#B91C1C',
-          800: '#991B1B',
-          900: '#7F1D1D',
+          DEFAULT: '#FF7979',
+          50: '#FFF0F0',
+          100: '#FFE0E0',
+          200: '#FFC0C0',
+          300: '#FFA0A0',
+          400: '#FF9B9B',
+          500: '#FF7979',
+          600: '#FF5555',
+          700: '#FF3333',
+          800: '#FF1111',
+          900: '#DD0000',
         },
         // Keep original color variables for compatibility
         border: "hsl(var(--border))",
@@ -106,14 +144,72 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Hexabase Spacing System (8px base)
+      spacing: {
+        'xs': '2px',
+        'sm': '4px',
+        'md': '8px',
+        'st': '16px',
+        'lg': '24px',
+        'xl': '28px',
+        'xxl': '32px',
+        'xxxl': '40px',
+        'plus': '48px',
+        'extended': '56px',
+        'super': '64px',
+        'queen': '72px',
+        'king': '80px',
+      },
+      // Hexabase Elevation System
       boxShadow: {
-        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
-        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-        '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        'inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)',
+        'dp-0': 'none',
+        'dp-1': '0px 1px 2px 0px rgba(0, 0, 0, 0.16)',
+        'dp-2': '0px 2px 3px 0px rgba(0, 0, 0, 0.16)',
+        'dp-4': '0px 4px 5px 0px rgba(0, 0, 0, 0.16)',
+        'dp-8': '0px 8px 9px 0px rgba(0, 0, 0, 0.15)',
+        'dp-16': '0px 16px 17px 0px rgba(0, 0, 0, 0.15)',
+        'dp-24': '0px 24px 25px 0px rgba(0, 0, 0, 0.04)',
+        // Keep some legacy shadows for compatibility
+        'sm': '0px 1px 2px 0px rgba(0, 0, 0, 0.16)',
+        'DEFAULT': '0px 2px 3px 0px rgba(0, 0, 0, 0.16)',
+        'md': '0px 4px 5px 0px rgba(0, 0, 0, 0.16)',
+        'lg': '0px 8px 9px 0px rgba(0, 0, 0, 0.15)',
+        'xl': '0px 16px 17px 0px rgba(0, 0, 0, 0.15)',
+        '2xl': '0px 24px 25px 0px rgba(0, 0, 0, 0.04)',
+      },
+      // Typography
+      fontSize: {
+        // Headings
+        'heading-xxl': ['24px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-xl': ['21px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-lg': ['18px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-base': ['16px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-md': ['14px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-sm': ['12px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        'heading-xs': ['10px', { lineHeight: '1.0', letterSpacing: '0.05em', fontWeight: '700' }],
+        // Body Text
+        'body-base': ['16px', { lineHeight: '2.0', letterSpacing: '0.05em', fontWeight: '400' }],
+        'body-md': ['14px', { lineHeight: '2.0', letterSpacing: '0.03em', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '1.5', letterSpacing: '0.03em', fontWeight: '400' }],
+        'body-xs': ['10px', { lineHeight: '1.5', letterSpacing: '0.03em', fontWeight: '400' }],
+        // Keep default sizes for compatibility
+        'xs': ['0.75rem', { lineHeight: '1rem' }],
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+      },
+      lineHeight: {
+        'label': '1.0',
+        'description': '1.5',
+        'note': '1.8',
+        'body': '2.0',
+      },
+      letterSpacing: {
+        'heading': '0.05em',
+        'body': '0.03em',
+        'body-wide': '0.05em',
       },
       borderRadius: {
         'sm': '0.25rem',
