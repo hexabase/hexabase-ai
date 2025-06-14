@@ -154,16 +154,17 @@ The UI will be available at:
 
 ### 3. Access Infrastructure Services
 
-- **PostgreSQL**: `localhost:5432`
-  - User: `hexabase`
-  - Password: `devpassword`
-  - Database: `hexabase_kaas`
+The services use non-standard ports to avoid conflicts. Check your `.env` file for the actual ports, or use these defaults:
 
-- **Redis**: `localhost:6379`
-  - Password: `devpassword`
+- **PostgreSQL**: `localhost:5433`
+  - User: `postgres`
+  - Password: `postgres`
+  - Database: `hexabase`
 
-- **NATS**: `localhost:4222`
-  - Monitoring: http://localhost:8222
+- **Redis**: `localhost:6380`
+
+- **NATS**: `localhost:4223`
+  - Monitoring: http://localhost:8223
 
 ### 4. Kubernetes Access
 
@@ -214,15 +215,36 @@ kind delete cluster --name hexabase-dev
 
 ### Port Conflicts
 
-If ports are already in use, stop conflicting services:
+The setup script automatically finds available ports. If you still have conflicts:
+
+1. **Check what's using the ports:**
 ```bash
 # Find process using port
-sudo lsof -i :5432  # PostgreSQL
-sudo lsof -i :6379  # Redis
-sudo lsof -i :4222  # NATS
+sudo lsof -i :5433  # PostgreSQL
+sudo lsof -i :6380  # Redis
+sudo lsof -i :4223  # NATS
+sudo lsof -i :8080  # API
+```
 
+2. **Modify the `.env` file to use different ports:**
+```bash
+# Edit .env file
+vim .env
+
+# Change ports as needed:
+POSTGRES_HOST_PORT=5434
+REDIS_HOST_PORT=6381
+NATS_HOST_PORT=4224
+API_HOST_PORT=8081
+```
+
+3. **Restart services:**
+```bash
 # Stop services
 docker compose down  # or docker-compose down
+
+# Start with new ports
+docker compose up -d
 ```
 
 ## Clean Up

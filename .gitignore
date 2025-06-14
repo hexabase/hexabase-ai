@@ -1,5 +1,10 @@
 # Hexabase KaaS - Git Ignore Rules
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

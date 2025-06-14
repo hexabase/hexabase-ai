@@ -167,6 +167,9 @@ The setup script will:
 git clone https://github.com/hexabase/hexabase-ai.git
 cd hexabase-ai
 
+# Copy .env.example to .env (if needed)
+cp .env.example .env
+
 # Start infrastructure
 docker compose up -d  # or docker-compose up -d
 
@@ -179,8 +182,13 @@ cd ui && npm install && npm run dev
 
 Access the application at:
 
-- **UI**: http://app.localhost
-- **API**: http://api.localhost
+- **UI**: http://localhost:3000 (or http://app.localhost via Ingress)
+- **API**: http://localhost:8080 (or http://api.localhost via Ingress)
+
+**Note**: Services use non-standard ports to avoid conflicts:
+- PostgreSQL: 5433 (instead of 5432)
+- Redis: 6380 (instead of 6379)  
+- NATS: 4223 (instead of 4222)
 
 For detailed setup instructions, see the [Development Environment Setup](./docs/development/dev-environment-setup.md).
 
