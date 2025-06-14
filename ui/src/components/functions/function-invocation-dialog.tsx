@@ -1,20 +1,30 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { FunctionConfig, FunctionInvocation, functionsApi } from '@/lib/api-client';
+import { useState } from "react";
+import {
+  FunctionConfig,
+  FunctionInvocation,
+  functionsApi,
+} from "@/lib/api-client";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   CheckCircle,
@@ -27,9 +37,9 @@ import {
   Globe,
   Zap,
   Calendar,
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface FunctionInvocationDialogProps {
   open: boolean;
@@ -48,10 +58,12 @@ export function FunctionInvocationDialog({
 }: FunctionInvocationDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [triggerType, setTriggerType] = useState(functionData.triggers[0] || 'http');
-  const [payload, setPayload] = useState('{}');
-  const [httpMethod, setHttpMethod] = useState('POST');
-  const [headers, setHeaders] = useState('{}');
+  const [triggerType, setTriggerType] = useState(
+    functionData.triggers[0] || "http"
+  );
+  const [payload, setPayload] = useState("{}");
+  const [httpMethod, setHttpMethod] = useState("POST");
+  const [headers, setHeaders] = useState("{}");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FunctionInvocation | null>(null);
 
@@ -64,11 +76,11 @@ export function FunctionInvocationDialog({
       if (payload) {
         JSON.parse(payload);
       }
-      if (triggerType === 'http' && headers) {
+      if (triggerType === "http" && headers) {
         JSON.parse(headers);
       }
     } catch (e) {
-      setError('Invalid JSON format');
+      setError("Invalid JSON format");
       return;
     }
 
@@ -79,7 +91,7 @@ export function FunctionInvocationDialog({
         payload: payload ? JSON.parse(payload) : undefined,
       };
 
-      if (triggerType === 'http') {
+      if (triggerType === "http") {
         invocationData.http_method = httpMethod;
         invocationData.headers = headers ? JSON.parse(headers) : undefined;
       }
@@ -93,8 +105,8 @@ export function FunctionInvocationDialog({
 
       setResult(response.data);
     } catch (error) {
-      setError('Failed to invoke function');
-      console.error('Invocation error:', error);
+      setError("Failed to invoke function");
+      console.error("Invocation error:", error);
     } finally {
       setLoading(false);
     }
@@ -107,37 +119,39 @@ export function FunctionInvocationDialog({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'success':
+      case "success":
         return <CheckCircle className="h-4 w-4" />;
-      case 'error':
+      case "error":
         return <XCircle className="h-4 w-4" />;
-      case 'timeout':
+      case "timeout":
         return <Clock className="h-4 w-4" />;
       default:
         return null;
     }
   };
 
-  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+  const getStatusVariant = (
+    status: string
+  ): "success" | "error" | "warning" | "secondary" => {
     switch (status) {
-      case 'success':
-        return 'default';
-      case 'error':
-        return 'destructive';
-      case 'timeout':
-        return 'secondary';
+      case "success":
+        return "success";
+      case "error":
+        return "error";
+      case "timeout":
+        return "warning";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   const getTriggerIcon = (trigger: string) => {
     switch (trigger) {
-      case 'http':
+      case "http":
         return <Globe className="h-4 w-4" />;
-      case 'event':
+      case "event":
         return <Zap className="h-4 w-4" />;
-      case 'schedule':
+      case "schedule":
         return <Calendar className="h-4 w-4" />;
       default:
         return null;
@@ -158,10 +172,7 @@ export function FunctionInvocationDialog({
           <div className="space-y-4">
             <div>
               <Label htmlFor="trigger-type">Trigger Type</Label>
-              <Select
-                value={triggerType}
-                onValueChange={setTriggerType}
-              >
+              <Select value={triggerType} onValueChange={setTriggerType}>
                 <SelectTrigger id="trigger-type">
                   <SelectValue />
                 </SelectTrigger>
@@ -178,14 +189,11 @@ export function FunctionInvocationDialog({
               </Select>
             </div>
 
-            {triggerType === 'http' && (
+            {triggerType === "http" && (
               <>
                 <div>
                   <Label htmlFor="http-method">HTTP Method</Label>
-                  <Select
-                    value={httpMethod}
-                    onValueChange={setHttpMethod}
-                  >
+                  <Select value={httpMethod} onValueChange={setHttpMethod}>
                     <SelectTrigger id="http-method">
                       <SelectValue />
                     </SelectTrigger>
@@ -256,16 +264,20 @@ export function FunctionInvocationDialog({
             <div className="p-4 bg-muted rounded-md">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium">Invocation Result</h3>
-                <Badge variant={getStatusVariant(result.status)} className="flex items-center gap-1">
+                <Badge
+                  variant={getStatusVariant(result.status)}
+                  className="flex items-center gap-1"
+                >
                   {getStatusIcon(result.status)}
                   {result.status}
                 </Badge>
               </div>
               <div className="space-y-1 text-sm">
-                <p>Invocation ID: <code className="text-xs">{result.invocation_id}</code></p>
-                {result.duration_ms && (
-                  <p>Duration: {result.duration_ms}ms</p>
-                )}
+                <p>
+                  Invocation ID:{" "}
+                  <code className="text-xs">{result.invocation_id}</code>
+                </p>
+                {result.duration_ms && <p>Duration: {result.duration_ms}ms</p>}
               </div>
             </div>
 
@@ -285,7 +297,9 @@ export function FunctionInvocationDialog({
                   {result.error ? (
                     <div className="text-destructive">
                       <p className="font-medium mb-2">Error:</p>
-                      <pre className="text-sm whitespace-pre-wrap">{result.error}</pre>
+                      <pre className="text-sm whitespace-pre-wrap">
+                        {result.error}
+                      </pre>
                     </div>
                   ) : (
                     <pre className="text-sm whitespace-pre-wrap">
@@ -298,7 +312,7 @@ export function FunctionInvocationDialog({
                 <div className="p-4 bg-muted rounded-md">
                   <h4 className="font-medium mb-2">Function Logs</h4>
                   <pre className="text-sm whitespace-pre-wrap text-muted-foreground">
-                    {result.logs || 'No logs available'}
+                    {result.logs || "No logs available"}
                   </pre>
                 </div>
               </TabsContent>
