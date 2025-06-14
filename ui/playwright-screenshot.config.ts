@@ -28,12 +28,12 @@ export default defineConfig({
   /* Custom reporter configuration */
   reporter: [
     ['list'],
-    ['html', { outputFolder: `${screenshotDir}/html-report` }],
-    ['json', { outputFile: `${screenshotDir}/results.json` }],
+    ['html', { outputFolder: `test-results/html-report-${timestamp}` }],
+    ['json', { outputFile: `test-results/results-${timestamp}.json` }],
   ],
 
   /* Output directory for artifacts */
-  outputDir: screenshotDir,
+  outputDir: `test-results/artifacts-${timestamp}`,
 
   /* Override use settings for screenshot capture */
   use: {
