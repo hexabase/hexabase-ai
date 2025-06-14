@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 4
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -44,7 +46,9 @@
         "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 4
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
@@ -58,7 +62,9 @@
         "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 4
+        },
         "id": "firefox",
         "name": "firefox",
         "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
@@ -72,7 +78,9 @@
         "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 4
+        },
         "id": "webkit",
         "name": "webkit",
         "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
@@ -86,7 +94,9 @@
         "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 4
+        },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
         "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
@@ -100,7 +110,9 @@
         "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 4
+        },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
         "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
@@ -123,19 +135,347 @@
       "timeout": 120000
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: Timed out waiting 120000ms from config.webServer.",
-      "stack": "Error: Timed out waiting 120000ms from config.webServer."
+      "title": "screenshot-demo.spec.ts",
+      "file": "screenshot-demo.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E Screenshot Demo",
+          "file": "screenshot-demo.spec.ts",
+          "line": 39,
+          "column": 6,
+          "specs": [
+            {
+              "title": "complete user journey with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 12372,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:60:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
+                          },
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:60:21"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📸 Screenshot saved: /Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46/auth/01_login_page.png\n"
+                        },
+                        {
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.336Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "6373d0b564e71a5ba372-455a03250e2d925ee2a3",
+              "file": "screenshot-demo.spec.ts",
+              "line": 55,
+              "column": 7
+            },
+            {
+              "title": "CI/CD pipeline configuration with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 11925,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:168:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
+                          },
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:168:21"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.339Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "6373d0b564e71a5ba372-061a028033d5fdb98b37",
+              "file": "screenshot-demo.spec.ts",
+              "line": 165,
+              "column": 7
+            },
+            {
+              "title": "serverless function creation with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 11682,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:202:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
+                          },
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:202:21"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.347Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "6373d0b564e71a5ba372-2a0da600dfa6f865ff44",
+              "file": "screenshot-demo.spec.ts",
+              "line": 199,
+              "column": 7
+            },
+            {
+              "title": "backup configuration for dedicated workspace",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 11592,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:240:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
+                          },
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:240:21"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.342Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "6373d0b564e71a5ba372-22f8f836940c44cb8ebf",
+              "file": "screenshot-demo.spec.ts",
+              "line": 237,
+              "column": 7
+            }
+          ]
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-06-14T13:19:55.460Z",
-    "duration": 120356.419,
+    "startTime": "2025-06-14T13:46:42.658Z",
+    "duration": 17608.826,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 4,
     "flaky": 0
   }
 }

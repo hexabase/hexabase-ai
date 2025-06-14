@@ -67,14 +67,14 @@ module.exports = {
         },
         
         // Border Colors
-        border: {
+        'hexa-border': {
           DEFAULT: '#555558',
           hover: '#656569',
           disabled: '#3D3D3F',
         },
         
         // Input Colors
-        input: {
+        'hexa-input': {
           DEFAULT: '#38383B',
           hover: '#3A3A3E',
           disabled: '#2B2B2E',
