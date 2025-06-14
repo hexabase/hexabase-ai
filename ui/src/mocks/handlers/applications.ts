@@ -1,14 +1,15 @@
 import { http, HttpResponse, delay } from 'msw';
+import type { Application, CronJobExecution, CreateApplicationRequest } from '@/lib/api-client';
 
 // Mock applications data
-export const mockApplications = [
+export const mockApplications: Application[] = [
   {
     id: 'app-1',
     workspace_id: 'ws-1',
     project_id: 'proj-1',
     name: 'web-frontend',
     type: 'stateless',
-    status: 'running',
+    status: 'running' as const,
     source_type: 'image',
     source_image: 'nginx:latest',
     config: {
@@ -31,7 +32,7 @@ export const mockApplications = [
     project_id: 'proj-1',
     name: 'database',
     type: 'stateful',
-    status: 'running',
+    status: 'running' as const,
     source_type: 'image',
     source_image: 'postgres:14',
     config: {
@@ -49,7 +50,7 @@ export const mockApplications = [
     project_id: 'proj-1',
     name: 'Daily Backup',
     type: 'cronjob',
-    status: 'active',
+    status: 'active' as const,
     source_type: 'image',
     source_image: 'backup:latest',
     cron_schedule: '0 2 * * *',
@@ -61,14 +62,14 @@ export const mockApplications = [
 ];
 
 // Mock CronJob executions
-export const mockCronJobExecutions = [
+export const mockCronJobExecutions: CronJobExecution[] = [
   {
     id: 'cje-1',
     application_id: 'cron-1',
     job_name: 'daily-backup-12345',
     started_at: '2024-01-01T02:00:00Z',
     completed_at: '2024-01-01T02:05:00Z',
-    status: 'succeeded',
+    status: 'succeeded' as const,
     exit_code: 0,
     logs: 'Backup completed successfully\n10GB backed up',
     created_at: '2024-01-01T02:00:00Z',
@@ -80,7 +81,7 @@ export const mockCronJobExecutions = [
     job_name: 'daily-backup-12346',
     started_at: '2023-12-31T02:00:00Z',
     completed_at: '2023-12-31T02:03:00Z',
-    status: 'failed',
+    status: 'failed' as const,
     exit_code: 1,
     logs: 'Error: Connection timeout\nFailed to connect to backup server',
     created_at: '2023-12-31T02:00:00Z',
@@ -130,15 +131,15 @@ export const applicationHandlers = [
 
   // Create application
   http.post('/api/v1/organizations/:orgId/workspaces/:workspaceId/projects/:projectId/applications', async ({ request }) => {
-    const body = await request.json() as any;
+    const body = await request.json() as CreateApplicationRequest;
     await delay(200);
     
-    const newApp = {
+    const newApp: Application = {
       id: `app-${Date.now()}`,
       workspace_id: 'ws-1',
       project_id: 'proj-1',
       ...body,
-      status: 'creating',
+      status: 'pending' as const,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -149,7 +150,7 @@ export const applicationHandlers = [
     setTimeout(() => {
       const app = mockApplications.find(a => a.id === newApp.id);
       if (app) {
-        app.status = 'running';
+        app.status = 'running' as const;
       }
     }, 2000);
     
@@ -158,7 +159,7 @@ export const applicationHandlers = [
 
   // Update application status
   http.patch('/api/v1/organizations/:orgId/workspaces/:workspaceId/applications/:appId', async ({ params, request }) => {
-    const body = await request.json() as any;
+    const body = await request.json() as { status: Application['status'] };
     await delay(100);
     
     const app = mockApplications.find(a => a.id === params.appId);
@@ -215,7 +216,7 @@ export const applicationHandlers = [
         application_id: params.appId as string,
         job_name: `manual-trigger-${Date.now()}`,
         started_at: new Date().toISOString(),
-        status: 'running',
+        status: 'running' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -235,7 +236,7 @@ export const applicationHandlers = [
   }),
 
   http.put('/api/v1/organizations/:orgId/workspaces/:workspaceId/applications/:appId/cronjob/schedule', async ({ params, request }) => {
-    const body = await request.json() as any;
+    const body = await request.json() as { schedule: string };
     await delay(100);
     
     const app = mockApplications.find(a => a.id === params.appId);

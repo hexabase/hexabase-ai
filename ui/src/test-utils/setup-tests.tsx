@@ -28,7 +28,7 @@ export function renderWithProviders(
 ) {
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <AuthProvider value={authValue}>
+      <AuthProvider>
         {children}
         <Toaster />
       </AuthProvider>

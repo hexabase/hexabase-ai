@@ -54,7 +54,7 @@ clean:
 # Run API server
 dev-api:
 	@echo "Starting API server..."
-	@cd api && go run cmd/api/main.go
+	@cd api && if [ -f .env ]; then export $$(cat .env | grep -v '^#' | xargs); fi && go run cmd/api/main.go
 
 # Run UI development server
 dev-ui:

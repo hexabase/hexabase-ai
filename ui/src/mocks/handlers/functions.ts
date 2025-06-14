@@ -42,7 +42,13 @@ export const mockFunctions = [
 ];
 
 // Mock function versions
-export const mockFunctionVersions = {
+export const mockFunctionVersions: Record<string, Array<{
+  version: string;
+  deployed_at: string;
+  deployed_by: string;
+  status: string;
+  size_bytes: number;
+}>> = {
   'func-1': [
     {
       version: 'v1.2.0',

@@ -108,9 +108,9 @@ func MigrateDatabase(db *gorm.DB) error {
 		&StripeEvent{},
 		// Node management models
 		&NodePlan{},
+		&WorkspaceNodeAllocation{},
 		&DedicatedNode{},
 		&NodeEvent{},
-		&WorkspaceNodeAllocation{},
 		// CI/CD models
 		&Pipeline{},
 		&PipelineRun{},
