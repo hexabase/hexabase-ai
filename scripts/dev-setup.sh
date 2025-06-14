@@ -39,6 +39,17 @@ print_error() {
     exit 1
 }
 
+# Function to get docker compose command
+get_docker_compose_cmd() {
+    if command_exists "docker-compose"; then
+        echo "docker-compose"
+    elif docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    else
+        print_error "Neither 'docker-compose' nor 'docker compose' command found. Please install Docker Compose."
+    fi
+}
+
 # Function to detect OS
 detect_os() {
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -288,7 +299,8 @@ EOF
     print_success "docker-compose.override.yml created"
 fi
 
-docker-compose up -d postgres redis nats
+DOCKER_COMPOSE_CMD=$(get_docker_compose_cmd)
+$DOCKER_COMPOSE_CMD up -d postgres redis nats
 print_success "Infrastructure services started"
 
 # Wait for services to be ready
@@ -406,8 +418,8 @@ echo "   • API: http://api.localhost"
 echo "   • UI: http://app.localhost"
 
 echo -e "\n${YELLOW}Useful commands:${NC}"
-echo "  • View logs: docker-compose logs -f"
-echo "  • Stop services: docker-compose down"
+echo "  • View logs: ${DOCKER_COMPOSE_CMD:-docker compose} logs -f"
+echo "  • Stop services: ${DOCKER_COMPOSE_CMD:-docker compose} down"
 echo "  • Delete Kind cluster: kind delete cluster --name hexabase-dev"
 echo "  • Connect to cluster: kubectl config use-context kind-hexabase-dev"
 

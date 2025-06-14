@@ -129,7 +129,7 @@ deployments/
 
 - Go 1.21+
 - Node.js 18+
-- Docker & Docker Compose
+- Docker (with Docker Compose)
 - kubectl, kind, helm (auto-installed by setup script)
 - PostgreSQL 14+ (provided via Docker)
 - Redis 6+ (provided via Docker)
@@ -168,7 +168,7 @@ git clone https://github.com/hexabase/hexabase-ai.git
 cd hexabase-ai
 
 # Start infrastructure
-docker-compose up -d
+docker compose up -d  # or docker-compose up -d
 
 # Run the API
 cd api && go run cmd/api/main.go

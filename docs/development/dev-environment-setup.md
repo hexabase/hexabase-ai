@@ -96,9 +96,11 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ### Linux (Ubuntu/Debian)
 
 ```bash
-# Install Docker
+# Install Docker (includes Docker Compose)
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
+sudo usermod -aG docker $USER  # Add user to docker group
+newgrp docker  # Activate group change
 
 # Install Go
 wget https://go.dev/dl/go1.21.linux-amd64.tar.gz
@@ -220,7 +222,7 @@ sudo lsof -i :6379  # Redis
 sudo lsof -i :4222  # NATS
 
 # Stop services
-docker-compose down
+docker compose down  # or docker-compose down
 ```
 
 ## Clean Up
@@ -229,7 +231,7 @@ To completely remove the development environment:
 
 ```bash
 # Stop services
-docker-compose down
+docker compose down  # or docker-compose down
 
 # Delete Kind cluster
 kind delete cluster --name hexabase-dev
