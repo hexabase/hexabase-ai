@@ -39,39 +39,147 @@ print_error() {
     exit 1
 }
 
+# Function to detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    else
+        echo "unknown"
+    fi
+}
+
+# Function to install dependency
+install_dependency() {
+    local dep=$1
+    local os=$(detect_os)
+    
+    case $dep in
+        "kind")
+            echo "Installing kind..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install kind
+                else
+                    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-darwin-$(uname -m)
+                    chmod +x ./kind
+                    sudo mv ./kind /usr/local/bin/kind
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+                chmod +x ./kind
+                sudo mv ./kind /usr/local/bin/kind
+            fi
+            ;;
+        "helm")
+            echo "Installing helm..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install helm
+                else
+                    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            fi
+            ;;
+        "kubectl")
+            echo "Installing kubectl..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install kubectl
+                else
+                    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/$(uname -m)/kubectl"
+                    chmod +x kubectl
+                    sudo mv kubectl /usr/local/bin/
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                sudo mv kubectl /usr/local/bin/
+            fi
+            ;;
+    esac
+}
+
 # Check prerequisites
 print_step "Checking prerequisites..."
 
 MISSING_DEPS=()
+AUTO_INSTALLABLE=("kind" "helm" "kubectl")
 
 if ! command_exists docker; then
     MISSING_DEPS+=("docker")
 fi
 
 if ! command_exists go; then
-    MISSING_DEPS+=("go (1.24+)")
+    MISSING_DEPS+=("go")
 fi
 
 if ! command_exists node; then
-    MISSING_DEPS+=("node (18+)")
+    MISSING_DEPS+=("node")
 fi
 
 if ! command_exists kubectl; then
-    MISSING_DEPS+=("kubectl")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " kubectl " ]]; then
+        echo -e "${YELLOW}kubectl not found. Installing...${NC}"
+        install_dependency "kubectl"
+        if command_exists kubectl; then
+            print_success "kubectl installed successfully"
+        else
+            MISSING_DEPS+=("kubectl")
+        fi
+    else
+        MISSING_DEPS+=("kubectl")
+    fi
 fi
 
 if ! command_exists kind; then
-    MISSING_DEPS+=("kind")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " kind " ]]; then
+        echo -e "${YELLOW}kind not found. Installing...${NC}"
+        install_dependency "kind"
+        if command_exists kind; then
+            print_success "kind installed successfully"
+        else
+            MISSING_DEPS+=("kind")
+        fi
+    else
+        MISSING_DEPS+=("kind")
+    fi
 fi
 
 if ! command_exists helm; then
-    MISSING_DEPS+=("helm")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " helm " ]]; then
+        echo -e "${YELLOW}helm not found. Installing...${NC}"
+        install_dependency "helm"
+        if command_exists helm; then
+            print_success "helm installed successfully"
+        else
+            MISSING_DEPS+=("helm")
+        fi
+    else
+        MISSING_DEPS+=("helm")
+    fi
 fi
 
 if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     print_error "Missing required dependencies: ${MISSING_DEPS[*]}"
-    echo "Please install the missing dependencies and run this script again."
-    echo "See: ${PROJECT_ROOT}/docs/development/dev-environment-setup.md"
+    echo -e "\n${YELLOW}Please install the following manually:${NC}"
+    for dep in "${MISSING_DEPS[@]}"; do
+        case $dep in
+            "docker")
+                echo "  • Docker: https://docs.docker.com/get-docker/"
+                ;;
+            "go")
+                echo "  • Go (1.21+): https://golang.org/doc/install"
+                ;;
+            "node")
+                echo "  • Node.js (18+): https://nodejs.org/"
+                ;;
+        esac
+    done
+    echo -e "\nAfter installing, run this script again."
     exit 1
 fi
 
