@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Clock, AlertCircle } from 'lucide-react';
-import { parseExpression } from 'cron-parser';
+import * as cronParser from 'cron-parser';
 import { format } from 'date-fns';
 
 interface CronJobScheduleEditorProps {
@@ -39,9 +38,9 @@ export function CronJobScheduleEditor({
   const [preview, setPreview] = useState<string | null>(null);
   const [nextRuns, setNextRuns] = useState<Date[]>([]);
 
-  const validateAndPreview = (cronExpression: string) => {
+  const validateAndPreview = useCallback((cronExpression: string) => {
     try {
-      const interval = parseExpression(cronExpression);
+      const interval = cronParser.CronExpressionParser.parse(cronExpression);
       
       // Get human-readable description
       const description = getHumanReadableSchedule(cronExpression);
@@ -57,13 +56,13 @@ export function CronJobScheduleEditor({
       setNextRuns(runs);
       setError(null);
       return true;
-    } catch (err) {
+    } catch {
       setError('Invalid cron expression');
       setPreview(null);
       setNextRuns([]);
       return false;
     }
-  };
+  }, []);
 
   const getHumanReadableSchedule = (cronExpression: string) => {
     const preset = SCHEDULE_PRESETS.find(p => p.value === cronExpression);
@@ -89,7 +88,7 @@ export function CronJobScheduleEditor({
 
   useEffect(() => {
     validateAndPreview(schedule);
-  }, [schedule]);
+  }, [schedule, validateAndPreview]);
 
   const handleSave = () => {
     if (validateAndPreview(schedule)) {

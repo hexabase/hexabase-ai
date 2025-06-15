@@ -1,7 +1,7 @@
 {
   "config": {
     "configFile": "/Users/hi/src/hexabase-ai/ui/playwright.config.ts",
-    "rootDir": "/Users/hi/src/hexabase-ai/ui/tests",
+    "rootDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -11,12 +11,16 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 8
+      "actualWorkers": 4
     },
     "preserveOutput": "always",
     "reporter": [
       [
         "html",
+        null
+      ],
+      [
+        "list",
         null
       ],
       [
@@ -43,11 +47,75 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 8
+          "actualWorkers": 4
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/hi/src/hexabase-ai/ui/tests",
+        "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/hi/src/hexabase-ai/ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "Mobile Safari",
+        "name": "Mobile Safari",
+        "testDir": "/Users/hi/src/hexabase-ai/ui/e2e/tests",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -58,1034 +126,343 @@
     "shard": null,
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
-    "version": "1.52.0",
+    "version": "1.53.0",
     "workers": 8,
-    "webServer": null
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
   },
   "suites": [
     {
-      "title": "cronjob-components.spec.ts",
-      "file": "cronjob-components.spec.ts",
+      "title": "screenshot-demo.spec.ts",
+      "file": "screenshot-demo.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "CronJob Management",
-          "file": "cronjob-components.spec.ts",
-          "line": 3,
+          "title": "E2E Screenshot Demo",
+          "file": "screenshot-demo.spec.ts",
+          "line": 39,
           "column": 6,
-          "specs": [],
-          "suites": [
+          "specs": [
             {
-              "title": "CronJob Creation",
-              "file": "cronjob-components.spec.ts",
-              "line": 21,
-              "column": 8,
-              "specs": [
+              "title": "complete user journey with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "title": "should open create cronjob dialog",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 12372,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:60:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
                         {
-                          "workerIndex": 0,
-                          "parallelIndex": 0,
-                          "status": "failed",
-                          "duration": 1145,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
                           },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.372Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:60:21"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-6150ad8563a4faa186b4",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 22,
-                  "column": 9
-                },
-                {
-                  "title": "should create cronjob from template",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "stdout": [
                         {
-                          "workerIndex": 1,
-                          "parallelIndex": 1,
-                          "status": "failed",
-                          "duration": 1185,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.365Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "text": "📸 Screenshot saved: /Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46/auth/01_login_page.png\n"
+                        },
+                        {
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-af390ffbd4b1afa51b64",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 35,
-                  "column": 9
-                },
-                {
-                  "title": "should validate cron expression",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.336Z",
                       "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "attachments": [
                         {
-                          "workerIndex": 2,
-                          "parallelIndex": 2,
-                          "status": "failed",
-                          "duration": 1253,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.367Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/error-context.md"
                         }
                       ],
-                      "status": "unexpected"
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
                     }
                   ],
-                  "id": "db7c4e872c1779e16711-317be8bce590453af240",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 96,
-                  "column": 9
+                  "status": "unexpected"
                 }
-              ]
+              ],
+              "id": "6373d0b564e71a5ba372-455a03250e2d925ee2a3",
+              "file": "screenshot-demo.spec.ts",
+              "line": 55,
+              "column": 7
             },
             {
-              "title": "CronJob List View",
-              "file": "cronjob-components.spec.ts",
-              "line": 114,
-              "column": 8,
-              "specs": [
+              "title": "CI/CD pipeline configuration with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "title": "should display cronjobs list",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 11925,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:168:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
                         {
-                          "workerIndex": 3,
-                          "parallelIndex": 3,
-                          "status": "failed",
-                          "duration": 1199,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
                           },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.372Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:168:21"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-1a1f78d3e90fae6bd824",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 115,
-                  "column": 9
-                },
-                {
-                  "title": "should toggle cronjob status",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "stdout": [
                         {
-                          "workerIndex": 4,
-                          "parallelIndex": 4,
-                          "status": "failed",
-                          "duration": 1239,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.374Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
                         }
                       ],
-                      "status": "unexpected"
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.339Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
                     }
                   ],
-                  "id": "db7c4e872c1779e16711-6e8c394d061c89bc4927",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 161,
-                  "column": 9
+                  "status": "unexpected"
                 }
-              ]
+              ],
+              "id": "6373d0b564e71a5ba372-061a028033d5fdb98b37",
+              "file": "screenshot-demo.spec.ts",
+              "line": 165,
+              "column": 7
             },
             {
-              "title": "CronJob Execution History",
-              "file": "cronjob-components.spec.ts",
-              "line": 196,
-              "column": 8,
-              "specs": [
+              "title": "serverless function creation with screenshots",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "title": "should display execution history",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 11682,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:202:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
                         {
-                          "workerIndex": 5,
-                          "parallelIndex": 5,
-                          "status": "failed",
-                          "duration": 1241,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
                           },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.365Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:202:21"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-b3c95550661339ece7cf",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 197,
-                  "column": 9
-                },
-                {
-                  "title": "should view execution logs",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "stdout": [
                         {
-                          "workerIndex": 6,
-                          "parallelIndex": 6,
-                          "status": "failed",
-                          "duration": 1215,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.372Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-97c3c3bb84c011852fd1",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 251,
-                  "column": 9
-                },
-                {
-                  "title": "should manually trigger cronjob",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.347Z",
                       "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "attachments": [
                         {
-                          "workerIndex": 7,
-                          "parallelIndex": 7,
-                          "status": "failed",
-                          "duration": 1171,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:44.372Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/error-context.md"
                         }
                       ],
-                      "status": "unexpected"
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
                     }
                   ],
-                  "id": "db7c4e872c1779e16711-3a7b3fb43a399a6f372a",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 271,
-                  "column": 9
+                  "status": "unexpected"
                 }
-              ]
+              ],
+              "id": "6373d0b564e71a5ba372-2a0da600dfa6f865ff44",
+              "file": "screenshot-demo.spec.ts",
+              "line": 199,
+              "column": 7
             },
             {
-              "title": "CronJob Schedule Management",
-              "file": "cronjob-components.spec.ts",
-              "line": 305,
-              "column": 8,
-              "specs": [
+              "title": "backup configuration for dedicated workspace",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "title": "should update cronjob schedule",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 11592,
+                      "error": {
+                        "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n",
+                        "stack": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:240:21",
+                        "location": {
+                          "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                          "column": 27,
+                          "line": 35
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39m../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }"
+                      },
+                      "errors": [
                         {
-                          "workerIndex": 11,
-                          "parallelIndex": 7,
-                          "status": "failed",
-                          "duration": 251,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
+                          "location": {
+                            "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                            "column": 27,
+                            "line": 35
                           },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:47.425Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "message": "TimeoutError: locator.fill: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('email-input')\u001b[22m\n\n\n   at ../pages/LoginPage.ts:35\n\n  33 |\n  34 |   async login(email: string, password: string) {\n> 35 |     await this.emailInput.fill(email);\n     |                           ^\n  36 |     await this.passwordInput.fill(password);\n  37 |     await this.loginButton.click();\n  38 |   }\n    at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)\n    at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:240:21"
                         }
                       ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-70974a319edf9daf85c9",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 306,
-                  "column": 9
-                },
-                {
-                  "title": "should show schedule preview",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
+                      "stdout": [
                         {
-                          "workerIndex": 8,
-                          "parallelIndex": 1,
-                          "status": "failed",
-                          "duration": 269,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:47.425Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
+                          "text": "\n📸 Screenshot Summary\n====================\nAll E2E test screenshots have been saved to:\n/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46\n\nDirectory structure:\n- /auth          - Login and authentication flows\n- /dashboard     - Dashboard and navigation\n- /organization  - Organization management\n- /workspace     - Workspace operations\n- /projects      - Project creation and management\n- /applications  - Application deployment and scaling\n- /deployments   - Deployment strategies\n- /cicd          - CI/CD pipeline configuration\n- /serverless    - Serverless function creation\n- /backup        - Backup and restore features\n- /success       - Final success states\n\nTotal screenshots captured: Check the directory for all images.\n\n"
                         }
                       ],
-                      "status": "unexpected"
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-14T13:46:46.342Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/hi/src/hexabase-ai/ui/test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts",
+                        "column": 27,
+                        "line": 35
+                      }
                     }
                   ],
-                  "id": "db7c4e872c1779e16711-51b27108c070f8662ee0",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 343,
-                  "column": 9
+                  "status": "unexpected"
                 }
-              ]
-            },
-            {
-              "title": "CronJob Template Management",
-              "file": "cronjob-components.spec.ts",
-              "line": 364,
-              "column": 8,
-              "specs": [
-                {
-                  "title": "should create cronjob template",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
-                        {
-                          "workerIndex": 9,
-                          "parallelIndex": 0,
-                          "status": "failed",
-                          "duration": 246,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:47.426Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
-                        }
-                      ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-0a079c654174471a2f0b",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 365,
-                  "column": 9
-                },
-                {
-                  "title": "should list cronjob templates",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
-                        {
-                          "workerIndex": 10,
-                          "parallelIndex": 2,
-                          "status": "failed",
-                          "duration": 252,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:47.426Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
-                        }
-                      ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-85f3267522cd2917f64c",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 399,
-                  "column": 9
-                }
-              ]
-            },
-            {
-              "title": "CronJob Integration",
-              "file": "cronjob-components.spec.ts",
-              "line": 440,
-              "column": 8,
-              "specs": [
-                {
-                  "title": "should link cronjob with backup policy",
-                  "ok": false,
-                  "tags": [],
-                  "tests": [
-                    {
-                      "timeout": 30000,
-                      "annotations": [],
-                      "expectedStatus": "passed",
-                      "projectId": "chromium",
-                      "projectName": "chromium",
-                      "results": [
-                        {
-                          "workerIndex": 12,
-                          "parallelIndex": 5,
-                          "status": "failed",
-                          "duration": 252,
-                          "error": {
-                            "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n",
-                            "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16",
-                            "location": {
-                              "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                              "column": 16,
-                              "line": 11
-                            },
-                            "snippet": "   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');"
-                          },
-                          "errors": [
-                            {
-                              "location": {
-                                "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                                "column": 16,
-                                "line": 11
-                              },
-                              "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/login\", waiting until \"load\"\u001b[22m\n\n\n   9 |   test.beforeEach(async ({ page }) => {\n  10 |     // Mock authentication\n> 11 |     await page.goto('/login');\n     |                ^\n  12 |     await page.fill('input[name=\"email\"]', 'test@example.com');\n  13 |     await page.fill('input[name=\"password\"]', 'testpassword');\n  14 |     await page.click('button[type=\"submit\"]');\n    at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16"
-                            }
-                          ],
-                          "stdout": [],
-                          "stderr": [],
-                          "retry": 0,
-                          "startTime": "2025-06-09T10:27:47.426Z",
-                          "annotations": [],
-                          "attachments": [
-                            {
-                              "name": "screenshot",
-                              "contentType": "image/png",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/test-failed-1.png"
-                            },
-                            {
-                              "name": "video",
-                              "contentType": "video/webm",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/video.webm"
-                            },
-                            {
-                              "name": "_error-context-0",
-                              "contentType": "text/markdown",
-                              "path": "/Users/hi/src/hexabase-ai/ui/test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/error-context.md"
-                            }
-                          ],
-                          "errorLocation": {
-                            "file": "/Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts",
-                            "column": 16,
-                            "line": 11
-                          }
-                        }
-                      ],
-                      "status": "unexpected"
-                    }
-                  ],
-                  "id": "db7c4e872c1779e16711-7bab708f48fa586980b2",
-                  "file": "cronjob-components.spec.ts",
-                  "line": 441,
-                  "column": 9
-                }
-              ]
+              ],
+              "id": "6373d0b564e71a5ba372-22f8f836940c44cb8ebf",
+              "file": "screenshot-demo.spec.ts",
+              "line": 237,
+              "column": 7
             }
           ]
         }
@@ -1094,11 +471,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-06-09T10:27:43.890Z",
-    "duration": 4033.5559999999996,
+    "startTime": "2025-06-14T13:46:42.658Z",
+    "duration": 17608.826,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 13,
+    "unexpected": 4,
     "flaky": 0
   }
 }

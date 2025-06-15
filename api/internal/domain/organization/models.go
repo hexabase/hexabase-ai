@@ -6,7 +6,7 @@ import (
 
 // Organization represents a company or team
 type Organization struct {
-	ID               string                 `json:"id"`
+	ID               string                 `json:"id" gorm:"primaryKey"`
 	Name             string                 `json:"name"`
 	DisplayName      string                 `json:"display_name"`
 	Description      string                 `json:"description,omitempty"`
@@ -14,25 +14,34 @@ type Organization struct {
 	Email            string                 `json:"email,omitempty"`
 	Status           string                 `json:"status"` // active, suspended, deleted
 	OwnerID          string                 `json:"owner_id,omitempty"`
-	Settings         map[string]interface{} `json:"settings,omitempty"`
-	MemberCount      int                    `json:"member_count,omitempty"`
-	SubscriptionInfo *SubscriptionInfo      `json:"subscription_info,omitempty"`
+	Settings         map[string]interface{} `json:"settings,omitempty" gorm:"-"`
+	MemberCount      int                    `json:"member_count,omitempty" gorm:"-"`
+	SubscriptionInfo *SubscriptionInfo      `json:"subscription_info,omitempty" gorm:"-"`
 	CreatedAt        time.Time              `json:"created_at"`
 	UpdatedAt        time.Time              `json:"updated_at"`
 	DeletedAt        *time.Time             `json:"deleted_at,omitempty"`
 }
 
+// TableName specifies the table name for GORM
+func (Organization) TableName() string {
+	return "organizations"
+}
+
 // OrganizationUser represents a user's membership in an organization
 type OrganizationUser struct {
-	ID             string    `json:"id"`
-	OrganizationID string    `json:"organization_id"`
-	UserID         string    `json:"user_id"`
+	OrganizationID string    `json:"organization_id" gorm:"primaryKey"`
+	UserID         string    `json:"user_id" gorm:"primaryKey"`
 	Email          string    `json:"email,omitempty"`
 	Role           string    `json:"role"` // owner, admin, member
 	InvitedBy      string    `json:"invited_by,omitempty"`
 	InvitedAt      time.Time `json:"invited_at"`
 	JoinedAt       time.Time `json:"joined_at"`
 	Status         string    `json:"status"` // pending, active, suspended
+}
+
+// TableName specifies the table name for GORM
+func (OrganizationUser) TableName() string {
+	return "organization_users"
 }
 
 // CreateOrganizationRequest represents a request to create an organization

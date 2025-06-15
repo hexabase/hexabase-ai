@@ -36,6 +36,17 @@ help:
 	@echo "  make deploy-staging - Deploy to staging"
 	@echo "  make deploy-prod    - Deploy to production"
 	@echo ""
+	@echo "Debugging:"
+	@echo "  make debug          - Start unified debug environment"
+	@echo "  make debug-api      - Debug API with Delve"
+	@echo "  make debug-ui       - Debug UI with Chrome DevTools"
+	@echo "  make debug-e2e      - Debug E2E tests interactively"
+	@echo "  make debug-e2e-dev  - Debug E2E tests in developer mode"
+	@echo "  make debug-basic    - Run debug basic functions test"
+	@echo "  make debug-logs     - Stream all service logs with filtering"
+	@echo "  make debug-status   - Show debug environment status"
+	@echo "  make debug-stop     - Stop debug environment"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  make status         - Show environment status"
 	@echo "  make logs-api       - Tail API logs"
@@ -54,7 +65,7 @@ clean:
 # Run API server
 dev-api:
 	@echo "Starting API server..."
-	@cd api && go run cmd/api/main.go
+	@cd api && if [ -f .env ]; then export $$(cat .env | grep -v '^#' | xargs); fi && go run cmd/api/main.go
 
 # Run UI development server
 dev-ui:
@@ -179,3 +190,46 @@ start: setup
 
 # Quick stop (alias for clean)
 stop: clean
+
+# Debug targets
+debug:
+	@echo "Starting unified debug environment..."
+	@./scripts/unified-debug.sh start
+
+debug-api:
+	@echo "Starting API in debug mode..."
+	@docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d postgres redis nats
+	@docker compose -f docker-compose.yml -f docker-compose.debug.yml up api
+
+debug-ui:
+	@echo "Starting UI in debug mode..."
+	@./scripts/unified-debug.sh start
+	@echo "UI debugger available at chrome://inspect"
+
+debug-e2e:
+	@echo "Running E2E tests in debug mode..."
+	@./scripts/e2e-debug-enhanced.sh
+
+debug-e2e-dev:
+	@echo "Running E2E tests in developer mode..."
+	@./scripts/e2e-debug-enhanced.sh --developer
+
+debug-basic:
+	@echo "Running debug basic functions test..."
+	@./scripts/e2e-debug-enhanced.sh --developer --test debug-basic-functions.spec.ts
+
+debug-logs:
+	@echo "Streaming debug logs..."
+	@./scripts/unified-debug.sh logs
+
+debug-status:
+	@echo "Showing debug environment status..."
+	@./scripts/unified-debug.sh status
+
+debug-stop:
+	@echo "Stopping debug environment..."
+	@./scripts/unified-debug.sh stop
+
+debug-restart:
+	@echo "Restarting debug environment..."
+	@./scripts/unified-debug.sh restart

@@ -1,0 +1,104 @@
+name: E2E Smoke Tests
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - development
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  smoke-tests:
+    name: Smoke Tests - ${{ github.event.inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: |
+      github.event.deployment_status.state == 'success' ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Determine test environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "deployment_status" ]; then
+            echo "url=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_OUTPUT
+            echo "name=${{ github.event.deployment_status.environment }}" >> $GITHUB_OUTPUT
+          else
+            case "${{ github.event.inputs.environment }}" in
+              production)
+                echo "url=${{ secrets.PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+                ;;
+              staging)
+                echo "url=${{ secrets.STAGING_URL }}" >> $GITHUB_OUTPUT
+                ;;
+              development)
+                echo "url=${{ secrets.DEVELOPMENT_URL }}" >> $GITHUB_OUTPUT
+                ;;
+            esac
+            echo "name=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run smoke tests
+        run: |
+          npx playwright test \
+            --grep "@smoke" \
+            --project=chromium \
+            --reporter=list,json \
+            --max-failures=3
+        env:
+          BASE_URL: ${{ steps.env.outputs.url }}
+          TEST_ENV: ${{ steps.env.outputs.name }}
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results-${{ steps.env.outputs.name }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Update deployment status
+        if: github.event_name == 'deployment_status' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const state = ${{ job.status }} === 'success' ? 'success' : 'failure';
+            const description = state === 'success' 
+              ? 'E2E smoke tests passed' 
+              : 'E2E smoke tests failed';
+            
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ github.event.deployment.id }},
+              state: state,
+              description: description,
+              environment_url: '${{ steps.env.outputs.url }}',
+              log_url: `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+            });

@@ -1,509 +1,255 @@
-<testsuites id="" name="" tests="13" failures="13" skipped="0" errors="0" time="4.033556">
-<testsuite name="cronjob-components.spec.ts" timestamp="2025-06-09T10:27:43.938Z" hostname="chromium" tests="13" failures="13" skipped="0" time="10.918" errors="0">
-<testcase name="CronJob Management › CronJob Creation › should open create cronjob dialog" classname="cronjob-components.spec.ts" time="1.145">
-<failure message="cronjob-components.spec.ts:22:9 should open create cronjob dialog" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:22:9 › CronJob Management › CronJob Creation › should open create cronjob dialog 
+<testsuites id="" name="" tests="4" failures="4" skipped="0" errors="0" time="17.608826">
+<testsuite name="screenshot-demo.spec.ts" timestamp="2025-06-14T13:46:45.864Z" hostname="chromium" tests="4" failures="4" skipped="0" time="47.571" errors="0">
+<testcase name="E2E Screenshot Demo › complete user journey with screenshots" classname="screenshot-demo.spec.ts" time="12.372">
+<failure message="screenshot-demo.spec.ts:55:7 complete user journey with screenshots" type="FAILURE">
+<![CDATA[  [chromium] › screenshot-demo.spec.ts:55:7 › E2E Screenshot Demo › complete user journey with screenshots 
 
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
+    TimeoutError: locator.fill: Timeout 10000ms exceeded.
     Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
+      - waiting for getByTestId('email-input')
 
 
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
+       at ../pages/LoginPage.ts:35
+
+      33 |
+      34 |   async login(email: string, password: string) {
+    > 35 |     await this.emailInput.fill(email);
+         |                           ^
+      36 |     await this.passwordInput.fill(password);
+      37 |     await this.loginButton.click();
+      38 |   }
+        at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)
+        at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:60:21
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/test-failed-1.png
+    test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/video.webm
+    test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ../test-results/cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/error-context.md
+    Error Context: ../../test-results/screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/test-failed-1.png]]
+<![CDATA[📸 Screenshot saved: /Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46/auth/01_login_page.png
 
-[[ATTACHMENT|cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/video.webm]]
+📸 Screenshot Summary
+====================
+All E2E test screenshots have been saved to:
+/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46
 
-[[ATTACHMENT|cronjob-components-CronJob-432e1--open-create-cronjob-dialog-chromium/error-context.md]]
+Directory structure:
+- /auth          - Login and authentication flows
+- /dashboard     - Dashboard and navigation
+- /organization  - Organization management
+- /workspace     - Workspace operations
+- /projects      - Project creation and management
+- /applications  - Application deployment and scaling
+- /deployments   - Deployment strategies
+- /cicd          - CI/CD pipeline configuration
+- /serverless    - Serverless function creation
+- /backup        - Backup and restore features
+- /success       - Final success states
+
+Total screenshots captured: Check the directory for all images.
+
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/video.webm]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-eb1b8-er-journey-with-screenshots-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="CronJob Management › CronJob Creation › should create cronjob from template" classname="cronjob-components.spec.ts" time="1.185">
-<failure message="cronjob-components.spec.ts:35:9 should create cronjob from template" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:35:9 › CronJob Management › CronJob Creation › should create cronjob from template 
+<testcase name="E2E Screenshot Demo › CI/CD pipeline configuration with screenshots" classname="screenshot-demo.spec.ts" time="11.925">
+<failure message="screenshot-demo.spec.ts:165:7 CI/CD pipeline configuration with screenshots" type="FAILURE">
+<![CDATA[  [chromium] › screenshot-demo.spec.ts:165:7 › E2E Screenshot Demo › CI/CD pipeline configuration with screenshots 
 
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
+    TimeoutError: locator.fill: Timeout 10000ms exceeded.
     Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
+      - waiting for getByTestId('email-input')
 
 
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
+       at ../pages/LoginPage.ts:35
+
+      33 |
+      34 |   async login(email: string, password: string) {
+    > 35 |     await this.emailInput.fill(email);
+         |                           ^
+      36 |     await this.passwordInput.fill(password);
+      37 |     await this.loginButton.click();
+      38 |   }
+        at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)
+        at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:168:21
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/test-failed-1.png
+    test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/video.webm
+    test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ../test-results/cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/error-context.md
+    Error Context: ../../test-results/screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/test-failed-1.png]]
+📸 Screenshot Summary
+====================
+All E2E test screenshots have been saved to:
+/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46
 
-[[ATTACHMENT|cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/video.webm]]
+Directory structure:
+- /auth          - Login and authentication flows
+- /dashboard     - Dashboard and navigation
+- /organization  - Organization management
+- /workspace     - Workspace operations
+- /projects      - Project creation and management
+- /applications  - Application deployment and scaling
+- /deployments   - Deployment strategies
+- /cicd          - CI/CD pipeline configuration
+- /serverless    - Serverless function creation
+- /backup        - Backup and restore features
+- /success       - Final success states
 
-[[ATTACHMENT|cronjob-components-CronJob-a2c83-reate-cronjob-from-template-chromium/error-context.md]]
+Total screenshots captured: Check the directory for all images.
+
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/video.webm]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-4614a-figuration-with-screenshots-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="CronJob Management › CronJob Creation › should validate cron expression" classname="cronjob-components.spec.ts" time="1.253">
-<failure message="cronjob-components.spec.ts:96:9 should validate cron expression" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:96:9 › CronJob Management › CronJob Creation › should validate cron expression 
+<testcase name="E2E Screenshot Demo › serverless function creation with screenshots" classname="screenshot-demo.spec.ts" time="11.682">
+<failure message="screenshot-demo.spec.ts:199:7 serverless function creation with screenshots" type="FAILURE">
+<![CDATA[  [chromium] › screenshot-demo.spec.ts:199:7 › E2E Screenshot Demo › serverless function creation with screenshots 
 
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
+    TimeoutError: locator.fill: Timeout 10000ms exceeded.
     Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
+      - waiting for getByTestId('email-input')
 
 
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
+       at ../pages/LoginPage.ts:35
+
+      33 |
+      34 |   async login(email: string, password: string) {
+    > 35 |     await this.emailInput.fill(email);
+         |                           ^
+      36 |     await this.passwordInput.fill(password);
+      37 |     await this.loginButton.click();
+      38 |   }
+        at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)
+        at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:202:21
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/test-failed-1.png
+    test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/video.webm
+    test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ../test-results/cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/error-context.md
+    Error Context: ../../test-results/screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/test-failed-1.png]]
+📸 Screenshot Summary
+====================
+All E2E test screenshots have been saved to:
+/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46
 
-[[ATTACHMENT|cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/video.webm]]
+Directory structure:
+- /auth          - Login and authentication flows
+- /dashboard     - Dashboard and navigation
+- /organization  - Organization management
+- /workspace     - Workspace operations
+- /projects      - Project creation and management
+- /applications  - Application deployment and scaling
+- /deployments   - Deployment strategies
+- /cicd          - CI/CD pipeline configuration
+- /serverless    - Serverless function creation
+- /backup        - Backup and restore features
+- /success       - Final success states
 
-[[ATTACHMENT|cronjob-components-CronJob-0e3e9-ld-validate-cron-expression-chromium/error-context.md]]
+Total screenshots captured: Check the directory for all images.
+
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/video.webm]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-0e3d1-n-creation-with-screenshots-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="CronJob Management › CronJob List View › should display cronjobs list" classname="cronjob-components.spec.ts" time="1.199">
-<failure message="cronjob-components.spec.ts:115:9 should display cronjobs list" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:115:9 › CronJob Management › CronJob List View › should display cronjobs list 
+<testcase name="E2E Screenshot Demo › backup configuration for dedicated workspace" classname="screenshot-demo.spec.ts" time="11.592">
+<failure message="screenshot-demo.spec.ts:237:7 backup configuration for dedicated workspace" type="FAILURE">
+<![CDATA[  [chromium] › screenshot-demo.spec.ts:237:7 › E2E Screenshot Demo › backup configuration for dedicated workspace 
 
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
+    TimeoutError: locator.fill: Timeout 10000ms exceeded.
     Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
+      - waiting for getByTestId('email-input')
 
 
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
+       at ../pages/LoginPage.ts:35
+
+      33 |
+      34 |   async login(email: string, password: string) {
+    > 35 |     await this.emailInput.fill(email);
+         |                           ^
+      36 |     await this.passwordInput.fill(password);
+      37 |     await this.loginButton.click();
+      38 |   }
+        at LoginPage.login (/Users/hi/src/hexabase-ai/ui/e2e/pages/LoginPage.ts:35:27)
+        at /Users/hi/src/hexabase-ai/ui/e2e/tests/screenshot-demo.spec.ts:240:21
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/test-failed-1.png
+    test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/video.webm
+    test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ../test-results/cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/error-context.md
+    Error Context: ../../test-results/screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-c2680-hould-display-cronjobs-list-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob List View › should toggle cronjob status" classname="cronjob-components.spec.ts" time="1.239">
-<failure message="cronjob-components.spec.ts:161:9 should toggle cronjob status" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:161:9 › CronJob Management › CronJob List View › should toggle cronjob status 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-2d487-hould-toggle-cronjob-status-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Execution History › should display execution history" classname="cronjob-components.spec.ts" time="1.241">
-<failure message="cronjob-components.spec.ts:197:9 should display execution history" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:197:9 › CronJob Management › CronJob Execution History › should display execution history 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-65a3d-d-display-execution-history-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Execution History › should view execution logs" classname="cronjob-components.spec.ts" time="1.215">
-<failure message="cronjob-components.spec.ts:251:9 should view execution logs" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:251:9 › CronJob Management › CronJob Execution History › should view execution logs 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-ab14d--should-view-execution-logs-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Execution History › should manually trigger cronjob" classname="cronjob-components.spec.ts" time="1.171">
-<failure message="cronjob-components.spec.ts:271:9 should manually trigger cronjob" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:271:9 › CronJob Management › CronJob Execution History › should manually trigger cronjob 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-62a21-ld-manually-trigger-cronjob-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Schedule Management › should update cronjob schedule" classname="cronjob-components.spec.ts" time="0.251">
-<failure message="cronjob-components.spec.ts:306:9 should update cronjob schedule" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:306:9 › CronJob Management › CronJob Schedule Management › should update cronjob schedule 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-bbd79-uld-update-cronjob-schedule-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Schedule Management › should show schedule preview" classname="cronjob-components.spec.ts" time="0.269">
-<failure message="cronjob-components.spec.ts:343:9 should show schedule preview" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:343:9 › CronJob Management › CronJob Schedule Management › should show schedule preview 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-6425d-hould-show-schedule-preview-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Template Management › should create cronjob template" classname="cronjob-components.spec.ts" time="0.246">
-<failure message="cronjob-components.spec.ts:365:9 should create cronjob template" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:365:9 › CronJob Management › CronJob Template Management › should create cronjob template 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-ea9de-uld-create-cronjob-template-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Template Management › should list cronjob templates" classname="cronjob-components.spec.ts" time="0.252">
-<failure message="cronjob-components.spec.ts:399:9 should list cronjob templates" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:399:9 › CronJob Management › CronJob Template Management › should list cronjob templates 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-07915-ould-list-cronjob-templates-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="CronJob Management › CronJob Integration › should link cronjob with backup policy" classname="cronjob-components.spec.ts" time="0.252">
-<failure message="cronjob-components.spec.ts:441:9 should link cronjob with backup policy" type="FAILURE">
-<![CDATA[  [chromium] › cronjob-components.spec.ts:441:9 › CronJob Management › CronJob Integration › should link cronjob with backup policy 
-
-    Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/login
-    Call log:
-      - navigating to "http://localhost:3000/login", waiting until "load"
-
-
-       9 |   test.beforeEach(async ({ page }) => {
-      10 |     // Mock authentication
-    > 11 |     await page.goto('/login');
-         |                ^
-      12 |     await page.fill('input[name="email"]', 'test@example.com');
-      13 |     await page.fill('input[name="password"]', 'testpassword');
-      14 |     await page.click('button[type="submit"]');
-        at /Users/hi/src/hexabase-ai/ui/tests/cronjob-components.spec.ts:11:16
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../test-results/cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/video.webm]]
-
-[[ATTACHMENT|cronjob-components-CronJob-caf03--cronjob-with-backup-policy-chromium/error-context.md]]
+📸 Screenshot Summary
+====================
+All E2E test screenshots have been saved to:
+/Users/hi/src/hexabase-ai/ui/screenshots/e2e_result_2025-06-14T13-46-46
+
+Directory structure:
+- /auth          - Login and authentication flows
+- /dashboard     - Dashboard and navigation
+- /organization  - Organization management
+- /workspace     - Workspace operations
+- /projects      - Project creation and management
+- /applications  - Application deployment and scaling
+- /deployments   - Deployment strategies
+- /cicd          - CI/CD pipeline configuration
+- /serverless    - Serverless function creation
+- /backup        - Backup and restore features
+- /success       - Final success states
+
+Total screenshots captured: Check the directory for all images.
+
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/video.webm]]
+
+[[ATTACHMENT|screenshot-demo-E2E-Screen-a26dc-ion-for-dedicated-workspace-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>

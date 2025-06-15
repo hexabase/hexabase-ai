@@ -4,16 +4,17 @@ This directory contains the organized and consolidated Architecture Decision Rec
 
 ## ADR Index
 
-| ADR                                               | Title                                                | Status                     | Date       |
-| ------------------------------------------------- | ---------------------------------------------------- | -------------------------- | ---------- |
-| [ADR-001](001-platform-architecture.md)           | Multi-tenant Kubernetes Platform Architecture        | Implemented                | 2025-06-01 |
-| [ADR-002](002-authentication-security.md)         | OAuth2/OIDC Authentication and Security Architecture | Implemented                | 2025-06-02 |
-| [ADR-003](003-function-service-architecture.md)   | Function as a Service (FaaS) Architecture            | Implemented with Migration | 2025-06-08 |
-| [ADR-004](004-aiops-architecture.md)              | AI Operations (AIOps) Architecture                   | Implemented                | 2025-06-06 |
-| [ADR-005](005-cicd-architecture.md)               | CI/CD Architecture with Provider Abstraction         | Implemented                | 2025-06-07 |
-| [ADR-006](006-logging-monitoring-architecture.md) | Logging and Monitoring Architecture                  | Implemented                | 2025-06-09 |
-| [ADR-007](007-backup-disaster-recovery.md)        | Backup and Disaster Recovery Architecture            | Partially Implemented      | 2025-06-09 |
-| [ADR-008](008-domain-driven-design.md)            | Domain-Driven Design and Code Organization           | Implemented and Enforced   | 2025-06-03 |
+| ADR                                               | Title                                                 | Status                     | Date       |
+| ------------------------------------------------- | ----------------------------------------------------- | -------------------------- | ---------- |
+| [ADR-001](001-platform-architecture.md)           | Multi-tenant Kubernetes Platform Architecture         | Implemented                | 2025-06-01 |
+| [ADR-002](002-authentication-security.md)         | OAuth2/OIDC Authentication and Security Architecture  | Implemented                | 2025-06-02 |
+| [ADR-003](003-function-service-architecture.md)   | Function as a Service (FaaS) Architecture             | Implemented with Migration | 2025-06-08 |
+| [ADR-004](004-aiops-architecture.md)              | AI Operations (AIOps) Architecture                    | Implemented                | 2025-06-06 |
+| [ADR-005](005-cicd-architecture.md)               | CI/CD Architecture with Provider Abstraction          | Implemented                | 2025-06-07 |
+| [ADR-006](006-logging-monitoring-architecture.md) | Logging and Monitoring Architecture                   | Implemented                | 2025-06-09 |
+| [ADR-007](007-backup-disaster-recovery.md)        | Backup and Disaster Recovery Architecture             | Partially Implemented      | 2025-06-09 |
+| [ADR-008](008-domain-driven-design.md)            | Domain-Driven Design and Code Organization            | Implemented and Enforced   | 2025-06-03 |
+| [ADR-009](009-secure-logging-architecture.md)     | Secure and Scalable Multi-Tenant Logging Architecture | Proposed                   | 2025-06-15 |
 
 ## ADR Format
 

@@ -117,6 +117,49 @@ func (s *service) GetOrganization(ctx context.Context, orgID string) (*organizat
 
 func (s *service) ListOrganizations(ctx context.Context, filter organization.OrganizationFilter) (*organization.OrganizationList, error) {
 	if filter.UserID != "" {
+		// Handle development user specially
+		if filter.UserID == "dev-user-1" {
+			// Check if dev organization exists
+			devOrg, err := s.repo.GetOrganization(ctx, "dev-org-1")
+			if err != nil {
+				// Create development organization if it doesn't exist
+				devOrg = &organization.Organization{
+					ID:          "dev-org-1",
+					Name:        "development",
+					DisplayName: "Development Organization",
+					Description: "Default organization for development",
+					Status:      "active",
+					OwnerID:     "dev-user-1",
+					Settings:    nil, // Don't set Settings to avoid GORM issues
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
+				}
+				if err := s.repo.CreateOrganization(ctx, devOrg); err != nil {
+					s.logger.Warn("failed to create dev organization", "error", err)
+				}
+				
+				// Add dev user as member
+				member := &organization.OrganizationUser{
+					OrganizationID: devOrg.ID,
+					UserID:         "dev-user-1",
+					Role:           "admin",
+					JoinedAt:       time.Now(),
+					InvitedAt:      time.Now(),
+					Status:         "active",
+				}
+				if err := s.repo.AddMember(ctx, member); err != nil {
+					s.logger.Warn("failed to add dev user as member", "error", err)
+				}
+			}
+			
+			return &organization.OrganizationList{
+				Organizations: []*organization.Organization{devOrg},
+				Total:         1,
+				Page:          filter.Page,
+				PageSize:      filter.PageSize,
+			}, nil
+		}
+
 		// Get organizations where user is a member
 		orgIDs, err := s.authRepo.GetUserOrganizations(ctx, filter.UserID)
 		if err != nil {
@@ -281,7 +324,7 @@ func (s *service) ListMembers(ctx context.Context, filter organization.MemberFil
 		}
 		
 		member := &organization.Member{
-			ID:          ou.ID,
+			ID:          fmt.Sprintf("%s-%s", ou.OrganizationID, ou.UserID), // Composite ID
 			UserID:      ou.UserID,
 			Email:       user.Email,
 			DisplayName: user.DisplayName,
@@ -435,7 +478,7 @@ func (s *service) GetMember(ctx context.Context, orgID, userID string) (*organiz
 	}
 
 	return &organization.Member{
-		ID:          member.ID,
+		ID:          fmt.Sprintf("%s-%s", member.OrganizationID, member.UserID), // Composite ID
 		UserID:      member.UserID,
 		Email:       user.Email,
 		DisplayName: user.DisplayName,

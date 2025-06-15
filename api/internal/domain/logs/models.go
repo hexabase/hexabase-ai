@@ -22,4 +22,16 @@ type LogQuery struct {
 	EndTime     time.Time `json:"end_time"`
 	Level       string    `json:"level,omitempty"`
 	Limit       int       `json:"limit,omitempty"`
+}
+
+// AuditLog represents an audit log entry
+type AuditLog struct {
+	ID        string                 `json:"id"`
+	UserID    string                 `json:"user_id"`
+	Action    string                 `json:"action"`
+	Resource  string                 `json:"resource"`
+	Details   map[string]interface{} `json:"details,omitempty" gorm:"type:jsonb"`
+	IP        string                 `json:"ip"`
+	UserAgent string                 `json:"user_agent"`
+	Timestamp time.Time              `json:"timestamp"`
 } 

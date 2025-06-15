@@ -15,7 +15,7 @@ export function LoadingSpinner({ size = "md", className }: LoadingSpinnerProps) 
   return (
     <div
       className={cn(
-        "animate-spin rounded-full border-gray-200 border-t-primary-600",
+        "animate-spin rounded-full border-border border-t-hexa-green",
         sizeClasses[size],
         className
       )}
@@ -29,17 +29,17 @@ interface LoadingPageProps {
 
 export function LoadingPage({ message = "Loading..." }: LoadingPageProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="relative">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-32 w-32 bg-primary-200 rounded-full animate-pulse"></div>
+            <div className="h-32 w-32 bg-hexa-green/20 rounded-full animate-pulse"></div>
           </div>
           <div className="relative">
-            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+            <LoadingSpinner size="lg" className="mx-auto mb-md" />
           </div>
         </div>
-        <p className="text-lg font-medium text-gray-700 mt-8">{message}</p>
+        <p className="text-heading-base text-text-primary mt-xl">{message}</p>
       </div>
     </div>
   );

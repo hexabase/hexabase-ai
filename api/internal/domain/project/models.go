@@ -17,7 +17,7 @@ type Project struct {
 	NamespaceName string               `json:"namespace_name,omitempty"`
 	ResourceQuotas *ResourceQuotas     `json:"resource_quotas,omitempty"`
 	ResourceUsage  *ResourceUsage      `json:"resource_usage,omitempty"`
-	Settings      map[string]interface{} `json:"settings,omitempty"`
+	Settings      map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
 	Labels         map[string]string   `json:"labels,omitempty"`
 	CreatedAt      time.Time           `json:"created_at"`
 	UpdatedAt      time.Time           `json:"updated_at"`
@@ -41,15 +41,15 @@ type ResourceUsage struct {
 
 // CreateProjectRequest represents a request to create a project
 type CreateProjectRequest struct {
-	Name           string            `json:"name" binding:"required"`
-	DisplayName    string            `json:"display_name,omitempty"`
-	Description    string            `json:"description,omitempty"`
-	WorkspaceID    string            `json:"workspace_id" binding:"required"`
-	NamespaceName  string            `json:"namespace_name,omitempty"`
-	ResourceQuotas *ResourceQuotas   `json:"resource_quotas,omitempty"`
-	Settings       map[string]interface{} `json:"settings,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"`
-	CreatedBy      string            `json:"created_by,omitempty"`
+	Name           string                 `json:"name" binding:"required"`
+	DisplayName    string                 `json:"display_name,omitempty"`
+	Description    string                 `json:"description,omitempty"`
+	WorkspaceID    string                 `json:"workspace_id" binding:"required"`
+	NamespaceName  string                 `json:"namespace_name,omitempty"`
+	ResourceQuotas *ResourceQuotas        `json:"resource_quotas,omitempty"`
+	Settings       map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
+	Labels         map[string]string      `json:"labels,omitempty"`
+	CreatedBy      string                 `json:"created_by,omitempty"`
 }
 
 // UpdateProjectRequest represents a request to update a project
@@ -58,7 +58,7 @@ type UpdateProjectRequest struct {
 	DisplayName    string                 `json:"display_name,omitempty"`
 	Description    string                 `json:"description,omitempty"`
 	ResourceQuotas *ResourceQuotas        `json:"resource_quotas,omitempty"`
-	Settings       map[string]interface{} `json:"settings,omitempty"`
+	Settings       map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
 	Labels         map[string]string      `json:"labels,omitempty"`
 	Status         string                 `json:"status,omitempty"`
 	UpdatedBy      string                 `json:"updated_by,omitempty"`
@@ -198,3 +198,18 @@ type ActivityFilter struct {
 
 // Activity is an alias for ProjectActivity for backward compatibility
 type Activity = ProjectActivity
+
+// ProjectTask represents an async task for project operations
+type ProjectTask struct {
+	ID          string                 `json:"id"`
+	ProjectID   string                 `json:"project_id"`
+	Type        string                 `json:"type"`
+	Status      string                 `json:"status"`
+	Progress    int                    `json:"progress"`
+	Message     string                 `json:"message,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	CompletedAt *time.Time             `json:"completed_at,omitempty"`
+}

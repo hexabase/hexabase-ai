@@ -3,21 +3,36 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded px-sm py-xs text-xs font-medium transition-colors",
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
+        // High importance variants
+        default: "bg-hexa-green text-white",
+        primary: "bg-hexa-green text-white",
+        secondary: "bg-hexa-pink text-white",
+        gray: "bg-gray text-white",
+        // Low importance
+        subtle: "bg-black text-white",
+        // Status variants
+        success: "bg-hexa-green text-white",
+        warning: "bg-hexa-pink text-white",
+        error: "bg-error text-white",
+        info: "bg-primary text-white",
+        // Outline variants
+        outline: "border border-border text-text-primary bg-transparent",
+        "outline-primary": "border border-hexa-green text-hexa-green bg-transparent",
+        "outline-secondary": "border border-hexa-pink text-hexa-pink bg-transparent",
       },
+      size: {
+        default: "px-sm py-xs text-xs",
+        sm: "px-xs py-0.5 text-[10px]",
+        lg: "px-md py-sm text-sm",
+      }
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 )

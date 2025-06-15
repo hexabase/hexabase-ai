@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document defines the comprehensive logging and auditing strategy for the Hexabase KaaS (HKS) platform. The goal is to provide visibility for different stakeholders (HKS Developers, Organization Admins, Workspace Admins, Users) into system health, user activities, and application behavior.
+This document defines the comprehensive logging and auditing strategy for the Hexabase KaaS (HKS) platform. The goal is to provide visibility for different stakeholders (HKS Developers, Organization Admins, Workspace Admins, Users) into system health, user activities, and application behavior, while ensuring strict security and data isolation.
 
 We classify logs into three distinct categories based on their purpose and audience.
 
@@ -14,41 +14,63 @@ We classify logs into three distinct categories based on their purpose and audie
 | **Audit Logs**    | Immutable record of actions taken by users or by automated systems (like AIOps) on their behalf.         | HKS Admins, Users  | **ClickHouse**     | Grafana, User Pages | Long-term (e.g., 1+ years, for compliance)        |
 | **Workload Logs** | Logs from user-deployed applications (`stdout`/`stderr` from pods) running within a project's namespace. | Users              | **Loki**           | Grafana             | Short/Medium-term (e.g., 7-30 days, configurable) |
 
-### 2.1 Visualization and Access Control
+## 3. Core Security Principles
 
-**Grafana** will serve as the central hub for visualizing all log types. A robust Single Sign-On (SSO) integration with the HKS user management system is a prerequisite. This integration must ensure strict data tenancy, allowing users to view only the logs and dashboards relevant to their permissions.
+### 3.1. Mandatory Log Enrichment
 
-## 3. System Logs
+To enable secure, multi-tenant log filtering, all structured logs generated within the context of an authenticated API request **must** be automatically enriched with tenancy and user information. A logging middleware in the Go backend will be responsible for injecting the following fields into every log entry:
+
+- `organization_id`
+- `workspace_id` (if applicable)
+- `user_id`
+
+This enrichment is the non-negotiable foundation of the logging security model.
+
+### 3.2. Backend-Enforced Access Control
+
+The user interface and other clients **must not** have direct access to the underlying log storage systems (Loki, ClickHouse). All log access will be brokered through secure HKS API endpoints, which will act as a gatekeeper to enforce access policies.
+
+## 4. System Logs
 
 - **Source**: All HKS backend components, including the Go Control Plane, Python AIOps system, and other supporting services.
-- **Collection**: Services will log `stdout`/`stderr` in a structured format (e.g., JSON). A log collection agent (e.g., Promtail) will be deployed within the Kubernetes cluster to automatically scrape these logs and forward them to a central Loki instance.
-- **Purpose**: To monitor the health of the HKS platform, diagnose issues, and analyze performance. These logs are primarily for internal HKS operational staff.
+- **Collection**: Services will log `stdout`/`stderr` in a structured JSON format. A log collection agent (Promtail) will forward these logs to a central Loki instance.
+- **Purpose**: To monitor the health of the HKS platform, diagnose issues, and analyze performance. These logs are primarily for internal HKS operational staff and are not exposed to tenants.
 
-## 4. Audit Logs
+## 5. Audit Logs
 
-Audit logs provide a "who, what, when, where" record of all significant events and changes within the HKS platform.
+Audit logs provide a "who, what, when, where" record of all significant events.
 
 - **Source**:
-  - **HKS API**: All state-changing actions made through the HKS API (UI, CLI, or direct calls). This includes workspace/project management, user invites, plan changes, etc.
-  - **Kubernetes API Server**: All actions performed via `kubectl` or other Kubernetes clients. This is captured using a Kubernetes [Audit Webhook](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend). A dedicated HKS service will receive these events, correlate them with the HKS user, and forward them to ClickHouse.
-  - **AIOps System**: When an AIOps agent executes an action (e.g., scaling a deployment), it calls the HKS Internal API. This call is logged as an audit event, attributed to the impersonated user, with an additional field indicating it was `initiated_by: "AIOpsAgent"`.
-- **Storage**: Events are stored in a `logs.audit` table in ClickHouse. The schema will be designed for efficient querying and will include fields like `timestamp`, `user_id`, `user_email`, `source_ip`, `event_type`, `resource_type`, `resource_id`, `details_json`, `initiated_by`, etc.
+  - **HKS API**: All state-changing actions.
+  - **Kubernetes API Server**: Captured via an [Audit Webhook](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend).
+  - **AIOps System**: Actions are logged as an audit event, impersonating the user, with an additional field `initiated_by: "AIOpsAgent"`.
+- **Storage**: Events are stored in a `logs.audit` table in ClickHouse. The schema will include `timestamp`, `user_id`, `organization_id`, `workspace_id`, `source_ip`, `event_type`, `resource_id`, `details_json`, etc.
 - **Access Control and Visibility**:
-  - **Organization Admin**: Can view all audit logs within their organization, focusing on high-level events like Workspace creation/deletion and Billing changes.
-  - **Workspace Admin**: Can view all audit logs within their assigned workspaces, including Project creation/deletion and user role changes within the workspace.
-  - **User**: Can view audit logs related to their own actions or actions performed on their behalf on resources they have access to. A dedicated "Activity Log" page will be provided in their personal dashboard.
+  - **Organization Admin**: Can view all audit logs within their organization.
+  - **Workspace Admin**: Can view all audit logs within their assigned workspaces.
+  - **User**: Can view audit logs related to their own actions.
+- **Security Implementation**:
+  - The HKS API will provide endpoints like `GET /api/v1/organizations/{orgId}/logs`.
+  - The API handler will extract the user's identity and roles from their JWT.
+  - It will then construct a ClickHouse query, **injecting a non-negotiable `WHERE` clause** to scope the results. For example, for a Workspace Admin, the query will always include `AND workspace_id = 'users_workspace_from_jwt'`. This prevents horizontal privilege escalation.
 
-## 5. Workload Logs
+## 6. Workload Logs
 
-- **Source**: All pods running within user namespaces (i.e., inside an HKS Project).
-- **Collection**: Promtail, running as a DaemonSet, will automatically discover and scrape logs from all user pods on each node.
-- **Access**: Users can access their workload logs through Grafana. The Grafana instance will be pre-configured with data sources and dashboards that are automatically filtered by the user's accessible projects/namespaces, ensuring they cannot see logs from other tenants.
+- **Source**: All pods running within user namespaces.
+- **Collection**: Promtail, running as a DaemonSet, will scrape logs from all user pods.
+- **Access Control and Visibility**:
+  - Users can access logs for pods within projects they have permission to view.
+- **Security Implementation**:
+  - The HKS API will provide an endpoint like `GET /api/v1/.../projects/{projectId}/pods/{podName}/logs`.
+  - Before proxying the log request to Loki, the API handler **must** perform a `SubjectAccessReview` against the project's vCluster Kubernetes API.
+  - The review will check if the requesting user has `get` and `logs` permissions on the `pods` resource for the specified pod name.
+  - The log stream is only returned if the access review succeeds. This leverages Kubernetes' own RBAC as the source of truth for access control.
 
-## 6. Relationship with AIOps Tracing (Langfuse)
+## 7. Relationship with AIOps Tracing (Langfuse)
 
 It is important to distinguish Audit Logs from the AIOps tracing system (Langfuse).
 
-- **Langfuse**: A specialized tool for **developers** to debug the AI. It traces the _internal reasoning_ of the agent chain (e.g., "Orchestrator decided to call the Kubernetes tool with these arguments"). It records thoughts, prompts, and intermediate steps.
-- **ClickHouse (Audit Logs)**: A system of record for **users and admins**. It logs the _final, executed action_ that resulted from the agent's reasoning (e.g., "User 'bob@example.com' via AIOps scaled deployment 'nginx' to 3 replicas").
+- **Langfuse**: A specialized tool for **developers** to debug the AI's internal reasoning.
+- **ClickHouse (Audit Logs)**: A system of record for **users and admins** to see the final, executed actions.
 
-This separation ensures that developers have the detailed traces they need, while users and admins have a clean, compliant audit trail of significant events.
+This separation ensures developers have detailed traces while users have a clean, compliant audit trail.

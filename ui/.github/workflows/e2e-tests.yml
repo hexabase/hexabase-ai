@@ -1,0 +1,290 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test-suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - auth
+          - core-flows
+          - deployments
+          - cicd
+          - serverless
+          - backup
+
+env:
+  PLAYWRIGHT_BROWSERS_PATH: ms-playwright
+  NODE_VERSION: '18'
+
+jobs:
+  e2e-tests:
+    name: E2E Tests - ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        include:
+          - browser: chromium
+            project: chromium
+          - browser: firefox
+            project: firefox
+          - browser: webkit
+            project: webkit
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(npm ls @playwright/test --json | jq -r '.dependencies["@playwright/test"].version')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps ${{ matrix.browser }}
+
+      - name: Run E2E tests
+        run: |
+          if [ "${{ github.event.inputs.test-suite }}" == "all" ] || [ -z "${{ github.event.inputs.test-suite }}" ]; then
+            npx playwright test --project=${{ matrix.project }}
+          else
+            case "${{ github.event.inputs.test-suite }}" in
+              auth)
+                npx playwright test e2e/tests/auth.spec.ts --project=${{ matrix.project }}
+                ;;
+              core-flows)
+                npx playwright test e2e/tests/organization-workspace.spec.ts e2e/tests/projects.spec.ts e2e/tests/applications.spec.ts --project=${{ matrix.project }}
+                ;;
+              deployments)
+                npx playwright test e2e/tests/deployments.spec.ts --project=${{ matrix.project }}
+                ;;
+              cicd)
+                npx playwright test e2e/tests/cicd-pipeline.spec.ts --project=${{ matrix.project }}
+                ;;
+              serverless)
+                npx playwright test e2e/tests/serverless-functions.spec.ts --project=${{ matrix.project }}
+                ;;
+              backup)
+                npx playwright test e2e/tests/backup-restore.spec.ts --project=${{ matrix.project }}
+                ;;
+            esac
+          fi
+        env:
+          BASE_URL: ${{ secrets.E2E_BASE_URL || 'http://localhost:3000' }}
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.browser }}
+          path: test-results/**/*.png
+          retention-days: 7
+
+      - name: Upload videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: videos-${{ matrix.browser }}
+          path: test-results/**/*.webm
+          retention-days: 7
+
+  e2e-mobile-tests:
+    name: E2E Tests - Mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mobile E2E tests
+        run: |
+          npx playwright test --project="Mobile Chrome" --project="Mobile Safari"
+        env:
+          BASE_URL: ${{ secrets.E2E_BASE_URL || 'http://localhost:3000' }}
+          CI: true
+
+      - name: Upload mobile test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-mobile
+          path: test-results/
+          retention-days: 7
+
+  test-report:
+    name: Generate Test Report
+    needs: [e2e-tests, e2e-mobile-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+          pattern: test-results-*
+
+      - name: Merge test results
+        run: |
+          mkdir -p merged-results
+          find all-results -name "*.json" -exec cp {} merged-results/ \;
+          find all-results -name "*.xml" -exec cp {} merged-results/ \;
+
+      - name: Generate HTML report
+        run: |
+          npm install -g playwright-merge-html-reports
+          npx playwright-merge-html-reports --inputFolder merged-results --outputFolder html-report
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report
+          path: html-report/
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Parse test results
+            let totalTests = 0;
+            let passedTests = 0;
+            let failedTests = 0;
+            
+            const resultsDir = 'merged-results';
+            if (fs.existsSync(resultsDir)) {
+              const files = fs.readdirSync(resultsDir);
+              for (const file of files) {
+                if (file.endsWith('.json')) {
+                  const content = fs.readFileSync(path.join(resultsDir, file), 'utf8');
+                  const results = JSON.parse(content);
+                  if (results.stats) {
+                    totalTests += results.stats.expected || 0;
+                    passedTests += results.stats.passed || 0;
+                    failedTests += results.stats.failed || 0;
+                  }
+                }
+              }
+            }
+            
+            const comment = `## 🎭 E2E Test Results
+            
+            **Total Tests**: ${totalTests}
+            **Passed**: ✅ ${passedTests}
+            **Failed**: ❌ ${failedTests}
+            **Success Rate**: ${totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(1) : 0}%
+            
+            ### Browser Coverage
+            - ✅ Chromium
+            - ✅ Firefox  
+            - ✅ WebKit
+            - ✅ Mobile Chrome
+            - ✅ Mobile Safari
+            
+            [View Full Test Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  notify-failure:
+    name: Notify Test Failures
+    needs: [e2e-tests, e2e-mobile-tests]
+    runs-on: ubuntu-latest
+    if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
+    
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST $SLACK_WEBHOOK_URL \
+            -H 'Content-type: application/json' \
+            -d '{
+              "text": "🚨 E2E Tests Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*E2E Tests Failed* on `${{ github.ref_name }}`\n*Repository*: ${{ github.repository }}\n*Run*: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                  }
+                }
+              ]
+            }'

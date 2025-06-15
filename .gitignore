@@ -1,5 +1,10 @@
 # Hexabase KaaS - Git Ignore Rules
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -81,6 +86,14 @@ temp/
 # Build artifacts
 dist/
 build/
+
+# Debug binaries and artifacts
+**/__debug_bin*
+.debug-state
+.debug-pids
+logs/debug/
+ui/debug-output/
+.env.debug
 
 # Node.js (for future UI development)
 node_modules/

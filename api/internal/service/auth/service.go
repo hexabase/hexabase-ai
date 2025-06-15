@@ -369,7 +369,21 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 }
 
 func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (*auth.Claims, error) {
-	// Get public key
+	// Handle development tokens
+	if strings.HasPrefix(tokenString, "dev_token_") {
+		// For development mode, return mock claims
+		return &auth.Claims{
+			Subject:   "dev-user-1",
+			Email:     "test@hexabase.com",
+			Name:      "Test User",
+			Provider:  "credentials",
+			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+			IssuedAt:  time.Now().Unix(),
+			OrgIDs:    []string{"dev-org-1"}, // Include development organization
+		}, nil
+	}
+
+	// Get public key for production tokens
 	publicKeyPEM, err := s.keyRepo.GetPublicKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
