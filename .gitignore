@@ -87,6 +87,14 @@ temp/
 dist/
 build/
 
+# Debug binaries and artifacts
+**/__debug_bin*
+.debug-state
+.debug-pids
+logs/debug/
+ui/debug-output/
+.env.debug
+
 # Node.js (for future UI development)
 node_modules/
 npm-debug.log*
