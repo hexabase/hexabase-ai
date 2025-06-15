@@ -94,7 +94,7 @@ func ConnectDatabase(cfg *DatabaseConfig) (*gorm.DB, error) {
 // MigrateDatabase runs all migrations
 func MigrateDatabase(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&User{},
+		&auth.User{},
 		&Organization{},
 		&OrganizationUser{},
 		&Plan{},
@@ -108,9 +108,9 @@ func MigrateDatabase(db *gorm.DB) error {
 		&StripeEvent{},
 		// Node management models
 		&NodePlan{},
+		&WorkspaceNodeAllocation{},
 		&DedicatedNode{},
 		&NodeEvent{},
-		&WorkspaceNodeAllocation{},
 		// CI/CD models
 		&Pipeline{},
 		&PipelineRun{},
