@@ -21,3 +21,48 @@ BEGIN
       ALTER COLUMN metadata TYPE text USING metadata::text;
   END IF;
 END $$; 
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'projects') THEN
+    ALTER TABLE projects 
+      ALTER COLUMN details TYPE text USING details::text,
+      ALTER COLUMN metadata TYPE text USING metadata::text;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'applications') THEN
+    ALTER TABLE applications 
+      ALTER COLUMN config TYPE text USING config::text,
+      ALTER COLUMN metadata TYPE text USING metadata::text;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'function_invocations') THEN
+    ALTER TABLE function_invocations 
+      ALTER COLUMN payload TYPE text USING payload::text,
+      ALTER COLUMN metadata TYPE text USING metadata::text;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'backup_executions') THEN
+    ALTER TABLE backup_executions 
+      ALTER COLUMN details TYPE text USING details::text,
+      ALTER COLUMN metadata TYPE text USING metadata::text;
+  END IF;
+END $$;
+
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'backup_restores') THEN
+    ALTER TABLE backup_restores 
+      ALTER COLUMN details TYPE text USING details::text,
+      ALTER COLUMN metadata TYPE text USING metadata::text;
+  END IF;
+END $$;
