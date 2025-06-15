@@ -99,7 +99,7 @@ func ConnectDatabase(cfg *DatabaseConfig) (*gorm.DB, error) {
 // MigrateDatabase runs all migrations
 func MigrateDatabase(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&User{},
+		&auth.User{},
 		&Organization{},
 		&OrganizationUser{},
 		&Plan{},
