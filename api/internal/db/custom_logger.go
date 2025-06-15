@@ -23,6 +23,14 @@ func NewCustomLogger(logLevel logger.LogLevel, slogger *slog.Logger) logger.Inte
 	}
 }
 
+// LogMode implements logger.Interface to maintain custom filtering when log level changes
+func (l *customLogger) LogMode(level logger.LogLevel) logger.Interface {
+	return &customLogger{
+		Interface: l.Interface.LogMode(level),
+		slogger:   l.slogger,
+	}
+}
+
 // Error implements logger.Interface
 func (l *customLogger) Error(ctx context.Context, msg string, data ...interface{}) {
 	// Filter out specific GORM errors that we expect in development
