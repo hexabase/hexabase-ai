@@ -32,4 +32,10 @@ export const Icons = {
       <path fill="#ffb900" d="M12.5 12.5H24V24H12.5z" />
     </svg>
   ),
+  code: ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+      <polyline points="16 18 22 12 16 6"></polyline>
+      <polyline points="8 6 2 12 8 18"></polyline>
+    </svg>
+  ),
 };

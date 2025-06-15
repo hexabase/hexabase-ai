@@ -13,19 +13,19 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         type={type}
         className={cn(
           // Base styles
-          "flex h-10 w-full rounded px-st py-md text-sm transition-all duration-200",
+          "flex h-10 w-full rounded px-3 py-2 text-sm transition-all duration-200",
           // Default state
-          "border border-border bg-input text-text-primary placeholder:text-text-placeholder",
+          "border border-[color:hsl(var(--border))] bg-[color:hsl(var(--background))] text-[color:hsl(var(--foreground))] placeholder:text-[color:hsl(var(--muted-foreground))]",
           // Hover state
-          "hover:bg-input-hover hover:border-border-hover",
+          "hover:bg-[color:hsl(var(--muted)/0.1)]",
           // Focus state
-          "focus-visible:outline-none focus-visible:border-hexa-green focus-visible:ring-2 focus-visible:ring-hexa-green focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "focus-visible:outline-none focus-visible:border-hexa-green focus-visible:ring-2 focus-visible:ring-hexa-green focus-visible:ring-offset-2 focus-visible:ring-offset-[color:hsl(var(--background))]",
           // Disabled state
-          "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-input-disabled disabled:border-border-disabled disabled:hover:bg-input-disabled disabled:hover:border-border-disabled",
+          "disabled:cursor-not-allowed disabled:opacity-50",
           // Error state
-          error && "border-error hover:border-error focus-visible:border-error focus-visible:ring-error",
+          error && "border-[#FF7979] hover:border-[#FF7979] focus-visible:border-[#FF7979] focus-visible:ring-[#FF7979]",
           // File input specific styles
-          "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-text-primary",
+          "file:border-0 file:bg-transparent file:text-sm file:font-medium",
           className
         )}
         ref={ref}

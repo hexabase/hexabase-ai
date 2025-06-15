@@ -35,7 +35,10 @@ export default function DashboardPage() {
 
   const handleCreateOrganization = async (name: string) => {
     try {
-      const newOrg = await organizationsApi.create({ name });
+      const newOrg = await organizationsApi.create({ 
+        name, 
+        display_name: name // Use the same value for display_name 
+      });
       setOrganizations(prev => [...prev, newOrg]);
       setIsCreateDialogOpen(false);
     } catch (error) {

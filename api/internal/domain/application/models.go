@@ -60,7 +60,7 @@ type Application struct {
 	FunctionTimeout       int                    `json:"function_timeout,omitempty"`
 	FunctionMemory        int                    `json:"function_memory,omitempty"`
 	FunctionTriggerType   FunctionTriggerType    `json:"function_trigger_type,omitempty"`
-	FunctionTriggerConfig map[string]interface{} `json:"function_trigger_config,omitempty"`
+	FunctionTriggerConfig map[string]interface{} `json:"function_trigger_config,omitempty" gorm:"type:jsonb"`
 	FunctionEnvVars       map[string]string      `json:"function_env_vars,omitempty"`
 	FunctionSecrets       map[string]string      `json:"function_secrets,omitempty"`
 	// Metadata for storing additional information like backup policy
@@ -385,7 +385,7 @@ type FunctionEvent struct {
 	ApplicationID     string                 `json:"application_id"`
 	EventType         string                 `json:"event_type"`
 	EventSource       string                 `json:"event_source"`
-	EventData         map[string]interface{} `json:"event_data"`
+	EventData         map[string]interface{} `json:"event_data" gorm:"type:jsonb"`
 	ProcessingStatus  string                 `json:"processing_status"`
 	RetryCount        int                    `json:"retry_count"`
 	MaxRetries        int                    `json:"max_retries"`
@@ -402,7 +402,7 @@ type FunctionConfig struct {
 	Timeout        int                          `json:"timeout"` // in seconds
 	Memory         int                          `json:"memory"`  // in MB
 	TriggerType    FunctionTriggerType          `json:"trigger_type"`
-	TriggerConfig  map[string]interface{}       `json:"trigger_config,omitempty"`
+	TriggerConfig  map[string]interface{}       `json:"trigger_config,omitempty" gorm:"type:jsonb"`
 	EnvVars        map[string]string            `json:"env_vars,omitempty"`
 	Secrets        map[string]string            `json:"secrets,omitempty"` // secret references
 }
@@ -419,7 +419,7 @@ type CreateFunctionRequest struct {
 	Timeout        int                    `json:"timeout,omitempty"`
 	Memory         int                    `json:"memory,omitempty"`
 	TriggerType    FunctionTriggerType    `json:"trigger_type"`
-	TriggerConfig  map[string]interface{} `json:"trigger_config,omitempty"`
+	TriggerConfig  map[string]interface{} `json:"trigger_config,omitempty" gorm:"type:jsonb"`
 	EnvVars        map[string]string      `json:"env_vars,omitempty"`
 	Secrets        map[string]string      `json:"secrets,omitempty"`
 }
@@ -430,7 +430,7 @@ type UpdateFunctionRequest struct {
 	Handler       string                 `json:"handler,omitempty"`
 	Timeout       *int                   `json:"timeout,omitempty"`
 	Memory        *int                   `json:"memory,omitempty"`
-	TriggerConfig map[string]interface{} `json:"trigger_config,omitempty"`
+	TriggerConfig map[string]interface{} `json:"trigger_config,omitempty" gorm:"type:jsonb"`
 	EnvVars       map[string]string      `json:"env_vars,omitempty"`
 	Secrets       map[string]string      `json:"secrets,omitempty"`
 }
@@ -461,4 +461,30 @@ type FunctionInvocationList struct {
 	Total       int                  `json:"total"`
 	Page        int                  `json:"page"`
 	PageSize    int                  `json:"page_size"`
+}
+
+// FunctionTrigger represents a function trigger configuration
+type FunctionTrigger struct {
+	ID             string                 `json:"id"`
+	FunctionID     string                 `json:"function_id"`
+	ApplicationID  string                 `json:"application_id"`
+	ProjectID      string                 `json:"project_id"`
+	TriggerType    FunctionTriggerType    `json:"trigger_type"`
+	TriggerConfig  map[string]interface{} `json:"trigger_config,omitempty" gorm:"type:jsonb"`
+	Enabled        bool                   `json:"enabled"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+// CreateFunctionTriggerRequest represents a request to create a function trigger
+type CreateFunctionTriggerRequest struct {
+	TriggerType   FunctionTriggerType    `json:"trigger_type" binding:"required"`
+	TriggerConfig map[string]interface{} `json:"trigger_config,omitempty" gorm:"type:jsonb"`
+	Enabled       bool                   `json:"enabled"`
+}
+
+// UpdateFunctionTriggerRequest represents a request to update a function trigger
+type UpdateFunctionTriggerRequest struct {
+	TriggerConfig map[string]interface{} `json:"trigger_config,omitempty" gorm:"type:jsonb"`
+	Enabled       *bool                  `json:"enabled,omitempty"`
 }

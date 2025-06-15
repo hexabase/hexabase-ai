@@ -23,9 +23,9 @@ type Workspace struct {
 	Namespace      string                 `json:"namespace"`
 	KubeConfig     string                 `json:"kubeconfig,omitempty"`
 	APIEndpoint    string                 `json:"api_endpoint,omitempty"`
-	ClusterInfo    map[string]interface{} `json:"cluster_info,omitempty"`
-	Settings       map[string]interface{} `json:"settings,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	ClusterInfo    map[string]interface{} `json:"cluster_info,omitempty" gorm:"type:jsonb"`
+	Settings       map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
 	DeletedAt      *time.Time             `json:"deleted_at,omitempty"`
@@ -41,7 +41,7 @@ type CreateWorkspaceRequest struct {
 	KubernetesVersion string                 `json:"kubernetes_version,omitempty"`
 	NodeCount         int                    `json:"node_count,omitempty"`
 	Labels            map[string]string      `json:"labels,omitempty"`
-	Settings          map[string]interface{} `json:"settings,omitempty"`
+	Settings          map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
 	CreatedBy         string                 `json:"created_by,omitempty"`
 }
 
@@ -52,7 +52,7 @@ type UpdateWorkspaceRequest struct {
 	PlanID      string                 `json:"plan_id,omitempty"`
 	NodeCount   int                    `json:"node_count,omitempty"`
 	Labels      map[string]string      `json:"labels,omitempty"`
-	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
 	UpdatedBy   string                 `json:"updated_by,omitempty"`
 }
 
@@ -70,7 +70,7 @@ type WorkspaceStatus struct {
 	Status        string                 `json:"status"`
 	Healthy       bool                   `json:"healthy"`
 	Message       string                 `json:"message,omitempty"`
-	ClusterInfo   map[string]interface{} `json:"cluster_info,omitempty"`
+	ClusterInfo   map[string]interface{} `json:"cluster_info,omitempty" gorm:"type:jsonb"`
 	ResourceUsage *ResourceUsage         `json:"resource_usage,omitempty"`
 	LastChecked   time.Time              `json:"last_checked"`
 }
@@ -110,8 +110,8 @@ type Task struct {
 	Progress    int                    `json:"progress"`
 	Message     string                 `json:"message,omitempty"`
 	Error       string                 `json:"error,omitempty"`
-	Payload     map[string]interface{} `json:"payload,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Payload     map[string]interface{} `json:"payload,omitempty" gorm:"type:jsonb"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 	CompletedAt *time.Time             `json:"completed_at,omitempty"`
@@ -132,7 +132,7 @@ type WorkspaceFilter struct {
 // WorkspaceOperationRequest represents a request for workspace operations
 type WorkspaceOperationRequest struct {
 	Operation string                 `json:"operation" binding:"required,oneof=backup restore upgrade"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 }
 
 // BackupRequest represents a backup request

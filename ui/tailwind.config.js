@@ -6,6 +6,13 @@ module.exports = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
     extend: {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
@@ -17,35 +24,15 @@ module.exports = {
         // Brand Colors
         black: '#000000',
         white: '#FFFFFF',
-        
+
         // Hexa Green Scale (Primary Accent)
         'hexa-green': {
-          900: '#00907D',
-          800: '#00A08B',
-          700: '#00B29A',
-          600: '#00C6AB', // Primary CTA
-          500: '#00DABC', // Hover
-          400: '#00F0CF',
-          300: '#09FFDD',
-          200: '#AAFFF3',
-          100: '#D4FFF9',
           DEFAULT: '#00C6AB',
         },
-        
+
         // Hexa Pink Scale (Secondary Accent)
-        'hexa-pink': {
-          900: '#DF003D',
-          800: '#F80044',
-          700: '#FF1555',
-          600: '#FF346B', // Secondary CTA
-          500: '#FF5381', // Hover
-          400: '#FF759A',
-          300: '#FF9AB5',
-          200: '#FFC3D3',
-          100: '#FFF0F4',
-          DEFAULT: '#FF346B',
-        },
-        
+        'hexa-pink': '#FF346B',
+
         // System Colors
         gray: {
           DEFAULT: '#CCCCCC',
@@ -53,39 +40,39 @@ module.exports = {
           'cancel-hover': '#b5b5b5',
           disabled: '#e6e6e6',
         },
-        
+
         // Text Colors
         text: {
           primary: '#FFFFFF',
           placeholder: '#E6E6E6',
         },
-        
+
         // Background Colors
         background: {
           DEFAULT: '#28292D', // Dark default
           sidebar: '#333336', // Thin/Side Bar
         },
-        
+
         // Border Colors
         'hexa-border': {
           DEFAULT: '#555558',
           hover: '#656569',
           disabled: '#3D3D3F',
         },
-        
+
         // Input Colors
         'hexa-input': {
           DEFAULT: '#38383B',
           hover: '#3A3A3E',
           disabled: '#2B2B2E',
         },
-        
+
         // Error/Delete Colors
         error: {
           DEFAULT: '#FF7979',
           hover: '#FF9B9B',
         },
-        
+
         // Legacy color mappings for compatibility
         primary: {
           DEFAULT: '#00C6AB',
@@ -114,10 +101,10 @@ module.exports = {
           900: '#DD0000',
         },
         // Keep original color variables for compatibility
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
         foreground: "hsl(var(--foreground))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -218,6 +205,8 @@ module.exports = {
         'lg': '0.75rem',
         'xl': '1rem',
         '2xl': '1.5rem',
+        lg: `var(--radius)`,
+        md: `calc(var(--radius) - 2px)`,
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

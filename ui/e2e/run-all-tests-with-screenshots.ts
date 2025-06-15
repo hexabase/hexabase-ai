@@ -2,19 +2,6 @@ import { chromium, Browser, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Hexabase Design System Colors
-const colors = {
-  primary: '#000000',
-  white: '#FFFFFF',
-  gray: '#CCCCCC',
-  hexaGreen: '#00C6AB',
-  hexaPink: '#FF346B',
-  hexaGreenHover: '#00DABC',
-  lightGray: '#F5F5F5',
-  mediumGray: '#E0E0E0',
-  darkGray: '#666666',
-};
-
 // Test categories and their corresponding spec files
 const testCategories = [
   { category: 'auth', specs: ['auth.spec.ts'] },
@@ -41,138 +28,6 @@ function createDirectories() {
   testCategories.forEach(({ category }) => {
     fs.mkdirSync(path.join(screenshotDir, category), { recursive: true });
   });
-}
-
-// Helper to generate base HTML template
-function generateBaseHTML(title: string, content: string): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Hexabase AI - ${title}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-          background: ${colors.lightGray}; 
-          color: ${colors.primary};
-          line-height: 1.5;
-        }
-        .header { 
-          background: ${colors.white}; 
-          padding: 16px 24px; 
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-          display: flex; 
-          justify-content: space-between; 
-          align-items: center;
-          border-bottom: 1px solid ${colors.mediumGray};
-        }
-        .logo { 
-          font-size: 24px; 
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .logo-icon { 
-          width: 32px; 
-          height: 32px; 
-          background: ${colors.hexaGreen}; 
-          border-radius: 6px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 18px;
-        }
-        .btn-primary { 
-          background: ${colors.hexaGreen}; 
-          color: white; 
-          border: none; 
-          padding: 10px 20px; 
-          border-radius: 4px; 
-          font-size: 14px; 
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .btn-primary:hover { background: ${colors.hexaGreenHover}; }
-        .btn-secondary { 
-          background: ${colors.white}; 
-          color: ${colors.primary}; 
-          border: 1px solid ${colors.gray}; 
-          padding: 10px 20px; 
-          border-radius: 4px; 
-          font-size: 14px; 
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .btn-secondary:hover { background: ${colors.lightGray}; }
-        .card {
-          background: ${colors.white};
-          border-radius: 8px;
-          padding: 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          margin-bottom: 16px;
-        }
-        .form-group {
-          margin-bottom: 20px;
-        }
-        .form-label {
-          display: block;
-          margin-bottom: 8px;
-          font-weight: 500;
-          color: ${colors.darkGray};
-          font-size: 14px;
-        }
-        .form-input {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid ${colors.gray};
-          border-radius: 4px;
-          font-size: 14px;
-          transition: border-color 0.2s;
-        }
-        .form-input:focus {
-          outline: none;
-          border-color: ${colors.hexaGreen};
-        }
-        .table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .table th {
-          text-align: left;
-          padding: 12px;
-          background: ${colors.lightGray};
-          font-weight: 500;
-          font-size: 14px;
-          color: ${colors.darkGray};
-          border-bottom: 1px solid ${colors.mediumGray};
-        }
-        .table td {
-          padding: 12px;
-          border-bottom: 1px solid ${colors.mediumGray};
-          font-size: 14px;
-        }
-        .status-badge {
-          display: inline-block;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-        .status-active { background: #E8F5E9; color: #2E7D32; }
-        .status-inactive { background: #FFEBEE; color: #C62828; }
-        .status-pending { background: #FFF3E0; color: #E65100; }
-      </style>
-    </head>
-    <body>
-      ${content}
-    </body>
-    </html>
-  `;
 }
 
 // Capture screenshot with proper naming
@@ -223,7 +78,7 @@ function generateIndex(screenshots: Record<string, string[]>) {
     `).join('')}
 </body>
 </html>`;
-  
+
   fs.writeFileSync(path.join(screenshotDir, 'index.html'), html);
 }
 
@@ -250,7 +105,7 @@ ${result.error ? `- **Error**: ${result.error}` : ''}
 All screenshots are organized by feature category with numbered prefixes for easy navigation.
 View the visual gallery at \`index.html\`.
 `;
-  
+
   fs.writeFileSync(path.join(screenshotDir, 'E2E_TEST_SUMMARY.md'), summary);
 }
 
@@ -260,14 +115,14 @@ async function runCategoryTests(browser: Browser, category: string, specs: strin
   const startTime = Date.now();
   let status = 'success';
   let error = null;
-  
+
   try {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
-    
+
     // Mock a simple test flow for each category
     console.log(`\n🧪 Running ${category} tests...`);
-    
+
     // Create feature-specific mock UIs
     switch (category) {
       case 'auth':
@@ -330,7 +185,7 @@ async function runCategoryTests(browser: Browser, category: string, specs: strin
           </html>
         `);
         screenshots.push(await captureScreenshot(page, category, 1, 'login_page'));
-        
+
         // Login success
         await page.setContent(`
           <!DOCTYPE html>
@@ -369,7 +224,7 @@ async function runCategoryTests(browser: Browser, category: string, specs: strin
           </html>
         `);
         screenshots.push(await captureScreenshot(page, category, 2, 'login_success'));
-        
+
         // Logout confirmation
         await page.setContent(`
           <!DOCTYPE html>
@@ -403,84 +258,89 @@ async function runCategoryTests(browser: Browser, category: string, specs: strin
         `);
         screenshots.push(await captureScreenshot(page, category, 3, 'logout_confirmation'));
         break;
-        
+
       case 'organization':
         screenshots.push(await captureScreenshot(page, category, 1, 'organization_list'));
         screenshots.push(await captureScreenshot(page, category, 2, 'create_organization'));
         screenshots.push(await captureScreenshot(page, category, 3, 'organization_settings'));
         break;
-        
+
       case 'projects':
         screenshots.push(await captureScreenshot(page, category, 1, 'project_list'));
         screenshots.push(await captureScreenshot(page, category, 2, 'create_project'));
         screenshots.push(await captureScreenshot(page, category, 3, 'project_details'));
         break;
-        
+
       case 'applications':
         screenshots.push(await captureScreenshot(page, category, 1, 'application_list'));
         screenshots.push(await captureScreenshot(page, category, 2, 'deploy_application'));
         screenshots.push(await captureScreenshot(page, category, 3, 'application_running'));
         screenshots.push(await captureScreenshot(page, category, 4, 'application_metrics'));
         break;
-        
+
       case 'deployments':
         screenshots.push(await captureScreenshot(page, category, 1, 'deployment_strategies'));
         screenshots.push(await captureScreenshot(page, category, 2, 'canary_deployment'));
         screenshots.push(await captureScreenshot(page, category, 3, 'blue_green_switch'));
         break;
-        
+
       case 'cicd':
         screenshots.push(await captureScreenshot(page, category, 1, 'pipeline_list'));
         screenshots.push(await captureScreenshot(page, category, 2, 'pipeline_running'));
         screenshots.push(await captureScreenshot(page, category, 3, 'pipeline_success'));
         break;
-        
+
       case 'backup':
         screenshots.push(await captureScreenshot(page, category, 1, 'backup_policies'));
         screenshots.push(await captureScreenshot(page, category, 2, 'create_backup'));
         screenshots.push(await captureScreenshot(page, category, 3, 'restore_process'));
         break;
-        
+
       case 'serverless':
         screenshots.push(await captureScreenshot(page, category, 1, 'function_list'));
         screenshots.push(await captureScreenshot(page, category, 2, 'create_function'));
         screenshots.push(await captureScreenshot(page, category, 3, 'function_logs'));
         break;
-        
+
       case 'monitoring':
         screenshots.push(await captureScreenshot(page, category, 1, 'metrics_dashboard'));
         screenshots.push(await captureScreenshot(page, category, 2, 'cpu_memory_charts'));
         screenshots.push(await captureScreenshot(page, category, 3, 'alerts_list'));
         screenshots.push(await captureScreenshot(page, category, 4, 'grafana_integration'));
         break;
-        
+
       case 'ai-chat':
         screenshots.push(await captureScreenshot(page, category, 1, 'ai_assistant_open'));
         screenshots.push(await captureScreenshot(page, category, 2, 'ai_conversation'));
         screenshots.push(await captureScreenshot(page, category, 3, 'ai_code_generation'));
         break;
-        
+
       case 'oauth':
         screenshots.push(await captureScreenshot(page, category, 1, 'oauth_providers'));
         screenshots.push(await captureScreenshot(page, category, 2, 'google_login'));
         screenshots.push(await captureScreenshot(page, category, 3, 'github_login'));
         break;
-        
+
       case 'error-handling':
         screenshots.push(await captureScreenshot(page, category, 1, 'network_error'));
         screenshots.push(await captureScreenshot(page, category, 2, 'permission_denied'));
         screenshots.push(await captureScreenshot(page, category, 3, 'quota_exceeded'));
         break;
     }
-    
+
     await page.close();
-    
+
   } catch (err) {
     status = 'failed';
-    error = err.message;
-    console.error(`❌ Error in ${category}: ${err.message}`);
+    if (err instanceof Error) {
+      error = err.message;
+      console.error(`❌ Error in ${category}: ${err.message}`);
+    } else {
+      error = 'Unknown error';
+      console.error(`❌ Error in ${category}: Unknown error`);
+    }
   }
-  
+
   return {
     category,
     status,
@@ -495,17 +355,17 @@ async function runCategoryTests(browser: Browser, category: string, specs: strin
 async function main() {
   console.log('🚀 Starting E2E tests with screenshot capture...');
   console.log(`📁 Output directory: ${screenshotDir}`);
-  
+
   createDirectories();
-  
-  const browser = await chromium.launch({ 
+
+  const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
-  
+
   const testResults: any[] = [];
   const allScreenshots: Record<string, string[]> = {};
-  
+
   try {
     // Run tests for each category
     for (const { category, specs } of testCategories) {
@@ -513,15 +373,15 @@ async function main() {
       testResults.push(result);
       allScreenshots[category] = result.files || [];
     }
-    
+
     // Generate index and summary
     generateIndex(allScreenshots);
     generateSummary(testResults);
-    
+
     console.log('\n✅ All tests completed!');
     console.log(`📸 Screenshots saved to: ${screenshotDir}`);
     console.log(`🌐 View results at: ${path.join(screenshotDir, 'index.html')}`);
-    
+
   } finally {
     await browser.close();
   }
