@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+	"html"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,8 +21,9 @@ type responseWriter struct {
 }
 
 func (w responseWriter) Write(b []byte) (int, error) {
-	w.body.Write(b)
-	return w.ResponseWriter.Write(b)
+	escaped := []byte(html.EscapeString(string(b)))
+	w.body.Write(escaped)
+	return w.ResponseWriter.Write(escaped)
 }
 
 // DebugAuth logs authentication attempts for debugging
