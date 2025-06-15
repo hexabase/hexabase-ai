@@ -21,21 +21,25 @@ func NewPostgresRepository(db *gorm.DB) organization.Repository {
 // Organization operations
 
 func (r *postgresRepository) CreateOrganization(ctx context.Context, org *organization.Organization) error {
-	if err := r.db.WithContext(ctx).Create(org).Error; err != nil {
+	dbOrg := domainToDBOrganization(org)
+	if err := r.db.WithContext(ctx).Create(dbOrg).Error; err != nil {
 		return fmt.Errorf("failed to create organization: %w", err)
 	}
+	// Update the domain model with any generated values
+	org.CreatedAt = dbOrg.CreatedAt
+	org.UpdatedAt = dbOrg.UpdatedAt
 	return nil
 }
 
 func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) (*organization.Organization, error) {
-	var org organization.Organization
-	if err := r.db.WithContext(ctx).Where("id = ?", orgID).First(&org).Error; err != nil {
+	var dbOrg dbOrganization
+	if err := r.db.WithContext(ctx).Where("id = ?", orgID).First(&dbOrg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("organization not found")
 		}
 		return nil, fmt.Errorf("failed to get organization: %w", err)
 	}
-	return &org, nil
+	return dbToDomainOrganization(&dbOrg), nil
 }
 
 func (r *postgresRepository) GetOrganizationByName(ctx context.Context, name string) (*organization.Organization, error) {
@@ -119,9 +123,12 @@ func (r *postgresRepository) DeleteOrganization(ctx context.Context, orgID strin
 // Member operations
 
 func (r *postgresRepository) AddMember(ctx context.Context, member *organization.OrganizationUser) error {
-	if err := r.db.WithContext(ctx).Create(member).Error; err != nil {
+	dbMember := domainToDBOrganizationUser(member)
+	if err := r.db.WithContext(ctx).Create(dbMember).Error; err != nil {
 		return fmt.Errorf("failed to add member: %w", err)
 	}
+	// Update the domain model with any generated values
+	member.JoinedAt = dbMember.JoinedAt
 	return nil
 }
 

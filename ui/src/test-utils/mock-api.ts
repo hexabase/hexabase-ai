@@ -1,7 +1,7 @@
-import { ApiClient } from '@/lib/api-client'
+// Remove incorrect import - ApiClient is not an exported type
 
 // Mock API client factory
-export const createMockApiClient = (): jest.Mocked<ApiClient> => {
+export const createMockApiClient = () => {
   return {
     // Auth methods
     login: jest.fn().mockResolvedValue({ token: 'mock-token' }),

@@ -1,111 +1,217 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Border radius values */
+  --radius-none: 0;
+  --radius-sm: 0.125rem;
+  --radius: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-full: 9999px;
+}
 
 @layer base {
   :root {
-    /* Modern Admin Dashboard Design System */
-    --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217.2 91.2% 59.8%;
+    /* Hexabase Design System - Dark Theme as Default */
+    --background: 0 0% 16%; /* #28292D */
+    --foreground: 0 0% 100%; /* #FFFFFF */
+    --card: 0 0% 20%; /* #333336 */
+    --card-foreground: 0 0% 100%; /* #FFFFFF */
+    --popover: 0 0% 20%; /* #333336 */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF */
+    --primary: 169 100% 39%; /* #00C6AB */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 341 100% 60%; /* #FF346B */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
+    --muted: 0 0% 22%; /* #38383B */
+    --muted-foreground: 0 0% 90%; /* #E6E6E6 */
+    --accent: 169 100% 39%; /* #00C6AB */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF */
+    --destructive: 0 100% 74%; /* #FF7979 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+    --border: 0 0% 33%; /* #555558 */
+    --input: 0 0% 22%; /* #38383B */
+    --ring: 169 100% 39%; /* #00C6AB */
     --radius: 0.5rem;
+    
+    /* Additional Hexabase-specific variables */
+    --hexa-green: #00C6AB;
+    --hexa-green-hover: #00DABC;
+    --hexa-pink: #FF346B;
+    --hexa-pink-hover: #FF5381;
+    --gray-cancel: #9e9e9e;
+    --gray-cancel-hover: #b5b5b5;
+    --input-hover: #3A3A3E;
+    --input-disabled: #2B2B2E;
+    --border-hover: #656569;
+    --border-disabled: #3D3D3F;
+    --error-hover: #FF9B9B;
   }
 
-  .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 217.2 91.2% 59.8%;
+  /* Light theme (optional - not primary in Hexabase) */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 169 100% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 341 100% 60%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 169 100% 39%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 74%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 80%;
+    --input: 0 0% 80%;
+    --ring: 169 100% 39%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-[color:hsl(var(--border))];
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[color:hsl(var(--background))] text-[color:hsl(var(--foreground))];
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Custom scrollbar styling */
+  /* Custom scrollbar styling - Hexabase dark theme */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100;
+    @apply bg-[#333336];
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 rounded-md;
+    background-color: hsl(var(--border));
+    border-radius: 0.375rem;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-500;
+    background-color: #656569;
   }
 }
 
 @layer components {
-  /* Card hover effects */
+  /* Hexabase Card styles */
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-lg hover:scale-[1.02];
+    @apply transition-all duration-200;
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.16);
+  }
+  .card-hover:hover {
+    box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.16);
+  }
+  
+  .card-static {
+    @apply bg-[color:hsl(var(--card))] rounded-lg;
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.16);
   }
 
-  /* Button base styles */
+  /* Hexabase Button base styles */
   .btn-base {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-hexa-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    --tw-ring-offset-color: hsl(var(--background));
+  }
+  
+  /* Button variants matching Hexabase design */
+  .btn-primary {
+    @apply bg-hexa-green text-white hover:bg-hexa-green-500 active:bg-hexa-green-700;
+    box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.16);
+  }
+  
+  .btn-secondary {
+    @apply bg-hexa-pink text-white hover:bg-hexa-pink-500 active:bg-hexa-pink-700;
+    box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.16);
+  }
+  
+  .btn-cancel {
+    @apply text-white;
+    background-color: #9e9e9e;
+    box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.16);
+  }
+  .btn-cancel:hover {
+    background-color: #b5b5b5;
+  }
+  
+  .btn-delete {
+    @apply text-white;
+    background-color: #FF7979;
+    box-shadow: 0px 2px 3px 0px rgba(0, 0, 0, 0.16);
+  }
+  .btn-delete:hover {
+    background-color: #FF9B9B;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-hexa-green text-hexa-green hover:bg-hexa-green hover:text-white;
   }
 
-  /* Input base styles */
+  /* Hexabase Input styles */
   .input-base {
-    @apply block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200;
+    @apply block w-full rounded px-4 py-2.5 focus:ring-2 focus:ring-hexa-green focus:ring-offset-2 transition-all duration-200;
+    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--input));
+    color: hsl(var(--foreground));
+    --tw-ring-offset-color: hsl(var(--background));
+  }
+  .input-base::placeholder {
+    color: #E6E6E6;
+  }
+  .input-base:hover {
+    background-color: #3A3A3E;
+    border-color: #656569;
+  }
+  .input-base:focus {
+    border-color: #00C6AB;
+  }
+  .input-base:disabled {
+    background-color: #2B2B2E;
+    border-color: #3D3D3F;
   }
 
-  /* Modern gradient backgrounds */
-  .gradient-mesh {
+  /* Hexabase Modal/Dialog sizes */
+  .dialog-default {
+    @apply min-w-[400px] max-w-[670px] min-h-[160px] max-h-[60vh];
+  }
+  
+  .modal-default {
+    @apply min-w-[670px] max-w-[82vw] min-h-[230px] max-h-[60vh];
+  }
+  
+  .modal-large {
+    @apply min-w-[82vw] min-h-[60vh] max-h-[84vh];
+  }
+
+  /* Hexabase gradient background */
+  .gradient-hexabase {
     background-image: 
-      radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 97% 21%, hsla(217, 91%, 60%, 0.13) 0px, transparent 50%),
-      radial-gradient(at 52% 99%, hsla(217, 81%, 65%, 0.1) 0px, transparent 50%),
-      radial-gradient(at 10% 29%, hsla(217, 96%, 64%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 97% 96%, hsla(217, 94%, 58%, 0.08) 0px, transparent 50%),
-      radial-gradient(at 33% 50%, hsla(217, 81%, 65%, 0.1) 0px, transparent 50%),
-      radial-gradient(at 79% 53%, hsla(217, 81%, 68%, 0.11) 0px, transparent 50%);
+      radial-gradient(at 27% 37%, hsla(169, 100%, 39%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 97% 21%, hsla(341, 100%, 60%, 0.13) 0px, transparent 50%),
+      radial-gradient(at 52% 99%, hsla(169, 100%, 45%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 10% 29%, hsla(341, 100%, 65%, 0.12) 0px, transparent 50%);
+  }
+  
+  /* Typography utilities */
+  .text-heading {
+    @apply font-bold tracking-heading;
+  }
+  
+  .text-body {
+    @apply font-normal tracking-body;
   }
 }

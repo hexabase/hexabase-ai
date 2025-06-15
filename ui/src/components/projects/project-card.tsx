@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Project } from '@/lib/api-client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Edit, 
-  Trash2, 
-  Package, 
-  Server, 
+import { useState } from "react";
+import { Project } from "@/lib/api-client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Edit,
+  Trash2,
+  Package,
+  Server,
   HardDrive,
   Cpu,
   MemoryStick,
   AlertCircle,
   Clock,
-  CheckCircle
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  CheckCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ProjectCardProps {
   project: Project;
@@ -36,26 +36,26 @@ export function ProjectCard({
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'default';
-      case 'creating':
-        return 'secondary';
-      case 'error':
-        return 'destructive';
-      case 'suspended':
-        return 'secondary';
+      case "active":
+        return "success";
+      case "creating":
+        return "warning";
+      case "error":
+        return "error";
+      case "suspended":
+        return "secondary";
       default:
-        return 'outline';
+        return "outline";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active':
+      case "active":
         return <CheckCircle className="h-3 w-3" />;
-      case 'creating':
+      case "creating":
         return <Clock className="h-3 w-3" />;
-      case 'error':
+      case "error":
         return <AlertCircle className="h-3 w-3" />;
       default:
         return null;
@@ -64,7 +64,7 @@ export function ProjectCard({
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger card click if clicking on action buttons
-    if ((e.target as HTMLElement).closest('button')) {
+    if ((e.target as HTMLElement).closest("button")) {
       return;
     }
     onClick(project.id);
@@ -80,14 +80,14 @@ export function ProjectCard({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onDelete) return;
-    
+
     setIsDeleting(true);
     onDelete(project.id);
     setIsDeleting(false);
   };
 
   return (
-    <Card 
+    <Card
       className="cursor-pointer hover:shadow-lg transition-shadow"
       onClick={handleCardClick}
       data-testid={`project-card-${project.id}`}
@@ -100,11 +100,9 @@ export function ProjectCard({
               {project.namespace}
             </p>
           </div>
-          <Badge 
-            variant={getStatusBadgeVariant(project.status) as 'default' | 'destructive' | 'secondary' | 'outline'}
-            className={cn(
-              'flex items-center gap-1'
-            )}
+          <Badge
+            variant={getStatusBadgeVariant(project.status)}
+            className={cn("flex items-center gap-1")}
           >
             {getStatusIcon(project.status)}
             {project.status}
@@ -114,19 +112,23 @@ export function ProjectCard({
       <CardContent>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {project.description || 'No description'}
+            {project.description || "No description"}
           </p>
 
           {project.resources && (
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="text-center">
                 <Package className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                <div className="font-semibold">{project.resources.deployments}</div>
+                <div className="font-semibold">
+                  {project.resources.deployments}
+                </div>
                 <div className="text-xs text-muted-foreground">Deployments</div>
               </div>
               <div className="text-center">
                 <Server className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                <div className="font-semibold">{project.resources.services}</div>
+                <div className="font-semibold">
+                  {project.resources.services}
+                </div>
                 <div className="text-xs text-muted-foreground">Services</div>
               </div>
               <div className="text-center">
@@ -139,7 +141,9 @@ export function ProjectCard({
 
           {project.resource_quota && (
             <div className="pt-3 border-t">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Resource Quotas</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Resource Quotas
+              </p>
               <div className="flex flex-wrap gap-2 text-xs">
                 <div className="flex items-center gap-1">
                   <Cpu className="h-3 w-3" />
@@ -156,7 +160,7 @@ export function ProjectCard({
               </div>
             </div>
           )}
-          
+
           <div className="flex gap-2 pt-2">
             {onEdit && (
               <Button
@@ -178,7 +182,7 @@ export function ProjectCard({
                 data-testid={`delete-${project.id}`}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? "Deleting..." : "Delete"}
               </Button>
             )}
           </div>

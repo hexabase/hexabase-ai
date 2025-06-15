@@ -14,7 +14,7 @@ type WorkspaceMetrics struct {
 	NetworkIO     *IOMetric              `json:"network_io"`
 	DiskIO        *IOMetric              `json:"disk_io"`
 	Timestamps    []time.Time            `json:"timestamps"`
-	CustomMetrics map[string]interface{} `json:"custom_metrics,omitempty"`
+	CustomMetrics map[string]interface{} `json:"custom_metrics,omitempty" gorm:"type:jsonb"`
 }
 
 // ResourceMetric represents CPU or Memory usage metrics

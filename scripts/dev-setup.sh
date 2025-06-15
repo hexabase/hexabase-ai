@@ -39,39 +39,181 @@ print_error() {
     exit 1
 }
 
+# Function to get docker compose command
+get_docker_compose_cmd() {
+    if command_exists "docker-compose"; then
+        echo "docker-compose"
+    elif docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    else
+        print_error "Neither 'docker-compose' nor 'docker compose' command found. Please install Docker Compose."
+    fi
+}
+
+# Function to check if port is in use
+port_in_use() {
+    local port=$1
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to find available port
+find_available_port() {
+    local base_port=$1
+    local port=$base_port
+    
+    while port_in_use $port; do
+        echo "Port $port is already in use, trying next port..."
+        port=$((port + 1))
+    done
+    
+    echo $port
+}
+
+# Function to detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    else
+        echo "unknown"
+    fi
+}
+
+# Function to install dependency
+install_dependency() {
+    local dep=$1
+    local os=$(detect_os)
+    
+    case $dep in
+        "kind")
+            echo "Installing kind..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install kind
+                else
+                    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-darwin-$(uname -m)
+                    chmod +x ./kind
+                    sudo mv ./kind /usr/local/bin/kind
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+                chmod +x ./kind
+                sudo mv ./kind /usr/local/bin/kind
+            fi
+            ;;
+        "helm")
+            echo "Installing helm..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install helm
+                else
+                    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            fi
+            ;;
+        "kubectl")
+            echo "Installing kubectl..."
+            if [[ "$os" == "macos" ]]; then
+                if command_exists brew; then
+                    brew install kubectl
+                else
+                    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/$(uname -m)/kubectl"
+                    chmod +x kubectl
+                    sudo mv kubectl /usr/local/bin/
+                fi
+            elif [[ "$os" == "linux" ]]; then
+                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                sudo mv kubectl /usr/local/bin/
+            fi
+            ;;
+    esac
+}
+
 # Check prerequisites
 print_step "Checking prerequisites..."
 
 MISSING_DEPS=()
+AUTO_INSTALLABLE=("kind" "helm" "kubectl")
 
 if ! command_exists docker; then
     MISSING_DEPS+=("docker")
 fi
 
 if ! command_exists go; then
-    MISSING_DEPS+=("go (1.24+)")
+    MISSING_DEPS+=("go")
 fi
 
 if ! command_exists node; then
-    MISSING_DEPS+=("node (18+)")
+    MISSING_DEPS+=("node")
 fi
 
 if ! command_exists kubectl; then
-    MISSING_DEPS+=("kubectl")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " kubectl " ]]; then
+        echo -e "${YELLOW}kubectl not found. Installing...${NC}"
+        install_dependency "kubectl"
+        if command_exists kubectl; then
+            print_success "kubectl installed successfully"
+        else
+            MISSING_DEPS+=("kubectl")
+        fi
+    else
+        MISSING_DEPS+=("kubectl")
+    fi
 fi
 
 if ! command_exists kind; then
-    MISSING_DEPS+=("kind")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " kind " ]]; then
+        echo -e "${YELLOW}kind not found. Installing...${NC}"
+        install_dependency "kind"
+        if command_exists kind; then
+            print_success "kind installed successfully"
+        else
+            MISSING_DEPS+=("kind")
+        fi
+    else
+        MISSING_DEPS+=("kind")
+    fi
 fi
 
 if ! command_exists helm; then
-    MISSING_DEPS+=("helm")
+    if [[ " ${AUTO_INSTALLABLE[@]} " =~ " helm " ]]; then
+        echo -e "${YELLOW}helm not found. Installing...${NC}"
+        install_dependency "helm"
+        if command_exists helm; then
+            print_success "helm installed successfully"
+        else
+            MISSING_DEPS+=("helm")
+        fi
+    else
+        MISSING_DEPS+=("helm")
+    fi
 fi
 
 if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     print_error "Missing required dependencies: ${MISSING_DEPS[*]}"
-    echo "Please install the missing dependencies and run this script again."
-    echo "See: ${PROJECT_ROOT}/docs/development/dev-environment-setup.md"
+    echo -e "\n${YELLOW}Please install the following manually:${NC}"
+    for dep in "${MISSING_DEPS[@]}"; do
+        case $dep in
+            "docker")
+                echo "  • Docker: https://docs.docker.com/get-docker/"
+                ;;
+            "go")
+                echo "  • Go (1.21+): https://golang.org/doc/install"
+                ;;
+            "node")
+                echo "  • Node.js (18+): https://nodejs.org/"
+                ;;
+        esac
+    done
+    echo -e "\nAfter installing, run this script again."
     exit 1
 fi
 
@@ -144,43 +286,64 @@ print_step "Starting infrastructure services..."
 
 cd "$PROJECT_ROOT"
 
-# Create docker-compose.override.yml for development (if not exists)
+# Remove old docker-compose.override.yml if it exists (to avoid conflicts)
 if [ -f "docker-compose.override.yml" ]; then
-    print_success "docker-compose.override.yml already exists, skipping creation"
-else
-    cat > docker-compose.override.yml <<EOF
-version: '3.8'
-
-services:
-  postgres:
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: devpassword
-      POSTGRES_USER: hexabase
-      POSTGRES_DB: hexabase_kaas
-
-  redis:
-    ports:
-      - "6379:6379"
-    command: redis-server --requirepass devpassword
-
-  nats:
-    image: nats:2.9-alpine
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    command: "-js -sd /data"
-    volumes:
-      - nats-data:/data
-
-volumes:
-  nats-data:
-EOF
-    print_success "docker-compose.override.yml created"
+    echo "Removing existing docker-compose.override.yml to avoid conflicts..."
+    rm -f docker-compose.override.yml
 fi
 
-docker-compose up -d postgres redis nats
+# Create .env file for docker-compose if it doesn't exist
+if [ ! -f "$PROJECT_ROOT/.env" ]; then
+    print_step "Creating .env file for Docker Compose..."
+    
+    # Check for available ports
+    POSTGRES_HOST_PORT=$(find_available_port 5433)
+    REDIS_HOST_PORT=$(find_available_port 6380)
+    NATS_HOST_PORT=$(find_available_port 4223)
+    NATS_MONITOR_PORT=$(find_available_port 8223)
+    API_HOST_PORT=$(find_available_port 8080)
+    
+    cat > "$PROJECT_ROOT/.env" <<EOF
+# Auto-generated by dev-setup.sh
+# Adjust these ports if needed
+
+# PostgreSQL
+POSTGRES_HOST_PORT=$POSTGRES_HOST_PORT
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=hexabase
+
+# Redis
+REDIS_HOST_PORT=$REDIS_HOST_PORT
+
+# NATS
+NATS_HOST_PORT=$NATS_HOST_PORT
+NATS_MONITOR_PORT=$NATS_MONITOR_PORT
+
+# API
+API_HOST_PORT=$API_HOST_PORT
+
+# Development JWT Secret
+JWT_SECRET=dev-jwt-secret-change-in-production
+EOF
+    print_success ".env file created with available ports"
+else
+    echo ".env file already exists, loading configuration..."
+fi
+
+# Load the .env file
+set -a
+source "$PROJECT_ROOT/.env"
+set +a
+
+echo "Using ports:"
+echo "  • PostgreSQL: $POSTGRES_HOST_PORT"
+echo "  • Redis: $REDIS_HOST_PORT"
+echo "  • NATS: $NATS_HOST_PORT"
+echo "  • API: $API_HOST_PORT"
+
+DOCKER_COMPOSE_CMD=$(get_docker_compose_cmd)
+$DOCKER_COMPOSE_CMD up -d postgres redis nats
 print_success "Infrastructure services started"
 
 # Wait for services to be ready
@@ -190,16 +353,16 @@ sleep 10
 # Run database migrations
 print_step "Running database migrations..."
 
-# Create .env file for API
+# Create .env file for API with correct ports
 cat > "$PROJECT_ROOT/api/.env" <<EOF
 # Database
-DATABASE_URL=postgres://hexabase:devpassword@localhost:5432/hexabase_kaas?sslmode=disable
+DATABASE_URL=postgres://postgres:postgres@localhost:${POSTGRES_HOST_PORT}/hexabase?sslmode=disable
 
 # Redis
-REDIS_URL=redis://:devpassword@localhost:6379
+REDIS_URL=redis://localhost:${REDIS_HOST_PORT}
 
 # NATS
-NATS_URL=nats://localhost:4222
+NATS_URL=nats://localhost:${NATS_HOST_PORT}
 
 # JWT Keys
 JWT_PRIVATE_KEY_PATH=./keys/private.pem
@@ -281,9 +444,9 @@ fi
 # Print summary
 echo -e "\n${GREEN}✨ Development environment setup complete!${NC}"
 echo -e "\n${YELLOW}Services running:${NC}"
-echo "  • PostgreSQL: localhost:5432 (user: hexabase, pass: devpassword)"
-echo "  • Redis: localhost:6379 (pass: devpassword)"
-echo "  • NATS: localhost:4222"
+echo "  • PostgreSQL: localhost:${POSTGRES_HOST_PORT} (user: postgres, pass: postgres)"
+echo "  • Redis: localhost:${REDIS_HOST_PORT}"
+echo "  • NATS: localhost:${NATS_HOST_PORT}"
 echo "  • Kind cluster: hexabase-dev"
 
 echo -e "\n${YELLOW}Next steps:${NC}"
@@ -298,8 +461,8 @@ echo "   • API: http://api.localhost"
 echo "   • UI: http://app.localhost"
 
 echo -e "\n${YELLOW}Useful commands:${NC}"
-echo "  • View logs: docker-compose logs -f"
-echo "  • Stop services: docker-compose down"
+echo "  • View logs: ${DOCKER_COMPOSE_CMD:-docker compose} logs -f"
+echo "  • Stop services: ${DOCKER_COMPOSE_CMD:-docker compose} down"
 echo "  • Delete Kind cluster: kind delete cluster --name hexabase-dev"
 echo "  • Connect to cluster: kubectl config use-context kind-hexabase-dev"
 
