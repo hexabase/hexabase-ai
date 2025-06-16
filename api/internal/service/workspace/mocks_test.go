@@ -37,6 +37,9 @@ func (m *MockRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, org
 
 func (m *MockRepository) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) ([]*workspace.Workspace, int, error) {
 	args := m.Called(ctx, filter)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
 	return args.Get(0).([]*workspace.Workspace), args.Int(1), args.Error(2)
 }
 
@@ -65,6 +68,9 @@ func (m *MockRepository) GetTask(ctx context.Context, taskID string) (*workspace
 
 func (m *MockRepository) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
 	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*workspace.Task), args.Error(1)
 }
 
@@ -75,6 +81,9 @@ func (m *MockRepository) UpdateTask(ctx context.Context, task *workspace.Task) e
 
 func (m *MockRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspace.Task, error) {
 	args := m.Called(ctx, taskType, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*workspace.Task), args.Error(1)
 }
 
@@ -113,6 +122,9 @@ func (m *MockRepository) CleanupDeletedWorkspaces(ctx context.Context, before ti
 
 func (m *MockRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspace.WorkspaceMember, error) {
 	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*workspace.WorkspaceMember), args.Error(1)
 }
 
@@ -199,6 +211,9 @@ func (m *MockKubernetesRepository) GetResourceMetrics(ctx context.Context, works
 
 func (m *MockKubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
 	args := m.Called(ctx, workspaceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]workspace.Node), args.Error(1)
 }
 

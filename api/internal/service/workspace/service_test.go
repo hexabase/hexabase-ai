@@ -174,7 +174,7 @@ func TestGetWorkspace(t *testing.T) {
 	})
 
 	t.Run("successful get workspace - non-active status", func(t *testing.T) {
-		workspaceID := "ws-123"
+		workspaceID := "ws-456"
 		ws := &workspace.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
@@ -198,7 +198,7 @@ func TestGetWorkspace(t *testing.T) {
 	})
 
 	t.Run("vcluster status error is logged but doesn't fail", func(t *testing.T) {
-		workspaceID := "ws-123"
+		workspaceID := "ws-789"
 		ws := &workspace.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
@@ -303,15 +303,15 @@ func TestListWorkspaces(t *testing.T) {
 
 func TestUpdateWorkspace(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful workspace update", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		existingWs := &workspace.Workspace{
 			ID:             workspaceID,
@@ -350,6 +350,14 @@ func TestUpdateWorkspace(t *testing.T) {
 	})
 
 	t.Run("workspace not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-not-found"
 		req := &workspace.UpdateWorkspaceRequest{
 			Name: "new-name",
@@ -369,6 +377,14 @@ func TestUpdateWorkspace(t *testing.T) {
 	})
 
 	t.Run("update repository error", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		existingWs := &workspace.Workspace{
 			ID:             workspaceID,
@@ -473,15 +489,15 @@ func TestDeleteWorkspace(t *testing.T) {
 
 func TestGetWorkspaceStatus(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful status retrieval", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID:             workspaceID,
@@ -530,6 +546,14 @@ func TestGetWorkspaceStatus(t *testing.T) {
 	})
 
 	t.Run("workspace not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-not-found"
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(nil, errors.New("not found"))
@@ -546,6 +570,14 @@ func TestGetWorkspaceStatus(t *testing.T) {
 	})
 
 	t.Run("vcluster errors are handled gracefully", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID:             workspaceID,
@@ -720,15 +752,15 @@ func TestExecuteOperation(t *testing.T) {
 
 func TestGetKubeconfig(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful kubeconfig retrieval from repository", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID:     workspaceID,
@@ -750,6 +782,14 @@ func TestGetKubeconfig(t *testing.T) {
 	})
 
 	t.Run("kubeconfig retrieved from vcluster when not in repository", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID:     workspaceID,
@@ -777,6 +817,14 @@ func TestGetKubeconfig(t *testing.T) {
 	})
 
 	t.Run("workspace not active", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID:     workspaceID,
@@ -797,6 +845,14 @@ func TestGetKubeconfig(t *testing.T) {
 	})
 
 	t.Run("workspace not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-not-found"
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(nil, errors.New("not found"))
@@ -815,15 +871,15 @@ func TestGetKubeconfig(t *testing.T) {
 
 func TestAddWorkspaceMember(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful member addition", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID: workspaceID,
@@ -856,6 +912,14 @@ func TestAddWorkspaceMember(t *testing.T) {
 	})
 
 	t.Run("user already a member", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		ws := &workspace.Workspace{
 			ID: workspaceID,
@@ -888,6 +952,14 @@ func TestAddWorkspaceMember(t *testing.T) {
 	})
 
 	t.Run("workspace not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-not-found"
 		req := &workspace.AddMemberRequest{
 			UserID: "user-456",
@@ -974,15 +1046,15 @@ func TestRemoveWorkspaceMember(t *testing.T) {
 
 func TestValidateWorkspaceAccess(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("user has access", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		userID := "user-123"
 		workspaceID := "ws-456"
 		members := []*workspace.WorkspaceMember{
@@ -1004,6 +1076,14 @@ func TestValidateWorkspaceAccess(t *testing.T) {
 	})
 
 	t.Run("user does not have access", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		userID := "user-123"
 		workspaceID := "ws-456"
 		members := []*workspace.WorkspaceMember{
@@ -1028,15 +1108,15 @@ func TestValidateWorkspaceAccess(t *testing.T) {
 
 func TestGetNodes(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful node listing", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		expectedNodes := []workspace.Node{
 			{
@@ -1070,6 +1150,14 @@ func TestGetNodes(t *testing.T) {
 	})
 
 	t.Run("kubernetes repository error", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 
 		mockK8s.On("ListVClusterNodes", ctx, workspaceID).Return(nil, errors.New("k8s error"))
@@ -1087,15 +1175,15 @@ func TestGetNodes(t *testing.T) {
 
 func TestScaleDeployment(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful deployment scaling", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
