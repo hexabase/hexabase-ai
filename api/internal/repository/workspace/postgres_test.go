@@ -256,35 +256,27 @@ func TestConvertDomainToDatabase(t *testing.T) {
 		domainWs := &workspace.Workspace{
 			ID:             "ws-123",
 			Name:           "test-workspace",
-			Description:    "test description",
 			OrganizationID: "org-456",
-			Plan:           "shared",
 			PlanID:         "plan-789",
 			Status:         "active",
 			VClusterName:   "vcluster-test",
-			Namespace:      "ns-test",
-			KubeConfig:     "kubeconfig-content",
-			APIEndpoint:    "https://api.example.com",
-			ClusterInfo: map[string]interface{}{
-				"nodes": 3,
-				"version": "1.28",
-			},
 			Settings: map[string]interface{}{
 				"autoscaling": true,
-				"replicas": 2,
+				"replicas":    2,
 			},
 			Metadata: map[string]interface{}{
 				"region": "us-west-2",
-				"tier": "production",
+				"tier":   "production",
 			},
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
 
 		// Act
-		dbWs := toDTO(domainWs)
+		dbWs, err := toDTO(domainWs)
 
 		// Assert
+		require.NoError(t, err)
 		assert.Equal(t, "ws-123", dbWs.ID)
 		assert.Equal(t, "test-workspace", dbWs.Name)
 		assert.Equal(t, "org-456", dbWs.OrganizationID)
@@ -296,7 +288,7 @@ func TestConvertDomainToDatabase(t *testing.T) {
 		
 		// Test JSON field conversions by unmarshaling and checking values
 		var vclusterConfig map[string]interface{}
-		err := json.Unmarshal([]byte(dbWs.VClusterConfig), &vclusterConfig)
+		err = json.Unmarshal([]byte(dbWs.VClusterConfig), &vclusterConfig)
 		require.NoError(t, err)
 		assert.Equal(t, true, vclusterConfig["autoscaling"])
 		assert.Equal(t, float64(2), vclusterConfig["replicas"])
@@ -320,15 +312,60 @@ func TestConvertDomainToDatabase(t *testing.T) {
 		}
 
 		// Act
-		dbWs := toDTO(domainWs)
+		dbWs, err := toDTO(domainWs)
 
 		// Assert
+		require.NoError(t, err)
 		assert.Equal(t, "ws-minimal", dbWs.ID)
 		assert.Equal(t, "minimal-workspace", dbWs.Name)
 		assert.Equal(t, "PENDING_CREATION", dbWs.VClusterStatus) // Maps from "creating"
 		assert.Nil(t, dbWs.VClusterInstanceName)
 		assert.Equal(t, "{}", dbWs.VClusterConfig)
 		assert.Equal(t, "{}", dbWs.DedicatedNodeConfig)
+	})
+
+	t.Run("returns error when JSON marshaling fails", func(t *testing.T) {
+		// Arrange - create a workspace with unmarshalable data
+		domainWs := &workspace.Workspace{
+			ID:             "ws-error",
+			Name:           "error-workspace",
+			OrganizationID: "org-123",
+			PlanID:         "plan-123",
+			Status:         "active",
+			Settings: map[string]interface{}{
+				"invalid": make(chan int), // channels cannot be marshaled to JSON
+			},
+		}
+
+		// Act
+		dbWs, err := toDTO(domainWs)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, dbWs)
+		assert.Contains(t, err.Error(), "failed to marshal vcluster config")
+	})
+
+	t.Run("returns error when metadata marshaling fails", func(t *testing.T) {
+		// Arrange - create a workspace with unmarshalable metadata
+		domainWs := &workspace.Workspace{
+			ID:             "ws-error",
+			Name:           "error-workspace",
+			OrganizationID: "org-123",
+			PlanID:         "plan-123",
+			Status:         "active",
+			Metadata: map[string]interface{}{
+				"invalid": make(chan int), // channels cannot be marshaled to JSON
+			},
+		}
+
+		// Act
+		dbWs, err := toDTO(domainWs)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, dbWs)
+		assert.Contains(t, err.Error(), "failed to marshal metadata")
 	})
 }
 

@@ -21,7 +21,7 @@ func NewPostgresRepository(db *gorm.DB) workspace.Repository {
 }
 
 // toDTO converts domain workspace model to database model
-func toDTO(domainWs *workspace.Workspace) *db.Workspace {
+func toDTO(domainWs *workspace.Workspace) (*db.Workspace, error) {
 	dbWs := &db.Workspace{
 		ID:             domainWs.ID,
 		OrganizationID: domainWs.OrganizationID,
@@ -62,27 +62,27 @@ func toDTO(domainWs *workspace.Workspace) *db.Workspace {
 	}
 
 	if len(vclusterConfig) > 0 {
-		if configBytes, err := json.Marshal(vclusterConfig); err == nil {
-			dbWs.VClusterConfig = string(configBytes)
-		} else {
-			dbWs.VClusterConfig = "{}"
+		configBytes, err := json.Marshal(vclusterConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal vcluster config: %w", err)
 		}
+		dbWs.VClusterConfig = string(configBytes)
 	} else {
 		dbWs.VClusterConfig = "{}"
 	}
 
 	// Convert Metadata to DedicatedNodeConfig JSON
 	if domainWs.Metadata != nil && len(domainWs.Metadata) > 0 {
-		if metadataBytes, err := json.Marshal(domainWs.Metadata); err == nil {
-			dbWs.DedicatedNodeConfig = string(metadataBytes)
-		} else {
-			dbWs.DedicatedNodeConfig = "{}"
+		metadataBytes, err := json.Marshal(domainWs.Metadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal metadata: %w", err)
 		}
+		dbWs.DedicatedNodeConfig = string(metadataBytes)
 	} else {
 		dbWs.DedicatedNodeConfig = "{}"
 	}
 
-	return dbWs
+	return dbWs, nil
 }
 
 // toDomainModel converts database workspace model to domain model
@@ -205,7 +205,10 @@ func toDomainModelStatus(dbStatus string) string {
 }
 
 func (r *postgresRepository) CreateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
-	dbWs := toDTO(ws)
+	dbWs, err := toDTO(ws)
+	if err != nil {
+		return fmt.Errorf("failed to convert workspace to database model: %w", err)
+	}
 	if err := r.db.WithContext(ctx).Create(dbWs).Error; err != nil {
 		return fmt.Errorf("failed to create workspace: %w", err)
 	}
@@ -249,7 +252,10 @@ func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name,
 }
 
 func (r *postgresRepository) UpdateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
-	dbWs := toDTO(ws)
+	dbWs, err := toDTO(ws)
+	if err != nil {
+		return fmt.Errorf("failed to convert workspace to database model: %w", err)
+	}
 	result := r.db.WithContext(ctx).
 		Model(&db.Workspace{}).
 		Where("id = ?", dbWs.ID).
