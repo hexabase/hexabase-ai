@@ -76,7 +76,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	applicationHandler := handlers.NewApplicationHandler(service)
 	authRepository := auth.NewPostgresRepository(db)
 	v := ProvideOAuthProviderConfigs(cfg)
-	oAuthRepository := auth.NewOAuthRepository(v)
+	oAuthRepository := auth.NewOAuthRepository(v, logger)
 	keyRepository, err := auth.NewKeyRepository()
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
@@ -13,10 +14,11 @@ import (
 
 type oauthRepository struct {
 	providers map[string]*oauth2.Config
+	logger    *slog.Logger
 }
 
 // NewOAuthRepository creates a new OAuth repository
-func NewOAuthRepository(configs map[string]*ProviderConfig) auth.OAuthRepository {
+func NewOAuthRepository(configs map[string]*ProviderConfig, logger *slog.Logger) auth.OAuthRepository {
 	providers := make(map[string]*oauth2.Config)
 
 	for provider, config := range configs {
@@ -43,6 +45,7 @@ func NewOAuthRepository(configs map[string]*ProviderConfig) auth.OAuthRepository
 
 	return &oauthRepository{
 		providers: providers,
+		logger:    logger,
 	}
 }
 
@@ -115,7 +118,19 @@ func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, toke
 	case "google":
 		return r.getGoogleUserInfo(ctx, client)
 	case "github":
-		return r.getGithubUserInfo(ctx, client)
+		u, err := r.getGithubUserInfo(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+		u.Email, err = r.getGithubVerifiedPrimaryEmail(ctx, client)
+		if err != nil {
+			r.logger.Error("failed to get github verified primary email", "error", err)
+			return nil, err
+		}
+		if u.Email == "" {
+			r.logger.Warn("github verified primary email is empty")
+		}
+		return u, nil
 	default:
 		return nil, fmt.Errorf("user info not implemented for provider %s", provider)
 	}
@@ -193,7 +208,6 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 
 	var githubUser struct {
 		ID        int64  `json:"id"`
-		Email     string `json:"email"`
 		Login     string `json:"login"`
 		AvatarURL string `json:"avatar_url"`
 	}
@@ -204,11 +218,40 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 
 	return &auth.UserInfo{
 		ID:       fmt.Sprintf("%d", githubUser.ID),
-		Email:    githubUser.Email,
 		Name:     githubUser.Login,
 		Picture:  githubUser.AvatarURL,
 		Provider: "github",
 	}, nil
+}
+
+func (r *oauthRepository) getGithubVerifiedPrimaryEmail(ctx context.Context, client *http.Client) (string, error) {
+	resp, err := client.Get("https://api.github.com/user/emails")
+	if err != nil {
+		return "", fmt.Errorf("failed to get user emails: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get user emails: status %d", resp.StatusCode)
+	}
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return "", fmt.Errorf("failed to decode user emails: %w", err)
+	}
+
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			return email.Email, nil
+		}
+	}
+
+	return "", nil
 }
 
 // Helper types

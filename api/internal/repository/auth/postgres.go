@@ -280,7 +280,7 @@ func (r *postgresRepository) GetUserOrganizations(ctx context.Context, userID st
 	var orgIDs []string
 
 	if err := r.db.WithContext(ctx).
-		Table("organization_members").
+		Table("organization_users").
 		Where("user_id = ?", userID).
 		Pluck("organization_id", &orgIDs).Error; err != nil {
 		return nil, fmt.Errorf("failed to get user organizations: %w", err)
