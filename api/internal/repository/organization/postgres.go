@@ -382,8 +382,8 @@ func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID str
 
 // Status conversion helper functions
 
-// dbStatusToDomainStatus converts database v_cluster_status to domain status
-func dbStatusToDomainStatus(dbStatus string) string {
+// toDomainStatus converts database v_cluster_status to domain status
+func toDomainStatus(dbStatus string) string {
 	switch dbStatus {
 	case "RUNNING":
 		return "active"
@@ -531,7 +531,7 @@ func (r *postgresRepository) ListWorkspaces(ctx context.Context, orgID string) (
 		workspaces[i] = &organization.WorkspaceInfo{
 			ID:     dbWs.ID,
 			Name:   dbWs.Name,
-			Status: dbStatusToDomainStatus(dbWs.VClusterStatus),
+			Status: toDomainStatus(dbWs.VClusterStatus),
 		}
 	}
 

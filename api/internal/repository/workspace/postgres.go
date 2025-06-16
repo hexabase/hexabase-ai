@@ -102,7 +102,7 @@ func toDomainModel(dbWs *db.Workspace) (*workspace.Workspace, error) {
 	}
 
 	// Convert Status
-	domainWs.Status = toDomainModelStatus(dbWs.VClusterStatus)
+	domainWs.Status = toDomainStatus(dbWs.VClusterStatus)
 
 	// Initialize Settings and ClusterInfo maps
 	domainWs.Settings = make(map[string]interface{})
@@ -178,8 +178,8 @@ func toDTOStatus(domainStatus string) string {
 	}
 }
 
-// toDomainModelStatus converts database status to domain status
-func toDomainModelStatus(dbStatus string) string {
+// toDomainStatus converts database status to domain status
+func toDomainStatus(dbStatus string) string {
 	switch dbStatus {
 	case "PENDING_CREATION", "CONFIGURING_HNC":
 		return "creating"
