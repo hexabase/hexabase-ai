@@ -85,7 +85,6 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		repo := NewPostgresRepository(gormDB)
 
 		member := &organization.OrganizationUser{
-			ID:             uuid.New().String(),
 			OrganizationID: uuid.New().String(),
 			UserID:         uuid.New().String(),
 			Email:          "member@example.com",
@@ -97,7 +96,6 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`INSERT INTO "organization_users"`).
 			WithArgs(
-				member.ID,
 				member.OrganizationID,
 				member.UserID,
 				member.Email,
@@ -174,7 +172,6 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		repo := NewPostgresRepository(gormDB)
 
 		member := &organization.OrganizationUser{
-			ID:             uuid.New().String(),
 			OrganizationID: uuid.New().String(),
 			UserID:         uuid.New().String(),
 			Status:         "suspended",
