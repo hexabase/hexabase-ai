@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
 )
 
 // Mock implementations for dependencies
@@ -978,13 +979,13 @@ func TestListMembers(t *testing.T) {
 
 		orgUsers := []*organization.OrganizationUser{
 			{
-				ID:     "ou-1",
+				OrganizationID:     "ou-1",
 				UserID: "user-1",
 				Role:   "admin",
 				Status: "active",
 			},
 			{
-				ID:     "ou-2",
+				OrganizationID:     "ou-2",
 				UserID: "user-2",
 				Role:   "member",
 				Status: "active",
@@ -1115,7 +1116,7 @@ func TestUpdateMemberRole(t *testing.T) {
 		}
 
 		updatedMember := &organization.OrganizationUser{
-			ID:     "ou-1",
+			OrganizationID:     "ou-1",
 			UserID: userID,
 			Role:   "admin",
 			Status: "active",
@@ -1217,7 +1218,7 @@ func TestGetMember(t *testing.T) {
 		userID := "user-123"
 
 		orgUser := &organization.OrganizationUser{
-			ID:       "ou-1",
+			OrganizationID:       "ou-1",
 			UserID:   userID,
 			Role:     "admin",
 			Status:   "active",
@@ -1654,7 +1655,7 @@ func TestErrorScenarios(t *testing.T) {
 		userID := "user-123"
 
 		orgUser := &organization.OrganizationUser{
-			ID:     "ou-1",
+			OrganizationID:     "ou-1",
 			UserID: userID,
 			Role:   "admin",
 			Status: "active",

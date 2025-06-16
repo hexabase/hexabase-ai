@@ -3,10 +3,10 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/utils/httpauth"
 )
 
 // AuthHandler handles authentication-related HTTP requests
@@ -178,7 +178,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	token := strings.TrimPrefix(authHeader, "Bearer ")
+	token := httpauth.TrimBearerPrefix(authHeader)
 
 	user, err := h.service.GetCurrentUser(c.Request.Context(), token)
 	if err != nil {
@@ -302,13 +302,12 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Extract Bearer token
-		if !strings.HasPrefix(authHeader, "Bearer ") {
+		if !httpauth.HasBearerPrefix(authHeader) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
 			c.Abort()
 			return
 		}
-
-		token := strings.TrimPrefix(authHeader, "Bearer ")
+		token := httpauth.TrimBearerPrefix(authHeader)
 
 		// Validate JWT token
 		claims, err := h.service.ValidateAccessToken(c.Request.Context(), token)

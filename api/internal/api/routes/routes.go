@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
+	"github.com/hexabase/hexabase-ai/api/internal/utils/httpauth"
 )
 
 // requireInternalAuth is middleware that validates internal service authentication
@@ -20,15 +21,13 @@ func requireInternalAuth(authHandler *handlers.AuthHandler) gin.HandlerFunc {
 			return
 		}
 
-		// Extract token
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		if !httpauth.HasBearerPrefix(authHeader) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
 			c.Abort()
 			return
 		}
 
-		token := parts[1]
+		token := httpauth.TrimBearerPrefix(authHeader)
 
 		// Validate internal service token
 		// This should validate against service account tokens or special AI agent tokens
