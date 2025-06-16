@@ -275,7 +275,7 @@ func (r *postgresRepository) ListWorkspaces(ctx context.Context, filter workspac
 
 	if filter.Status != "" {
 		dbStatus := toDTOStatus(filter.Status)
-		query = query.Where("vcluster_status = ?", dbStatus)
+		query = query.Where("v_cluster_status = ?", dbStatus)
 	}
 
 	if filter.Search != "" {

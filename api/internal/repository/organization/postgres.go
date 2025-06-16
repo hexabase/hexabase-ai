@@ -380,6 +380,58 @@ func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID str
 	return stats, nil
 }
 
+// Status conversion helper functions
+
+// dbStatusToDomainStatus converts database v_cluster_status to domain status
+func dbStatusToDomainStatus(dbStatus string) string {
+	switch dbStatus {
+	case "RUNNING":
+		return "active"
+	case "PENDING_CREATION", "CONFIGURING_HNC":
+		return "creating"
+	case "UPDATING_PLAN", "UPDATING_NODES":
+		return "updating"
+	case "DELETING":
+		return "deleting"
+	case "ERROR":
+		return "error"
+	case "STOPPED":
+		return "stopped"
+	case "STARTING":
+		return "starting"
+	case "STOPPING":
+		return "stopping"
+	case "UNKNOWN":
+		return "unknown"
+	default:
+		return "unknown"
+	}
+}
+
+// domainStatusToDBStatus converts domain status to database v_cluster_status for filtering
+func domainStatusToDBStatus(domainStatus string) string {
+	switch domainStatus {
+	case "active", "running":
+		return "RUNNING"
+	case "creating", "provisioning":
+		return "PENDING_CREATION"
+	case "updating":
+		return "UPDATING_PLAN"
+	case "deleting":
+		return "DELETING"
+	case "error", "failed":
+		return "ERROR"
+	case "stopped":
+		return "STOPPED"
+	case "starting":
+		return "STARTING"
+	case "stopping":
+		return "STOPPING"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 func (r *postgresRepository) GetWorkspaceCount(ctx context.Context, orgID string) (total int, active int, err error) {
 	// Count total workspaces
 	var totalCount int64
@@ -390,11 +442,11 @@ func (r *postgresRepository) GetWorkspaceCount(ctx context.Context, orgID string
 		return 0, 0, fmt.Errorf("failed to count total workspaces: %w", err)
 	}
 
-	// Count active workspaces
+	// Count active workspaces using correct column name
 	var activeCount int64
 	if err := r.db.WithContext(ctx).
 		Table("workspaces").
-		Where("organization_id = ? AND status = ?", orgID, "active").
+		Where("organization_id = ? AND v_cluster_status = ?", orgID, "RUNNING").
 		Count(&activeCount).Error; err != nil {
 		return 0, 0, fmt.Errorf("failed to count active workspaces: %w", err)
 	}
@@ -478,15 +530,31 @@ func (r *postgresRepository) ListActivities(ctx context.Context, filter organiza
 // Additional helper methods
 
 func (r *postgresRepository) ListWorkspaces(ctx context.Context, orgID string) ([]*organization.WorkspaceInfo, error) {
-	var workspaces []*organization.WorkspaceInfo
+	type dbWorkspaceInfo struct {
+		ID             string `gorm:"column:id"`
+		Name           string `gorm:"column:name"`
+		VClusterStatus string `gorm:"column:v_cluster_status"`
+	}
 	
-	// Query workspaces table
+	var dbWorkspaces []dbWorkspaceInfo
+	
+	// Query workspaces table with correct column name
 	if err := r.db.WithContext(ctx).
 		Table("workspaces").
-		Select("id, name, status").
+		Select("id, name, v_cluster_status").
 		Where("organization_id = ?", orgID).
-		Scan(&workspaces).Error; err != nil {
+		Scan(&dbWorkspaces).Error; err != nil {
 		return nil, fmt.Errorf("failed to list workspaces: %w", err)
+	}
+
+	// Convert to domain model
+	workspaces := make([]*organization.WorkspaceInfo, len(dbWorkspaces))
+	for i, dbWs := range dbWorkspaces {
+		workspaces[i] = &organization.WorkspaceInfo{
+			ID:     dbWs.ID,
+			Name:   dbWs.Name,
+			Status: dbStatusToDomainStatus(dbWs.VClusterStatus),
+		}
 	}
 
 	return workspaces, nil

@@ -417,7 +417,7 @@ func TestCreateWorkspaceWithConversion(t *testing.T) {
 				"test-workspace",            // name
 				"plan-789",                  // plan_id
 				"vcluster-test",             // vcluster_instance_name
-				"RUNNING",                   // vcluster_status (converted from "active")
+				"RUNNING",                   // v_cluster_status (converted from "active")
 				sqlmock.AnyArg(),           // vcluster_config (JSON)
 				sqlmock.AnyArg(),           // dedicated_node_config (JSON)
 				sqlmock.AnyArg(),           // stripe_subscription_item_id
@@ -465,7 +465,7 @@ func TestUpdateWorkspaceWithConversion(t *testing.T) {
 				"updated-workspace",         // name (updated)
 				"plan-789",                  // plan_id
 				"vcluster-updated",          // vcluster_instance_name (updated)
-				"UPDATING_PLAN",             // vcluster_status (converted from "updating")
+				"UPDATING_PLAN",             // v_cluster_status (converted from "updating")
 				sqlmock.AnyArg(),           // vcluster_config (JSON with updated settings)
 				sqlmock.AnyArg(),           // dedicated_node_config (JSON)
 				sqlmock.AnyArg(),           // stripe_subscription_item_id

@@ -159,15 +159,15 @@ type Invitation struct {
 
 // Activity represents an activity log entry
 type Activity struct {
-	ID             string                 `json:"id"`
-	OrganizationID string                 `json:"organization_id"`
-	UserID         string                 `json:"user_id"`
-	Type           string                 `json:"type"`
-	Action         string                 `json:"action"`
-	ResourceType   string                 `json:"resource_type"`
-	ResourceID     string                 `json:"resource_id"`
-	Details        map[string]interface{} `json:"details,omitempty"`
-	Timestamp      time.Time              `json:"timestamp"`
+	ID             string    `json:"id" gorm:"primaryKey"`
+	OrganizationID string    `json:"organization_id"`
+	UserID         string    `json:"user_id"`
+	Type           string    `json:"type"`
+	Action         string    `json:"action"`
+	ResourceType   string    `json:"resource_type"`
+	ResourceID     string    `json:"resource_id"`
+	Details        string    `json:"details,omitempty" gorm:"type:jsonb"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 // ActivityFilter represents filter options for listing activities
