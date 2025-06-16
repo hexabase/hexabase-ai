@@ -2,10 +2,11 @@ package httpauth
 
 import "strings"
 
+const bearerPrefix = "bearer "
+
 // HasBearerPrefix checks if the Authorization header has a "Bearer " prefix.
 // It performs a case-insensitive check.
 func HasBearerPrefix(header string) bool {
-	const bearerPrefix = "bearer "
 	if len(header) < len(bearerPrefix) {
 		return false
 	}
@@ -16,7 +17,7 @@ func HasBearerPrefix(header string) bool {
 // It performs a case-insensitive check.
 func TrimBearerPrefix(header string) string {
 	if HasBearerPrefix(header) {
-		return header[len("Bearer "):]
+		return header[len(bearerPrefix):]
 	}
 	return header
 } 
