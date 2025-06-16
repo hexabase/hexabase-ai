@@ -1411,15 +1411,16 @@ func TestGetTask(t *testing.T) {
 
 func TestListTasks(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful task listing", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		expectedTasks := []*workspace.Task{
 			{
@@ -1451,6 +1452,14 @@ func TestListTasks(t *testing.T) {
 	})
 
 	t.Run("repository error", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 
 		mockRepo.On("ListTasks", ctx, workspaceID).Return(nil, errors.New("database error"))
@@ -1510,15 +1519,15 @@ func TestListWorkspaceMembers(t *testing.T) {
 
 func TestProcessProvisioningTask(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful provisioning task processing", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:          taskID,
@@ -1567,6 +1576,14 @@ func TestProcessProvisioningTask(t *testing.T) {
 	})
 
 	t.Run("task not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-not-found"
 
 		mockRepo.On("GetTask", ctx, taskID).Return(nil, errors.New("not found"))
@@ -1582,6 +1599,14 @@ func TestProcessProvisioningTask(t *testing.T) {
 	})
 
 	t.Run("invalid task type", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:   taskID,
@@ -1601,6 +1626,14 @@ func TestProcessProvisioningTask(t *testing.T) {
 	})
 
 	t.Run("provisioning failure", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:          taskID,
@@ -1640,15 +1673,15 @@ func TestProcessProvisioningTask(t *testing.T) {
 
 func TestProcessDeletionTask(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful deletion task processing", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:          taskID,
@@ -1682,6 +1715,14 @@ func TestProcessDeletionTask(t *testing.T) {
 	})
 
 	t.Run("task not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-not-found"
 
 		mockRepo.On("GetTask", ctx, taskID).Return(nil, errors.New("not found"))
@@ -1697,6 +1738,14 @@ func TestProcessDeletionTask(t *testing.T) {
 	})
 
 	t.Run("invalid task type", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:   taskID,
@@ -1716,6 +1765,14 @@ func TestProcessDeletionTask(t *testing.T) {
 	})
 
 	t.Run("deletion failure", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		taskID := "task-123"
 		task := &workspace.Task{
 			ID:          taskID,
