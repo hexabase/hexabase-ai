@@ -255,7 +255,7 @@ func TestPostgresRepository_UpdateLastLogin(t *testing.T) {
 	gormDB, mock := setupTestDB(t)
 	repo := NewPostgresRepository(gormDB)
 
-	t.Run("update_last_login_time", func(t *testing.T) {
+	t.Run("update last login time", func(t *testing.T) {
 		userID := uuid.New().String()
 
 		mock.ExpectBegin()
