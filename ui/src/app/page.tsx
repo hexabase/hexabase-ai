@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { LoadingPage } from "@/components/ui/loading";
-import LoginPage from "@/components/login-page";
+import { LoginPage } from "@/components/login-page";
 import DashboardPage from "@/components/dashboard-page";
 
 export default function Home() {

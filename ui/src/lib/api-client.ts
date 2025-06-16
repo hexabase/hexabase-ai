@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import Cookies from 'js-cookie';
+import { getDevelopmentTokens } from './auth-token-handler';
 
 // Create axios instance with base configuration
 export const apiClient = axios.create({
@@ -14,7 +15,26 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Use new token name, fallback to legacy
-    const token = Cookies.get('hexabase_access_token') || Cookies.get('hexabase_token');
+    let token = Cookies.get('hexabase_access_token') || Cookies.get('hexabase_token');
+    
+    // For development, check development tokens if no cookie found
+    if (!token && process.env.NODE_ENV === 'development') {
+      const devTokens = getDevelopmentTokens();
+      if (devTokens) {
+        token = devTokens.accessToken;
+      } else {
+        // Try to get token from document.cookie as last resort
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'hexabase_access_token') {
+            token = value;
+            break;
+          }
+        }
+      }
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -86,6 +106,10 @@ export interface Organization {
 
 export interface CreateOrganizationRequest {
   name: string;
+  display_name: string;
+  description?: string;
+  website?: string;
+  email?: string;
 }
 
 export interface UpdateOrganizationRequest {

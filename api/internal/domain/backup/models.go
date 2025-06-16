@@ -110,11 +110,11 @@ type BackupExecution struct {
 	SizeBytes          int64                  `json:"size_bytes,omitempty"`
 	CompressedSizeBytes int64                 `json:"compressed_size_bytes,omitempty"`
 	BackupPath         string                 `json:"backup_path,omitempty"`
-	BackupManifest     map[string]interface{} `json:"backup_manifest,omitempty"`
+	BackupManifest     map[string]interface{} `json:"backup_manifest,omitempty" gorm:"type:jsonb"`
 	StartedAt          time.Time              `json:"started_at"`
 	CompletedAt        *time.Time             `json:"completed_at,omitempty"`
 	ErrorMessage       string                 `json:"error_message,omitempty"`
-	Metadata           map[string]interface{} `json:"metadata,omitempty"`
+	Metadata           map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 	CreatedAt          time.Time              `json:"created_at"`
 }
 
@@ -125,12 +125,12 @@ type BackupRestore struct {
 	ApplicationID     string                 `json:"application_id"`
 	Status            RestoreStatus          `json:"status"`
 	RestoreType       RestoreType            `json:"restore_type"`
-	RestoreOptions    map[string]interface{} `json:"restore_options,omitempty"`
+	RestoreOptions    map[string]interface{} `json:"restore_options,omitempty" gorm:"type:jsonb"`
 	NewApplicationID  string                 `json:"new_application_id,omitempty"`
 	StartedAt         *time.Time             `json:"started_at,omitempty"`
 	CompletedAt       *time.Time             `json:"completed_at,omitempty"`
 	ErrorMessage      string                 `json:"error_message,omitempty"`
-	ValidationResults map[string]interface{} `json:"validation_results,omitempty"`
+	ValidationResults map[string]interface{} `json:"validation_results,omitempty" gorm:"type:jsonb"`
 	CreatedAt         time.Time              `json:"created_at"`
 }
 
@@ -194,7 +194,7 @@ type TriggerBackupRequest struct {
 // RestoreBackupRequest represents a request to restore from a backup
 type RestoreBackupRequest struct {
 	RestoreType      RestoreType            `json:"restore_type"`
-	RestoreOptions   map[string]interface{} `json:"restore_options,omitempty"`
+	RestoreOptions   map[string]interface{} `json:"restore_options,omitempty" gorm:"type:jsonb"`
 	TargetNamespace  string                 `json:"target_namespace,omitempty"`
 	NewApplicationID string                 `json:"new_application_id,omitempty"`
 }
@@ -263,8 +263,7 @@ func (s StorageStatus) CanTransition(target StorageStatus) bool {
 		StorageStatusPending:  {StorageStatusCreating, StorageStatusFailed},
 		StorageStatusCreating: {StorageStatusActive, StorageStatusFailed},
 		StorageStatusActive:   {StorageStatusDeleting, StorageStatusFailed},
-		StorageStatusFailed:   {StorageStatusDeleting},
-		StorageStatusDeleting: {}, // Terminal state
+		StorageStatusFailed:   {StorageStatusDeleting}, // Terminal state
 	}
 
 	allowed, exists := transitions[s]
@@ -302,4 +301,44 @@ func (s RestoreStatus) CanTransition(target RestoreStatus) bool {
 		}
 	}
 	return false
+}
+
+// BackupProvider represents a backup storage provider
+type BackupProvider struct {
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	Type             string                 `json:"type"` // s3, gcs, azure, local
+	ConnectionConfig map[string]interface{} `json:"connection_config,omitempty" gorm:"type:jsonb"`
+	IsDefault        bool                   `json:"is_default"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+}
+
+// CreateBackupProviderRequest represents a request to create a backup provider
+type CreateBackupProviderRequest struct {
+	Name             string                 `json:"name" binding:"required"`
+	Type             string                 `json:"type" binding:"required,oneof=s3 gcs azure local"`
+	ConnectionConfig map[string]interface{} `json:"connection_config,omitempty" gorm:"type:jsonb"`
+	IsDefault        bool                   `json:"is_default"`
+}
+
+// UpdateBackupProviderRequest represents a request to update a backup provider
+type UpdateBackupProviderRequest struct {
+	Name             string                 `json:"name,omitempty"`
+	ConnectionConfig map[string]interface{} `json:"connection_config,omitempty" gorm:"type:jsonb"`
+	IsDefault        bool                   `json:"is_default"`
+}
+
+// CreateBackupScheduleRequest represents a request to create a backup schedule
+type CreateBackupScheduleRequest struct {
+	Name             string                 `json:"name" binding:"required"`
+	Description      string                 `json:"description,omitempty"`
+	ProjectID        string                 `json:"project_id" binding:"required"`
+	ProviderID       string                 `json:"provider_id" binding:"required"`
+	Schedule         string                 `json:"schedule" binding:"required"`
+	RetentionDays    int                    `json:"retention_days" binding:"required,min=1"`
+	BackupType       string                 `json:"backup_type" binding:"required,oneof=full incremental"`
+	IncludeResources []string               `json:"include_resources,omitempty"`
+	ExcludeResources []string               `json:"exclude_resources,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 }

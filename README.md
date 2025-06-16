@@ -10,10 +10,10 @@ Hexabase AI provides a user-friendly abstraction layer over Kubernetes, enabling
 
 ### Quick Links
 
-- **[Getting Started Guide](./docs/getting-started/README.md)** - Platform overview and quick start
-- **[Development Setup](./docs/development/dev-environment-setup.md)** - Set up your local environment
+- **[Getting Started Guide](./docs/guides/getting-started/README.md)** - Platform overview and quick start
+- **[Development Setup](./docs/guides/development/dev-environment-setup.md)** - Set up your local environment
 - **[Project Structure Guide](./STRUCTURE_GUIDE.md)** - Code organization and conventions
-- **[Deployment Guide](./docs/operations/kubernetes-deployment.md)** - Deploy to production
+- **[Deployment Guide](./docs/guides/operations/kubernetes-deployment.md)** - Deploy to production
 - **[API Reference](./docs/api-reference/README.md)** - Complete API documentation
 - **[CI/CD Architecture](./docs/architecture/cicd-architecture.md)** - CI/CD pipelines and GitOps
 - **[CI/CD Configurations](./ci/README.md)** - Pipeline configurations for different platforms
@@ -127,22 +127,24 @@ deployments/
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.21+
 - Node.js 18+
-- Docker & Docker Compose
-- Kubernetes cluster (or K3s)
-- PostgreSQL 14+
-- Redis 6+
+- Docker (with Docker Compose)
+- kubectl, kind, helm (auto-installed by setup script)
+- PostgreSQL 14+ (provided via Docker)
+- Redis 6+ (provided via Docker)
 
 ### Quick Start
 
 #### Option 1: Automated Setup (Recommended)
 
 ```bash
-# Clone and setup everything with one command
+# Clone the repository
 git clone https://github.com/hexabase/hexabase-ai.git
 cd hexabase-ai
-make setup
+
+# Run the setup script (installs missing dependencies)
+./scripts/dev-setup.sh
 
 # Start development
 make dev  # Runs both API and UI in tmux
@@ -151,6 +153,13 @@ make dev-api  # Terminal 1
 make dev-ui   # Terminal 2
 ```
 
+The setup script will:
+- ✅ Automatically install kubectl, kind, and helm if missing
+- ✅ Create a local Kubernetes cluster
+- ✅ Start PostgreSQL, Redis, and NATS services
+- ✅ Configure the development environment
+- ✅ Generate JWT keys and configuration files
+
 #### Option 2: Manual Setup
 
 ```bash
@@ -158,8 +167,11 @@ make dev-ui   # Terminal 2
 git clone https://github.com/hexabase/hexabase-ai.git
 cd hexabase-ai
 
+# Copy .env.example to .env (if needed)
+cp .env.example .env
+
 # Start infrastructure
-docker-compose up -d
+docker compose up -d  # or docker-compose up -d
 
 # Run the API
 cd api && go run cmd/api/main.go
@@ -170,8 +182,13 @@ cd ui && npm install && npm run dev
 
 Access the application at:
 
-- **UI**: http://app.localhost
-- **API**: http://api.localhost
+- **UI**: http://localhost:3000 (or http://app.localhost via Ingress)
+- **API**: http://localhost:8080 (or http://api.localhost via Ingress)
+
+**Note**: Services use non-standard ports to avoid conflicts:
+- PostgreSQL: 5433 (instead of 5432)
+- Redis: 6380 (instead of 6379)  
+- NATS: 4223 (instead of 4222)
 
 For detailed setup instructions, see the [Development Environment Setup](./docs/development/dev-environment-setup.md).
 
@@ -206,7 +223,7 @@ helm install hexabase-ai hexabase/hexabase-ai \
   --values deployments/helm/values-production.yaml
 ```
 
-For detailed deployment options, see the [Kubernetes Deployment Guide](./docs/operations/kubernetes-deployment.md).
+For detailed deployment options, see the [Kubernetes Deployment Guide](./docs/guides/operations/kubernetes-deployment.md).
 
 ## 🔄 CI/CD & GitOps
 
@@ -233,6 +250,7 @@ For architecture details, see the [CI/CD Architecture Guide](./docs/architecture
 ## 🤝 Contributing
 
 We welcome contributions! Please read our:
+
 - [Contributing Guidelines](./CONTRIBUTING.md) - How to contribute
 - [Code of Conduct](./CODE_OF_CONDUCT.md) - Community standards
 - [Project Structure Guide](./STRUCTURE_GUIDE.md) - Code organization rules

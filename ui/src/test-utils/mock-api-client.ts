@@ -26,38 +26,31 @@ const mockData = {
     {
       id: 'org-1',
       name: 'Acme Corporation',
-      description: 'Enterprise software solutions',
-      owner_id: 'user-123',
-      billing_email: 'billing@acme.com',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
+      role: 'owner',
     },
     {
       id: 'org-2',
       name: 'Tech Startup',
-      description: 'Innovative tech solutions',
-      owner_id: 'user-123',
-      billing_email: 'billing@techstartup.com',
       created_at: '2024-01-02T00:00:00Z',
       updated_at: '2024-01-02T00:00:00Z',
+      role: 'owner',
     },
   ] as Organization[],
   
   workspaces: [
     {
       id: 'ws-1',
-      organization_id: 'org-1',
       name: 'Production',
-      description: 'Production environment',
-      plan: 'dedicated',
-      status: 'active',
-      kubernetes_namespace: 'prod-namespace',
-      resource_limits: {
+      plan_id: 'dedicated',
+      vcluster_status: 'active',
+      vcluster_config: JSON.stringify({
         cpu: '16',
         memory: '32Gi',
         storage: '500Gi',
-      },
-      node_pool: 'dedicated-pool-1',
+      }),
+      vcluster_instance_name: 'prod-vcluster',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     },
@@ -70,10 +63,11 @@ const mockData = {
       name: 'frontend-app',
       description: 'Main frontend application',
       namespace: 'frontend-namespace',
-      resource_quotas: {
-        'limits.cpu': '4',
-        'limits.memory': '8Gi',
-        'requests.storage': '50Gi',
+      status: 'active' as const,
+      resource_quota: {
+        cpu: '4',
+        memory: '8Gi',
+        storage: '50Gi',
       },
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
@@ -244,47 +238,46 @@ export const createMockApiClient = () => ({
   },
   
   workspaces: {
-    list: jest.fn().mockImplementation(async (orgId: string) => {
+    list: jest.fn().mockImplementation(async (_orgId: string) => {
       await delay();
-      const workspaces = mockData.workspaces.filter(w => w.organization_id === orgId);
+      const workspaces = mockData.workspaces;
       return {
         workspaces,
         total: workspaces.length,
       };
     }),
-    get: jest.fn().mockImplementation(async (orgId: string, id: string) => {
+    get: jest.fn().mockImplementation(async (_orgId: string, id: string) => {
       await delay();
-      const workspace = mockData.workspaces.find(w => w.id === id && w.organization_id === orgId);
+      const workspace = mockData.workspaces.find(w => w.id === id);
       if (!workspace) throw new Error('Workspace not found');
       return workspace;
     }),
-    create: jest.fn().mockImplementation(async (orgId: string, data: CreateWorkspaceRequest) => {
+    create: jest.fn().mockImplementation(async (_orgId: string, data: CreateWorkspaceRequest) => {
       await delay(200);
-      const newWorkspace = {
+      const newWorkspace: Workspace = {
         id: `ws-${Date.now()}`,
-        organization_id: orgId,
         ...data,
-        status: 'creating',
-        kubernetes_namespace: `ns-${Date.now()}`,
+        vcluster_status: 'creating',
+        vcluster_instance_name: `vcluster-${Date.now()}`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       mockData.workspaces.push(newWorkspace);
       setTimeout(() => {
-        newWorkspace.status = 'active';
+        newWorkspace.vcluster_status = 'active';
       }, 1000);
       return newWorkspace;
     }),
-    update: jest.fn().mockImplementation(async (orgId: string, id: string, data: Partial<Workspace>) => {
+    update: jest.fn().mockImplementation(async (_orgId: string, id: string, data: Partial<Workspace>) => {
       await delay();
-      const index = mockData.workspaces.findIndex(w => w.id === id && w.organization_id === orgId);
+      const index = mockData.workspaces.findIndex(w => w.id === id);
       if (index === -1) throw new Error('Workspace not found');
       mockData.workspaces[index] = { ...mockData.workspaces[index], ...data };
       return mockData.workspaces[index];
     }),
-    delete: jest.fn().mockImplementation(async (orgId: string, id: string) => {
+    delete: jest.fn().mockImplementation(async (_orgId: string, id: string) => {
       await delay();
-      const index = mockData.workspaces.findIndex(w => w.id === id && w.organization_id === orgId);
+      const index = mockData.workspaces.findIndex(w => w.id === id);
       if (index === -1) throw new Error('Workspace not found');
       mockData.workspaces.splice(index, 1);
     }),
@@ -305,13 +298,14 @@ export const createMockApiClient = () => ({
       if (!project) throw new Error('Project not found');
       return project;
     }),
-    create: jest.fn().mockImplementation(async (orgId: string, workspaceId: string, data: CreateProjectRequest) => {
+    create: jest.fn().mockImplementation(async (_orgId: string, workspaceId: string, data: CreateProjectRequest) => {
       await delay();
-      const newProject = {
+      const newProject: Project = {
         id: `proj-${Date.now()}`,
         workspace_id: workspaceId,
         ...data,
         namespace: data.namespace || `${data.name}-namespace`,
+        status: 'creating' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -359,22 +353,22 @@ export const createMockApiClient = () => ({
     }),
     create: jest.fn().mockImplementation(async (orgId: string, workspaceId: string, projectId: string, data: CreateApplicationRequest) => {
       await delay(200);
-      const newApp = {
+      const newApp: Application = {
         id: `app-${Date.now()}`,
         workspace_id: workspaceId,
         project_id: projectId,
         ...data,
-        status: 'creating',
+        status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       mockData.applications.push(newApp);
       setTimeout(() => {
-        newApp.status = 'running';
+        newApp.status = 'running' as const;
       }, 1000);
       return newApp;
     }),
-    updateStatus: jest.fn().mockImplementation(async (orgId: string, workspaceId: string, id: string, data: { status: string }) => {
+    updateStatus: jest.fn().mockImplementation(async (_orgId: string, _workspaceId: string, id: string, data: { status: Application['status'] }) => {
       await delay();
       const app = mockData.applications.find(a => a.id === id);
       if (!app) throw new Error('Application not found');
@@ -405,7 +399,7 @@ export const createMockApiClient = () => ({
         application_id: appId,
         job_name: `manual-trigger-${Date.now()}`,
         started_at: new Date().toISOString(),
-        status: 'running',
+        status: 'running' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -649,12 +643,15 @@ export const createMockApiClient = () => ({
     }),
     create: jest.fn().mockImplementation(async (orgId: string, workspaceId: string, projectId: string, data: CreateFunctionRequest) => {
       await delay(200);
-      const newFunc = {
+      const newFunc: FunctionConfig = {
         id: `func-${Date.now()}`,
         workspace_id: workspaceId,
         project_id: projectId,
+        timeout: 30,
+        memory: 256,
+        triggers: ['http'],
         ...data,
-        status: 'deploying',
+        status: 'updating' as const,
         version: 'v1.0.0',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -681,14 +678,14 @@ export const createMockApiClient = () => ({
       
       const version = data.version || `v${Date.now()}`;
       func.version = version;
-      func.status = 'deploying';
+      func.status = 'updating' as const;
       setTimeout(() => {
         func.status = 'active';
       }, 1000);
       
       return {
         version,
-        status: 'deploying',
+        status: 'updating' as const,
       };
     }),
     invoke: jest.fn().mockImplementation(async (orgId: string, workspaceId: string, id: string, data: any) => {

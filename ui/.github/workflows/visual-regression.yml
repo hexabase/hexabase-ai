@@ -1,0 +1,200 @@
+name: Visual Regression Tests
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/components/**'
+      - 'src/app/**'
+      - 'src/styles/**'
+      - '**/*.css'
+      - '**/*.scss'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  visual-tests:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Create visual test config
+        run: |
+          cat > playwright-visual.config.ts << 'EOF'
+          import { defineConfig } from '@playwright/test';
+          import baseConfig from './playwright.config';
+          
+          export default defineConfig({
+            ...baseConfig,
+            projects: [
+              {
+                name: 'visual-chrome',
+                use: {
+                  ...baseConfig.use,
+                  viewport: { width: 1280, height: 720 },
+                },
+              },
+              {
+                name: 'visual-mobile',
+                use: {
+                  ...baseConfig.use,
+                  viewport: { width: 375, height: 667 },
+                  isMobile: true,
+                },
+              },
+            ],
+            use: {
+              ...baseConfig.use,
+              // Disable animations for consistent screenshots
+              screenshot: {
+                animations: 'disabled',
+                caret: 'hide',
+              },
+            },
+          });
+          EOF
+
+      - name: Download baseline images
+        uses: actions/download-artifact@v4
+        with:
+          name: visual-baseline-${{ github.base_ref }}
+          path: visual-baseline/
+        continue-on-error: true
+
+      - name: Run visual tests
+        run: |
+          npx playwright test \
+            --config=playwright-visual.config.ts \
+            --grep "@visual" \
+            --reporter=list,json
+        env:
+          CI: true
+
+      - name: Compare screenshots
+        if: steps.download-baseline.outcome == 'success'
+        run: |
+          npm install -g pixelmatch pngjs
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const PNG = require('pngjs').PNG;
+          const pixelmatch = require('pixelmatch');
+          
+          const baselineDir = 'visual-baseline';
+          const currentDir = 'test-results/visual-screenshots';
+          const diffDir = 'visual-diffs';
+          
+          if (!fs.existsSync(diffDir)) {
+            fs.mkdirSync(diffDir, { recursive: true });
+          }
+          
+          let totalDiff = 0;
+          const threshold = 0.1; // 10% difference threshold
+          
+          // Compare each screenshot
+          const files = fs.readdirSync(currentDir);
+          for (const file of files) {
+            if (file.endsWith('.png')) {
+              const baselinePath = path.join(baselineDir, file);
+              const currentPath = path.join(currentDir, file);
+              
+              if (fs.existsSync(baselinePath)) {
+                const baseline = PNG.sync.read(fs.readFileSync(baselinePath));
+                const current = PNG.sync.read(fs.readFileSync(currentPath));
+                const { width, height } = baseline;
+                const diff = new PNG({ width, height });
+                
+                const numDiffPixels = pixelmatch(
+                  baseline.data,
+                  current.data,
+                  diff.data,
+                  width,
+                  height,
+                  { threshold }
+                );
+                
+                const diffPercent = (numDiffPixels / (width * height)) * 100;
+                totalDiff += diffPercent;
+                
+                if (diffPercent > 0) {
+                  fs.writeFileSync(
+                    path.join(diffDir, `diff-${file}`),
+                    PNG.sync.write(diff)
+                  );
+                  console.log(`${file}: ${diffPercent.toFixed(2)}% different`);
+                }
+              }
+            }
+          }
+          
+          const avgDiff = totalDiff / files.length;
+          fs.writeFileSync('visual-diff-summary.json', JSON.stringify({
+            averageDifference: avgDiff,
+            threshold: threshold * 100,
+            passed: avgDiff < threshold * 100
+          }));
+          EOF
+
+      - name: Upload current screenshots as baseline
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baseline-main
+          path: test-results/visual-screenshots/
+          retention-days: 90
+
+      - name: Upload visual diffs
+        if: failure() || steps.compare-screenshots.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diffs
+          path: visual-diffs/
+          retention-days: 7
+
+      - name: Comment PR with visual results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🎨 Visual Regression Test Results\n\n';
+            
+            if (fs.existsSync('visual-diff-summary.json')) {
+              const summary = JSON.parse(fs.readFileSync('visual-diff-summary.json', 'utf8'));
+              
+              if (summary.passed) {
+                comment += '✅ **All visual tests passed!**\n\n';
+                comment += `Average difference: ${summary.averageDifference.toFixed(2)}% (threshold: ${summary.threshold}%)`;
+              } else {
+                comment += '❌ **Visual differences detected!**\n\n';
+                comment += `Average difference: ${summary.averageDifference.toFixed(2)}% (threshold: ${summary.threshold}%)\n\n`;
+                comment += 'Please review the visual diffs in the artifacts.';
+              }
+            } else {
+              comment += '⚠️ No baseline images found. New screenshots have been captured for future comparisons.';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

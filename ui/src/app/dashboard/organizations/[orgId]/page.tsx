@@ -39,7 +39,7 @@ export default function OrganizationDashboardPage() {
 
   useEffect(() => {
     loadOrganization();
-  }, [orgId, loadOrganization]);
+  }, [orgId]);
 
   if (isLoading) {
     return (

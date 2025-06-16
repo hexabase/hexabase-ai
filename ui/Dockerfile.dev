@@ -1,0 +1,32 @@
+# Development Dockerfile for UI with debugging support
+FROM node:18-alpine
+
+# Install dependencies for Playwright if needed
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Expose ports
+EXPOSE 3000 9229
+
+# Enable Node.js debugging
+ENV NODE_OPTIONS="--inspect=0.0.0.0:9229"
+
+# Run development server
+CMD ["npm", "run", "dev"]
