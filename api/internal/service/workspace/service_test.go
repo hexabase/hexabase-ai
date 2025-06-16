@@ -1206,6 +1206,14 @@ func TestScaleDeployment(t *testing.T) {
 	})
 
 	t.Run("workspace not active", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
@@ -1227,6 +1235,14 @@ func TestScaleDeployment(t *testing.T) {
 	})
 
 	t.Run("workspace not found", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-not-found"
 		deploymentName := "my-app"
 		replicas := 5
@@ -1244,6 +1260,14 @@ func TestScaleDeployment(t *testing.T) {
 	})
 
 	t.Run("kubernetes error during scaling", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
@@ -1269,15 +1293,15 @@ func TestScaleDeployment(t *testing.T) {
 
 func TestGetResourceUsage(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := new(MockRepository)
-	mockK8s := new(MockKubernetesRepository)
-	mockAuth := new(MockAuthRepository)
-	mockHelm := new(MockHelmService)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful resource usage retrieval", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
 		expectedUsage := &workspace.ResourceUsage{
 			CPU: workspace.ResourceMetric{
@@ -1312,6 +1336,14 @@ func TestGetResourceUsage(t *testing.T) {
 	})
 
 	t.Run("kubernetes error", func(t *testing.T) {
+		mockRepo := new(MockRepository)
+		mockK8s := new(MockKubernetesRepository)
+		mockAuth := new(MockAuthRepository)
+		mockHelm := new(MockHelmService)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
+
 		workspaceID := "ws-123"
 
 		mockK8s.On("GetResourceMetrics", ctx, workspaceID).Return(nil, errors.New("metrics error"))
