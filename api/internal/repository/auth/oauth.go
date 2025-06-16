@@ -216,18 +216,8 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	email, err := r.getGithubVerifiedPrimaryEmail(ctx, client)
-	if err != nil {
-		// エラーはログに出力するが、ユーザー情報取得は続行する
-		r.logger.Error("failed to get github verified primary email", "error", err)
-	}
-	if email == "" {
-		r.logger.Warn("github verified primary email not found")
-	}
-
 	return &auth.UserInfo{
 		ID:       fmt.Sprintf("%d", githubUser.ID),
-		Email:    email,
 		Name:     githubUser.Login,
 		Picture:  githubUser.AvatarURL,
 		Provider: "github",
