@@ -2,9 +2,9 @@ package db
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
-	"log/slog"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"gorm.io/driver/postgres"
@@ -100,6 +100,7 @@ func ConnectDatabase(cfg *DatabaseConfig) (*gorm.DB, error) {
 func MigrateDatabase(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&auth.User{},
+		&auth.Session{},
 		&Organization{},
 		&OrganizationUser{},
 		&Plan{},
