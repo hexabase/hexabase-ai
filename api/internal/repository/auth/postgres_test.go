@@ -231,7 +231,6 @@ func TestPostgresRepository_UpdateUser(t *testing.T) {
 		// GORM Save will update all fields
 		mock.ExpectExec(`UPDATE "users" SET`).
 			WithArgs(
-				user.ID,
 				user.ExternalID,
 				user.Provider,
 				user.Email,
@@ -256,12 +255,12 @@ func TestPostgresRepository_UpdateLastLogin(t *testing.T) {
 	gormDB, mock := setupTestDB(t)
 	repo := NewPostgresRepository(gormDB)
 
-	t.Run("update last login time", func(t *testing.T) {
+	t.Run("update_last_login_time", func(t *testing.T) {
 		userID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET "last_login_at"=\$1 WHERE id = \$2`).
-			WithArgs(sqlmock.AnyArg(), userID).
+		mock.ExpectExec(`UPDATE "users" SET "last_login_at"=\$1,"updated_at"=\$2 WHERE id = \$3`).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), userID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
