@@ -408,29 +408,7 @@ func dbStatusToDomainStatus(dbStatus string) string {
 	}
 }
 
-// domainStatusToDBStatus converts domain status to database v_cluster_status for filtering
-func domainStatusToDBStatus(domainStatus string) string {
-	switch domainStatus {
-	case "active", "running":
-		return "RUNNING"
-	case "creating", "provisioning":
-		return "PENDING_CREATION"
-	case "updating":
-		return "UPDATING_PLAN"
-	case "deleting":
-		return "DELETING"
-	case "error", "failed":
-		return "ERROR"
-	case "stopped":
-		return "STOPPED"
-	case "starting":
-		return "STARTING"
-	case "stopping":
-		return "STOPPING"
-	default:
-		return "UNKNOWN"
-	}
-}
+
 
 func (r *postgresRepository) GetWorkspaceCount(ctx context.Context, orgID string) (total int, active int, err error) {
 	// Count total workspaces
