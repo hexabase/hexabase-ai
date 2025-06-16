@@ -295,7 +295,7 @@ func (s *service) RemoveMember(ctx context.Context, orgID, userID, removerID str
 	return nil
 }
 
-func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID string, req *organization.UpdateMemberRoleRequest) (*organization.Member, error) {
+func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy string, req *organization.UpdateMemberRoleRequest) (*organization.Member, error) {
 	// Validate role
 	if req.Role != "admin" && req.Role != "member" {
 		return nil, fmt.Errorf("invalid role: %s", req.Role)
@@ -323,7 +323,7 @@ func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID string, re
 	}
 
 	// Log activity with structured details
-	s.logActivityWithDetails(ctx, orgID, "", "member", "role_updated", "organization_user", userID, map[string]interface{}{
+	s.logActivityWithDetails(ctx, orgID, updatedBy, "member", "role_updated", "organization_user", userID, map[string]interface{}{
 		"old_role": currentMember.Role,
 		"new_role": req.Role,
 	})

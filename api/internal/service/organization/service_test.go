@@ -1146,7 +1146,8 @@ func TestUpdateMemberRole(t *testing.T) {
 		mockAuthRepo.On("GetUser", ctx, userID).Return(user, nil)
 
 		// Execute
-		member, err := service.UpdateMemberRole(ctx, orgID, userID, req)
+		updatedBy := "admin-user-123"
+		member, err := service.UpdateMemberRole(ctx, orgID, userID, updatedBy, req)
 
 		// Assert
 		assert.NoError(t, err)
@@ -1171,7 +1172,8 @@ func TestUpdateMemberRole(t *testing.T) {
 		}
 
 		// Execute
-		member, err := service.UpdateMemberRole(ctx, orgID, userID, req)
+		updatedBy := "admin-user-123"
+		member, err := service.UpdateMemberRole(ctx, orgID, userID, updatedBy, req)
 
 		// Assert
 		assert.Error(t, err)
@@ -1202,7 +1204,8 @@ func TestUpdateMemberRole(t *testing.T) {
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 
 		// Execute
-		member, err := service.UpdateMemberRole(ctx, orgID, ownerID, req)
+		updatedBy := "admin-user-123"
+		member, err := service.UpdateMemberRole(ctx, orgID, ownerID, updatedBy, req)
 
 		// Assert
 		assert.Error(t, err)
