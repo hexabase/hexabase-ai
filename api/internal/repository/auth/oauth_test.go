@@ -1,28 +1,26 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"log/slog"
 	"net/http"
 	"os"
 	"testing"
 
+	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOAuthRepository_getGithubUserInfo(t *testing.T) {
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	repo := NewOAuthRepository(map[string]*ProviderConfig{}, logger)
 
 	client := &http.Client{}
 	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
-	t.Run("should log warning when no verified primary email is found", func(t *testing.T) {
-		buf.Reset()
+	t.Run("should get GitHub user info successfully", func(t *testing.T) {
 		// Mock GitHub User API
 		githubUser := map[string]interface{}{
 			"id":         12345,
@@ -32,21 +30,19 @@ func TestOAuthRepository_getGithubUserInfo(t *testing.T) {
 		httpmock.RegisterResponder("GET", "https://api.github.com/user",
 			httpmock.NewJsonResponderOrPanic(200, githubUser))
 
-		// Mock GitHub Emails API
-		emails := []map[string]interface{}{
-			{"email": "secondary@example.com", "primary": false, "verified": true},
-		}
-		httpmock.RegisterResponder("GET", "https://api.github.com/user/emails",
-			httpmock.NewJsonResponderOrPanic(200, emails))
-
 		// Execute
 		userInfo, err := repo.(*oauthRepository).getGithubUserInfo(context.Background(), client)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, userInfo)
-		assert.Equal(t, "", userInfo.Email)
-		assert.Contains(t, buf.String(), "level=WARN msg=\"github verified primary email not found\"")
+		expected := &auth.UserInfo{
+			ID:       "12345",
+			Name:     "testuser",
+			Picture:  "http://example.com/avatar.png",
+			Provider: "github",
+		}
+		assert.Equal(t, expected, userInfo)
 	})
 }
 

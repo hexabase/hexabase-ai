@@ -216,21 +216,11 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	email, err := r.getGithubVerifiedPrimaryEmail(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get github verified primary email: %w", err)
-	}
-
-	if email == "" {
-		r.logger.WarnContext(ctx, "github verified primary email not found")
-	}
-
 	return &auth.UserInfo{
 		ID:       fmt.Sprintf("%d", githubUser.ID),
 		Name:     githubUser.Login,
 		Picture:  githubUser.AvatarURL,
 		Provider: "github",
-		Email:    email,
 	}, nil
 }
 
