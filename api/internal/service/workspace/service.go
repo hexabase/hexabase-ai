@@ -610,25 +610,45 @@ func (s *service) deleteVCluster(ctx context.Context, task *workspace.Task) erro
 }
 
 func (s *service) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
-	return s.repo.GetTask(ctx, taskID)
+	task, err := s.repo.GetTask(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+	return task, nil
 }
 
 func (s *service) GetWorkspaceTask(ctx context.Context, taskID string) (*workspace.Task, error) {
-	return s.repo.GetTask(ctx, taskID)
+	task, err := s.repo.GetTask(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workspace task: %w", err)
+	}
+	return task, nil
 }
 
 func (s *service) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
-	return s.repo.ListTasks(ctx, workspaceID)
+	tasks, err := s.repo.ListTasks(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tasks: %w", err)
+	}
+	return tasks, nil
 }
 
 func (s *service) ListWorkspaceTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
-	return s.repo.ListTasks(ctx, workspaceID)
+	tasks, err := s.repo.ListTasks(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workspace tasks: %w", err)
+	}
+	return tasks, nil
 }
 
 func (s *service) ProcessProvisioningTask(ctx context.Context, taskID string) error {
 	task, err := s.repo.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("task not found: %w", err)
+	}
+	
+	if task == nil {
+		return fmt.Errorf("task not found")
 	}
 
 	if task.Type != "create" {
@@ -670,6 +690,10 @@ func (s *service) ProcessDeletionTask(ctx context.Context, taskID string) error 
 	task, err := s.repo.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("task not found: %w", err)
+	}
+	
+	if task == nil {
+		return fmt.Errorf("task not found")
 	}
 
 	if task.Type != "delete" {

@@ -18,7 +18,7 @@ type Service interface {
 	AcceptInvitation(ctx context.Context, token, userID string) (*OrganizationUser, error)
 	ListMembers(ctx context.Context, filter MemberFilter) (*OrganizationMemberList, error)
 	GetMember(ctx context.Context, orgID, userID string) (*Member, error)
-	UpdateMemberRole(ctx context.Context, orgID, userID string, req *UpdateMemberRoleRequest) (*Member, error)
+	UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy string, req *UpdateMemberRoleRequest) (*Member, error)
 	RemoveMember(ctx context.Context, orgID, userID, removerID string) error
 	
 	// Statistics

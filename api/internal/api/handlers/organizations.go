@@ -149,6 +149,7 @@ func (h *OrganizationHandler) RemoveMember(c *gin.Context) {
 func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.Param("userId")
+	updatedBy := c.GetString("user_id") // Get the current user who is performing the update
 
 	var req struct {
 		Role string `json:"role" binding:"required,oneof=admin member"`
@@ -163,7 +164,7 @@ func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
 		Role: req.Role,
 	}
 
-	member, err := h.service.UpdateMemberRole(c.Request.Context(), orgID, userID, updateReq)
+	member, err := h.service.UpdateMemberRole(c.Request.Context(), orgID, userID, updatedBy, updateReq)
 	if err != nil {
 		h.logger.Error("failed to update member role", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

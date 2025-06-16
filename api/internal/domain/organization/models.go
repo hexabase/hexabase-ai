@@ -1,6 +1,8 @@
 package organization
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -157,17 +159,65 @@ type Invitation struct {
 	Status         string    `json:"status"` // pending, accepted, expired
 }
 
-// Activity represents an activity log entry
+// Activity represents an activity log entry for an organization
 type Activity struct {
-	ID             string                 `json:"id"`
-	OrganizationID string                 `json:"organization_id"`
-	UserID         string                 `json:"user_id"`
-	Type           string                 `json:"type"`
-	Action         string                 `json:"action"`
-	ResourceType   string                 `json:"resource_type"`
-	ResourceID     string                 `json:"resource_id"`
-	Details        map[string]interface{} `json:"details,omitempty"`
-	Timestamp      time.Time              `json:"timestamp"`
+	ID             string    `json:"id" gorm:"primaryKey"`
+	OrganizationID string    `json:"organization_id"`
+	UserID         string    `json:"user_id"`
+	Type           string    `json:"type"`
+	Action         string    `json:"action"`
+	ResourceType   string    `json:"resource_type"`
+	ResourceID     string    `json:"resource_id"`
+	Details        string    `json:"details,omitempty" gorm:"type:jsonb"`
+	Timestamp      time.Time `json:"timestamp"`
+}
+
+// SetDetails serializes the provided data to JSON and sets it as the Details field
+func (a *Activity) SetDetails(data interface{}) error {
+	if data == nil {
+		a.Details = ""
+		return nil
+	}
+	
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal activity details: %w", err)
+	}
+	
+	a.Details = string(jsonBytes)
+	return nil
+}
+
+// GetDetails deserializes the Details field into the provided destination
+func (a *Activity) GetDetails(dest interface{}) error {
+	if a.Details == "" {
+		return nil
+	}
+	
+	if err := json.Unmarshal([]byte(a.Details), dest); err != nil {
+		return fmt.Errorf("failed to unmarshal activity details: %w", err)
+	}
+	
+	return nil
+}
+
+// GetDetailsAsMap returns the Details field as a map[string]interface{}
+func (a *Activity) GetDetailsAsMap() (map[string]interface{}, error) {
+	if a.Details == "" {
+		return make(map[string]interface{}), nil
+	}
+	
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(a.Details), &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal activity details as map: %w", err)
+	}
+	
+	return result, nil
+}
+
+// SetDetailsFromMap sets the Details field from a map[string]interface{}
+func (a *Activity) SetDetailsFromMap(data map[string]interface{}) error {
+	return a.SetDetails(data)
 }
 
 // ActivityFilter represents filter options for listing activities

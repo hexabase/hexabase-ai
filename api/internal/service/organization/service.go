@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"log/slog"
+
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
-	"log/slog"
 )
 
 type service struct {
@@ -275,14 +276,26 @@ func (s *service) RemoveMember(ctx context.Context, orgID, userID, removerID str
 	}
 
 	// Remove member
+	// Get member details before removal for logging
+	member, err := s.repo.GetMember(ctx, orgID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get member: %w", err)
+	}
+
 	if err := s.repo.RemoveMember(ctx, orgID, userID); err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
 	}
 
+	// Log activity with structured details
+	s.logActivityWithDetails(ctx, orgID, removerID, "member", "removed", "organization_user", userID, map[string]interface{}{
+		"removed_role": member.Role,
+		"removed_by":   removerID,
+	})
+
 	return nil
 }
 
-func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID string, req *organization.UpdateMemberRoleRequest) (*organization.Member, error) {
+func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy string, req *organization.UpdateMemberRoleRequest) (*organization.Member, error) {
 	// Validate role
 	if req.Role != "admin" && req.Role != "member" {
 		return nil, fmt.Errorf("invalid role: %s", req.Role)
@@ -299,9 +312,21 @@ func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID string, re
 	}
 
 	// Update role
+	// Get current member to log the change
+	currentMember, err := s.repo.GetMember(ctx, orgID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current member: %w", err)
+	}
+
 	if err := s.repo.UpdateMemberRole(ctx, orgID, userID, req.Role); err != nil {
 		return nil, fmt.Errorf("failed to update member role: %w", err)
 	}
+
+	// Log activity with structured details
+	s.logActivityWithDetails(ctx, orgID, updatedBy, "member", "role_updated", "organization_user", userID, map[string]interface{}{
+		"old_role": currentMember.Role,
+		"new_role": req.Role,
+	})
 
 	// Get updated member
 	return s.GetMember(ctx, orgID, userID)
@@ -381,6 +406,13 @@ func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*
 		return nil, fmt.Errorf("failed to add member: %w", err)
 	}
 
+	// Log activity with structured details
+	s.logActivityWithDetails(ctx, invitation.OrganizationID, userID, "member", "joined", "organization_user", userID, map[string]interface{}{
+		"role":        invitation.Role,
+		"invited_by":  invitation.InvitedBy,
+		"via_invitation": true,
+	})
+
 	return member, nil
 }
 
@@ -396,6 +428,30 @@ func (s *service) LogActivity(ctx context.Context, activity *organization.Activi
 	}
 
 	return nil
+}
+
+// logActivityWithDetails is a helper method for logging activities with structured details
+func (s *service) logActivityWithDetails(ctx context.Context, orgID, userID, activityType, action, resourceType, resourceID string, details map[string]interface{}) {
+	activity := &organization.Activity{
+		ID:             uuid.New().String(),
+		OrganizationID: orgID,
+		UserID:         userID,
+		Type:           activityType,
+		Action:         action,
+		ResourceType:   resourceType,
+		ResourceID:     resourceID,
+		Timestamp:      time.Now(),
+	}
+
+	// Use helper method to set details
+	if err := activity.SetDetailsFromMap(details); err != nil {
+		s.logger.Error("failed to set activity details", "error", err)
+		return
+	}
+
+	if err := s.repo.CreateActivity(ctx, activity); err != nil {
+		s.logger.Error("failed to log activity", "error", err)
+	}
 }
 
 func (s *service) GetActivityLogs(ctx context.Context, orgID string, filter organization.ActivityFilter) ([]*organization.Activity, error) {
