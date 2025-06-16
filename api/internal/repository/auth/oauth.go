@@ -130,7 +130,7 @@ func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, toke
 		if u.Email == "" {
 			r.logger.Warn("github verified primary email is empty")
 		}
-			return u, nil
+		return u, nil
 	default:
 		return nil, fmt.Errorf("user info not implemented for provider %s", provider)
 	}
@@ -216,11 +216,21 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
+	email, err := r.getGithubVerifiedPrimaryEmail(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get github verified primary email: %w", err)
+	}
+
+	if email == "" {
+		r.logger.WarnContext(ctx, "github verified primary email not found")
+	}
+
 	return &auth.UserInfo{
 		ID:       fmt.Sprintf("%d", githubUser.ID),
 		Name:     githubUser.Login,
 		Picture:  githubUser.AvatarURL,
 		Provider: "github",
+		Email:    email,
 	}, nil
 }
 
