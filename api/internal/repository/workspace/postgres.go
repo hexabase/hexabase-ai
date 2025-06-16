@@ -250,9 +250,20 @@ func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name,
 
 func (r *postgresRepository) UpdateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
 	dbWs := toDTO(ws)
-	if err := r.db.WithContext(ctx).Save(dbWs).Error; err != nil {
-		return fmt.Errorf("failed to update workspace: %w", err)
+	result := r.db.WithContext(ctx).
+		Model(&db.Workspace{}).
+		Where("id = ?", dbWs.ID).
+		Omit("created_at").
+		Updates(dbWs)
+	
+	if result.Error != nil {
+		return fmt.Errorf("failed to update workspace: %w", result.Error)
 	}
+	
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("workspace not found")
+	}
+	
 	return nil
 }
 
@@ -366,9 +377,20 @@ func (r *postgresRepository) GetTask(ctx context.Context, taskID string) (*works
 }
 
 func (r *postgresRepository) UpdateTask(ctx context.Context, task *workspace.Task) error {
-	if err := r.db.WithContext(ctx).Save(task).Error; err != nil {
-		return fmt.Errorf("failed to update task: %w", err)
+	result := r.db.WithContext(ctx).
+		Model(&workspace.Task{}).
+		Where("id = ?", task.ID).
+		Omit("created_at").
+		Updates(task)
+	
+	if result.Error != nil {
+		return fmt.Errorf("failed to update task: %w", result.Error)
 	}
+	
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("task not found")
+	}
+	
 	return nil
 }
 
@@ -436,7 +458,24 @@ func (r *postgresRepository) CleanupDeletedWorkspaces(ctx context.Context, befor
 
 // SaveWorkspaceStatus saves the workspace status
 func (r *postgresRepository) SaveWorkspaceStatus(ctx context.Context, status *workspace.WorkspaceStatus) error {
-	return r.db.WithContext(ctx).Save(status).Error
+	result := r.db.WithContext(ctx).
+		Model(&workspace.WorkspaceStatus{}).
+		Where("workspace_id = ?", status.WorkspaceID).
+		Omit("created_at").
+		Updates(status)
+	
+	if result.Error != nil {
+		return fmt.Errorf("failed to save workspace status: %w", result.Error)
+	}
+	
+	// If no rows were affected, create a new record
+	if result.RowsAffected == 0 {
+		if err := r.db.WithContext(ctx).Create(status).Error; err != nil {
+			return fmt.Errorf("failed to create workspace status: %w", err)
+		}
+	}
+	
+	return nil
 }
 
 // GetWorkspaceStatus retrieves the workspace status

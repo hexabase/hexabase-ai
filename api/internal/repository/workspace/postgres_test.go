@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -293,9 +294,18 @@ func TestConvertDomainToDatabase(t *testing.T) {
 		assert.Equal(t, now, dbWs.CreatedAt)
 		assert.Equal(t, now, dbWs.UpdatedAt)
 		
-		// Test JSON field conversions
-		assert.Contains(t, dbWs.VClusterConfig, "autoscaling")
-		assert.Contains(t, dbWs.DedicatedNodeConfig, "region")
+		// Test JSON field conversions by unmarshaling and checking values
+		var vclusterConfig map[string]interface{}
+		err := json.Unmarshal([]byte(dbWs.VClusterConfig), &vclusterConfig)
+		require.NoError(t, err)
+		assert.Equal(t, true, vclusterConfig["autoscaling"])
+		assert.Equal(t, float64(2), vclusterConfig["replicas"])
+		
+		var dedicatedNodeConfig map[string]interface{}
+		err = json.Unmarshal([]byte(dbWs.DedicatedNodeConfig), &dedicatedNodeConfig)
+		require.NoError(t, err)
+		assert.Equal(t, "us-west-2", dedicatedNodeConfig["region"])
+		assert.Equal(t, "production", dedicatedNodeConfig["tier"])
 	})
 
 	t.Run("handles nil and empty values correctly", func(t *testing.T) {
@@ -461,6 +471,7 @@ func TestUpdateWorkspaceWithConversion(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE "workspaces"`).
 			WithArgs(
+				"ws-123",                    // id (first field in Updates)
 				"org-456",                   // organization_id  
 				"updated-workspace",         // name (updated)
 				"plan-789",                  // plan_id
@@ -468,8 +479,6 @@ func TestUpdateWorkspaceWithConversion(t *testing.T) {
 				"UPDATING_PLAN",             // v_cluster_status (converted from "updating")
 				sqlmock.AnyArg(),           // vcluster_config (JSON with updated settings)
 				sqlmock.AnyArg(),           // dedicated_node_config (JSON)
-				sqlmock.AnyArg(),           // stripe_subscription_item_id
-				sqlmock.AnyArg(),           // created_at
 				sqlmock.AnyArg(),           // updated_at
 				"ws-123",                    // WHERE condition (id)
 			).
@@ -607,6 +616,93 @@ func TestListWorkspacesWithConversion(t *testing.T) {
 		assert.Equal(t, float64(3), domainWorkspaces[1].Settings["replicas"])
 		assert.Equal(t, "us-east-1", domainWorkspaces[1].Metadata["region"])
 	})
+}
+
+// TestUpdateWorkspacePreservesCreatedAt tests that UpdateWorkspace preserves CreatedAt timestamp
+func TestUpdateWorkspacePreservesCreatedAt(t *testing.T) {
+	t.Run("should preserve CreatedAt when updating workspace", func(t *testing.T) {
+		gormDB, mock := setupTestDB(t)
+		repo := NewPostgresRepository(gormDB)
+		ctx := context.Background()
+
+		// Arrange - create a workspace for updating
+		domainWs := &workspace.Workspace{
+			ID:             "ws-123",
+			Name:           "updated-workspace",
+			OrganizationID: "org-456",
+			PlanID:         "plan-789",
+			Status:         "active",
+			VClusterName:   "vcluster-updated",
+			Settings: map[string]interface{}{
+				"autoscaling": false,
+				"replicas":    3,
+			},
+		}
+
+		// Mock expects Updates() method instead of Save() to preserve CreatedAt
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "workspaces" SET`).
+			WithArgs(
+				"ws-123",                    // id (first field in Updates)
+				"org-456",                   // organization_id  
+				"updated-workspace",         // name
+				"plan-789",                  // plan_id
+				"vcluster-updated",          // vcluster_instance_name
+				"RUNNING",                   // v_cluster_status (converted from "active")
+				sqlmock.AnyArg(),           // vcluster_config (JSON)
+				sqlmock.AnyArg(),           // dedicated_node_config (JSON)
+				sqlmock.AnyArg(),           // updated_at (should be updated)
+				"ws-123",                    // WHERE condition (id)
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		// Act
+		err := repo.UpdateWorkspace(ctx, domainWs)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("should return error when workspace not found", func(t *testing.T) {
+		gormDB, mock := setupTestDB(t)
+		repo := NewPostgresRepository(gormDB)
+		ctx := context.Background()
+
+		domainWs := &workspace.Workspace{
+			ID:             "ws-not-found",
+			Name:           "updated-workspace",
+			OrganizationID: "org-456",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "workspaces" SET`).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 
+					sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 
+					"ws-not-found").
+			WillReturnResult(sqlmock.NewResult(0, 0)) // No rows affected
+		mock.ExpectCommit()
+
+		err := repo.UpdateWorkspace(ctx, domainWs)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "workspace not found")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// TestUpdateTaskPreservesCreatedAt tests that UpdateTask preserves CreatedAt timestamp
+func TestUpdateTaskPreservesCreatedAt(t *testing.T) {
+	// NOTE: UpdateTask cannot be easily tested with sqlmock due to map[string]interface{} fields
+	// This test is kept for documentation but will be skipped
+	t.Skip("UpdateTask cannot be tested with sqlmock due to map[string]interface{} fields in Task struct")
+}
+
+// TestSaveWorkspaceStatusPreservesCreatedAt tests that SaveWorkspaceStatus preserves CreatedAt timestamp
+func TestSaveWorkspaceStatusPreservesCreatedAt(t *testing.T) {
+	// NOTE: SaveWorkspaceStatus cannot be easily tested with sqlmock due to complex ResourceUsage fields
+	// This test is kept for documentation but will be skipped
+	t.Skip("SaveWorkspaceStatus cannot be tested with sqlmock due to complex ResourceUsage fields in WorkspaceStatus struct")
 }
 
 /*
