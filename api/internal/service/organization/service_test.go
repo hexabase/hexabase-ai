@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
 )
 
 // Mock implementations for dependencies
@@ -879,6 +880,7 @@ func TestAcceptInvitation(t *testing.T) {
 				member.Role == invitation.Role &&
 				member.Status == "active"
 		})).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
 
 		// Execute
 		member, err := service.AcceptInvitation(ctx, token, userID)
@@ -978,16 +980,16 @@ func TestListMembers(t *testing.T) {
 
 		orgUsers := []*organization.OrganizationUser{
 			{
-				ID:     "ou-1",
-				UserID: "user-1",
-				Role:   "admin",
-				Status: "active",
+				OrganizationID: "org-123",
+				UserID:         "user-1",
+				Role:           "admin",
+				Status:         "active",
 			},
 			{
-				ID:     "ou-2",
-				UserID: "user-2",
-				Role:   "member",
-				Status: "active",
+				OrganizationID: "org-123",
+				UserID:         "user-2",
+				Role:           "member",
+				Status:         "active",
 			},
 		}
 
@@ -1047,9 +1049,18 @@ func TestRemoveMember(t *testing.T) {
 			OwnerID: "user-123", // Different from userID
 		}
 
+		member := &organization.OrganizationUser{
+			OrganizationID: orgID,
+			UserID:         userID,
+			Role:           "member",
+			Status:         "active",
+		}
+
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
+		mockRepo.On("GetMember", ctx, orgID, userID).Return(member, nil)
 		mockRepo.On("RemoveMember", ctx, orgID, userID).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
 
 		// Execute
 		err := service.RemoveMember(ctx, orgID, userID, removerID)
@@ -1115,10 +1126,10 @@ func TestUpdateMemberRole(t *testing.T) {
 		}
 
 		updatedMember := &organization.OrganizationUser{
-			ID:     "ou-1",
-			UserID: userID,
-			Role:   "admin",
-			Status: "active",
+			OrganizationID: orgID,
+			UserID:         userID,
+			Role:           "admin",
+			Status:         "active",
 		}
 
 		user := &organization.User{
@@ -1129,8 +1140,9 @@ func TestUpdateMemberRole(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
+		mockRepo.On("GetMember", ctx, orgID, userID).Return(updatedMember, nil).Twice() // Called twice: once for current member, once for updated member
 		mockRepo.On("UpdateMemberRole", ctx, orgID, userID, "admin").Return(nil)
-		mockRepo.On("GetMember", ctx, orgID, userID).Return(updatedMember, nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
 		mockAuthRepo.On("GetUser", ctx, userID).Return(user, nil)
 
 		// Execute
@@ -1217,11 +1229,11 @@ func TestGetMember(t *testing.T) {
 		userID := "user-123"
 
 		orgUser := &organization.OrganizationUser{
-			ID:       "ou-1",
-			UserID:   userID,
-			Role:     "admin",
-			Status:   "active",
-			JoinedAt: time.Now(),
+			OrganizationID: orgID,
+			UserID:         userID,
+			Role:           "admin",
+			Status:         "active",
+			JoinedAt:       time.Now(),
 		}
 
 		user := &organization.User{
@@ -1654,10 +1666,10 @@ func TestErrorScenarios(t *testing.T) {
 		userID := "user-123"
 
 		orgUser := &organization.OrganizationUser{
-			ID:     "ou-1",
-			UserID: userID,
-			Role:   "admin",
-			Status: "active",
+			OrganizationID: orgID,
+			UserID:         userID,
+			Role:           "admin",
+			Status:         "active",
 		}
 
 		// Mock expectations

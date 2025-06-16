@@ -326,9 +326,14 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 			Action:         "added",
 			ResourceType:   "organization_user",
 			ResourceID:     uuid.New().String(),
-			Details:        `{"role": "member"}`,
 			Timestamp:      time.Now(),
 		}
+		
+		// Use helper method to set details
+		detailsErr := activity.SetDetailsFromMap(map[string]interface{}{
+			"role": "member",
+		})
+		require.NoError(t, detailsErr)
 
 		mock.ExpectBegin()
 		mock.ExpectExec(`INSERT INTO "activities" ("id","organization_id","user_id","type","action","resource_type","resource_id","details","timestamp") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`).
@@ -340,7 +345,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 				activity.Action,
 				activity.ResourceType,
 				activity.ResourceID,
-				activity.Details,
+				`{"role":"member"}`, // JSON formatted by helper method
 				sqlmock.AnyArg(), // timestamp
 			).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -385,6 +390,17 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 		activities, err := repo.ListActivities(ctx, filter)
 		assert.NoError(t, err)
 		assert.Len(t, activities, 2)
+		
+		// Verify details can be parsed using helper methods
+		firstActivityDetails, err := activities[0].GetDetailsAsMap()
+		assert.NoError(t, err)
+		assert.Equal(t, "member", firstActivityDetails["role"])
+		
+		secondActivityDetails, err := activities[1].GetDetailsAsMap()
+		assert.NoError(t, err)
+		assert.Equal(t, "member", secondActivityDetails["old_role"])
+		assert.Equal(t, "admin", secondActivityDetails["new_role"])
+		
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
