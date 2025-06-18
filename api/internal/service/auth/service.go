@@ -442,6 +442,18 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 	claims := &auth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject: mapClaims["sub"].(string),
+			ExpiresAt: func() *jwt.NumericDate {
+				if exp, ok := mapClaims["exp"].(float64); ok {
+					return jwt.NewNumericDate(time.Unix(int64(exp), 0))
+				}
+				return nil
+			}(),
+			IssuedAt: func() *jwt.NumericDate {
+				if iat, ok := mapClaims["iat"].(float64); ok {
+					return jwt.NewNumericDate(time.Unix(int64(iat), 0))
+				}
+				return nil
+			}(),
 		},
 		UserID:   mapClaims["sub"].(string),
 		Email:    mapClaims["email"].(string),
