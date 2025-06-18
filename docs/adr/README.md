@@ -15,6 +15,7 @@ This directory contains the organized and consolidated Architecture Decision Rec
 | [ADR-007](007-backup-disaster-recovery.md)        | Backup and Disaster Recovery Architecture             | Partially Implemented      | 2025-06-09 |
 | [ADR-008](008-domain-driven-design.md)            | Domain-Driven Design and Code Organization            | Implemented and Enforced   | 2025-06-03 |
 | [ADR-009](009-secure-logging-architecture.md)     | Secure and Scalable Multi-Tenant Logging Architecture | Proposed                   | 2025-06-15 |
+| [ADR-010](010-package-by-feature.md)     | Migrate to a "Package by Feature" Structure | Proposed                   | 2025-06-18 |
 
 ## ADR Format
 
