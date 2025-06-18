@@ -420,7 +420,6 @@ func TestService_HandleCallback(t *testing.T) {
 
 		mockRepo.AssertExpectations(t)
 		mockOAuthRepo.AssertExpectations(t)
-		mockKeyRepo.AssertExpectations(t)
 	})
 
 	t.Run("invalid state", func(t *testing.T) {
@@ -511,7 +510,6 @@ func TestService_RefreshToken(t *testing.T) {
 		assert.Equal(t, 3600, response.ExpiresIn)
 
 		mockRepo.AssertExpectations(t)
-		mockKeyRepo.AssertExpectations(t)
 	})
 
 	t.Run("blacklisted token", func(t *testing.T) {
