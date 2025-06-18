@@ -68,11 +68,7 @@ func (c *Claims) ValidateBusinessRules() error {
 		return errors.New("session_id claim is required")
 	}
 	
-    // // TODO: Log for gradual phase-out of legacy sessions in future versions
-    // // TODO: Enable log output functionality
-    // if c.SessionID == "legacy-session" {
-    //     // log.Warn("legacy session detected, consider token refresh")
-    // }
+// Removed commented-out TODOs and dead code related to legacy session logging.
 
 	// Validate expiration within acceptable range
 	if c.ExpiresAt != nil {
