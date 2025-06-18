@@ -27,6 +27,9 @@ import (
 	project3 "github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	workspace3 "github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	handler2 "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
+	repository2 "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
+	service2 "github.com/hexabase/hexabase-ai/api/internal/organization/service"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/backup"
@@ -37,7 +40,6 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/node"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
@@ -50,7 +52,6 @@ import (
 	logs2 "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoring2 "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	node2 "github.com/hexabase/hexabase-ai/api/internal/service/node"
-	organization2 "github.com/hexabase/hexabase-ai/api/internal/service/organization"
 	project2 "github.com/hexabase/hexabase-ai/api/internal/service/project"
 	workspace2 "github.com/hexabase/hexabase-ai/api/internal/service/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -96,21 +97,21 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	billingService := billing2.NewService(billingRepository, stripeRepository, logger)
 	billingHandler := handlers.NewBillingHandler(billingService, logger)
 	monitoringRepository := monitoring.NewPostgresRepository(db)
-	repository2 := kubernetes2.NewKubernetesRepository(k8sClient)
-	monitoringService := monitoring2.NewService(monitoringRepository, repository2, logger)
+	repository3 := kubernetes2.NewKubernetesRepository(k8sClient)
+	monitoringService := monitoring2.NewService(monitoringRepository, repository3, logger)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService, logger)
 	postgresRepository := node.NewPostgresRepository(db)
 	nodeRepository := ProvideNodeRepository(postgresRepository)
 	nodeProxmoxRepository := ProvideProxmoxRepository(cfg)
 	proxmoxRepository2 := ProvideProxmoxRepositoryInterface(nodeProxmoxRepository)
 	nodeService := node2.NewService(nodeRepository, proxmoxRepository2)
-	service2 := ProvideNodeService(nodeService)
-	nodeHandler := handlers.NewNodeHandler(service2, logger)
-	organizationRepository := organization.NewPostgresRepository(db)
-	authRepository := organization.NewAuthRepositoryAdapter(domainRepository)
-	organizationBillingRepository := organization.NewBillingRepositoryAdapter(stripeRepository)
-	organizationService := organization2.NewService(organizationRepository, authRepository, organizationBillingRepository, logger)
-	organizationHandler := handlers.NewOrganizationHandler(organizationService, logger)
+	service3 := ProvideNodeService(nodeService)
+	nodeHandler := handlers.NewNodeHandler(service3, logger)
+	repository4 := repository2.NewPostgresRepository(db)
+	authRepository := repository2.NewAuthRepositoryAdapter(domainRepository)
+	domainBillingRepository := repository2.NewBillingRepositoryAdapter(stripeRepository)
+	service4 := service2.NewService(repository4, authRepository, domainBillingRepository, logger)
+	handler3 := handler2.NewHandler(service4, logger)
 	projectRepository := project.NewPostgresRepository(db)
 	projectKubernetesRepository := project.NewKubernetesRepository(k8sClient, dynamicClient, k8sConfig)
 	projectService := project2.NewService(projectRepository, projectKubernetesRepository, logger)
@@ -134,23 +135,23 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	functionRepository := ProvideFunctionRepository(functionPostgresRepository)
 	functionProviderFactory := ProvideFunctionProviderFactory(k8sClient, dynamicClient)
 	functionService := function2.NewService(functionRepository, functionProviderFactory, logger)
-	service3 := ProvideFunctionService(functionService)
-	functionHandler := handlers.NewFunctionHandler(service3, logger)
+	service5 := ProvideFunctionService(functionService)
+	functionHandler := handlers.NewFunctionHandler(service5, logger)
 	aiOpsProxyHandler, err := ProvideAIOpsProxyHandler(domainService, logger, cfg)
 	if err != nil {
 		return nil, err
 	}
-	v2, err := ProvideClickHouseConnection(cfg)
+	conn, err := ProvideClickHouseConnection(cfg)
 	if err != nil {
 		return nil, err
 	}
-	logsRepository := logs.NewClickHouseRepository(v2)
+	logsRepository := logs.NewClickHouseRepository(conn)
 	logsService := logs2.NewLogService(logsRepository, logger)
 	llmService := ProvideOllamaService(cfg)
 	aiopsRepository := aiops.NewPostgresRepository(db)
 	aiopsService := aiops2.NewService(llmService, aiopsRepository, logger)
-	internalHandler := ProvideInternalHandler(workspaceService, projectService, applicationService, service2, logsService, monitoringService, aiopsService, cicdService, backupService, logger)
-	app := NewApp(applicationHandler, handlerHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, organizationHandler, projectHandler, workspaceHandler, cicdHandler, functionHandler, aiOpsProxyHandler, internalHandler)
+	internalHandler := ProvideInternalHandler(workspaceService, projectService, applicationService, service3, logsService, monitoringService, aiopsService, cicdService, backupService, logger)
+	app := NewApp(applicationHandler, handlerHandler, backupHandler, billingHandler, monitoringHandler, nodeHandler, handler3, projectHandler, workspaceHandler, cicdHandler, functionHandler, aiOpsProxyHandler, internalHandler)
 	return app, nil
 }
 
@@ -170,7 +171,7 @@ var MonitoringSet = wire.NewSet(monitoring.NewPostgresRepository, kubernetes2.Ne
 
 var NodeSet = wire.NewSet(node.NewPostgresRepository, ProvideNodeRepository, ProvideProxmoxRepository, ProvideProxmoxRepositoryInterface, node2.NewService, ProvideNodeService, handlers.NewNodeHandler)
 
-var OrganizationSet = wire.NewSet(organization.NewPostgresRepository, organization.NewAuthRepositoryAdapter, organization.NewBillingRepositoryAdapter, organization2.NewService, handlers.NewOrganizationHandler)
+var OrganizationSet = wire.NewSet(repository2.NewPostgresRepository, repository2.NewAuthRepositoryAdapter, repository2.NewBillingRepositoryAdapter, service2.NewService, handler2.NewHandler)
 
 var ProjectSet = wire.NewSet(project.NewPostgresRepository, project.NewKubernetesRepository, project2.NewService, handlers.NewProjectHandler)
 
@@ -202,7 +203,7 @@ type App struct {
 	BillingHandler      *handlers.BillingHandler
 	MonitoringHandler   *handlers.MonitoringHandler
 	NodeHandler         *handlers.NodeHandler
-	OrganizationHandler *handlers.OrganizationHandler
+	OrganizationHandler *handler2.Handler
 	ProjectHandler      *handlers.ProjectHandler
 	WorkspaceHandler    *handlers.WorkspaceHandler
 	CICDHandler         *handlers.CICDHandler
@@ -211,7 +212,7 @@ type App struct {
 	InternalHandler     *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *handler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+func NewApp(appH *handlers.ApplicationHandler, authH *handler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handler2.Handler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
 	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
@@ -274,8 +275,8 @@ func ProvideFunctionProviderFactory(kubeClient kubernetes.Interface, dynamicClie
 	return function.NewProviderFactory(kubeClient, dynamicClient)
 }
 
-func ProvideFunctionService(service2 *function2.Service) function3.Service {
-	return service2
+func ProvideFunctionService(service3 *function2.Service) function3.Service {
+	return service3
 }
 
 func ProvideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {

@@ -1,11 +1,11 @@
-package organization
+package repository
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 	"gorm.io/gorm"
 )
 
@@ -14,13 +14,13 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL organization repository
-func NewPostgresRepository(db *gorm.DB) organization.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &postgresRepository{db: db}
 }
 
 // Organization operations
 
-func (r *postgresRepository) CreateOrganization(ctx context.Context, org *organization.Organization) error {
+func (r *postgresRepository) CreateOrganization(ctx context.Context, org *domain.Organization) error {
 	dbOrg := domainToDBOrganization(org)
 	if err := r.db.WithContext(ctx).Create(dbOrg).Error; err != nil {
 		return fmt.Errorf("failed to create organization: %w", err)
@@ -31,7 +31,7 @@ func (r *postgresRepository) CreateOrganization(ctx context.Context, org *organi
 	return nil
 }
 
-func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) (*organization.Organization, error) {
+func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) (*domain.Organization, error) {
 	var dbOrg dbOrganization
 	if err := r.db.WithContext(ctx).Where("id = ?", orgID).First(&dbOrg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -42,8 +42,8 @@ func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) 
 	return dbToDomainOrganization(&dbOrg), nil
 }
 
-func (r *postgresRepository) GetOrganizationByName(ctx context.Context, name string) (*organization.Organization, error) {
-	var org organization.Organization
+func (r *postgresRepository) GetOrganizationByName(ctx context.Context, name string) (*domain.Organization, error) {
+	var org domain.Organization
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&org).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -53,11 +53,11 @@ func (r *postgresRepository) GetOrganizationByName(ctx context.Context, name str
 	return &org, nil
 }
 
-func (r *postgresRepository) ListOrganizations(ctx context.Context, filter organization.OrganizationFilter) ([]*organization.Organization, int, error) {
-	var orgs []*organization.Organization
+func (r *postgresRepository) ListOrganizations(ctx context.Context, filter domain.OrganizationFilter) ([]*domain.Organization, int, error) {
+	var orgs []*domain.Organization
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&organization.Organization{})
+	query := r.db.WithContext(ctx).Model(&domain.Organization{})
 
 	// Apply filters
 	if filter.UserID != "" {
@@ -106,7 +106,7 @@ func (r *postgresRepository) ListOrganizations(ctx context.Context, filter organ
 	return orgs, int(total), nil
 }
 
-func (r *postgresRepository) UpdateOrganization(ctx context.Context, org *organization.Organization) error {
+func (r *postgresRepository) UpdateOrganization(ctx context.Context, org *domain.Organization) error {
 	if err := r.db.WithContext(ctx).Save(org).Error; err != nil {
 		return fmt.Errorf("failed to update organization: %w", err)
 	}
@@ -114,7 +114,7 @@ func (r *postgresRepository) UpdateOrganization(ctx context.Context, org *organi
 }
 
 func (r *postgresRepository) DeleteOrganization(ctx context.Context, orgID string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", orgID).Delete(&organization.Organization{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", orgID).Delete(&domain.Organization{}).Error; err != nil {
 		return fmt.Errorf("failed to delete organization: %w", err)
 	}
 	return nil
@@ -122,7 +122,7 @@ func (r *postgresRepository) DeleteOrganization(ctx context.Context, orgID strin
 
 // Member operations
 
-func (r *postgresRepository) AddMember(ctx context.Context, member *organization.OrganizationUser) error {
+func (r *postgresRepository) AddMember(ctx context.Context, member *domain.OrganizationUser) error {
 	dbMember := domainToDBOrganizationUser(member)
 	if err := r.db.WithContext(ctx).Create(dbMember).Error; err != nil {
 		return fmt.Errorf("failed to add member: %w", err)
@@ -132,8 +132,8 @@ func (r *postgresRepository) AddMember(ctx context.Context, member *organization
 	return nil
 }
 
-func (r *postgresRepository) GetMember(ctx context.Context, orgID, userID string) (*organization.OrganizationUser, error) {
-	var member organization.OrganizationUser
+func (r *postgresRepository) GetMember(ctx context.Context, orgID, userID string) (*domain.OrganizationUser, error) {
+	var member domain.OrganizationUser
 	if err := r.db.WithContext(ctx).
 		Where("organization_id = ? AND user_id = ?", orgID, userID).
 		First(&member).Error; err != nil {
@@ -145,11 +145,11 @@ func (r *postgresRepository) GetMember(ctx context.Context, orgID, userID string
 	return &member, nil
 }
 
-func (r *postgresRepository) ListMembers(ctx context.Context, filter organization.MemberFilter) ([]*organization.OrganizationUser, int, error) {
-	var members []*organization.OrganizationUser
+func (r *postgresRepository) ListMembers(ctx context.Context, filter domain.MemberFilter) ([]*domain.OrganizationUser, int, error) {
+	var members []*domain.OrganizationUser
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&organization.OrganizationUser{})
+	query := r.db.WithContext(ctx).Model(&domain.OrganizationUser{})
 
 	if filter.OrganizationID != "" {
 		query = query.Where("organization_id = ?", filter.OrganizationID)
@@ -188,7 +188,7 @@ func (r *postgresRepository) ListMembers(ctx context.Context, filter organizatio
 	return members, int(total), nil
 }
 
-func (r *postgresRepository) UpdateMember(ctx context.Context, member *organization.OrganizationUser) error {
+func (r *postgresRepository) UpdateMember(ctx context.Context, member *domain.OrganizationUser) error {
 	if err := r.db.WithContext(ctx).Save(member).Error; err != nil {
 		return fmt.Errorf("failed to update member: %w", err)
 	}
@@ -198,7 +198,7 @@ func (r *postgresRepository) UpdateMember(ctx context.Context, member *organizat
 func (r *postgresRepository) RemoveMember(ctx context.Context, orgID, userID string) error {
 	if err := r.db.WithContext(ctx).
 		Where("organization_id = ? AND user_id = ?", orgID, userID).
-		Delete(&organization.OrganizationUser{}).Error; err != nil {
+		Delete(&domain.OrganizationUser{}).Error; err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
 	}
 	return nil
@@ -206,7 +206,7 @@ func (r *postgresRepository) RemoveMember(ctx context.Context, orgID, userID str
 
 func (r *postgresRepository) UpdateMemberRole(ctx context.Context, orgID, userID, role string) error {
 	if err := r.db.WithContext(ctx).
-		Model(&organization.OrganizationUser{}).
+		Model(&domain.OrganizationUser{}).
 		Where("organization_id = ? AND user_id = ?", orgID, userID).
 		Update("role", role).Error; err != nil {
 		return fmt.Errorf("failed to update member role: %w", err)
@@ -217,7 +217,7 @@ func (r *postgresRepository) UpdateMemberRole(ctx context.Context, orgID, userID
 func (r *postgresRepository) CountMembers(ctx context.Context, orgID string) (int, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
-		Model(&organization.OrganizationUser{}).
+		Model(&domain.OrganizationUser{}).
 		Where("organization_id = ? AND status = ?", orgID, "active").
 		Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count members: %w", err)
@@ -227,8 +227,8 @@ func (r *postgresRepository) CountMembers(ctx context.Context, orgID string) (in
 
 // User operations
 
-func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*organization.User, error) {
-	var user organization.User
+func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
+	var user domain.User
 	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("user not found")
@@ -238,8 +238,8 @@ func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*organ
 	return &user, nil
 }
 
-func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (*organization.User, error) {
-	var user organization.User
+func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
 	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -249,8 +249,8 @@ func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (
 	return &user, nil
 }
 
-func (r *postgresRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*organization.User, error) {
-	var users []*organization.User
+func (r *postgresRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*domain.User, error) {
+	var users []*domain.User
 	if err := r.db.WithContext(ctx).Where("id IN ?", userIDs).Find(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to get users by IDs: %w", err)
 	}
@@ -259,15 +259,15 @@ func (r *postgresRepository) GetUsersByIDs(ctx context.Context, userIDs []string
 
 // Invitation operations
 
-func (r *postgresRepository) CreateInvitation(ctx context.Context, invitation *organization.Invitation) error {
+func (r *postgresRepository) CreateInvitation(ctx context.Context, invitation *domain.Invitation) error {
 	if err := r.db.WithContext(ctx).Create(invitation).Error; err != nil {
 		return fmt.Errorf("failed to create invitation: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetInvitation(ctx context.Context, invitationID string) (*organization.Invitation, error) {
-	var invitation organization.Invitation
+func (r *postgresRepository) GetInvitation(ctx context.Context, invitationID string) (*domain.Invitation, error) {
+	var invitation domain.Invitation
 	if err := r.db.WithContext(ctx).Where("id = ?", invitationID).First(&invitation).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("invitation not found")
@@ -277,8 +277,8 @@ func (r *postgresRepository) GetInvitation(ctx context.Context, invitationID str
 	return &invitation, nil
 }
 
-func (r *postgresRepository) GetInvitationByToken(ctx context.Context, token string) (*organization.Invitation, error) {
-	var invitation organization.Invitation
+func (r *postgresRepository) GetInvitationByToken(ctx context.Context, token string) (*domain.Invitation, error) {
+	var invitation domain.Invitation
 	if err := r.db.WithContext(ctx).Where("token = ?", token).First(&invitation).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -288,8 +288,8 @@ func (r *postgresRepository) GetInvitationByToken(ctx context.Context, token str
 	return &invitation, nil
 }
 
-func (r *postgresRepository) ListInvitations(ctx context.Context, orgID string, status string) ([]*organization.Invitation, error) {
-	var invitations []*organization.Invitation
+func (r *postgresRepository) ListInvitations(ctx context.Context, orgID string, status string) ([]*domain.Invitation, error) {
+	var invitations []*domain.Invitation
 	
 	query := r.db.WithContext(ctx).Where("organization_id = ?", orgID)
 	
@@ -304,7 +304,7 @@ func (r *postgresRepository) ListInvitations(ctx context.Context, orgID string, 
 	return invitations, nil
 }
 
-func (r *postgresRepository) UpdateInvitation(ctx context.Context, invitation *organization.Invitation) error {
+func (r *postgresRepository) UpdateInvitation(ctx context.Context, invitation *domain.Invitation) error {
 	if err := r.db.WithContext(ctx).Save(invitation).Error; err != nil {
 		return fmt.Errorf("failed to update invitation: %w", err)
 	}
@@ -312,7 +312,7 @@ func (r *postgresRepository) UpdateInvitation(ctx context.Context, invitation *o
 }
 
 func (r *postgresRepository) DeleteInvitation(ctx context.Context, invitationID string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", invitationID).Delete(&organization.Invitation{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", invitationID).Delete(&domain.Invitation{}).Error; err != nil {
 		return fmt.Errorf("failed to delete invitation: %w", err)
 	}
 	return nil
@@ -321,7 +321,7 @@ func (r *postgresRepository) DeleteInvitation(ctx context.Context, invitationID 
 func (r *postgresRepository) DeleteExpiredInvitations(ctx context.Context, before time.Time) error {
 	if err := r.db.WithContext(ctx).
 		Where("expires_at < ? AND status = ?", before, "pending").
-		Delete(&organization.Invitation{}).Error; err != nil {
+		Delete(&domain.Invitation{}).Error; err != nil {
 		return fmt.Errorf("failed to delete expired invitations: %w", err)
 	}
 	return nil
@@ -329,8 +329,8 @@ func (r *postgresRepository) DeleteExpiredInvitations(ctx context.Context, befor
 
 // Statistics operations
 
-func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID string) (*organization.OrganizationStats, error) {
-	stats := &organization.OrganizationStats{
+func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID string) (*domain.OrganizationStats, error) {
+	stats := &domain.OrganizationStats{
 		OrganizationID: orgID,
 		LastUpdated:    time.Now(),
 	}
@@ -338,7 +338,7 @@ func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID str
 	// Count total members
 	var totalMembers int64
 	if err := r.db.WithContext(ctx).
-		Model(&organization.OrganizationUser{}).
+		Model(&domain.OrganizationUser{}).
 		Where("organization_id = ?", orgID).
 		Count(&totalMembers).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total members: %w", err)
@@ -348,7 +348,7 @@ func (r *postgresRepository) GetOrganizationStats(ctx context.Context, orgID str
 	// Count active members
 	var activeMembers int64
 	if err := r.db.WithContext(ctx).
-		Model(&organization.OrganizationUser{}).
+		Model(&domain.OrganizationUser{}).
 		Where("organization_id = ? AND status = ?", orgID, "active").
 		Count(&activeMembers).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active members: %w", err)
@@ -444,10 +444,10 @@ func (r *postgresRepository) GetProjectCount(ctx context.Context, orgID string) 
 	return int(count), nil
 }
 
-func (r *postgresRepository) GetResourceUsage(ctx context.Context, orgID string) (*organization.Usage, error) {
+func (r *postgresRepository) GetResourceUsage(ctx context.Context, orgID string) (*domain.Usage, error) {
 	// This would aggregate resource usage across all workspaces
 	// For now, return placeholder data
-	usage := &organization.Usage{
+	usage := &domain.Usage{
 		CPU:     0.0,
 		Memory:  0.0,
 		Storage: 0.0,
@@ -462,17 +462,17 @@ func (r *postgresRepository) GetResourceUsage(ctx context.Context, orgID string)
 
 // Activity operations (additional methods not in interface but used by implementation)
 
-func (r *postgresRepository) CreateActivity(ctx context.Context, activity *organization.Activity) error {
+func (r *postgresRepository) CreateActivity(ctx context.Context, activity *domain.Activity) error {
 	if err := r.db.WithContext(ctx).Create(activity).Error; err != nil {
 		return fmt.Errorf("failed to create activity: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) ListActivities(ctx context.Context, filter organization.ActivityFilter) ([]*organization.Activity, error) {
-	var activities []*organization.Activity
+func (r *postgresRepository) ListActivities(ctx context.Context, filter domain.ActivityFilter) ([]*domain.Activity, error) {
+	var activities []*domain.Activity
 
-	query := r.db.WithContext(ctx).Model(&organization.Activity{})
+	query := r.db.WithContext(ctx).Model(&domain.Activity{})
 
 	if filter.OrganizationID != "" {
 		query = query.Where("organization_id = ?", filter.OrganizationID)
@@ -507,7 +507,7 @@ func (r *postgresRepository) ListActivities(ctx context.Context, filter organiza
 
 // Additional helper methods
 
-func (r *postgresRepository) ListWorkspaces(ctx context.Context, orgID string) ([]*organization.WorkspaceInfo, error) {
+func (r *postgresRepository) ListWorkspaces(ctx context.Context, orgID string) ([]*domain.WorkspaceInfo, error) {
 	type dbWorkspaceInfo struct {
 		ID             string `gorm:"column:id"`
 		Name           string `gorm:"column:name"`
@@ -526,9 +526,9 @@ func (r *postgresRepository) ListWorkspaces(ctx context.Context, orgID string) (
 	}
 
 	// Convert to domain model
-	workspaces := make([]*organization.WorkspaceInfo, len(dbWorkspaces))
+	workspaces := make([]*domain.WorkspaceInfo, len(dbWorkspaces))
 	for i, dbWs := range dbWorkspaces {
-		workspaces[i] = &organization.WorkspaceInfo{
+		workspaces[i] = &domain.WorkspaceInfo{
 			ID:     dbWs.ID,
 			Name:   dbWs.Name,
 			Status: toDomainStatus(dbWs.VClusterStatus),

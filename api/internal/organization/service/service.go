@@ -1,4 +1,4 @@
-package organization
+package service
 
 import (
 	"context"
@@ -8,23 +8,23 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 )
 
 type service struct {
-	repo       organization.Repository
-	authRepo   organization.AuthRepository
-	billingRepo organization.BillingRepository
+	repo       domain.Repository
+	authRepo   domain.AuthRepository
+	billingRepo domain.BillingRepository
 	logger     *slog.Logger
 }
 
 // NewService creates a new organization service
 func NewService(
-	repo organization.Repository,
-	authRepo organization.AuthRepository,
-	billingRepo organization.BillingRepository,
+	repo domain.Repository,
+	authRepo domain.AuthRepository,
+	billingRepo domain.BillingRepository,
 	logger *slog.Logger,
-) organization.Service {
+) domain.Service {
 	return &service{
 		repo:        repo,
 		authRepo:    authRepo,
@@ -33,14 +33,14 @@ func NewService(
 	}
 }
 
-func (s *service) CreateOrganization(ctx context.Context, userID string, req *organization.CreateOrganizationRequest) (*organization.Organization, error) {
+func (s *service) CreateOrganization(ctx context.Context, userID string, req *domain.CreateOrganizationRequest) (*domain.Organization, error) {
 	// Validate request
 	if req.Name == "" {
 		return nil, fmt.Errorf("organization name is required")
 	}
 
 	// Create organization
-	org := &organization.Organization{
+	org := &domain.Organization{
 		ID:          uuid.New().String(),
 		Name:        req.Name,
 		DisplayName: req.DisplayName,
@@ -62,7 +62,7 @@ func (s *service) CreateOrganization(ctx context.Context, userID string, req *or
 	}
 
 	// Add owner as admin member
-	member := &organization.OrganizationUser{
+	member := &domain.OrganizationUser{
 		OrganizationID: org.ID,
 		UserID:         userID,
 		Role:           "admin",
@@ -82,14 +82,14 @@ func (s *service) CreateOrganization(ctx context.Context, userID string, req *or
 	return org, nil
 }
 
-func (s *service) GetOrganization(ctx context.Context, orgID string) (*organization.Organization, error) {
+func (s *service) GetOrganization(ctx context.Context, orgID string) (*domain.Organization, error) {
 	org, err := s.repo.GetOrganization(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
 	}
 
 	// Get member count
-	filter := organization.MemberFilter{
+	filter := domain.MemberFilter{
 		OrganizationID: orgID,
 		PageSize:       1000, // Get all members for count
 	}
@@ -105,7 +105,7 @@ func (s *service) GetOrganization(ctx context.Context, orgID string) (*organizat
 	if err != nil {
 		s.logger.Warn("failed to get subscription info", "error", err)
 	} else {
-		org.SubscriptionInfo = &organization.SubscriptionInfo{
+		org.SubscriptionInfo = &domain.SubscriptionInfo{
 			PlanID:    subscription.PlanID,
 			PlanName:  subscription.PlanName,
 			Status:    subscription.Status,
@@ -116,7 +116,7 @@ func (s *service) GetOrganization(ctx context.Context, orgID string) (*organizat
 	return org, nil
 }
 
-func (s *service) ListOrganizations(ctx context.Context, filter organization.OrganizationFilter) (*organization.OrganizationList, error) {
+func (s *service) ListOrganizations(ctx context.Context, filter domain.OrganizationFilter) (*domain.OrganizationList, error) {
 	if filter.UserID != "" {
 		// Handle development user specially
 		if filter.UserID == "dev-user-1" {
@@ -124,7 +124,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 			devOrg, err := s.repo.GetOrganization(ctx, "dev-org-1")
 			if err != nil {
 				// Create development organization if it doesn't exist
-				devOrg = &organization.Organization{
+				devOrg = &domain.Organization{
 					ID:          "dev-org-1",
 					Name:        "development",
 					DisplayName: "Development Organization",
@@ -140,7 +140,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 				}
 				
 				// Add dev user as member
-				member := &organization.OrganizationUser{
+				member := &domain.OrganizationUser{
 					OrganizationID: devOrg.ID,
 					UserID:         "dev-user-1",
 					Role:           "admin",
@@ -153,8 +153,8 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 				}
 			}
 			
-			return &organization.OrganizationList{
-				Organizations: []*organization.Organization{devOrg},
+			return &domain.OrganizationList{
+				Organizations: []*domain.Organization{devOrg},
 				Total:         1,
 				Page:          filter.Page,
 				PageSize:      filter.PageSize,
@@ -168,15 +168,15 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 		}
 
 		if len(orgIDs) == 0 {
-			return &organization.OrganizationList{
-				Organizations: []*organization.Organization{},
+			return &domain.OrganizationList{
+				Organizations: []*domain.Organization{},
 				Total:         0,
 				Page:          filter.Page,
 				PageSize:      filter.PageSize,
 			}, nil
 		}
 
-		organizations := make([]*organization.Organization, 0, len(orgIDs))
+		organizations := make([]*domain.Organization, 0, len(orgIDs))
 		for _, orgID := range orgIDs {
 			org, err := s.repo.GetOrganization(ctx, orgID)
 			if err != nil {
@@ -186,7 +186,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 			organizations = append(organizations, org)
 		}
 
-		return &organization.OrganizationList{
+		return &domain.OrganizationList{
 			Organizations: organizations,
 			Total:         len(organizations),
 			Page:          filter.Page,
@@ -200,7 +200,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 		return nil, fmt.Errorf("failed to list organizations: %w", err)
 	}
 
-	return &organization.OrganizationList{
+	return &domain.OrganizationList{
 		Organizations: orgs,
 		Total:         total,
 		Page:          filter.Page,
@@ -208,7 +208,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter organization.Org
 	}, nil
 }
 
-func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *organization.UpdateOrganizationRequest) (*organization.Organization, error) {
+func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *domain.UpdateOrganizationRequest) (*domain.Organization, error) {
 	org, err := s.repo.GetOrganization(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
@@ -295,7 +295,7 @@ func (s *service) RemoveMember(ctx context.Context, orgID, userID, removerID str
 	return nil
 }
 
-func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy string, req *organization.UpdateMemberRoleRequest) (*organization.Member, error) {
+func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy string, req *domain.UpdateMemberRoleRequest) (*domain.Member, error) {
 	// Validate role
 	if req.Role != "admin" && req.Role != "member" {
 		return nil, fmt.Errorf("invalid role: %s", req.Role)
@@ -332,14 +332,14 @@ func (s *service) UpdateMemberRole(ctx context.Context, orgID, userID, updatedBy
 	return s.GetMember(ctx, orgID, userID)
 }
 
-func (s *service) ListMembers(ctx context.Context, filter organization.MemberFilter) (*organization.OrganizationMemberList, error) {
+func (s *service) ListMembers(ctx context.Context, filter domain.MemberFilter) (*domain.OrganizationMemberList, error) {
 	orgUsers, total, err := s.repo.ListMembers(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 	
 	// Convert OrganizationUser to Member
-	members := make([]*organization.Member, 0, len(orgUsers))
+	members := make([]*domain.Member, 0, len(orgUsers))
 	for _, ou := range orgUsers {
 		// Get user details
 		user, err := s.authRepo.GetUser(ctx, ou.UserID)
@@ -348,7 +348,7 @@ func (s *service) ListMembers(ctx context.Context, filter organization.MemberFil
 			continue
 		}
 		
-		member := &organization.Member{
+		member := &domain.Member{
 			ID:          fmt.Sprintf("%s-%s", ou.OrganizationID, ou.UserID), // Composite ID
 			UserID:      ou.UserID,
 			Email:       user.Email,
@@ -360,7 +360,7 @@ func (s *service) ListMembers(ctx context.Context, filter organization.MemberFil
 		members = append(members, member)
 	}
 	
-	return &organization.OrganizationMemberList{
+	return &domain.OrganizationMemberList{
 		Members:  members,
 		Total:    total,
 		Page:     filter.Page,
@@ -369,7 +369,7 @@ func (s *service) ListMembers(ctx context.Context, filter organization.MemberFil
 }
 
 
-func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*organization.OrganizationUser, error) {
+func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*domain.OrganizationUser, error) {
 	// Get invitation by token
 	invitation, err := s.repo.GetInvitationByToken(ctx, token)
 	if err != nil {
@@ -393,7 +393,7 @@ func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*
 	}
 
 	// Add member
-	member := &organization.OrganizationUser{
+	member := &domain.OrganizationUser{
 		OrganizationID: invitation.OrganizationID,
 		UserID:         userID,
 		Email:          invitation.Email,
@@ -419,7 +419,7 @@ func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*
 
 
 
-func (s *service) LogActivity(ctx context.Context, activity *organization.Activity) error {
+func (s *service) LogActivity(ctx context.Context, activity *domain.Activity) error {
 	activity.ID = uuid.New().String()
 	activity.Timestamp = time.Now()
 
@@ -432,7 +432,7 @@ func (s *service) LogActivity(ctx context.Context, activity *organization.Activi
 
 // logActivityWithDetails is a helper method for logging activities with structured details
 func (s *service) logActivityWithDetails(ctx context.Context, orgID, userID, activityType, action, resourceType, resourceID string, details map[string]interface{}) {
-	activity := &organization.Activity{
+	activity := &domain.Activity{
 		ID:             uuid.New().String(),
 		OrganizationID: orgID,
 		UserID:         userID,
@@ -454,13 +454,13 @@ func (s *service) logActivityWithDetails(ctx context.Context, orgID, userID, act
 	}
 }
 
-func (s *service) GetActivityLogs(ctx context.Context, orgID string, filter organization.ActivityFilter) ([]*organization.Activity, error) {
+func (s *service) GetActivityLogs(ctx context.Context, orgID string, filter domain.ActivityFilter) ([]*domain.Activity, error) {
 	filter.OrganizationID = orgID
 	return s.repo.ListActivities(ctx, filter)
 }
 
 // InviteUser sends an invitation to a user to join the organization
-func (s *service) InviteUser(ctx context.Context, orgID, inviterID string, req *organization.InviteUserRequest) (*organization.Invitation, error) {
+func (s *service) InviteUser(ctx context.Context, orgID, inviterID string, req *domain.InviteUserRequest) (*domain.Invitation, error) {
 	// Check if organization exists
 	if _, err := s.repo.GetOrganization(ctx, orgID); err != nil {
 		return nil, fmt.Errorf("organization not found: %w", err)
@@ -470,7 +470,7 @@ func (s *service) InviteUser(ctx context.Context, orgID, inviterID string, req *
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err == nil && user != nil {
 		// User exists, check if already a member
-		filter := organization.MemberFilter{
+		filter := domain.MemberFilter{
 			OrganizationID: orgID,
 			PageSize:       1000,
 		}
@@ -499,7 +499,7 @@ func (s *service) InviteUser(ctx context.Context, orgID, inviterID string, req *
 	}
 
 	// Create invitation
-	invitation := &organization.Invitation{
+	invitation := &domain.Invitation{
 		ID:             uuid.New().String(),
 		OrganizationID: orgID,
 		Email:          req.Email,
@@ -521,7 +521,7 @@ func (s *service) InviteUser(ctx context.Context, orgID, inviterID string, req *
 }
 
 // GetMember gets a specific member of an organization
-func (s *service) GetMember(ctx context.Context, orgID, userID string) (*organization.Member, error) {
+func (s *service) GetMember(ctx context.Context, orgID, userID string) (*domain.Member, error) {
 	member, err := s.repo.GetMember(ctx, orgID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get member: %w", err)
@@ -533,7 +533,7 @@ func (s *service) GetMember(ctx context.Context, orgID, userID string) (*organiz
 		return nil, fmt.Errorf("failed to get user details: %w", err)
 	}
 
-	return &organization.Member{
+	return &domain.Member{
 		ID:          fmt.Sprintf("%s-%s", member.OrganizationID, member.UserID), // Composite ID
 		UserID:      member.UserID,
 		Email:       user.Email,
@@ -545,7 +545,7 @@ func (s *service) GetMember(ctx context.Context, orgID, userID string) (*organiz
 }
 
 // GetOrganizationStats gets statistics for an organization
-func (s *service) GetOrganizationStats(ctx context.Context, orgID string) (*organization.OrganizationStats, error) {
+func (s *service) GetOrganizationStats(ctx context.Context, orgID string) (*domain.OrganizationStats, error) {
 	return s.repo.GetOrganizationStats(ctx, orgID)
 }
 
@@ -578,12 +578,12 @@ func (s *service) GetUserRole(ctx context.Context, userID, orgID string) (string
 }
 
 // GetInvitation gets an invitation by ID
-func (s *service) GetInvitation(ctx context.Context, invitationID string) (*organization.Invitation, error) {
+func (s *service) GetInvitation(ctx context.Context, invitationID string) (*domain.Invitation, error) {
 	return s.repo.GetInvitation(ctx, invitationID)
 }
 
 // ListPendingInvitations lists all pending invitations for an organization
-func (s *service) ListPendingInvitations(ctx context.Context, orgID string) ([]*organization.Invitation, error) {
+func (s *service) ListPendingInvitations(ctx context.Context, orgID string) ([]*domain.Invitation, error) {
 	return s.repo.ListInvitations(ctx, orgID, "pending")
 }
 

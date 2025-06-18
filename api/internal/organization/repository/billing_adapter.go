@@ -1,4 +1,4 @@
-package organization
+package repository
 
 import (
 	"context"
@@ -6,22 +6,22 @@ import (
 	"time"
 
 	billingDomain "github.com/hexabase/hexabase-ai/api/internal/domain/billing"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 )
 
-// BillingRepositoryAdapter adapts billing.StripeRepository to organization.BillingRepository
+// BillingRepositoryAdapter adapts billing.StripeRepository to domain.BillingRepository
 type BillingRepositoryAdapter struct {
 	stripeRepo billingDomain.StripeRepository
 }
 
 // NewBillingRepositoryAdapter creates a new billing repository adapter for organization domain
-func NewBillingRepositoryAdapter(stripeRepo billingDomain.StripeRepository) organization.BillingRepository {
+func NewBillingRepositoryAdapter(stripeRepo billingDomain.StripeRepository) domain.BillingRepository {
 	return &BillingRepositoryAdapter{stripeRepo: stripeRepo}
 }
 
 // CreateCustomer creates a Stripe customer for the organization
-func (b *BillingRepositoryAdapter) CreateCustomer(ctx context.Context, org *organization.Organization) (string, error) {
-	// Convert organization.Organization to billing.Organization
+func (b *BillingRepositoryAdapter) CreateCustomer(ctx context.Context, org *domain.Organization) (string, error) {
+	// Convert domain.Organization to billing.Organization
 	billingOrg := &billingDomain.Organization{
 		ID:          org.ID,
 		Name:        org.Name,
@@ -47,15 +47,15 @@ func (b *BillingRepositoryAdapter) DeleteCustomer(ctx context.Context, customerI
 }
 
 // GetOrganizationSubscription gets the subscription for an organization
-func (b *BillingRepositoryAdapter) GetOrganizationSubscription(ctx context.Context, orgID string) (*organization.Subscription, error) {
+func (b *BillingRepositoryAdapter) GetOrganizationSubscription(ctx context.Context, orgID string) (*domain.Subscription, error) {
 	// Note: This is a placeholder implementation
 	// In a real implementation, we would need to:
 	// 1. Get the organization's customer ID from the database
 	// 2. Query Stripe for the subscription using the customer ID
-	// 3. Convert the Stripe subscription to organization.Subscription
+	// 3. Convert the Stripe subscription to domain.Subscription
 	
 	// For now, return a placeholder implementation
-	return &organization.Subscription{
+	return &domain.Subscription{
 		PlanID:           "free",
 		PlanName:         "Free Plan",
 		Status:           "active",

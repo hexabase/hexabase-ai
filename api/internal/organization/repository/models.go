@@ -1,8 +1,8 @@
-package organization
+package repository
 
 import (
 	"time"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 )
 
 // dbOrganization represents the database model for organizations
@@ -33,7 +33,7 @@ func (dbOrganizationUser) TableName() string {
 
 // Conversion functions
 
-func domainToDBOrganization(org *organization.Organization) *dbOrganization {
+func domainToDBOrganization(org *domain.Organization) *dbOrganization {
 	return &dbOrganization{
 		ID:        org.ID,
 		Name:      org.Name,
@@ -42,8 +42,8 @@ func domainToDBOrganization(org *organization.Organization) *dbOrganization {
 	}
 }
 
-func dbToDomainOrganization(dbOrg *dbOrganization) *organization.Organization {
-	return &organization.Organization{
+func dbToDomainOrganization(dbOrg *dbOrganization) *domain.Organization {
+	return &domain.Organization{
 		ID:          dbOrg.ID,
 		Name:        dbOrg.Name,
 		DisplayName: dbOrg.Name, // Use name as display name
@@ -53,7 +53,7 @@ func dbToDomainOrganization(dbOrg *dbOrganization) *organization.Organization {
 	}
 }
 
-func domainToDBOrganizationUser(member *organization.OrganizationUser) *dbOrganizationUser {
+func domainToDBOrganizationUser(member *domain.OrganizationUser) *dbOrganizationUser {
 	return &dbOrganizationUser{
 		OrganizationID: member.OrganizationID,
 		UserID:         member.UserID,
@@ -62,8 +62,8 @@ func domainToDBOrganizationUser(member *organization.OrganizationUser) *dbOrgani
 	}
 }
 
-func dbToDomainOrganizationUser(dbMember *dbOrganizationUser) *organization.OrganizationUser {
-	return &organization.OrganizationUser{
+func dbToDomainOrganizationUser(dbMember *dbOrganizationUser) *domain.OrganizationUser {
+	return &domain.OrganizationUser{
 		OrganizationID: dbMember.OrganizationID,
 		UserID:         dbMember.UserID,
 		Role:           dbMember.Role,

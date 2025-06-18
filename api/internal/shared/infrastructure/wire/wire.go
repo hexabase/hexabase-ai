@@ -28,6 +28,9 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
+	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
+	orgSvc "github.com/hexabase/hexabase-ai/api/internal/organization/service"
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
@@ -38,7 +41,6 @@ import (
 	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/repository/node"
-	orgRepo "github.com/hexabase/hexabase-ai/api/internal/repository/organization"
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
@@ -51,7 +53,6 @@ import (
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	nodeSvc "github.com/hexabase/hexabase-ai/api/internal/service/node"
-	orgSvc "github.com/hexabase/hexabase-ai/api/internal/service/organization"
 	projectSvc "github.com/hexabase/hexabase-ai/api/internal/service/project"
 	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/service/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -73,7 +74,7 @@ var BackupSet = wire.NewSet(
 var BillingSet = wire.NewSet(billingRepo.NewPostgresRepository, ProvideStripeRepository, billingSvc.NewService, handlers.NewBillingHandler)
 var MonitoringSet = wire.NewSet(monitoringRepo.NewPostgresRepository, k8sRepo.NewKubernetesRepository, monitoringSvc.NewService, handlers.NewMonitoringHandler)
 var NodeSet = wire.NewSet(nodeRepo.NewPostgresRepository, ProvideNodeRepository, ProvideProxmoxRepository, ProvideProxmoxRepositoryInterface, nodeSvc.NewService, ProvideNodeService, handlers.NewNodeHandler)
-var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, handlers.NewOrganizationHandler)
+var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, orgHandler.NewHandler)
 var ProjectSet = wire.NewSet(projectRepo.NewPostgresRepository, projectRepo.NewKubernetesRepository, projectSvc.NewService, handlers.NewProjectHandler)
 var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, handlers.NewWorkspaceHandler)
 var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicdSvc.NewService, handlers.NewCICDHandler)
@@ -99,10 +100,10 @@ var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepos
 var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
-	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
+	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *orgHandler.Handler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *orgHandler.Handler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
 	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 

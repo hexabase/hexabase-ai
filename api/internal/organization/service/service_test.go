@@ -1,4 +1,4 @@
-package organization
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"log/slog"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,33 +19,33 @@ type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) CreateOrganization(ctx context.Context, org *organization.Organization) error {
+func (m *MockRepository) CreateOrganization(ctx context.Context, org *domain.Organization) error {
 	args := m.Called(ctx, org)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetOrganization(ctx context.Context, orgID string) (*organization.Organization, error) {
+func (m *MockRepository) GetOrganization(ctx context.Context, orgID string) (*domain.Organization, error) {
 	args := m.Called(ctx, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Organization), args.Error(1)
+	return args.Get(0).(*domain.Organization), args.Error(1)
 }
 
-func (m *MockRepository) GetOrganizationByName(ctx context.Context, name string) (*organization.Organization, error) {
+func (m *MockRepository) GetOrganizationByName(ctx context.Context, name string) (*domain.Organization, error) {
 	args := m.Called(ctx, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Organization), args.Error(1)
+	return args.Get(0).(*domain.Organization), args.Error(1)
 }
 
-func (m *MockRepository) ListOrganizations(ctx context.Context, filter organization.OrganizationFilter) ([]*organization.Organization, int, error) {
+func (m *MockRepository) ListOrganizations(ctx context.Context, filter domain.OrganizationFilter) ([]*domain.Organization, int, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*organization.Organization), args.Int(1), args.Error(2)
+	return args.Get(0).([]*domain.Organization), args.Int(1), args.Error(2)
 }
 
-func (m *MockRepository) UpdateOrganization(ctx context.Context, org *organization.Organization) error {
+func (m *MockRepository) UpdateOrganization(ctx context.Context, org *domain.Organization) error {
 	args := m.Called(ctx, org)
 	return args.Error(0)
 }
@@ -55,25 +55,25 @@ func (m *MockRepository) DeleteOrganization(ctx context.Context, orgID string) e
 	return args.Error(0)
 }
 
-func (m *MockRepository) AddMember(ctx context.Context, member *organization.OrganizationUser) error {
+func (m *MockRepository) AddMember(ctx context.Context, member *domain.OrganizationUser) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetMember(ctx context.Context, orgID, userID string) (*organization.OrganizationUser, error) {
+func (m *MockRepository) GetMember(ctx context.Context, orgID, userID string) (*domain.OrganizationUser, error) {
 	args := m.Called(ctx, orgID, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.OrganizationUser), args.Error(1)
+	return args.Get(0).(*domain.OrganizationUser), args.Error(1)
 }
 
-func (m *MockRepository) ListMembers(ctx context.Context, filter organization.MemberFilter) ([]*organization.OrganizationUser, int, error) {
+func (m *MockRepository) ListMembers(ctx context.Context, filter domain.MemberFilter) ([]*domain.OrganizationUser, int, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*organization.OrganizationUser), args.Int(1), args.Error(2)
+	return args.Get(0).([]*domain.OrganizationUser), args.Int(1), args.Error(2)
 }
 
-func (m *MockRepository) UpdateMember(ctx context.Context, member *organization.OrganizationUser) error {
+func (m *MockRepository) UpdateMember(ctx context.Context, member *domain.OrganizationUser) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
@@ -88,54 +88,54 @@ func (m *MockRepository) CountMembers(ctx context.Context, orgID string) (int, e
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockRepository) GetUser(ctx context.Context, userID string) (*organization.User, error) {
+func (m *MockRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*organization.User, error) {
+func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	args := m.Called(ctx, email)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*organization.User, error) {
+func (m *MockRepository) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*domain.User, error) {
 	args := m.Called(ctx, userIDs)
-	return args.Get(0).([]*organization.User), args.Error(1)
+	return args.Get(0).([]*domain.User), args.Error(1)
 }
 
-func (m *MockRepository) CreateInvitation(ctx context.Context, invitation *organization.Invitation) error {
+func (m *MockRepository) CreateInvitation(ctx context.Context, invitation *domain.Invitation) error {
 	args := m.Called(ctx, invitation)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetInvitation(ctx context.Context, invitationID string) (*organization.Invitation, error) {
+func (m *MockRepository) GetInvitation(ctx context.Context, invitationID string) (*domain.Invitation, error) {
 	args := m.Called(ctx, invitationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Invitation), args.Error(1)
+	return args.Get(0).(*domain.Invitation), args.Error(1)
 }
 
-func (m *MockRepository) GetInvitationByToken(ctx context.Context, token string) (*organization.Invitation, error) {
+func (m *MockRepository) GetInvitationByToken(ctx context.Context, token string) (*domain.Invitation, error) {
 	args := m.Called(ctx, token)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Invitation), args.Error(1)
+	return args.Get(0).(*domain.Invitation), args.Error(1)
 }
 
-func (m *MockRepository) ListInvitations(ctx context.Context, orgID string, status string) ([]*organization.Invitation, error) {
+func (m *MockRepository) ListInvitations(ctx context.Context, orgID string, status string) ([]*domain.Invitation, error) {
 	args := m.Called(ctx, orgID, status)
-	return args.Get(0).([]*organization.Invitation), args.Error(1)
+	return args.Get(0).([]*domain.Invitation), args.Error(1)
 }
 
-func (m *MockRepository) UpdateInvitation(ctx context.Context, invitation *organization.Invitation) error {
+func (m *MockRepository) UpdateInvitation(ctx context.Context, invitation *domain.Invitation) error {
 	args := m.Called(ctx, invitation)
 	return args.Error(0)
 }
@@ -150,12 +150,12 @@ func (m *MockRepository) DeleteExpiredInvitations(ctx context.Context, before ti
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetOrganizationStats(ctx context.Context, orgID string) (*organization.OrganizationStats, error) {
+func (m *MockRepository) GetOrganizationStats(ctx context.Context, orgID string) (*domain.OrganizationStats, error) {
 	args := m.Called(ctx, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.OrganizationStats), args.Error(1)
+	return args.Get(0).(*domain.OrganizationStats), args.Error(1)
 }
 
 func (m *MockRepository) GetWorkspaceCount(ctx context.Context, orgID string) (total int, active int, err error) {
@@ -168,27 +168,27 @@ func (m *MockRepository) GetProjectCount(ctx context.Context, orgID string) (int
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockRepository) GetResourceUsage(ctx context.Context, orgID string) (*organization.Usage, error) {
+func (m *MockRepository) GetResourceUsage(ctx context.Context, orgID string) (*domain.Usage, error) {
 	args := m.Called(ctx, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Usage), args.Error(1)
+	return args.Get(0).(*domain.Usage), args.Error(1)
 }
 
-func (m *MockRepository) ListWorkspaces(ctx context.Context, orgID string) ([]*organization.WorkspaceInfo, error) {
+func (m *MockRepository) ListWorkspaces(ctx context.Context, orgID string) ([]*domain.WorkspaceInfo, error) {
 	args := m.Called(ctx, orgID)
-	return args.Get(0).([]*organization.WorkspaceInfo), args.Error(1)
+	return args.Get(0).([]*domain.WorkspaceInfo), args.Error(1)
 }
 
-func (m *MockRepository) CreateActivity(ctx context.Context, activity *organization.Activity) error {
+func (m *MockRepository) CreateActivity(ctx context.Context, activity *domain.Activity) error {
 	args := m.Called(ctx, activity)
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListActivities(ctx context.Context, filter organization.ActivityFilter) ([]*organization.Activity, error) {
+func (m *MockRepository) ListActivities(ctx context.Context, filter domain.ActivityFilter) ([]*domain.Activity, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*organization.Activity), args.Error(1)
+	return args.Get(0).([]*domain.Activity), args.Error(1)
 }
 
 func (m *MockRepository) UpdateMemberRole(ctx context.Context, orgID, userID, role string) error {
@@ -200,20 +200,20 @@ type MockAuthRepository struct {
 	mock.Mock
 }
 
-func (m *MockAuthRepository) GetUser(ctx context.Context, userID string) (*organization.User, error) {
+func (m *MockAuthRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockAuthRepository) GetUserByEmail(ctx context.Context, email string) (*organization.User, error) {
+func (m *MockAuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	args := m.Called(ctx, email)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
 func (m *MockAuthRepository) GetUserOrganizations(ctx context.Context, userID string) ([]string, error) {
@@ -225,7 +225,7 @@ type MockBillingRepository struct {
 	mock.Mock
 }
 
-func (m *MockBillingRepository) CreateCustomer(ctx context.Context, org *organization.Organization) (string, error) {
+func (m *MockBillingRepository) CreateCustomer(ctx context.Context, org *domain.Organization) (string, error) {
 	args := m.Called(ctx, org)
 	return args.String(0), args.Error(1)
 }
@@ -235,12 +235,12 @@ func (m *MockBillingRepository) DeleteCustomer(ctx context.Context, customerID s
 	return args.Error(0)
 }
 
-func (m *MockBillingRepository) GetOrganizationSubscription(ctx context.Context, orgID string) (*organization.Subscription, error) {
+func (m *MockBillingRepository) GetOrganizationSubscription(ctx context.Context, orgID string) (*domain.Subscription, error) {
 	args := m.Called(ctx, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*organization.Subscription), args.Error(1)
+	return args.Get(0).(*domain.Subscription), args.Error(1)
 }
 
 func (m *MockBillingRepository) CancelSubscription(ctx context.Context, orgID string) error {
@@ -262,7 +262,7 @@ func TestCreateOrganization(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		req := &organization.CreateOrganizationRequest{
+		req := &domain.CreateOrganizationRequest{
 			Name:        "test-org",
 			DisplayName: "Test Organization",
 			Description: "A test organization",
@@ -273,20 +273,20 @@ func TestCreateOrganization(t *testing.T) {
 		userID := "user-123"
 
 		// Mock expectations
-		mockRepo.On("CreateOrganization", ctx, mock.MatchedBy(func(org *organization.Organization) bool {
+		mockRepo.On("CreateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
 			return org.Name == "test-org" &&
 				org.DisplayName == "Test Organization" &&
 				org.OwnerID == userID &&
 				org.Status == "active"
 		})).Return(nil)
 
-		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(member *organization.OrganizationUser) bool {
+		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(member *domain.OrganizationUser) bool {
 			return member.UserID == userID &&
 				member.Role == "admin" &&
 				member.Status == "active"
 		})).Return(nil)
 
-		mockBillingRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*organization.Organization")).Return("cus-123", nil)
+		mockBillingRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*domain.Organization")).Return("cus-123", nil)
 
 		// Execute
 		org, err := service.CreateOrganization(ctx, userID, req)
@@ -311,19 +311,19 @@ func TestCreateOrganization(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		req := &organization.CreateOrganizationRequest{
+		req := &domain.CreateOrganizationRequest{
 			Name: "test-org",
 		}
 
 		userID := "user-123"
 
 		// Mock expectations
-		mockRepo.On("CreateOrganization", ctx, mock.MatchedBy(func(org *organization.Organization) bool {
+		mockRepo.On("CreateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
 			return org.DisplayName == "test-org" // Should default to Name
 		})).Return(nil)
 
-		mockRepo.On("AddMember", ctx, mock.AnythingOfType("*organization.OrganizationUser")).Return(nil)
-		mockBillingRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*organization.Organization")).Return("cus-123", nil)
+		mockRepo.On("AddMember", ctx, mock.AnythingOfType("*domain.OrganizationUser")).Return(nil)
+		mockBillingRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*domain.Organization")).Return("cus-123", nil)
 
 		// Execute
 		org, err := service.CreateOrganization(ctx, userID, req)
@@ -343,7 +343,7 @@ func TestCreateOrganization(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		req := &organization.CreateOrganizationRequest{
+		req := &domain.CreateOrganizationRequest{
 			Name: "",
 		}
 
@@ -366,14 +366,14 @@ func TestCreateOrganization(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		req := &organization.CreateOrganizationRequest{
+		req := &domain.CreateOrganizationRequest{
 			Name: "test-org",
 		}
 
 		userID := "user-123"
 
 		// Mock expectations
-		mockRepo.On("CreateOrganization", ctx, mock.AnythingOfType("*organization.Organization")).
+		mockRepo.On("CreateOrganization", ctx, mock.AnythingOfType("*domain.Organization")).
 			Return(errors.New("database error"))
 
 		// Execute
@@ -401,14 +401,14 @@ func TestGetOrganization(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		expectedOrg := &organization.Organization{
+		expectedOrg := &domain.Organization{
 			ID:          orgID,
 			Name:        "test-org",
 			DisplayName: "Test Organization",
 			Status:      "active",
 		}
 
-		subscription := &organization.Subscription{
+		subscription := &domain.Subscription{
 			PlanID:           "plan-123",
 			PlanName:         "Professional",
 			Status:           "active",
@@ -417,9 +417,9 @@ func TestGetOrganization(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(expectedOrg, nil)
-		mockRepo.On("ListMembers", ctx, mock.MatchedBy(func(filter organization.MemberFilter) bool {
+		mockRepo.On("ListMembers", ctx, mock.MatchedBy(func(filter domain.MemberFilter) bool {
 			return filter.OrganizationID == orgID && filter.PageSize == 1000
-		})).Return([]*organization.OrganizationUser{}, 5, nil)
+		})).Return([]*domain.OrganizationUser{}, 5, nil)
 		mockBillingRepo.On("GetOrganizationSubscription", ctx, orgID).Return(subscription, nil)
 
 		// Execute
@@ -475,14 +475,14 @@ func TestListOrganizations(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		userID := "user-123"
-		filter := organization.OrganizationFilter{
+		filter := domain.OrganizationFilter{
 			UserID:   userID,
 			Page:     1,
 			PageSize: 10,
 		}
 
 		orgIDs := []string{"org-1", "org-2", "org-3"}
-		orgs := []*organization.Organization{
+		orgs := []*domain.Organization{
 			{ID: "org-1", Name: "org1"},
 			{ID: "org-2", Name: "org2"},
 			{ID: "org-3", Name: "org3"},
@@ -515,12 +515,12 @@ func TestListOrganizations(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		filter := organization.OrganizationFilter{
+		filter := domain.OrganizationFilter{
 			Page:     1,
 			PageSize: 10,
 		}
 
-		orgs := []*organization.Organization{
+		orgs := []*domain.Organization{
 			{ID: "org-1", Name: "org1"},
 			{ID: "org-2", Name: "org2"},
 		}
@@ -549,7 +549,7 @@ func TestListOrganizations(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		userID := "user-123"
-		filter := organization.OrganizationFilter{
+		filter := domain.OrganizationFilter{
 			UserID:   userID,
 			Page:     1,
 			PageSize: 10,
@@ -584,14 +584,14 @@ func TestUpdateOrganization(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		existingOrg := &organization.Organization{
+		existingOrg := &domain.Organization{
 			ID:          orgID,
 			Name:        "test-org",
 			DisplayName: "Old Display Name",
 			Description: "Old description",
 		}
 
-		req := &organization.UpdateOrganizationRequest{
+		req := &domain.UpdateOrganizationRequest{
 			DisplayName: "New Display Name",
 			Description: "New description",
 			Settings: map[string]interface{}{
@@ -601,7 +601,7 @@ func TestUpdateOrganization(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(existingOrg, nil)
-		mockRepo.On("UpdateOrganization", ctx, mock.MatchedBy(func(org *organization.Organization) bool {
+		mockRepo.On("UpdateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
 			return org.DisplayName == "New Display Name" &&
 				org.Description == "New description" &&
 				org.Settings["theme"] == "dark"
@@ -628,7 +628,7 @@ func TestUpdateOrganization(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-notfound"
-		req := &organization.UpdateOrganizationRequest{
+		req := &domain.UpdateOrganizationRequest{
 			DisplayName: "New Name",
 		}
 
@@ -662,7 +662,7 @@ func TestDeleteOrganization(t *testing.T) {
 		orgID := "org-123"
 
 		// Mock expectations
-		mockRepo.On("ListWorkspaces", ctx, orgID).Return([]*organization.WorkspaceInfo{}, nil)
+		mockRepo.On("ListWorkspaces", ctx, orgID).Return([]*domain.WorkspaceInfo{}, nil)
 		mockBillingRepo.On("CancelSubscription", ctx, orgID).Return(nil)
 		mockBillingRepo.On("DeleteCustomer", ctx, orgID).Return(nil)
 		mockRepo.On("DeleteOrganization", ctx, orgID).Return(nil)
@@ -686,7 +686,7 @@ func TestDeleteOrganization(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		workspaces := []*organization.WorkspaceInfo{
+		workspaces := []*domain.WorkspaceInfo{
 			{ID: "ws-1", Name: "workspace1"},
 		}
 
@@ -718,12 +718,12 @@ func TestInviteUser(t *testing.T) {
 
 		orgID := "org-123"
 		inviterID := "user-123"
-		req := &organization.InviteUserRequest{
+		req := &domain.InviteUserRequest{
 			Email: "newuser@example.com",
 			Role:  "member",
 		}
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:   orgID,
 			Name: "test-org",
 		}
@@ -731,8 +731,8 @@ func TestInviteUser(t *testing.T) {
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 		mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-		mockRepo.On("ListInvitations", ctx, orgID, "pending").Return([]*organization.Invitation{}, nil)
-		mockRepo.On("CreateInvitation", ctx, mock.MatchedBy(func(inv *organization.Invitation) bool {
+		mockRepo.On("ListInvitations", ctx, orgID, "pending").Return([]*domain.Invitation{}, nil)
+		mockRepo.On("CreateInvitation", ctx, mock.MatchedBy(func(inv *domain.Invitation) bool {
 			return inv.OrganizationID == orgID &&
 				inv.Email == req.Email &&
 				inv.Role == req.Role &&
@@ -764,29 +764,29 @@ func TestInviteUser(t *testing.T) {
 		orgID := "org-123"
 		inviterID := "user-123"
 		existingUserID := "user-456"
-		req := &organization.InviteUserRequest{
+		req := &domain.InviteUserRequest{
 			Email: "existinguser@example.com",
 			Role:  "member",
 		}
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:   orgID,
 			Name: "test-org",
 		}
 
-		existingUser := &organization.User{
+		existingUser := &domain.User{
 			ID:    existingUserID,
 			Email: req.Email,
 		}
 
-		members := []*organization.OrganizationUser{
+		members := []*domain.OrganizationUser{
 			{UserID: existingUserID, Email: req.Email},
 		}
 
 		// Mock expectations
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 		mockRepo.On("GetUserByEmail", ctx, req.Email).Return(existingUser, nil)
-		mockRepo.On("ListMembers", ctx, mock.MatchedBy(func(filter organization.MemberFilter) bool {
+		mockRepo.On("ListMembers", ctx, mock.MatchedBy(func(filter domain.MemberFilter) bool {
 			return filter.OrganizationID == orgID
 		})).Return(members, 1, nil)
 
@@ -811,17 +811,17 @@ func TestInviteUser(t *testing.T) {
 
 		orgID := "org-123"
 		inviterID := "user-123"
-		req := &organization.InviteUserRequest{
+		req := &domain.InviteUserRequest{
 			Email: "newuser@example.com",
 			Role:  "member",
 		}
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:   orgID,
 			Name: "test-org",
 		}
 
-		existingInvitations := []*organization.Invitation{
+		existingInvitations := []*domain.Invitation{
 			{Email: req.Email, Status: "pending"},
 		}
 
@@ -858,7 +858,7 @@ func TestAcceptInvitation(t *testing.T) {
 		userID := "user-123"
 		orgID := "org-123"
 
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:             "inv-123",
 			OrganizationID: orgID,
 			Email:          "user@example.com",
@@ -870,17 +870,17 @@ func TestAcceptInvitation(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetInvitationByToken", ctx, token).Return(invitation, nil)
-		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *organization.Invitation) bool {
+		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *domain.Invitation) bool {
 			return inv.Status == "accepted" && inv.AcceptedAt != nil
 		})).Return(nil)
-		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(member *organization.OrganizationUser) bool {
+		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(member *domain.OrganizationUser) bool {
 			return member.OrganizationID == orgID &&
 				member.UserID == userID &&
 				member.Email == invitation.Email &&
 				member.Role == invitation.Role &&
 				member.Status == "active"
 		})).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.Activity")).Return(nil)
 
 		// Execute
 		member, err := service.AcceptInvitation(ctx, token, userID)
@@ -906,7 +906,7 @@ func TestAcceptInvitation(t *testing.T) {
 		token := "invite-token-123"
 		userID := "user-123"
 
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:        "inv-123",
 			Status:    "pending",
 			Token:     token,
@@ -938,7 +938,7 @@ func TestAcceptInvitation(t *testing.T) {
 		token := "invite-token-123"
 		userID := "user-123"
 
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:        "inv-123",
 			Status:    "accepted", // Already accepted
 			Token:     token,
@@ -972,13 +972,13 @@ func TestListMembers(t *testing.T) {
 
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		filter := organization.MemberFilter{
+		filter := domain.MemberFilter{
 			OrganizationID: "org-123",
 			Page:           1,
 			PageSize:       10,
 		}
 
-		orgUsers := []*organization.OrganizationUser{
+		orgUsers := []*domain.OrganizationUser{
 			{
 				OrganizationID: "org-123",
 				UserID:         "user-1",
@@ -993,7 +993,7 @@ func TestListMembers(t *testing.T) {
 			},
 		}
 
-		users := map[string]*organization.User{
+		users := map[string]*domain.User{
 			"user-1": {
 				ID:          "user-1",
 				Email:       "admin@example.com",
@@ -1044,12 +1044,12 @@ func TestRemoveMember(t *testing.T) {
 		userID := "user-456"
 		removerID := "user-123"
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:      orgID,
 			OwnerID: "user-123", // Different from userID
 		}
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			OrganizationID: orgID,
 			UserID:         userID,
 			Role:           "member",
@@ -1060,7 +1060,7 @@ func TestRemoveMember(t *testing.T) {
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 		mockRepo.On("GetMember", ctx, orgID, userID).Return(member, nil)
 		mockRepo.On("RemoveMember", ctx, orgID, userID).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.Activity")).Return(nil)
 
 		// Execute
 		err := service.RemoveMember(ctx, orgID, userID, removerID)
@@ -1083,7 +1083,7 @@ func TestRemoveMember(t *testing.T) {
 		ownerID := "user-123"
 		removerID := "user-456"
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:      orgID,
 			OwnerID: ownerID,
 		}
@@ -1116,23 +1116,23 @@ func TestUpdateMemberRole(t *testing.T) {
 
 		orgID := "org-123"
 		userID := "user-456"
-		req := &organization.UpdateMemberRoleRequest{
+		req := &domain.UpdateMemberRoleRequest{
 			Role: "admin",
 		}
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:      orgID,
 			OwnerID: "user-123", // Different from userID
 		}
 
-		updatedMember := &organization.OrganizationUser{
+		updatedMember := &domain.OrganizationUser{
 			OrganizationID: orgID,
 			UserID:         userID,
 			Role:           "admin",
 			Status:         "active",
 		}
 
-		user := &organization.User{
+		user := &domain.User{
 			ID:          userID,
 			Email:       "user@example.com",
 			DisplayName: "Test User",
@@ -1142,7 +1142,7 @@ func TestUpdateMemberRole(t *testing.T) {
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 		mockRepo.On("GetMember", ctx, orgID, userID).Return(updatedMember, nil).Twice() // Called twice: once for current member, once for updated member
 		mockRepo.On("UpdateMemberRole", ctx, orgID, userID, "admin").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*organization.Activity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.Activity")).Return(nil)
 		mockAuthRepo.On("GetUser", ctx, userID).Return(user, nil)
 
 		// Execute
@@ -1167,7 +1167,7 @@ func TestUpdateMemberRole(t *testing.T) {
 
 		orgID := "org-123"
 		userID := "user-456"
-		req := &organization.UpdateMemberRoleRequest{
+		req := &domain.UpdateMemberRoleRequest{
 			Role: "invalid-role",
 		}
 
@@ -1191,11 +1191,11 @@ func TestUpdateMemberRole(t *testing.T) {
 
 		orgID := "org-123"
 		ownerID := "user-123"
-		req := &organization.UpdateMemberRoleRequest{
+		req := &domain.UpdateMemberRoleRequest{
 			Role: "member", // Trying to downgrade owner
 		}
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:      orgID,
 			OwnerID: ownerID,
 		}
@@ -1231,7 +1231,7 @@ func TestGetMember(t *testing.T) {
 		orgID := "org-123"
 		userID := "user-123"
 
-		orgUser := &organization.OrganizationUser{
+		orgUser := &domain.OrganizationUser{
 			OrganizationID: orgID,
 			UserID:         userID,
 			Role:           "admin",
@@ -1239,7 +1239,7 @@ func TestGetMember(t *testing.T) {
 			JoinedAt:       time.Now(),
 		}
 
-		user := &organization.User{
+		user := &domain.User{
 			ID:          userID,
 			Email:       "user@example.com",
 			DisplayName: "Test User",
@@ -1278,14 +1278,14 @@ func TestGetOrganizationStats(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		expectedStats := &organization.OrganizationStats{
+		expectedStats := &domain.OrganizationStats{
 			OrganizationID:   orgID,
 			TotalMembers:     10,
 			ActiveMembers:    8,
 			TotalWorkspaces:  5,
 			ActiveWorkspaces: 4,
 			TotalProjects:    15,
-			ResourceUsage: &organization.Usage{
+			ResourceUsage: &domain.Usage{
 				CPU:     4.5,
 				Memory:  16.0,
 				Storage: 100.0,
@@ -1325,7 +1325,7 @@ func TestValidateOrganizationAccess(t *testing.T) {
 		userID := "user-123"
 		requiredRole := "admin"
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			UserID: userID,
 			Role:   "admin",
 			Status: "active",
@@ -1380,7 +1380,7 @@ func TestValidateOrganizationAccess(t *testing.T) {
 		userID := "user-123"
 		requiredRole := "member"
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			UserID: userID,
 			Role:   "member",
 			Status: "suspended",
@@ -1411,7 +1411,7 @@ func TestValidateOrganizationAccess(t *testing.T) {
 		userID := "user-123"
 		requiredRole := "admin"
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			UserID: userID,
 			Role:   "member", // Has member role but admin required
 			Status: "active",
@@ -1446,7 +1446,7 @@ func TestGetUserRole(t *testing.T) {
 		orgID := "org-123"
 		userID := "user-123"
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			UserID: userID,
 			Role:   "admin",
 			Status: "active",
@@ -1479,7 +1479,7 @@ func TestInvitationManagement(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		invitationID := "inv-123"
-		expectedInvitation := &organization.Invitation{
+		expectedInvitation := &domain.Invitation{
 			ID:     invitationID,
 			Email:  "user@example.com",
 			Status: "pending",
@@ -1508,7 +1508,7 @@ func TestInvitationManagement(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		expectedInvitations := []*organization.Invitation{
+		expectedInvitations := []*domain.Invitation{
 			{ID: "inv-1", Email: "user1@example.com", Status: "pending"},
 			{ID: "inv-2", Email: "user2@example.com", Status: "pending"},
 		}
@@ -1536,7 +1536,7 @@ func TestInvitationManagement(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		invitationID := "inv-123"
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:        invitationID,
 			Status:    "pending",
 			ExpiresAt: time.Now().Add(-1 * time.Hour), // Expired
@@ -1544,7 +1544,7 @@ func TestInvitationManagement(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetInvitation", ctx, invitationID).Return(invitation, nil)
-		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *organization.Invitation) bool {
+		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *domain.Invitation) bool {
 			return inv.ExpiresAt.After(time.Now())
 		})).Return(nil)
 
@@ -1566,14 +1566,14 @@ func TestInvitationManagement(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		invitationID := "inv-123"
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:     invitationID,
 			Status: "pending",
 		}
 
 		// Mock expectations
 		mockRepo.On("GetInvitation", ctx, invitationID).Return(invitation, nil)
-		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *organization.Invitation) bool {
+		mockRepo.On("UpdateInvitation", ctx, mock.MatchedBy(func(inv *domain.Invitation) bool {
 			return inv.Status == "canceled"
 		})).Return(nil)
 
@@ -1668,7 +1668,7 @@ func TestErrorScenarios(t *testing.T) {
 		orgID := "org-123"
 		userID := "user-123"
 
-		orgUser := &organization.OrganizationUser{
+		orgUser := &domain.OrganizationUser{
 			OrganizationID: orgID,
 			UserID:         userID,
 			Role:           "admin",
@@ -1727,7 +1727,7 @@ func TestErrorScenarios(t *testing.T) {
 		orgID := "org-123"
 
 		// Mock expectations
-		mockRepo.On("ListWorkspaces", ctx, orgID).Return([]*organization.WorkspaceInfo(nil), errors.New("database error"))
+		mockRepo.On("ListWorkspaces", ctx, orgID).Return([]*domain.WorkspaceInfo(nil), errors.New("database error"))
 
 		// Execute
 		err := service.DeleteOrganization(ctx, orgID)
@@ -1748,7 +1748,7 @@ func TestErrorScenarios(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		invitationID := "inv-123"
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:     invitationID,
 			Status: "accepted", // Not pending
 		}
@@ -1775,7 +1775,7 @@ func TestErrorScenarios(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		invitationID := "inv-123"
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:     invitationID,
 			Status: "expired", // Not pending
 		}

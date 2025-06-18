@@ -1,29 +1,29 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	organization "github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 )
 
-// OrganizationHandler handles organization-related HTTP requests
-type OrganizationHandler struct {
+// Handler handles organization-related HTTP requests
+type Handler struct {
 	service organization.Service
 	logger  *slog.Logger
 }
 
-// NewOrganizationHandler creates a new organization handler
-func NewOrganizationHandler(service organization.Service, logger *slog.Logger) *OrganizationHandler {
-	return &OrganizationHandler{
+// NewHandler creates a new organization handler
+func NewHandler(service organization.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreateOrganization handles organization creation
-func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
+func (h *Handler) CreateOrganization(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	var req organization.CreateOrganizationRequest
@@ -47,7 +47,7 @@ func (h *OrganizationHandler) CreateOrganization(c *gin.Context) {
 }
 
 // GetOrganization handles getting an organization
-func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
+func (h *Handler) GetOrganization(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	org, err := h.service.GetOrganization(c.Request.Context(), orgID)
@@ -61,7 +61,7 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 }
 
 // ListOrganizations handles listing user's organizations
-func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
+func (h *Handler) ListOrganizations(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	filter := organization.OrganizationFilter{
@@ -84,7 +84,7 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 }
 
 // UpdateOrganization handles updating an organization
-func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
+func (h *Handler) UpdateOrganization(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.GetString("user_id")
 
@@ -110,7 +110,7 @@ func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 }
 
 // DeleteOrganization handles deleting an organization
-func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
+func (h *Handler) DeleteOrganization(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.GetString("user_id")
 
@@ -130,7 +130,7 @@ func (h *OrganizationHandler) DeleteOrganization(c *gin.Context) {
 
 
 // RemoveMember handles removing a member from organization
-func (h *OrganizationHandler) RemoveMember(c *gin.Context) {
+func (h *Handler) RemoveMember(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.Param("userId")
 
@@ -146,7 +146,7 @@ func (h *OrganizationHandler) RemoveMember(c *gin.Context) {
 }
 
 // UpdateMemberRole handles updating a member's role
-func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
+func (h *Handler) UpdateMemberRole(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.Param("userId")
 	updatedBy := c.GetString("user_id") // Get the current user who is performing the update
@@ -175,7 +175,7 @@ func (h *OrganizationHandler) UpdateMemberRole(c *gin.Context) {
 }
 
 // ListMembers handles listing organization members
-func (h *OrganizationHandler) ListMembers(c *gin.Context) {
+func (h *Handler) ListMembers(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	filter := organization.MemberFilter{
@@ -198,7 +198,7 @@ func (h *OrganizationHandler) ListMembers(c *gin.Context) {
 }
 
 // InviteUser handles inviting a user to organization
-func (h *OrganizationHandler) InviteUser(c *gin.Context) {
+func (h *Handler) InviteUser(c *gin.Context) {
 	orgID := c.Param("orgId")
 	inviterID := c.GetString("user_id")
 
@@ -219,7 +219,7 @@ func (h *OrganizationHandler) InviteUser(c *gin.Context) {
 }
 
 // AcceptInvitation handles accepting an invitation
-func (h *OrganizationHandler) AcceptInvitation(c *gin.Context) {
+func (h *Handler) AcceptInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 	userID := c.GetString("user_id")
 
@@ -234,7 +234,7 @@ func (h *OrganizationHandler) AcceptInvitation(c *gin.Context) {
 }
 
 // CancelInvitation handles canceling an invitation
-func (h *OrganizationHandler) CancelInvitation(c *gin.Context) {
+func (h *Handler) CancelInvitation(c *gin.Context) {
 	invitationID := c.Param("invitationId")
 
 	err := h.service.CancelInvitation(c.Request.Context(), invitationID)
@@ -248,7 +248,7 @@ func (h *OrganizationHandler) CancelInvitation(c *gin.Context) {
 }
 
 // ListPendingInvitations handles listing pending invitations
-func (h *OrganizationHandler) ListPendingInvitations(c *gin.Context) {
+func (h *Handler) ListPendingInvitations(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	invitations, err := h.service.ListPendingInvitations(c.Request.Context(), orgID)
@@ -265,7 +265,7 @@ func (h *OrganizationHandler) ListPendingInvitations(c *gin.Context) {
 }
 
 // GetOrganizationStats handles getting organization statistics
-func (h *OrganizationHandler) GetOrganizationStats(c *gin.Context) {
+func (h *Handler) GetOrganizationStats(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	stats, err := h.service.GetOrganizationStats(c.Request.Context(), orgID)

@@ -1,4 +1,4 @@
-package organization
+package repository
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/organization"
+	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -84,7 +84,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			OrganizationID: uuid.New().String(),
 			UserID:         uuid.New().String(),
 			Role:           "member",
@@ -165,7 +165,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		member := &organization.OrganizationUser{
+		member := &domain.OrganizationUser{
 			OrganizationID: uuid.New().String(),
 			UserID:         uuid.New().String(),
 			Email:          "test@example.com",
@@ -204,7 +204,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:             uuid.New().String(),
 			OrganizationID: uuid.New().String(),
 			Email:          "invitee@example.com",
@@ -242,7 +242,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		invitation := &organization.Invitation{
+		invitation := &domain.Invitation{
 			ID:             uuid.New().String(),
 			OrganizationID: uuid.New().String(),
 			Email:          "invitee@example.com",
@@ -318,7 +318,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		activity := &organization.Activity{
+		activity := &domain.Activity{
 			ID:             uuid.New().String(),
 			OrganizationID: uuid.New().String(),
 			UserID:         uuid.New().String(),
@@ -365,7 +365,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 		startDate := time.Now().Add(-24 * time.Hour)
 		endDate := time.Now()
 
-		filter := organization.ActivityFilter{
+		filter := domain.ActivityFilter{
 			OrganizationID: orgID,
 			UserID:         userID,
 			Type:           "member",
@@ -917,7 +917,7 @@ func TestPostgresRepository_ModelMismatchIssues(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:          uuid.New().String(),
 			Name:        "test-org",
 			DisplayName: "Test Organization",
@@ -938,10 +938,10 @@ func TestPostgresRepository_ModelMismatchIssues(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		org := &organization.Organization{
+		org := &domain.Organization{
 			ID:               uuid.New().String(),
 			Name:             "test-org",
-			SubscriptionInfo: &organization.SubscriptionInfo{PlanID: "premium"}, // This causes issues
+			SubscriptionInfo: &domain.SubscriptionInfo{PlanID: "premium"}, // This causes issues
 		}
 
 		mock.ExpectBegin()
@@ -967,7 +967,7 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 		repo := NewPostgresRepository(gormDB)
 
 		orgID := uuid.New().String()
-		filter := organization.MemberFilter{
+		filter := domain.MemberFilter{
 			OrganizationID: orgID,
 			Page:           2,
 			PageSize:       5,
@@ -1009,7 +1009,7 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 		repo := NewPostgresRepository(gormDB)
 
 		orgID := uuid.New().String()
-		filter := organization.MemberFilter{
+		filter := domain.MemberFilter{
 			OrganizationID: orgID,
 			Search:         "john",
 			Page:           1,
