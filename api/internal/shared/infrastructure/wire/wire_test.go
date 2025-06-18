@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
+	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 )
 

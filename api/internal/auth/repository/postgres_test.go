@@ -1,4 +1,4 @@
-package auth
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -34,7 +34,7 @@ func TestPostgresRepository_CreateUser(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("successful user creation", func(t *testing.T) {
-		user := &auth.User{
+		user := &domain.User{
 			ID:          uuid.New().String(),
 			Email:       "test@example.com",
 			DisplayName: "Test User",
@@ -64,7 +64,7 @@ func TestPostgresRepository_CreateUser(t *testing.T) {
 	})
 
 	t.Run("duplicate user error", func(t *testing.T) {
-		user := &auth.User{
+		user := &domain.User{
 			ID:          uuid.New().String(),
 			Email:       "duplicate@example.com",
 			DisplayName: "Duplicate User",
@@ -219,7 +219,7 @@ func TestPostgresRepository_UpdateUser(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("successful user update", func(t *testing.T) {
-		user := &auth.User{
+		user := &domain.User{
 			ID:          uuid.New().String(),
 			Email:       "updated@example.com",
 			DisplayName: "Updated Name",
@@ -276,7 +276,7 @@ func TestPostgresRepository_CreateSession(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("create new session", func(t *testing.T) {
-		session := &auth.Session{
+		session := &domain.Session{
 			ID:           uuid.New().String(),
 			UserID:       uuid.New().String(),
 			RefreshToken: "refresh-token-123",

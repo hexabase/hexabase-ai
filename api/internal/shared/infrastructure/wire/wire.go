@@ -12,9 +12,12 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
+	authHandler "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
+	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
+	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
@@ -27,7 +30,6 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
-	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
 	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
@@ -42,7 +44,6 @@ import (
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
-	authSvc "github.com/hexabase/hexabase-ai/api/internal/service/auth"
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
@@ -62,7 +63,7 @@ import (
 )
 
 var ApplicationSet = wire.NewSet(applicationRepo.NewPostgresRepository, applicationRepo.NewKubernetesRepository, applicationSvc.NewService, handlers.NewApplicationHandler)
-var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, handlers.NewAuthHandler)
+var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, authHandler.NewHandler)
 var BackupSet = wire.NewSet(
 	backupRepo.NewPostgresRepository, 
 	ProvideBackupProxmoxRepository, 
@@ -98,10 +99,10 @@ var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepos
 var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
-	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *handlers.AuthHandler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
+	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *handlers.OrganizationHandler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *handlers.AuthHandler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *handlers.OrganizationHandler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
 	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
@@ -208,7 +209,7 @@ func ProvideBackupService(
 	return backupSvc.NewService(repo, proxmoxRepo, appRepo, workspaceRepo, k8sClient, encryptionKey)
 }
 
-func ProvideAIOpsProxyHandler(authSvc auth.Service, logger *slog.Logger, cfg *config.Config) (*handlers.AIOpsProxyHandler, error) {
+func ProvideAIOpsProxyHandler(authSvc authDomain.Service, logger *slog.Logger, cfg *config.Config) (*handlers.AIOpsProxyHandler, error) {
 	var aiopsURL string
 	if cfg.AIOps.URL != "" {
 		aiopsURL = cfg.AIOps.URL

@@ -1,4 +1,4 @@
-package auth
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +36,7 @@ func TestOAuthRepository_getGithubUserInfo(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, userInfo)
-		expected := &auth.UserInfo{
+		expected := &domain.UserInfo{
 			ID:       "12345",
 			Name:     "testuser",
 			Picture:  "http://example.com/avatar.png",

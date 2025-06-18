@@ -1,11 +1,11 @@
-package auth
+package repository
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"gorm.io/gorm"
 )
 
@@ -14,21 +14,21 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL auth repository
-func NewPostgresRepository(db *gorm.DB) auth.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &postgresRepository{db: db}
 }
 
 // User operations
 
-func (r *postgresRepository) CreateUser(ctx context.Context, user *auth.User) error {
+func (r *postgresRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*auth.User, error) {
-	var user auth.User
+func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
+	var user domain.User
 	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("user not found")
@@ -38,8 +38,8 @@ func (r *postgresRepository) GetUser(ctx context.Context, userID string) (*auth.
 	return &user, nil
 }
 
-func (r *postgresRepository) GetUserByExternalID(ctx context.Context, externalID, provider string) (*auth.User, error) {
-	var user auth.User
+func (r *postgresRepository) GetUserByExternalID(ctx context.Context, externalID, provider string) (*domain.User, error) {
+	var user domain.User
 	if err := r.db.WithContext(ctx).
 		Where("external_id = ? AND provider = ?", externalID, provider).
 		First(&user).Error; err != nil {
@@ -51,8 +51,8 @@ func (r *postgresRepository) GetUserByExternalID(ctx context.Context, externalID
 	return &user, nil
 }
 
-func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (*auth.User, error) {
-	var user auth.User
+func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
 	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("user not found")
@@ -62,7 +62,7 @@ func (r *postgresRepository) GetUserByEmail(ctx context.Context, email string) (
 	return &user, nil
 }
 
-func (r *postgresRepository) UpdateUser(ctx context.Context, user *auth.User) error {
+func (r *postgresRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	if err := r.db.WithContext(ctx).Save(user).Error; err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
@@ -71,7 +71,7 @@ func (r *postgresRepository) UpdateUser(ctx context.Context, user *auth.User) er
 
 func (r *postgresRepository) UpdateLastLogin(ctx context.Context, userID string) error {
 	if err := r.db.WithContext(ctx).
-		Model(&auth.User{}).
+		Model(&domain.User{}).
 		Where("id = ?", userID).
 		Update("last_login_at", time.Now()).Error; err != nil {
 		return fmt.Errorf("failed to update last login: %w", err)
@@ -81,15 +81,15 @@ func (r *postgresRepository) UpdateLastLogin(ctx context.Context, userID string)
 
 // Session operations
 
-func (r *postgresRepository) CreateSession(ctx context.Context, session *auth.Session) error {
+func (r *postgresRepository) CreateSession(ctx context.Context, session *domain.Session) error {
 	if err := r.db.WithContext(ctx).Create(session).Error; err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (*auth.Session, error) {
-	var session auth.Session
+func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (*domain.Session, error) {
+	var session domain.Session
 	if err := r.db.WithContext(ctx).Where("id = ?", sessionID).First(&session).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("session not found")
@@ -99,8 +99,8 @@ func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (
 	return &session, nil
 }
 
-func (r *postgresRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*auth.Session, error) {
-	var session auth.Session
+func (r *postgresRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
+	var session domain.Session
 	if err := r.db.WithContext(ctx).Where("refresh_token = ?", refreshToken).First(&session).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("session not found")
@@ -110,8 +110,8 @@ func (r *postgresRepository) GetSessionByRefreshToken(ctx context.Context, refre
 	return &session, nil
 }
 
-func (r *postgresRepository) ListUserSessions(ctx context.Context, userID string) ([]*auth.Session, error) {
-	var sessions []*auth.Session
+func (r *postgresRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
+	var sessions []*domain.Session
 	if err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
 		Order("created_at DESC").
@@ -121,7 +121,7 @@ func (r *postgresRepository) ListUserSessions(ctx context.Context, userID string
 	return sessions, nil
 }
 
-func (r *postgresRepository) UpdateSession(ctx context.Context, session *auth.Session) error {
+func (r *postgresRepository) UpdateSession(ctx context.Context, session *domain.Session) error {
 	if err := r.db.WithContext(ctx).Save(session).Error; err != nil {
 		return fmt.Errorf("failed to update session: %w", err)
 	}
@@ -129,7 +129,7 @@ func (r *postgresRepository) UpdateSession(ctx context.Context, session *auth.Se
 }
 
 func (r *postgresRepository) DeleteSession(ctx context.Context, sessionID string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", sessionID).Delete(&auth.Session{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", sessionID).Delete(&domain.Session{}).Error; err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
 	return nil
@@ -141,7 +141,7 @@ func (r *postgresRepository) DeleteUserSessions(ctx context.Context, userID stri
 		query = query.Where("id != ?", exceptSessionID)
 	}
 
-	if err := query.Delete(&auth.Session{}).Error; err != nil {
+	if err := query.Delete(&domain.Session{}).Error; err != nil {
 		return fmt.Errorf("failed to delete user sessions: %w", err)
 	}
 	return nil
@@ -150,7 +150,7 @@ func (r *postgresRepository) DeleteUserSessions(ctx context.Context, userID stri
 func (r *postgresRepository) CleanupExpiredSessions(ctx context.Context, before time.Time) error {
 	if err := r.db.WithContext(ctx).
 		Where("expires_at < ?", before).
-		Delete(&auth.Session{}).Error; err != nil {
+		Delete(&domain.Session{}).Error; err != nil {
 		return fmt.Errorf("failed to cleanup expired sessions: %w", err)
 	}
 	return nil
@@ -159,7 +159,7 @@ func (r *postgresRepository) CleanupExpiredSessions(ctx context.Context, before 
 // Auth state operations (Redis) - These would typically be in a Redis repository
 // For now, using PostgreSQL with TTL
 
-func (r *postgresRepository) StoreAuthState(ctx context.Context, state *auth.AuthState) error {
+func (r *postgresRepository) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	if err := r.db.WithContext(ctx).Create(state).Error; err != nil {
 		return fmt.Errorf("failed to store auth state: %w", err)
 	}
@@ -170,8 +170,8 @@ func (r *postgresRepository) StoreAuthState(ctx context.Context, state *auth.Aut
 	return nil
 }
 
-func (r *postgresRepository) GetAuthState(ctx context.Context, stateValue string) (*auth.AuthState, error) {
-	var state auth.AuthState
+func (r *postgresRepository) GetAuthState(ctx context.Context, stateValue string) (*domain.AuthState, error) {
+	var state domain.AuthState
 	if err := r.db.WithContext(ctx).
 		Where("state = ? AND expires_at > ?", stateValue, time.Now()).
 		First(&state).Error; err != nil {
@@ -184,7 +184,7 @@ func (r *postgresRepository) GetAuthState(ctx context.Context, stateValue string
 }
 
 func (r *postgresRepository) DeleteAuthState(ctx context.Context, stateValue string) error {
-	if err := r.db.WithContext(ctx).Where("state = ?", stateValue).Delete(&auth.AuthState{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("state = ?", stateValue).Delete(&domain.AuthState{}).Error; err != nil {
 		return fmt.Errorf("failed to delete auth state: %w", err)
 	}
 	return nil
@@ -222,17 +222,17 @@ func (r *postgresRepository) IsRefreshTokenBlacklisted(ctx context.Context, toke
 
 // Security event operations
 
-func (r *postgresRepository) CreateSecurityEvent(ctx context.Context, event *auth.SecurityEvent) error {
+func (r *postgresRepository) CreateSecurityEvent(ctx context.Context, event *domain.SecurityEvent) error {
 	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
 		return fmt.Errorf("failed to create security event: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) ListSecurityEvents(ctx context.Context, filter auth.SecurityLogFilter) ([]*auth.SecurityEvent, error) {
-	var events []*auth.SecurityEvent
+func (r *postgresRepository) ListSecurityEvents(ctx context.Context, filter domain.SecurityLogFilter) ([]*domain.SecurityEvent, error) {
+	var events []*domain.SecurityEvent
 
-	query := r.db.WithContext(ctx).Model(&auth.SecurityEvent{})
+	query := r.db.WithContext(ctx).Model(&domain.SecurityEvent{})
 
 	if filter.UserID != "" {
 		query = query.Where("user_id = ?", filter.UserID)
@@ -268,7 +268,7 @@ func (r *postgresRepository) ListSecurityEvents(ctx context.Context, filter auth
 func (r *postgresRepository) CleanupOldSecurityEvents(ctx context.Context, before time.Time) error {
 	if err := r.db.WithContext(ctx).
 		Where("created_at < ?", before).
-		Delete(&auth.SecurityEvent{}).Error; err != nil {
+		Delete(&domain.SecurityEvent{}).Error; err != nil {
 		return fmt.Errorf("failed to cleanup old security events: %w", err)
 	}
 	return nil
@@ -333,7 +333,7 @@ type RefreshTokenBlacklist struct {
 
 func (r *postgresRepository) scheduleAuthStateCleanup(state string, expiresAt time.Time) {
 	time.Sleep(time.Until(expiresAt))
-	r.db.Where("state = ?", state).Delete(&auth.AuthState{})
+	r.db.Where("state = ?", state).Delete(&domain.AuthState{})
 }
 
 func (r *postgresRepository) scheduleBlacklistCleanup(token string, expiresAt time.Time) {

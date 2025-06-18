@@ -1,4 +1,4 @@
-package auth
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -18,7 +18,7 @@ type oauthRepository struct {
 }
 
 // NewOAuthRepository creates a new OAuth repository
-func NewOAuthRepository(configs map[string]*ProviderConfig, logger *slog.Logger) auth.OAuthRepository {
+func NewOAuthRepository(configs map[string]*ProviderConfig, logger *slog.Logger) domain.OAuthRepository {
 	providers := make(map[string]*oauth2.Config)
 
 	for provider, config := range configs {
@@ -49,13 +49,13 @@ func NewOAuthRepository(configs map[string]*ProviderConfig, logger *slog.Logger)
 	}
 }
 
-func (r *oauthRepository) GetProviderConfig(provider string) (*auth.ProviderConfig, error) {
+func (r *oauthRepository) GetProviderConfig(provider string) (*domain.ProviderConfig, error) {
 	config, ok := r.providers[provider]
 	if !ok {
 		return nil, fmt.Errorf("provider %s not configured", provider)
 	}
 
-	return &auth.ProviderConfig{
+	return &domain.ProviderConfig{
 		ClientID:     config.ClientID,
 		ClientSecret: config.ClientSecret,
 		RedirectURL:  config.RedirectURL,
@@ -81,7 +81,7 @@ func (r *oauthRepository) GetAuthURL(provider, state string, params map[string]s
 	return authURL, nil
 }
 
-func (r *oauthRepository) ExchangeCode(ctx context.Context, provider, code string) (*auth.OAuthToken, error) {
+func (r *oauthRepository) ExchangeCode(ctx context.Context, provider, code string) (*domain.OAuthToken, error) {
 	config, ok := r.providers[provider]
 	if !ok {
 		return nil, fmt.Errorf("provider %s not configured", provider)
@@ -92,7 +92,7 @@ func (r *oauthRepository) ExchangeCode(ctx context.Context, provider, code strin
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 
-	return &auth.OAuthToken{
+	return &domain.OAuthToken{
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		TokenType:    token.TokenType,
@@ -100,7 +100,7 @@ func (r *oauthRepository) ExchangeCode(ctx context.Context, provider, code strin
 	}, nil
 }
 
-func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, token *auth.OAuthToken) (*auth.UserInfo, error) {
+func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, token *domain.OAuthToken) (*domain.UserInfo, error) {
 	config, ok := r.providers[provider]
 	if !ok {
 		return nil, fmt.Errorf("provider %s not configured", provider)
@@ -136,7 +136,7 @@ func (r *oauthRepository) GetUserInfo(ctx context.Context, provider string, toke
 	}
 }
 
-func (r *oauthRepository) RefreshOAuthToken(ctx context.Context, provider string, refreshToken string) (*auth.OAuthToken, error) {
+func (r *oauthRepository) RefreshOAuthToken(ctx context.Context, provider string, refreshToken string) (*domain.OAuthToken, error) {
 	config, ok := r.providers[provider]
 	if !ok {
 		return nil, fmt.Errorf("provider %s not configured", provider)
@@ -153,7 +153,7 @@ func (r *oauthRepository) RefreshOAuthToken(ctx context.Context, provider string
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	return &auth.OAuthToken{
+	return &domain.OAuthToken{
 		AccessToken:  newToken.AccessToken,
 		RefreshToken: newToken.RefreshToken,
 		TokenType:    newToken.TokenType,
@@ -163,7 +163,7 @@ func (r *oauthRepository) RefreshOAuthToken(ctx context.Context, provider string
 
 // Provider-specific implementations
 
-func (r *oauthRepository) getGoogleUserInfo(ctx context.Context, client *http.Client) (*auth.UserInfo, error) {
+func (r *oauthRepository) getGoogleUserInfo(ctx context.Context, client *http.Client) (*domain.UserInfo, error) {
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
@@ -186,7 +186,7 @@ func (r *oauthRepository) getGoogleUserInfo(ctx context.Context, client *http.Cl
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	return &auth.UserInfo{
+	return &domain.UserInfo{
 		ID:       googleUser.ID,
 		Email:    googleUser.Email,
 		Name:     googleUser.Name,
@@ -195,7 +195,7 @@ func (r *oauthRepository) getGoogleUserInfo(ctx context.Context, client *http.Cl
 	}, nil
 }
 
-func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Client) (*auth.UserInfo, error) {
+func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Client) (*domain.UserInfo, error) {
 	resp, err := client.Get("https://api.github.com/user")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
@@ -216,7 +216,7 @@ func (r *oauthRepository) getGithubUserInfo(ctx context.Context, client *http.Cl
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	return &auth.UserInfo{
+	return &domain.UserInfo{
 		ID:       fmt.Sprintf("%d", githubUser.ID),
 		Name:     githubUser.Login,
 		Picture:  githubUser.AvatarURL,

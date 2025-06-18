@@ -1,33 +1,33 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/utils/httpauth"
 )
 
-// AuthHandler handles authentication-related HTTP requests
-type AuthHandler struct {
-	service auth.Service
+// Handler handles authentication-related HTTP requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewAuthHandler creates a new auth handler
-func NewAuthHandler(service auth.Service, logger *slog.Logger) *AuthHandler {
-	return &AuthHandler{
+// NewHandler creates a new auth handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // Login initiates OAuth flow with external provider
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *Handler) Login(c *gin.Context) {
 	provider := c.Param("provider")
 
-	var req auth.LoginRequest
+	var req domain.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// Use default if not provided
 		req.Provider = provider
@@ -50,7 +50,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // Callback handles OAuth callback from external provider
-func (h *AuthHandler) Callback(c *gin.Context) {
+func (h *Handler) Callback(c *gin.Context) {
 	provider := c.Param("provider")
 
 	// Handle both query params (for redirect) and JSON body (for PKCE)
@@ -60,7 +60,7 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 
 	// If not in query, check JSON body for PKCE flow
 	if code == "" {
-		var req auth.CallbackRequest
+		var req domain.CallbackRequest
 		if err := c.ShouldBindJSON(&req); err == nil {
 			code = req.Code
 			state = req.State
@@ -76,7 +76,7 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	clientIP := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	req := &auth.CallbackRequest{
+	req := &domain.CallbackRequest{
 		Code:         code,
 		State:        state,
 		CodeVerifier: codeVerifier,
@@ -111,8 +111,8 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 }
 
 // RefreshToken handles token refresh requests
-func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var req auth.RefreshTokenRequest
+func (h *Handler) RefreshToken(c *gin.Context) {
+	var req domain.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
@@ -137,7 +137,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 }
 
 // Logout invalidates user session
-func (h *AuthHandler) Logout(c *gin.Context) {
+func (h *Handler) Logout(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
@@ -153,7 +153,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// Log security event
-	event := &auth.SecurityEvent{
+	event := &domain.SecurityEvent{
 		UserID:      userID,
 		EventType:   "logout",
 		Description: "User logged out",
@@ -170,7 +170,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // GetCurrentUser returns current user information
-func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
+func (h *Handler) GetCurrentUser(c *gin.Context) {
 	// Get token from header
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
@@ -200,7 +200,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 }
 
 // GetSessions returns active sessions for the current user
-func (h *AuthHandler) GetSessions(c *gin.Context) {
+func (h *Handler) GetSessions(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	sessions, err := h.service.GetUserSessions(c.Request.Context(), userID)
@@ -217,7 +217,7 @@ func (h *AuthHandler) GetSessions(c *gin.Context) {
 }
 
 // RevokeSession revokes a specific session
-func (h *AuthHandler) RevokeSession(c *gin.Context) {
+func (h *Handler) RevokeSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	userID := c.GetString("user_id")
 
@@ -231,7 +231,7 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 }
 
 // RevokeAllSessions revokes all sessions except current
-func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
+func (h *Handler) RevokeAllSessions(c *gin.Context) {
 	userID := c.GetString("user_id")
 	sessionID := c.GetString("session_id") // Set by middleware
 
@@ -245,10 +245,10 @@ func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
 }
 
 // GetSecurityLogs returns security logs for the current user
-func (h *AuthHandler) GetSecurityLogs(c *gin.Context) {
+func (h *Handler) GetSecurityLogs(c *gin.Context) {
 	userID := c.GetString("user_id")
 
-	filter := auth.SecurityLogFilter{
+	filter := domain.SecurityLogFilter{
 		UserID: userID,
 		Limit:  50, // Last 50 events
 	}
@@ -267,7 +267,7 @@ func (h *AuthHandler) GetSecurityLogs(c *gin.Context) {
 }
 
 // OIDCDiscovery returns OIDC discovery document
-func (h *AuthHandler) OIDCDiscovery(c *gin.Context) {
+func (h *Handler) OIDCDiscovery(c *gin.Context) {
 	config, err := h.service.GetOIDCConfiguration(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get OIDC configuration", "error", err)
@@ -279,7 +279,7 @@ func (h *AuthHandler) OIDCDiscovery(c *gin.Context) {
 }
 
 // JWKS returns JSON Web Key Set for token verification
-func (h *AuthHandler) JWKS(c *gin.Context) {
+func (h *Handler) JWKS(c *gin.Context) {
 	jwks, err := h.service.GetJWKS(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get JWKS", "error", err)
@@ -292,7 +292,7 @@ func (h *AuthHandler) JWKS(c *gin.Context) {
 }
 
 // AuthMiddleware validates JWT tokens and sets user context
-func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
+func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {

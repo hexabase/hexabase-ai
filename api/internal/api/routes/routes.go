@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	authHandler "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/infrastructure/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/utils/httpauth"
 )
 
 // requireInternalAuth is middleware that validates internal service authentication
-func requireInternalAuth(authHandler *handlers.AuthHandler) gin.HandlerFunc {
+func requireInternalAuth(authHandler *authHandler.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check for internal service token
 		authHeader := c.GetHeader("Authorization")

@@ -1,4 +1,4 @@
-package auth
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,36 +18,36 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) CreateUser(ctx context.Context, user *auth.User) error {
+func (m *mockRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetUser(ctx context.Context, userID string) (*auth.User, error) {
+func (m *mockRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.User), args.Error(1)
+		return args.Get(0).(*domain.User), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetUserByExternalID(ctx context.Context, externalID, provider string) (*auth.User, error) {
+func (m *mockRepository) GetUserByExternalID(ctx context.Context, externalID, provider string) (*domain.User, error) {
 	args := m.Called(ctx, externalID, provider)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.User), args.Error(1)
+		return args.Get(0).(*domain.User), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetUserByEmail(ctx context.Context, email string) (*auth.User, error) {
+func (m *mockRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	args := m.Called(ctx, email)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.User), args.Error(1)
+		return args.Get(0).(*domain.User), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdateUser(ctx context.Context, user *auth.User) error {
+func (m *mockRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
@@ -57,36 +57,36 @@ func (m *mockRepository) UpdateLastLogin(ctx context.Context, userID string) err
 	return args.Error(0)
 }
 
-func (m *mockRepository) CreateSession(ctx context.Context, session *auth.Session) error {
+func (m *mockRepository) CreateSession(ctx context.Context, session *domain.Session) error {
 	args := m.Called(ctx, session)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetSession(ctx context.Context, sessionID string) (*auth.Session, error) {
+func (m *mockRepository) GetSession(ctx context.Context, sessionID string) (*domain.Session, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.Session), args.Error(1)
+		return args.Get(0).(*domain.Session), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*auth.Session, error) {
+func (m *mockRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
 	args := m.Called(ctx, refreshToken)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.Session), args.Error(1)
+		return args.Get(0).(*domain.Session), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) ListUserSessions(ctx context.Context, userID string) ([]*auth.Session, error) {
+func (m *mockRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*auth.Session), args.Error(1)
+		return args.Get(0).([]*domain.Session), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdateSession(ctx context.Context, session *auth.Session) error {
+func (m *mockRepository) UpdateSession(ctx context.Context, session *domain.Session) error {
 	args := m.Called(ctx, session)
 	return args.Error(0)
 }
@@ -106,15 +106,15 @@ func (m *mockRepository) CleanupExpiredSessions(ctx context.Context, before time
 	return args.Error(0)
 }
 
-func (m *mockRepository) StoreAuthState(ctx context.Context, state *auth.AuthState) error {
+func (m *mockRepository) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	args := m.Called(ctx, state)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetAuthState(ctx context.Context, stateValue string) (*auth.AuthState, error) {
+func (m *mockRepository) GetAuthState(ctx context.Context, stateValue string) (*domain.AuthState, error) {
 	args := m.Called(ctx, stateValue)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.AuthState), args.Error(1)
+		return args.Get(0).(*domain.AuthState), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -134,15 +134,15 @@ func (m *mockRepository) IsRefreshTokenBlacklisted(ctx context.Context, token st
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *mockRepository) CreateSecurityEvent(ctx context.Context, event *auth.SecurityEvent) error {
+func (m *mockRepository) CreateSecurityEvent(ctx context.Context, event *domain.SecurityEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
-func (m *mockRepository) ListSecurityEvents(ctx context.Context, filter auth.SecurityLogFilter) ([]*auth.SecurityEvent, error) {
+func (m *mockRepository) ListSecurityEvents(ctx context.Context, filter domain.SecurityLogFilter) ([]*domain.SecurityEvent, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*auth.SecurityEvent), args.Error(1)
+		return args.Get(0).([]*domain.SecurityEvent), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -173,10 +173,10 @@ type mockOAuthRepository struct {
 	mock.Mock
 }
 
-func (m *mockOAuthRepository) GetProviderConfig(provider string) (*auth.ProviderConfig, error) {
+func (m *mockOAuthRepository) GetProviderConfig(provider string) (*domain.ProviderConfig, error) {
 	args := m.Called(provider)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.ProviderConfig), args.Error(1)
+		return args.Get(0).(*domain.ProviderConfig), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -186,26 +186,26 @@ func (m *mockOAuthRepository) GetAuthURL(provider, state string, params map[stri
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockOAuthRepository) ExchangeCode(ctx context.Context, provider, code string) (*auth.OAuthToken, error) {
+func (m *mockOAuthRepository) ExchangeCode(ctx context.Context, provider, code string) (*domain.OAuthToken, error) {
 	args := m.Called(ctx, provider, code)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.OAuthToken), args.Error(1)
+		return args.Get(0).(*domain.OAuthToken), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockOAuthRepository) GetUserInfo(ctx context.Context, provider string, token *auth.OAuthToken) (*auth.UserInfo, error) {
+func (m *mockOAuthRepository) GetUserInfo(ctx context.Context, provider string, token *domain.OAuthToken) (*domain.UserInfo, error) {
 	args := m.Called(ctx, provider, token)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.UserInfo), args.Error(1)
+		return args.Get(0).(*domain.UserInfo), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockOAuthRepository) RefreshOAuthToken(ctx context.Context, provider string, refreshToken string) (*auth.OAuthToken, error) {
+func (m *mockOAuthRepository) RefreshOAuthToken(ctx context.Context, provider string, refreshToken string) (*domain.OAuthToken, error) {
 	args := m.Called(ctx, provider, refreshToken)
 	if args.Get(0) != nil {
-		return args.Get(0).(*auth.OAuthToken), args.Error(1)
+		return args.Get(0).(*domain.OAuthToken), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -244,7 +244,6 @@ func (m *mockKeyRepository) RotateKeys() error {
 	return args.Error(0)
 }
 
-
 func TestService_GetAuthURL(t *testing.T) {
 	ctx := context.Background()
 	
@@ -260,14 +259,14 @@ func TestService_GetAuthURL(t *testing.T) {
 	}
 
 	t.Run("successful get auth URL", func(t *testing.T) {
-		req := &auth.LoginRequest{
+		req := &domain.LoginRequest{
 			Provider: "google",
 		}
 
 		expectedURL := "https://accounts.google.com/o/oauth2/v2/auth?state=random-state-123"
 
 		// Mock repository calls
-		mockRepo.On("StoreAuthState", ctx, mock.AnythingOfType("*auth.AuthState")).Return(nil)
+		mockRepo.On("StoreAuthState", ctx, mock.AnythingOfType("*domain.AuthState")).Return(nil)
 		mockOAuthRepo.On("GetAuthURL", "google", mock.AnythingOfType("string"), mock.Anything).Return(expectedURL, nil)
 
 		url, state, err := svc.GetAuthURL(ctx, req)
@@ -280,11 +279,11 @@ func TestService_GetAuthURL(t *testing.T) {
 	})
 
 	t.Run("invalid provider", func(t *testing.T) {
-		req := &auth.LoginRequest{
+		req := &domain.LoginRequest{
 			Provider: "invalid-provider",
 		}
 
-		mockRepo.On("StoreAuthState", ctx, mock.AnythingOfType("*auth.AuthState")).Return(nil)
+		mockRepo.On("StoreAuthState", ctx, mock.AnythingOfType("*domain.AuthState")).Return(nil)
 		mockOAuthRepo.On("GetAuthURL", "invalid-provider", mock.AnythingOfType("string"), mock.Anything).
 			Return("", errors.New("unsupported provider"))
 
@@ -310,24 +309,24 @@ func TestService_HandleCallback(t *testing.T) {
 	}
 
 	t.Run("successful callback - new user", func(t *testing.T) {
-		req := &auth.CallbackRequest{
+		req := &domain.CallbackRequest{
 			Code:  "auth-code-123",
 			State: "valid-state-123",
 		}
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		authState := &auth.AuthState{
+		authState := &domain.AuthState{
 			State:    "valid-state-123",
 			Provider: "google",
 		}
 
-		oauthToken := &auth.OAuthToken{
+		oauthToken := &domain.OAuthToken{
 			AccessToken:  "access-token-123",
 			RefreshToken: "refresh-token-123",
 		}
 
-		userInfo := &auth.UserInfo{
+		userInfo := &domain.UserInfo{
 			ID:       "google-123",
 			Email:    "user@example.com",
 			Name:     "Test User",
@@ -371,16 +370,16 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		
 		// User doesn't exist yet
 		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*auth.User")).Return(nil)
+		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 		mockRepo.On("UpdateLastLogin", ctx, mock.AnythingOfType("string")).Return(nil)
-		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*auth.SecurityEvent")).Return(nil).Times(2)
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Times(2)
 		
 		// Generate tokens
 		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil)
 		mockKeyRepo.On("GetPrivateKey").Return(privateKey, nil)
 		
 		// Create session
-		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*auth.Session")).Return(nil)
+		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
 
 		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
 		assert.NoError(t, err)
@@ -396,7 +395,7 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 	})
 
 	t.Run("invalid state", func(t *testing.T) {
-		req := &auth.CallbackRequest{
+		req := &domain.CallbackRequest{
 			Code:  "auth-code-789",
 			State: "invalid-state",
 		}
@@ -460,14 +459,14 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		user := &auth.User{
+		user := &domain.User{
 			ID:          "user-123",
 			Email:       "user@example.com",
 			DisplayName: "Test User",
 			Provider:    "google",
 		}
 
-		session := &auth.Session{
+		session := &domain.Session{
 			ID:           uuid.New().String(),
 			UserID:       "user-123",
 			RefreshToken: refreshToken,
@@ -481,8 +480,8 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		mockRepo.On("GetUserOrganizations", ctx, "user-123").Return([]string{"org-1"}, nil)
 		mockKeyRepo.On("GetPrivateKey").Return(privateKey, nil)
 		mockRepo.On("BlacklistRefreshToken", ctx, refreshToken, session.ExpiresAt).Return(nil)
-		mockRepo.On("UpdateSession", ctx, mock.AnythingOfType("*auth.Session")).Return(nil)
-		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*auth.SecurityEvent")).Return(nil)
+		mockRepo.On("UpdateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
 
 		response, err := svc.RefreshToken(ctx, refreshToken, clientIP, userAgent)
 		assert.NoError(t, err)
@@ -516,7 +515,7 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		session := &auth.Session{
+		session := &domain.Session{
 			ID:           uuid.New().String(),
 			UserID:       "user-789",
 			RefreshToken: refreshToken,
@@ -550,7 +549,7 @@ func TestService_RevokeSession(t *testing.T) {
 		sessionID := "session-123"
 		refreshToken := "refresh-token-123"
 
-		session := &auth.Session{
+		session := &domain.Session{
 			ID:           sessionID,
 			UserID:       userID,
 			RefreshToken: refreshToken,
@@ -561,7 +560,7 @@ func TestService_RevokeSession(t *testing.T) {
 		mockRepo.On("GetSession", ctx, sessionID).Return(session, nil)
 		mockRepo.On("BlacklistRefreshToken", ctx, refreshToken, session.ExpiresAt).Return(nil)
 		mockRepo.On("DeleteSession", ctx, sessionID).Return(nil)
-		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*auth.SecurityEvent")).Return(nil)
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
 
 		err := svc.RevokeSession(ctx, userID, sessionID)
 		assert.NoError(t, err)
@@ -586,7 +585,7 @@ func TestService_RevokeSession(t *testing.T) {
 		userID := "user-789"
 		sessionID := "session-789"
 
-		session := &auth.Session{
+		session := &domain.Session{
 			ID:     sessionID,
 			UserID: "different-user",
 		}

@@ -1,4 +1,4 @@
-package auth
+package service
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 )
 
 // InternalAIOpsClaims defines the structure for the internal AIOps token.
@@ -25,19 +25,19 @@ type InternalAIOpsClaims struct {
 }
 
 type service struct {
-	repo      auth.Repository
-	oauthRepo auth.OAuthRepository
-	keyRepo   auth.KeyRepository
+	repo      domain.Repository
+	oauthRepo domain.OAuthRepository
+	keyRepo   domain.KeyRepository
 	logger    *slog.Logger
 }
 
 // NewService creates a new auth service
 func NewService(
-	repo auth.Repository,
-	oauthRepo auth.OAuthRepository,
-	keyRepo auth.KeyRepository,
+	repo domain.Repository,
+	oauthRepo domain.OAuthRepository,
+	keyRepo domain.KeyRepository,
 	logger *slog.Logger,
-) auth.Service {
+) domain.Service {
 	return &service{
 		repo:      repo,
 		oauthRepo: oauthRepo,
@@ -46,7 +46,7 @@ func NewService(
 	}
 }
 
-func (s *service) GetAuthURL(ctx context.Context, req *auth.LoginRequest) (string, string, error) {
+func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (string, string, error) {
 	// Generate state
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
@@ -61,7 +61,7 @@ func (s *service) GetAuthURL(ctx context.Context, req *auth.LoginRequest) (strin
 	}
 
 	// Store auth state
-	authState := &auth.AuthState{
+	authState := &domain.AuthState{
 		State:        state,
 		Provider:     req.Provider,
 		RedirectURL:  req.RedirectURL,
@@ -89,7 +89,7 @@ func (s *service) GetAuthURL(ctx context.Context, req *auth.LoginRequest) (strin
 	return authURL, state, nil
 }
 
-func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest, clientIP, userAgent string) (*auth.AuthResponse, error) {
+func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackRequest, clientIP, userAgent string) (*domain.AuthResponse, error) {
 	// Verify state
 	if err := s.VerifyAuthState(ctx, req.State, clientIP); err != nil {
 		return nil, fmt.Errorf("invalid state: %w", err)
@@ -124,7 +124,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 	user, err := s.repo.GetUserByExternalID(ctx, userInfo.ID, authState.Provider)
 	if err != nil {
 		// Create new user
-		user = &auth.User{
+		user = &domain.User{
 			ID:          uuid.New().String(),
 			ExternalID:  userInfo.ID,
 			Provider:    authState.Provider,
@@ -169,7 +169,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 	// Log security event
 	s.logSecurityEvent(ctx, user.ID, "login_success", "Successful OAuth login", clientIP, userAgent, "info")
 
-	return &auth.AuthResponse{
+	return &domain.AuthResponse{
 		User:         user,
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
@@ -178,7 +178,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 	}, nil
 }
 
-func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, userAgent string) (*auth.TokenPair, error) {
+func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, userAgent string) (*domain.TokenPair, error) {
 	// Check if token is blacklisted
 	blacklisted, err := s.repo.IsRefreshTokenBlacklisted(ctx, refreshToken)
 	if err != nil {
@@ -229,8 +229,8 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	return newTokenPair, nil
 }
 
-func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*auth.Session, error) {
-	session := &auth.Session{
+func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	session := &domain.Session{
 		ID:           uuid.New().String(),
 		UserID:       userID,
 		RefreshToken: refreshToken,
@@ -249,19 +249,19 @@ func (s *service) CreateSession(ctx context.Context, userID, refreshToken, devic
 	return session, nil
 }
 
-func (s *service) GetSession(ctx context.Context, sessionID string) (*auth.Session, error) {
+func (s *service) GetSession(ctx context.Context, sessionID string) (*domain.Session, error) {
 	return s.repo.GetSession(ctx, sessionID)
 }
 
-func (s *service) GetUserSessions(ctx context.Context, userID string) ([]*auth.SessionInfo, error) {
+func (s *service) GetUserSessions(ctx context.Context, userID string) ([]*domain.SessionInfo, error) {
 	sessions, err := s.repo.ListUserSessions(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions: %w", err)
 	}
 
-	sessionInfos := make([]*auth.SessionInfo, len(sessions))
+	sessionInfos := make([]*domain.SessionInfo, len(sessions))
 	for i, session := range sessions {
-		sessionInfos[i] = &auth.SessionInfo{
+		sessionInfos[i] = &domain.SessionInfo{
 			ID:         session.ID,
 			DeviceID:   session.DeviceID,
 			IPAddress:  session.IPAddress,
@@ -368,11 +368,11 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 	return nil
 }
 
-func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (*auth.Claims, error) {
+func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (*domain.Claims, error) {
 	// Handle development tokens
 	if strings.HasPrefix(tokenString, "dev_token_") {
 		// For development mode, return mock claims
-		return &auth.Claims{
+		return &domain.Claims{
 			Subject:   "dev-user-1",
 			Email:     "test@hexabase.com",
 			Name:      "Test User",
@@ -419,7 +419,7 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 		return nil, fmt.Errorf("failed to extract claims")
 	}
 
-	claims := &auth.Claims{
+	claims := &domain.Claims{
 		Subject:   mapClaims["sub"].(string),
 		Email:     mapClaims["email"].(string),
 		Name:      mapClaims["name"].(string),
@@ -453,7 +453,7 @@ func (s *service) GenerateWorkspaceToken(ctx context.Context, userID, workspaceI
 	}
 
 	// Create workspace claims
-	claims := &auth.WorkspaceClaims{
+	claims := &domain.WorkspaceClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
@@ -501,11 +501,11 @@ func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) e
 	return nil
 }
 
-func (s *service) GetUser(ctx context.Context, userID string) (*auth.User, error) {
+func (s *service) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	return s.repo.GetUser(ctx, userID)
 }
 
-func (s *service) GetCurrentUser(ctx context.Context, token string) (*auth.User, error) {
+func (s *service) GetCurrentUser(ctx context.Context, token string) (*domain.User, error) {
 	// Validate token and get claims
 	claims, err := s.ValidateAccessToken(ctx, token)
 	if err != nil {
@@ -521,7 +521,7 @@ func (s *service) GetCurrentUser(ctx context.Context, token string) (*auth.User,
 	return user, nil
 }
 
-func (s *service) UpdateUserProfile(ctx context.Context, userID string, updates map[string]interface{}) (*auth.User, error) {
+func (s *service) UpdateUserProfile(ctx context.Context, userID string, updates map[string]interface{}) (*domain.User, error) {
 	user, err := s.repo.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -544,7 +544,7 @@ func (s *service) UpdateUserProfile(ctx context.Context, userID string, updates 
 	return user, nil
 }
 
-func (s *service) LogSecurityEvent(ctx context.Context, event *auth.SecurityEvent) error {
+func (s *service) LogSecurityEvent(ctx context.Context, event *domain.SecurityEvent) error {
 	event.ID = uuid.New().String()
 	event.CreatedAt = time.Now()
 
@@ -555,7 +555,7 @@ func (s *service) LogSecurityEvent(ctx context.Context, event *auth.SecurityEven
 	return nil
 }
 
-func (s *service) GetSecurityLogs(ctx context.Context, filter auth.SecurityLogFilter) ([]*auth.SecurityEvent, error) {
+func (s *service) GetSecurityLogs(ctx context.Context, filter domain.SecurityLogFilter) ([]*domain.SecurityEvent, error) {
 	return s.repo.ListSecurityEvents(ctx, filter)
 }
 
@@ -584,7 +584,7 @@ func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interfac
 	return config, nil
 }
 
-func (s *service) StoreAuthState(ctx context.Context, state *auth.AuthState) error {
+func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	return s.repo.StoreAuthState(ctx, state)
 }
 
@@ -631,7 +631,7 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 
 // Helper functions
 
-func (s *service) generateTokenPair(ctx context.Context, user *auth.User) (*auth.TokenPair, error) {
+func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*domain.TokenPair, error) {
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
@@ -676,7 +676,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *auth.User) (*auth
 	}
 	refreshTokenString := base64.URLEncoding.EncodeToString(refreshTokenBytes)
 
-	return &auth.TokenPair{
+	return &domain.TokenPair{
 		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
 		TokenType:    "Bearer",
@@ -685,7 +685,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *auth.User) (*auth
 }
 
 func (s *service) logSecurityEvent(ctx context.Context, userID, eventType, description, ipAddress, userAgent, level string) {
-	event := &auth.SecurityEvent{
+	event := &domain.SecurityEvent{
 		ID:          uuid.New().String(),
 		UserID:      userID,
 		EventType:   eventType,

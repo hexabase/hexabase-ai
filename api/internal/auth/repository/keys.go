@@ -1,4 +1,4 @@
-package auth
+package repository
 
 import (
 	"crypto/rand"
@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 )
 
 type keyRepository struct {
@@ -22,7 +22,7 @@ type keyRepository struct {
 }
 
 // NewKeyRepository creates a new key repository
-func NewKeyRepository() (auth.KeyRepository, error) {
+func NewKeyRepository() (domain.KeyRepository, error) {
 	r := &keyRepository{}
 	if err := r.generateKeys(); err != nil {
 		return nil, err
