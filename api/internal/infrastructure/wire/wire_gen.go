@@ -8,9 +8,12 @@ package wire
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	auth4 "github.com/hexabase/hexabase-ai/api/internal/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
 	aiops3 "github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	application3 "github.com/hexabase/hexabase-ai/api/internal/domain/application"
@@ -81,7 +84,13 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	authService := auth2.NewService(authRepository, oAuthRepository, keyRepository, logger)
+	tokenManager, err := ProvideTokenManager(keyRepository)
+	if err != nil {
+		return nil, err
+	}
+	tokenDomainService := ProvideTokenDomainService()
+	int2 := ProvideDefaultTokenExpiry(cfg)
+	authService := auth2.NewService(authRepository, oAuthRepository, keyRepository, tokenManager, tokenDomainService, logger, int2)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	backupRepository := backup.NewPostgresRepository(db)
 	proxmoxRepository := ProvideBackupProxmoxRepository(cfg)
@@ -157,7 +166,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 
 var ApplicationSet = wire.NewSet(application.NewPostgresRepository, application.NewKubernetesRepository, application2.NewService, handlers.NewApplicationHandler)
 
-var AuthSet = wire.NewSet(auth.NewPostgresRepository, auth.NewOAuthRepository, auth.NewKeyRepository, auth2.NewService, handlers.NewAuthHandler)
+var AuthSet = wire.NewSet(auth.NewPostgresRepository, auth.NewOAuthRepository, auth.NewKeyRepository, ProvideTokenManager, ProvideTokenDomainService, ProvideDefaultTokenExpiry, auth2.NewService, handlers.NewAuthHandler)
 
 var BackupSet = wire.NewSet(backup.NewPostgresRepository, ProvideBackupProxmoxRepository,
 	ProvideBackupService, handlers.NewBackupHandler,
@@ -223,6 +232,44 @@ type AIOpsServiceURL string
 type CICDNamespace string
 
 type BackupEncryptionKey string
+
+func ProvideTokenDomainService() auth3.TokenDomainService {
+	return auth3.NewTokenDomainService()
+}
+
+func ProvideTokenManager(keyRepo auth3.KeyRepository) (*auth4.TokenManager, error) {
+
+	privateKeyPEM, err := keyRepo.GetPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private key: %w", err)
+	}
+
+	publicKeyPEM, err := keyRepo.GetPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return auth4.NewTokenManager(
+		privateKey,
+		publicKey,
+		"https://api.hexabase-kaas.io",
+		15*time.Minute,
+	), nil
+}
+
+func ProvideDefaultTokenExpiry(cfg *config.Config) int {
+	return cfg.Auth.JWTExpiration
+}
 
 func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*auth.ProviderConfig {
 	providers := make(map[string]*auth.ProviderConfig)

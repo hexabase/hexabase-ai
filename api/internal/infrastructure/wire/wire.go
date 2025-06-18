@@ -5,13 +5,16 @@ package wire
 
 import (
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/config"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
@@ -62,7 +65,7 @@ import (
 )
 
 var ApplicationSet = wire.NewSet(applicationRepo.NewPostgresRepository, applicationRepo.NewKubernetesRepository, applicationSvc.NewService, handlers.NewApplicationHandler)
-var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, handlers.NewAuthHandler)
+var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, ProvideTokenManager, ProvideTokenDomainService, ProvideDefaultTokenExpiry, authSvc.NewService, handlers.NewAuthHandler)
 var BackupSet = wire.NewSet(
 	backupRepo.NewPostgresRepository, 
 	ProvideBackupProxmoxRepository, 
@@ -110,6 +113,46 @@ type StripeWebhookSecret string
 type AIOpsServiceURL string
 type CICDNamespace string
 type BackupEncryptionKey string
+
+func ProvideTokenDomainService() auth.TokenDomainService {
+	return auth.NewTokenDomainService()
+}
+
+func ProvideTokenManager(keyRepo auth.KeyRepository) (*internalAuth.TokenManager, error) {
+	// Get keys from repository
+	privateKeyPEM, err := keyRepo.GetPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private key: %w", err)
+	}
+
+	publicKeyPEM, err := keyRepo.GetPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	// Parse keys
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	// Create TokenManager
+	return internalAuth.NewTokenManager(
+		privateKey,
+		publicKey,
+		"https://api.hexabase-kaas.io",
+		15*time.Minute, // 15 minutes expiration
+	), nil
+}
+
+func ProvideDefaultTokenExpiry(cfg *config.Config) int {
+	return cfg.Auth.JWTExpiration
+}
 
 func ProvideOAuthProviderConfigs(cfg *config.Config) map[string]*authRepo.ProviderConfig {
 	providers := make(map[string]*authRepo.ProviderConfig)
