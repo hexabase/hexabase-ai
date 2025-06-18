@@ -3,7 +3,7 @@ package db_test
 import (
 	"testing"
 
-	"github.com/hexabase/hexabase-ai/api/internal/db"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/driver/postgres"

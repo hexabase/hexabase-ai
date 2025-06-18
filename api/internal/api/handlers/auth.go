@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
-	"github.com/hexabase/hexabase-ai/api/internal/utils/httpauth"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/utils/httpauth"
 )
 
 // AuthHandler handles authentication-related HTTP requests

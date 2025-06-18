@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/db"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )

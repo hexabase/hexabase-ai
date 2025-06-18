@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
-	"github.com/hexabase/hexabase-ai/api/internal/infrastructure/wire"
-	"github.com/hexabase/hexabase-ai/api/internal/utils/httpauth"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/infrastructure/wire"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/utils/httpauth"
 )
 
 // requireInternalAuth is middleware that validates internal service authentication

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/config"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
+
+	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
+	"github.com/redis/go-redis/v9"
 )
 
 // Client wraps the Redis client

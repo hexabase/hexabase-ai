@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hexabase/hexabase-ai/api/internal/config"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/repository/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 )
 
 func TestProvideOAuthProviderConfigs(t *testing.T) {
