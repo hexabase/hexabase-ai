@@ -1,12 +1,13 @@
 package auth
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// User represents an authenticated user
+// User represents an authenticated user with business rules
 type User struct {
 	ID          string    `json:"id"`
 	ExternalID  string    `json:"external_id"`
@@ -19,6 +20,23 @@ type User struct {
 	LastLoginAt time.Time `json:"last_login_at"`
 }
 
+// Validate ensures user data meets business rules
+func (u *User) Validate() error {
+	if u.Email == "" {
+		return errors.New("email is required")
+	}
+	if u.Provider == "" {
+		return errors.New("provider is required")
+	}
+	if u.DisplayName == "" {
+		return errors.New("display name is required")
+	}
+	if u.ExternalID == "" {
+		return errors.New("external ID is required")
+	}
+	return nil
+}
+
 // TokenPair represents access and refresh tokens
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
@@ -27,15 +45,40 @@ type TokenPair struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-// Claims represents JWT claims
+// Claims represents JWT claims with business validation
 type Claims struct {
-	Subject   string   `json:"sub"`
+	jwt.RegisteredClaims
+	UserID    string   `json:"user_id"`
 	Email     string   `json:"email"`
 	Name      string   `json:"name"`
 	Provider  string   `json:"provider"`
 	OrgIDs    []string `json:"org_ids,omitempty"`
-	ExpiresAt int64    `json:"exp"`
-	IssuedAt  int64    `json:"iat"`
+	SessionID string   `json:"session_id"`
+}
+
+// ValidateBusinessRules ensures claims meet business requirements
+func (c *Claims) ValidateBusinessRules() error {
+	if c.UserID == "" {
+		return errors.New("user_id claim is required")
+	}
+	if c.Email == "" {
+		return errors.New("email claim is required")
+	}
+	if c.SessionID == "" {
+		return errors.New("session_id claim is required")
+	}
+	
+// Removed commented-out TODOs and dead code related to legacy session logging.
+
+	// Validate expiration within acceptable range
+	if c.ExpiresAt != nil {
+		maxExpiry := time.Now().Add(24 * time.Hour)
+		if c.ExpiresAt.After(maxExpiry) {
+			return errors.New("token expiry exceeds maximum allowed duration")
+		}
+	}
+	
+	return nil
 }
 
 // WorkspaceClaims represents JWT claims for workspace access
@@ -46,7 +89,7 @@ type WorkspaceClaims struct {
 	Groups      []string `json:"groups"`
 }
 
-// Session represents an active user session
+// Session represents an authenticated session with business logic
 type Session struct {
 	ID           string    `json:"id"`
 	UserID       string    `json:"user_id"`
@@ -57,6 +100,27 @@ type Session struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 	CreatedAt    time.Time `json:"created_at"`
 	LastUsedAt   time.Time `json:"last_used_at"`
+	Revoked      bool      `json:"revoked"`
+}
+
+// IsExpired checks if session has expired
+func (s *Session) IsExpired() bool {
+	return time.Now().After(s.ExpiresAt)
+}
+
+// IsValid checks if session is valid for use
+func (s *Session) IsValid() bool {
+	return !s.Revoked && !s.IsExpired()
+}
+
+// Revoke marks the session as revoked
+func (s *Session) Revoke() {
+	s.Revoked = true
+}
+
+// UpdateLastUsed updates the last used timestamp
+func (s *Session) UpdateLastUsed() {
+	s.LastUsedAt = time.Now()
 }
 
 // AuthState represents OAuth state data stored temporarily during the auth flow.

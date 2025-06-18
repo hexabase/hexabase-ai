@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/auth"
 )
 
@@ -25,10 +26,13 @@ type InternalAIOpsClaims struct {
 }
 
 type service struct {
-	repo      auth.Repository
-	oauthRepo auth.OAuthRepository
-	keyRepo   auth.KeyRepository
-	logger    *slog.Logger
+	repo               auth.Repository
+	oauthRepo          auth.OAuthRepository
+	keyRepo            auth.KeyRepository
+	tokenManager       *internalAuth.TokenManager
+	tokenDomainService auth.TokenDomainService
+	logger             *slog.Logger
+	defaultTokenExpiry int // Default token expiry in seconds when claims don't have expiry info
 }
 
 // NewService creates a new auth service
@@ -36,13 +40,19 @@ func NewService(
 	repo auth.Repository,
 	oauthRepo auth.OAuthRepository,
 	keyRepo auth.KeyRepository,
+	tokenManager *internalAuth.TokenManager,
+	tokenDomainService auth.TokenDomainService,
 	logger *slog.Logger,
+	defaultTokenExpiry int,
 ) auth.Service {
 	return &service{
-		repo:      repo,
-		oauthRepo: oauthRepo,
-		keyRepo:   keyRepo,
-		logger:    logger,
+		repo:               repo,
+		oauthRepo:          oauthRepo,
+		keyRepo:            keyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: tokenDomainService,
+		logger:             logger,
+		defaultTokenExpiry: defaultTokenExpiry,
 	}
 }
 
@@ -179,7 +189,7 @@ func (s *service) HandleCallback(ctx context.Context, req *auth.CallbackRequest,
 }
 
 func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, userAgent string) (*auth.TokenPair, error) {
-	// Check if token is blacklisted
+	// Infrastructure concerns: Check if token is blacklisted
 	blacklisted, err := s.repo.IsRefreshTokenBlacklisted(ctx, refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check token blacklist: %w", err)
@@ -188,7 +198,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("refresh token is invalid")
 	}
 
-	// Get session by refresh token
+	// Infrastructure concerns: Get session by refresh token
 	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %w", err)
@@ -199,34 +209,40 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("session has expired")
 	}
 
-	// Get user
+	// Infrastructure concerns: Get user
 	user, err := s.repo.GetUser(ctx, session.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	// Generate new token pair
-	newTokenPair, err := s.generateTokenPair(ctx, user)
+	// Business logic: Apply domain rules through domain service
+	newClaims, err := s.tokenDomainService.RefreshToken(ctx, session, user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate tokens: %w", err)
+		return nil, fmt.Errorf("refresh validation failed: %w", err)
 	}
 
-	// Blacklist old refresh token
+	// Infrastructure concerns: Generate token pair using new claims
+	tokenPair, err := s.generateTokenPairFromClaims(ctx, newClaims)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token pair: %w", err)
+	}
+
+	// Infrastructure concerns: Blacklist old refresh token
 	if err := s.repo.BlacklistRefreshToken(ctx, refreshToken, session.ExpiresAt); err != nil {
 		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
-	// Update session with new refresh token
-	session.RefreshToken = newTokenPair.RefreshToken
+	// Infrastructure concerns: Update session with new refresh token
+	session.RefreshToken = tokenPair.RefreshToken
 	session.LastUsedAt = time.Now()
 	if err := s.repo.UpdateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to update session: %w", err)
 	}
 
-	// Log security event
+	// Infrastructure concerns: Log security event
 	s.logSecurityEvent(ctx, user.ID, "token_refreshed", "Access token refreshed", clientIP, userAgent, "info")
 
-	return newTokenPair, nil
+	return tokenPair, nil
 }
 
 func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*auth.Session, error) {
@@ -373,13 +389,17 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 	if strings.HasPrefix(tokenString, "dev_token_") {
 		// For development mode, return mock claims
 		return &auth.Claims{
-			Subject:   "dev-user-1",
+			RegisteredClaims: jwt.RegisteredClaims{
+				Subject:   "dev-user-1",
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+			},
+			UserID:    "dev-user-1",
 			Email:     "test@hexabase.com",
 			Name:      "Test User",
 			Provider:  "credentials",
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-			IssuedAt:  time.Now().Unix(),
 			OrgIDs:    []string{"dev-org-1"}, // Include development organization
+			SessionID: "dev-session-1",
 		}, nil
 	}
 
@@ -420,12 +440,32 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 	}
 
 	claims := &auth.Claims{
-		Subject:   mapClaims["sub"].(string),
-		Email:     mapClaims["email"].(string),
-		Name:      mapClaims["name"].(string),
-		Provider:  mapClaims["provider"].(string),
-		ExpiresAt: int64(mapClaims["exp"].(float64)),
-		IssuedAt:  int64(mapClaims["iat"].(float64)),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: mapClaims["sub"].(string),
+			ExpiresAt: func() *jwt.NumericDate {
+				if exp, ok := mapClaims["exp"].(float64); ok {
+					return jwt.NewNumericDate(time.Unix(int64(exp), 0))
+				}
+				return nil
+			}(),
+			IssuedAt: func() *jwt.NumericDate {
+				if iat, ok := mapClaims["iat"].(float64); ok {
+					return jwt.NewNumericDate(time.Unix(int64(iat), 0))
+				}
+				return nil
+			}(),
+		},
+		UserID:   mapClaims["sub"].(string),
+		Email:    mapClaims["email"].(string),
+		Name:     mapClaims["name"].(string),
+		Provider: mapClaims["provider"].(string),
+	}
+
+	// Set SessionID if present
+	if sessionID, ok := mapClaims["session_id"].(string); ok {
+		claims.SessionID = sessionID
+	} else {
+		claims.SessionID = "legacy-session"
 	}
 
 	// Extract org IDs if present
@@ -486,6 +526,51 @@ func (s *service) GenerateWorkspaceToken(ctx context.Context, userID, workspaceI
 	return tokenString, nil
 }
 
+// generateTokenPairFromClaims creates a token pair from pre-generated claims
+func (s *service) generateTokenPairFromClaims(ctx context.Context, claims *auth.Claims) (*auth.TokenPair, error) {
+	// Use TokenManager to sign claims
+	accessToken, err := s.tokenManager.SignClaims(claims)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign access token: %w", err)
+	}
+
+	// Generate refresh token
+	refreshToken, err := s.generateRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Calculate expiration time from claims
+	var expiresIn int
+	if claims.ExpiresAt != nil && claims.IssuedAt != nil {
+		expiresIn = int(claims.ExpiresAt.Sub(claims.IssuedAt.Time).Seconds())
+	} else {
+		// Use configurable default instead of hardcoded value
+		// TODO: Consider making this configurable per user/organization/session type
+		expiresIn = s.defaultTokenExpiry
+		s.logger.Warn("using default token expiry due to missing claims timestamps", 
+			"default_expiry_seconds", expiresIn,
+			"user_id", claims.UserID,
+		)
+	}
+
+	return &auth.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    expiresIn,
+	}, nil
+}
+
+// generateRefreshToken generates a new refresh token
+func (s *service) generateRefreshToken() (string, error) {
+	refreshTokenBytes := make([]byte, 32)
+	if _, err := rand.Read(refreshTokenBytes); err != nil {
+		return "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+	return base64.URLEncoding.EncodeToString(refreshTokenBytes), nil
+}
+
 func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	// Get session to find expiry
 	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
@@ -513,7 +598,7 @@ func (s *service) GetCurrentUser(ctx context.Context, token string) (*auth.User,
 	}
 
 	// Get user
-	user, err := s.repo.GetUser(ctx, claims.Subject)
+	user, err := s.repo.GetUser(ctx, claims.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
@@ -639,49 +724,26 @@ func (s *service) generateTokenPair(ctx context.Context, user *auth.User) (*auth
 		orgIDs = []string{}
 	}
 
-	// Create claims
-	claims := jwt.MapClaims{
-		"sub":      user.ID,
-		"email":    user.Email,
-		"name":     user.DisplayName,
-		"provider": user.Provider,
-		"org_ids":  orgIDs,
-		"iat":      time.Now().Unix(),
-		"exp":      time.Now().Add(15 * time.Minute).Unix(),
+	// Create domain claims
+	now := time.Now()
+	claims := &auth.Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.ID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
+			Issuer:    "https://api.hexabase-kaas.io",
+			Audience:  []string{"hexabase-api"},
+		},
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      user.DisplayName,
+		Provider:  user.Provider,
+		OrgIDs:    orgIDs,
+		SessionID: "", // Will be set when session is created
 	}
 
-	// Get private key
-	privateKeyPEM, err := s.keyRepo.GetPrivateKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get private key: %w", err)
-	}
-
-	// Parse private key
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %w", err)
-	}
-
-	// Create access token
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	accessTokenString, err := accessToken.SignedString(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign access token: %w", err)
-	}
-
-	// Generate refresh token
-	refreshTokenBytes := make([]byte, 32)
-	if _, err := rand.Read(refreshTokenBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-	refreshTokenString := base64.URLEncoding.EncodeToString(refreshTokenBytes)
-
-	return &auth.TokenPair{
-		AccessToken:  accessTokenString,
-		RefreshToken: refreshTokenString,
-		TokenType:    "Bearer",
-		ExpiresIn:    900, // 15 minutes
-	}, nil
+	// Use common token pair generation logic
+	return s.generateTokenPairFromClaims(ctx, claims)
 }
 
 func (s *service) logSecurityEvent(ctx context.Context, userID, eventType, description, ipAddress, userAgent, level string) {
