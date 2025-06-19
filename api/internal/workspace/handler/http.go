@@ -1,33 +1,33 @@
-package handlers
+package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
-	"log/slog"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
-// WorkspaceHandler handles workspace-related HTTP requests
-type WorkspaceHandler struct {
-	service workspace.Service
+// Handler handles workspace-related HTTP requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewWorkspaceHandler creates a new workspace handler
-func NewWorkspaceHandler(service workspace.Service, logger *slog.Logger) *WorkspaceHandler {
-	return &WorkspaceHandler{
+// NewHandler creates a new workspace handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreateWorkspace handles workspace creation
-func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
+func (h *Handler) CreateWorkspace(c *gin.Context) {
 	orgID := c.Param("orgId")
 	userID := c.GetString("user_id")
 
-	var req workspace.CreateWorkspaceRequest
+	var req domain.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -56,7 +56,7 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 }
 
 // GetWorkspace handles getting a workspace
-func (h *WorkspaceHandler) GetWorkspace(c *gin.Context) {
+func (h *Handler) GetWorkspace(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	ws, err := h.service.GetWorkspace(c.Request.Context(), workspaceID)
@@ -70,11 +70,11 @@ func (h *WorkspaceHandler) GetWorkspace(c *gin.Context) {
 }
 
 // ListWorkspaces handles listing workspaces
-func (h *WorkspaceHandler) ListWorkspaces(c *gin.Context) {
+func (h *Handler) ListWorkspaces(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	// Parse query parameters
-	var filter workspace.WorkspaceFilter
+	var filter domain.WorkspaceFilter
 	filter.Page = 1
 	filter.PageSize = 20
 
@@ -108,11 +108,11 @@ func (h *WorkspaceHandler) ListWorkspaces(c *gin.Context) {
 }
 
 // UpdateWorkspace handles updating a workspace
-func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
+func (h *Handler) UpdateWorkspace(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 
-	var req workspace.UpdateWorkspaceRequest
+	var req domain.UpdateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -135,7 +135,7 @@ func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 }
 
 // DeleteWorkspace handles deleting a workspace
-func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
+func (h *Handler) DeleteWorkspace(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 
@@ -159,7 +159,7 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 }
 
 // GetKubeconfig handles getting workspace kubeconfig
-func (h *WorkspaceHandler) GetKubeconfig(c *gin.Context) {
+func (h *Handler) GetKubeconfig(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	// userID := c.GetString("user_id") // Not used in the service method
 
@@ -176,7 +176,7 @@ func (h *WorkspaceHandler) GetKubeconfig(c *gin.Context) {
 }
 
 // GetResourceUsage handles getting workspace resource usage
-func (h *WorkspaceHandler) GetResourceUsage(c *gin.Context) {
+func (h *Handler) GetResourceUsage(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), workspaceID)
@@ -190,11 +190,11 @@ func (h *WorkspaceHandler) GetResourceUsage(c *gin.Context) {
 }
 
 // AddWorkspaceMember handles adding a member to workspace
-func (h *WorkspaceHandler) AddWorkspaceMember(c *gin.Context) {
+func (h *Handler) AddWorkspaceMember(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	addedBy := c.GetString("user_id")
 
-	var req workspace.AddMemberRequest
+	var req domain.AddMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -216,7 +216,7 @@ func (h *WorkspaceHandler) AddWorkspaceMember(c *gin.Context) {
 }
 
 // RemoveWorkspaceMember handles removing a member from workspace
-func (h *WorkspaceHandler) RemoveWorkspaceMember(c *gin.Context) {
+func (h *Handler) RemoveWorkspaceMember(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.Param("userId")
 
@@ -231,7 +231,7 @@ func (h *WorkspaceHandler) RemoveWorkspaceMember(c *gin.Context) {
 }
 
 // ListWorkspaceMembers handles listing workspace members
-func (h *WorkspaceHandler) ListWorkspaceMembers(c *gin.Context) {
+func (h *Handler) ListWorkspaceMembers(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	members, err := h.service.ListWorkspaceMembers(c.Request.Context(), workspaceID)

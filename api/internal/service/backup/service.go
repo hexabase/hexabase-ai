@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,7 +19,7 @@ type Service struct {
 	repo           backup.Repository
 	proxmoxRepo    backup.ProxmoxRepository
 	appRepo        application.Repository
-	workspaceRepo  workspace.Repository
+	workspaceRepo  workspaceDomain.Repository
 	k8sClient      kubernetes.Interface
 	executor       *BackupExecutor
 	logger         *slog.Logger
@@ -30,7 +30,7 @@ func NewService(
 	repo backup.Repository,
 	proxmoxRepo backup.ProxmoxRepository,
 	appRepo application.Repository,
-	workspaceRepo workspace.Repository,
+	workspaceRepo workspaceDomain.Repository,
 	k8sClient kubernetes.Interface,
 	encryptionKey string,
 ) backup.Service {
@@ -67,7 +67,7 @@ func (s *Service) CreateBackupStorage(ctx context.Context, workspaceID string, r
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
 	}
 
-	if ws.Plan != workspace.WorkspacePlanDedicated {
+	if ws.Plan != workspaceDomain.WorkspacePlanDedicated {
 		return nil, errors.New("backup storage is only available for Dedicated Plan workspaces")
 	}
 
@@ -279,7 +279,7 @@ func (s *Service) CreateBackupPolicy(ctx context.Context, applicationID string, 
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
 	}
 
-	if ws.Plan != workspace.WorkspacePlanDedicated {
+	if ws.Plan != workspaceDomain.WorkspacePlanDedicated {
 		return nil, errors.New("backup policies are only available for Dedicated Plan workspaces")
 	}
 

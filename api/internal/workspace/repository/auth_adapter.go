@@ -1,4 +1,4 @@
-package workspace
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
 // AuthRepositoryAdapter adapts auth.Repository to workspace.AuthRepository
@@ -15,19 +15,19 @@ type AuthRepositoryAdapter struct {
 }
 
 // NewAuthRepositoryAdapter creates a new adapter
-func NewAuthRepositoryAdapter(authRepo authDomain.Repository) workspace.AuthRepository {
+func NewAuthRepositoryAdapter(authRepo authDomain.Repository) domain.AuthRepository {
 	return &AuthRepositoryAdapter{authRepo: authRepo}
 }
 
 // GetUser adapts the auth.User to workspace.User
-func (a *AuthRepositoryAdapter) GetUser(ctx context.Context, userID string) (*workspace.User, error) {
+func (a *AuthRepositoryAdapter) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	authUser, err := a.authRepo.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	// Convert auth.User to workspace.User
-	return &workspace.User{
+	return &domain.User{
 		ID:    authUser.ID,
 		Email: authUser.Email,
 		Name:  authUser.Email, // Use email as name for now

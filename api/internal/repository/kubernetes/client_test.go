@@ -378,12 +378,12 @@ func TestParseResourceValue(t *testing.T) {
 		{
 			name:     "parse memory Mi",
 			value:    "256Mi",
-			expected: 268435.456,
+			expected: 262144, // 256 * 1024 KB
 		},
 		{
 			name:     "parse memory Gi", 
 			value:    "4Gi",
-			expected: 4294967.296,
+			expected: 4194304, // 4 * 1024 * 1024 KB
 		},
 		{
 			name:     "invalid value",

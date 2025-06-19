@@ -7,7 +7,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
@@ -424,34 +424,34 @@ type MockWorkspaceRepository struct {
 	mock.Mock
 }
 
-func (m *MockWorkspaceRepository) GetWorkspace(ctx context.Context, workspaceID string) (*workspace.Workspace, error) {
+func (m *MockWorkspaceRepository) GetWorkspace(ctx context.Context, workspaceID string) (*workspaceDomain.Workspace, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*workspace.Workspace), args.Error(1)
+	return args.Get(0).(*workspaceDomain.Workspace), args.Error(1)
 }
 
-// Implement all required methods for workspace.Repository interface
-func (m *MockWorkspaceRepository) CreateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+// Implement all required methods for workspaceDomain.Repository interface
+func (m *MockWorkspaceRepository) CreateWorkspace(ctx context.Context, ws *workspaceDomain.Workspace) error {
 	args := m.Called(ctx, ws)
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*workspace.Workspace, error) {
+func (m *MockWorkspaceRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*workspaceDomain.Workspace, error) {
 	args := m.Called(ctx, name, orgID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*workspace.Workspace), args.Error(1)
+	return args.Get(0).(*workspaceDomain.Workspace), args.Error(1)
 }
 
-func (m *MockWorkspaceRepository) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) ([]*workspace.Workspace, int, error) {
+func (m *MockWorkspaceRepository) ListWorkspaces(ctx context.Context, filter workspaceDomain.WorkspaceFilter) ([]*workspaceDomain.Workspace, int, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*workspace.Workspace), args.Int(1), args.Error(2)
+	return args.Get(0).([]*workspaceDomain.Workspace), args.Int(1), args.Error(2)
 }
 
-func (m *MockWorkspaceRepository) UpdateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+func (m *MockWorkspaceRepository) UpdateWorkspace(ctx context.Context, ws *workspaceDomain.Workspace) error {
 	args := m.Called(ctx, ws)
 	return args.Error(0)
 }
@@ -461,45 +461,45 @@ func (m *MockWorkspaceRepository) DeleteWorkspace(ctx context.Context, workspace
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) CreateTask(ctx context.Context, task *workspace.Task) error {
+func (m *MockWorkspaceRepository) CreateTask(ctx context.Context, task *workspaceDomain.Task) error {
 	args := m.Called(ctx, task)
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
+func (m *MockWorkspaceRepository) GetTask(ctx context.Context, taskID string) (*workspaceDomain.Task, error) {
 	args := m.Called(ctx, taskID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*workspace.Task), args.Error(1)
+	return args.Get(0).(*workspaceDomain.Task), args.Error(1)
 }
 
-func (m *MockWorkspaceRepository) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
+func (m *MockWorkspaceRepository) ListTasks(ctx context.Context, workspaceID string) ([]*workspaceDomain.Task, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]*workspace.Task), args.Error(1)
+	return args.Get(0).([]*workspaceDomain.Task), args.Error(1)
 }
 
-func (m *MockWorkspaceRepository) UpdateTask(ctx context.Context, task *workspace.Task) error {
+func (m *MockWorkspaceRepository) UpdateTask(ctx context.Context, task *workspaceDomain.Task) error {
 	args := m.Called(ctx, task)
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspace.Task, error) {
+func (m *MockWorkspaceRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspaceDomain.Task, error) {
 	args := m.Called(ctx, taskType, limit)
-	return args.Get(0).([]*workspace.Task), args.Error(1)
+	return args.Get(0).([]*workspaceDomain.Task), args.Error(1)
 }
 
-func (m *MockWorkspaceRepository) SaveWorkspaceStatus(ctx context.Context, status *workspace.WorkspaceStatus) error {
+func (m *MockWorkspaceRepository) SaveWorkspaceStatus(ctx context.Context, status *workspaceDomain.WorkspaceStatus) error {
 	args := m.Called(ctx, status)
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
+func (m *MockWorkspaceRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspaceDomain.WorkspaceStatus, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*workspace.WorkspaceStatus), args.Error(1)
+	return args.Get(0).(*workspaceDomain.WorkspaceStatus), args.Error(1)
 }
 
 func (m *MockWorkspaceRepository) SaveKubeconfig(ctx context.Context, workspaceID, kubeconfig string) error {
@@ -522,12 +522,12 @@ func (m *MockWorkspaceRepository) CleanupDeletedWorkspaces(ctx context.Context, 
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspace.WorkspaceMember, error) {
+func (m *MockWorkspaceRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspaceDomain.WorkspaceMember, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]*workspace.WorkspaceMember), args.Error(1)
+	return args.Get(0).([]*workspaceDomain.WorkspaceMember), args.Error(1)
 }
 
-func (m *MockWorkspaceRepository) AddWorkspaceMember(ctx context.Context, member *workspace.WorkspaceMember) error {
+func (m *MockWorkspaceRepository) AddWorkspaceMember(ctx context.Context, member *workspaceDomain.WorkspaceMember) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
@@ -537,7 +537,7 @@ func (m *MockWorkspaceRepository) RemoveWorkspaceMember(ctx context.Context, wor
 	return args.Error(0)
 }
 
-func (m *MockWorkspaceRepository) CreateResourceUsage(ctx context.Context, usage *workspace.ResourceUsage) error {
+func (m *MockWorkspaceRepository) CreateResourceUsage(ctx context.Context, usage *workspaceDomain.ResourceUsage) error {
 	args := m.Called(ctx, usage)
 	return args.Error(0)
 }
@@ -557,9 +557,9 @@ func TestCreateBackupStorage(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock workspace on Dedicated Plan
-		ws := &workspace.Workspace{
+		ws := &workspaceDomain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanDedicated,
+			Plan: workspaceDomain.WorkspacePlanDedicated,
 		}
 		mockWorkspaceRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 
@@ -614,9 +614,9 @@ func TestCreateBackupStorage(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock workspace on Shared Plan
-		ws := &workspace.Workspace{
+		ws := &workspaceDomain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanShared,
+			Plan: workspaceDomain.WorkspacePlanShared,
 		}
 		mockWorkspaceRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 
@@ -657,9 +657,9 @@ func TestCreateBackupPolicy(t *testing.T) {
 		mockAppRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
 
 		// Mock workspace on Dedicated Plan
-		ws := &workspace.Workspace{
+		ws := &workspaceDomain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanDedicated,
+			Plan: workspaceDomain.WorkspacePlanDedicated,
 		}
 		mockWorkspaceRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 
@@ -724,9 +724,9 @@ func TestCreateBackupPolicy(t *testing.T) {
 		mockAppRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
 
 		// Mock workspace on Dedicated Plan
-		ws := &workspace.Workspace{
+		ws := &workspaceDomain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanDedicated,
+			Plan: workspaceDomain.WorkspacePlanDedicated,
 		}
 		mockWorkspaceRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 

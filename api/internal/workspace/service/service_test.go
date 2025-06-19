@@ -1,4 +1,4 @@
-package workspace
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -24,19 +24,19 @@ func TestCreateWorkspace(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
-		req := &workspace.CreateWorkspaceRequest{
+		req := &domain.CreateWorkspaceRequest{
 			Name:           "test-workspace",
 			Description:    "Test workspace description",
 			OrganizationID: "org-123",
-			Plan:           workspace.WorkspacePlanShared,
+			Plan:           domain.WorkspacePlanShared,
 			PlanID:         "plan-shared-1",
 			Settings: map[string]interface{}{
 				"env": "test",
 			},
 		}
 
-		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*workspace.Workspace")).Return(nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(nil)
+		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*domain.Workspace")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(nil)
 
 		// Execute
 		ws, task, err := service.CreateWorkspace(ctx, req)
@@ -47,7 +47,7 @@ func TestCreateWorkspace(t *testing.T) {
 		assert.NotNil(t, task)
 		assert.Equal(t, "test-workspace", ws.Name)
 		assert.Equal(t, "org-123", ws.OrganizationID)
-		assert.Equal(t, workspace.WorkspacePlanShared, ws.Plan)
+		assert.Equal(t, domain.WorkspacePlanShared, ws.Plan)
 		assert.Equal(t, "creating", ws.Status)
 		assert.Equal(t, "provision_vcluster", task.Type)
 		assert.Equal(t, "pending", task.Status)
@@ -64,9 +64,9 @@ func TestCreateWorkspace(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
-		req := &workspace.CreateWorkspaceRequest{
+		req := &domain.CreateWorkspaceRequest{
 			OrganizationID: "org-123",
-			Plan:           workspace.WorkspacePlanShared,
+			Plan:           domain.WorkspacePlanShared,
 		}
 
 		// Execute
@@ -88,13 +88,13 @@ func TestCreateWorkspace(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
-		req := &workspace.CreateWorkspaceRequest{
+		req := &domain.CreateWorkspaceRequest{
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
-			Plan:           workspace.WorkspacePlanShared,
+			Plan:           domain.WorkspacePlanShared,
 		}
 
-		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*workspace.Workspace")).Return(errors.New("database error"))
+		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*domain.Workspace")).Return(errors.New("database error"))
 
 		// Execute
 		ws, task, err := service.CreateWorkspace(ctx, req)
@@ -117,14 +117,14 @@ func TestCreateWorkspace(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
-		req := &workspace.CreateWorkspaceRequest{
+		req := &domain.CreateWorkspaceRequest{
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
-			Plan:           workspace.WorkspacePlanShared,
+			Plan:           domain.WorkspacePlanShared,
 		}
 
-		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*workspace.Workspace")).Return(nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(errors.New("task creation error"))
+		mockRepo.On("CreateWorkspace", ctx, mock.AnythingOfType("*domain.Workspace")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(errors.New("task creation error"))
 
 		// Execute
 		ws, task, err := service.CreateWorkspace(ctx, req)
@@ -150,7 +150,7 @@ func TestGetWorkspace(t *testing.T) {
 
 	t.Run("successful get workspace - active status", func(t *testing.T) {
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
@@ -175,7 +175,7 @@ func TestGetWorkspace(t *testing.T) {
 
 	t.Run("successful get workspace - non-active status", func(t *testing.T) {
 		workspaceID := "ws-456"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
@@ -199,7 +199,7 @@ func TestGetWorkspace(t *testing.T) {
 
 	t.Run("vcluster status error is logged but doesn't fail", func(t *testing.T) {
 		workspaceID := "ws-789"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
@@ -248,13 +248,13 @@ func TestListWorkspaces(t *testing.T) {
 	service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 	t.Run("successful list workspaces", func(t *testing.T) {
-		filter := workspace.WorkspaceFilter{
+		filter := domain.WorkspaceFilter{
 			OrganizationID: "org-123",
 			Page:           1,
 			PageSize:       10,
 		}
 
-		workspaces := []*workspace.Workspace{
+		workspaces := []*domain.Workspace{
 			{
 				ID:             "ws-1",
 				Name:           "workspace-1",
@@ -284,7 +284,7 @@ func TestListWorkspaces(t *testing.T) {
 	})
 
 	t.Run("repository error", func(t *testing.T) {
-		filter := workspace.WorkspaceFilter{
+		filter := domain.WorkspaceFilter{
 			OrganizationID: "org-123",
 		}
 
@@ -313,7 +313,7 @@ func TestUpdateWorkspace(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		existingWs := &workspace.Workspace{
+		existingWs := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "old-name",
 			Description:    "old-description",
@@ -325,7 +325,7 @@ func TestUpdateWorkspace(t *testing.T) {
 			UpdatedAt: time.Now().Add(-1 * time.Hour),
 		}
 
-		req := &workspace.UpdateWorkspaceRequest{
+		req := &domain.UpdateWorkspaceRequest{
 			Name:        "new-name",
 			Description: "new-description",
 			Settings: map[string]interface{}{
@@ -334,7 +334,7 @@ func TestUpdateWorkspace(t *testing.T) {
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(existingWs, nil)
-		mockRepo.On("UpdateWorkspace", ctx, mock.AnythingOfType("*workspace.Workspace")).Return(nil)
+		mockRepo.On("UpdateWorkspace", ctx, mock.AnythingOfType("*domain.Workspace")).Return(nil)
 
 		// Execute
 		result, err := service.UpdateWorkspace(ctx, workspaceID, req)
@@ -359,7 +359,7 @@ func TestUpdateWorkspace(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-not-found"
-		req := &workspace.UpdateWorkspaceRequest{
+		req := &domain.UpdateWorkspaceRequest{
 			Name: "new-name",
 		}
 
@@ -386,18 +386,18 @@ func TestUpdateWorkspace(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		existingWs := &workspace.Workspace{
+		existingWs := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "old-name",
 			OrganizationID: "org-123",
 		}
 
-		req := &workspace.UpdateWorkspaceRequest{
+		req := &domain.UpdateWorkspaceRequest{
 			Name: "new-name",
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(existingWs, nil)
-		mockRepo.On("UpdateWorkspace", ctx, mock.AnythingOfType("*workspace.Workspace")).Return(errors.New("update error"))
+		mockRepo.On("UpdateWorkspace", ctx, mock.AnythingOfType("*domain.Workspace")).Return(errors.New("update error"))
 
 		// Execute
 		result, err := service.UpdateWorkspace(ctx, workspaceID, req)
@@ -423,7 +423,7 @@ func TestDeleteWorkspace(t *testing.T) {
 
 	t.Run("successful workspace deletion", func(t *testing.T) {
 		workspaceID := "ws-123"
-		existingWs := &workspace.Workspace{
+		existingWs := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
@@ -431,10 +431,10 @@ func TestDeleteWorkspace(t *testing.T) {
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(existingWs, nil)
-		mockRepo.On("UpdateWorkspace", ctx, mock.MatchedBy(func(ws *workspace.Workspace) bool {
+		mockRepo.On("UpdateWorkspace", ctx, mock.MatchedBy(func(ws *domain.Workspace) bool {
 			return ws.Status == "deleting"
 		})).Return(nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(nil)
 
 		// Execute
 		task, err := service.DeleteWorkspace(ctx, workspaceID)
@@ -450,7 +450,7 @@ func TestDeleteWorkspace(t *testing.T) {
 
 	t.Run("workspace already being deleted", func(t *testing.T) {
 		workspaceID := "ws-123"
-		existingWs := &workspace.Workspace{
+		existingWs := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
@@ -499,16 +499,16 @@ func TestGetWorkspaceStatus(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:             workspaceID,
 			Name:           "test-workspace",
 			OrganizationID: "org-123",
 			Status:         "active",
 		}
 
-		resourceUsage := &workspace.ResourceUsage{
+		resourceUsage := &domain.ResourceUsage{
 			WorkspaceID: workspaceID,
-			CPU: workspace.ResourceMetric{
+			CPU: domain.ResourceMetric{
 				Used:      0.5,
 				Requested: 1.0,
 				Limit:     2.0,
@@ -516,7 +516,7 @@ func TestGetWorkspaceStatus(t *testing.T) {
 			},
 		}
 
-		clusterInfo := &workspace.ClusterInfo{
+		clusterInfo := &domain.ClusterInfo{
 			Endpoint:  "https://example.com",
 			APIServer: "api.example.com",
 			Status:    "running",
@@ -526,7 +526,7 @@ func TestGetWorkspaceStatus(t *testing.T) {
 		mockK8s.On("GetVClusterStatus", ctx, workspaceID).Return("running", nil)
 		mockK8s.On("GetResourceMetrics", ctx, workspaceID).Return(resourceUsage, nil)
 		mockK8s.On("GetVClusterInfo", ctx, workspaceID).Return(clusterInfo, nil)
-		mockRepo.On("SaveWorkspaceStatus", ctx, mock.AnythingOfType("*workspace.WorkspaceStatus")).Return(nil)
+		mockRepo.On("SaveWorkspaceStatus", ctx, mock.AnythingOfType("*domain.WorkspaceStatus")).Return(nil)
 
 		// Execute
 		status, err := service.GetWorkspaceStatus(ctx, workspaceID)
@@ -579,7 +579,7 @@ func TestGetWorkspaceStatus(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:             workspaceID,
 			Status:         "active",
 		}
@@ -588,7 +588,7 @@ func TestGetWorkspaceStatus(t *testing.T) {
 		mockK8s.On("GetVClusterStatus", ctx, workspaceID).Return("unknown", errors.New("vcluster error"))
 		mockK8s.On("GetResourceMetrics", ctx, workspaceID).Return(nil, errors.New("metrics error"))
 		mockK8s.On("GetVClusterInfo", ctx, workspaceID).Return(nil, errors.New("info error"))
-		mockRepo.On("SaveWorkspaceStatus", ctx, mock.AnythingOfType("*workspace.WorkspaceStatus")).Return(nil)
+		mockRepo.On("SaveWorkspaceStatus", ctx, mock.AnythingOfType("*domain.WorkspaceStatus")).Return(nil)
 
 		// Execute
 		status, err := service.GetWorkspaceStatus(ctx, workspaceID)
@@ -616,12 +616,12 @@ func TestExecuteOperation(t *testing.T) {
 
 	t.Run("successful backup operation", func(t *testing.T) {
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   workspaceID,
 			Name: "test-workspace",
 		}
 
-		req := &workspace.WorkspaceOperationRequest{
+		req := &domain.WorkspaceOperationRequest{
 			Operation: "backup",
 			Metadata: map[string]interface{}{
 				"backup_name": "test-backup",
@@ -629,7 +629,7 @@ func TestExecuteOperation(t *testing.T) {
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(ws, nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(nil)
 
 		// Execute
 		task, err := service.ExecuteOperation(ctx, workspaceID, req)
@@ -646,12 +646,12 @@ func TestExecuteOperation(t *testing.T) {
 
 	t.Run("successful restore operation", func(t *testing.T) {
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   workspaceID,
 			Name: "test-workspace",
 		}
 
-		req := &workspace.WorkspaceOperationRequest{
+		req := &domain.WorkspaceOperationRequest{
 			Operation: "restore",
 			Metadata: map[string]interface{}{
 				"backup_id": "backup-123",
@@ -659,7 +659,7 @@ func TestExecuteOperation(t *testing.T) {
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(ws, nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(nil)
 
 		// Execute
 		task, err := service.ExecuteOperation(ctx, workspaceID, req)
@@ -677,12 +677,12 @@ func TestExecuteOperation(t *testing.T) {
 
 	t.Run("successful upgrade operation", func(t *testing.T) {
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   workspaceID,
 			Name: "test-workspace",
 		}
 
-		req := &workspace.WorkspaceOperationRequest{
+		req := &domain.WorkspaceOperationRequest{
 			Operation: "upgrade",
 			Metadata: map[string]interface{}{
 				"target_version": "v1.25.0",
@@ -690,7 +690,7 @@ func TestExecuteOperation(t *testing.T) {
 		}
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(ws, nil)
-		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*workspace.Task")).Return(nil)
+		mockRepo.On("CreateTask", ctx, mock.AnythingOfType("*domain.Task")).Return(nil)
 
 		// Execute
 		task, err := service.ExecuteOperation(ctx, workspaceID, req)
@@ -708,12 +708,12 @@ func TestExecuteOperation(t *testing.T) {
 
 	t.Run("unsupported operation", func(t *testing.T) {
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   workspaceID,
 			Name: "test-workspace",
 		}
 
-		req := &workspace.WorkspaceOperationRequest{
+		req := &domain.WorkspaceOperationRequest{
 			Operation: "invalid-operation",
 		}
 
@@ -732,7 +732,7 @@ func TestExecuteOperation(t *testing.T) {
 
 	t.Run("workspace not found", func(t *testing.T) {
 		workspaceID := "ws-not-found"
-		req := &workspace.WorkspaceOperationRequest{
+		req := &domain.WorkspaceOperationRequest{
 			Operation: "backup",
 		}
 
@@ -762,7 +762,7 @@ func TestGetKubeconfig(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "active",
 		}
@@ -791,12 +791,12 @@ func TestGetKubeconfig(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "active",
 		}
 		expectedKubeconfig := "vcluster-kubeconfig-content"
-		clusterInfo := &workspace.ClusterInfo{
+		clusterInfo := &domain.ClusterInfo{
 			KubeConfig: expectedKubeconfig,
 		}
 
@@ -826,7 +826,7 @@ func TestGetKubeconfig(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "creating",
 		}
@@ -881,12 +881,12 @@ func TestAddWorkspaceMember(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID: workspaceID,
 		}
-		existingMembers := []*workspace.WorkspaceMember{}
+		existingMembers := []*domain.WorkspaceMember{}
 
-		req := &workspace.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserID:  "user-456",
 			Role:    "editor",
 			AddedBy: "user-123",
@@ -894,7 +894,7 @@ func TestAddWorkspaceMember(t *testing.T) {
 
 		mockRepo.On("GetWorkspace", ctx, workspaceID).Return(ws, nil)
 		mockRepo.On("ListWorkspaceMembers", ctx, workspaceID).Return(existingMembers, nil)
-		mockRepo.On("AddWorkspaceMember", ctx, mock.AnythingOfType("*workspace.WorkspaceMember")).Return(nil)
+		mockRepo.On("AddWorkspaceMember", ctx, mock.AnythingOfType("*domain.WorkspaceMember")).Return(nil)
 		mockK8s.On("UpdateOIDCConfig", ctx, workspaceID, mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
 		// Execute
@@ -921,17 +921,17 @@ func TestAddWorkspaceMember(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID: workspaceID,
 		}
-		existingMembers := []*workspace.WorkspaceMember{
+		existingMembers := []*domain.WorkspaceMember{
 			{
 				UserID: "user-456",
 				Role:   "viewer",
 			},
 		}
 
-		req := &workspace.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserID:  "user-456",
 			Role:    "editor",
 			AddedBy: "user-123",
@@ -961,7 +961,7 @@ func TestAddWorkspaceMember(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-not-found"
-		req := &workspace.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserID: "user-456",
 			Role:   "editor",
 		}
@@ -993,7 +993,7 @@ func TestRemoveWorkspaceMember(t *testing.T) {
 	t.Run("successful member removal", func(t *testing.T) {
 		workspaceID := "ws-123"
 		userID := "user-456"
-		existingMembers := []*workspace.WorkspaceMember{
+		existingMembers := []*domain.WorkspaceMember{
 			{
 				UserID: "user-456",
 				Role:   "editor",
@@ -1024,7 +1024,7 @@ func TestRemoveWorkspaceMember(t *testing.T) {
 	t.Run("user is not a member", func(t *testing.T) {
 		workspaceID := "ws-123"
 		userID := "user-not-member"
-		existingMembers := []*workspace.WorkspaceMember{
+		existingMembers := []*domain.WorkspaceMember{
 			{
 				UserID: "user-456",
 				Role:   "editor",
@@ -1057,7 +1057,7 @@ func TestValidateWorkspaceAccess(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		userID := "user-123"
 		workspaceID := "ws-456"
-		members := []*workspace.WorkspaceMember{
+		members := []*domain.WorkspaceMember{
 			{
 				UserID: "user-123",
 				Role:   "editor",
@@ -1086,7 +1086,7 @@ func TestValidateWorkspaceAccess(t *testing.T) {
 
 		userID := "user-123"
 		workspaceID := "ws-456"
-		members := []*workspace.WorkspaceMember{
+		members := []*domain.WorkspaceMember{
 			{
 				UserID: "user-789",
 				Role:   "editor",
@@ -1118,7 +1118,7 @@ func TestGetNodes(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		expectedNodes := []workspace.Node{
+		expectedNodes := []domain.Node{
 			{
 				Name:   "node-1",
 				Status: "Ready",
@@ -1187,7 +1187,7 @@ func TestScaleDeployment(t *testing.T) {
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "active",
 		}
@@ -1217,7 +1217,7 @@ func TestScaleDeployment(t *testing.T) {
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "creating",
 		}
@@ -1271,7 +1271,7 @@ func TestScaleDeployment(t *testing.T) {
 		workspaceID := "ws-123"
 		deploymentName := "my-app"
 		replicas := 5
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:     workspaceID,
 			Status: "active",
 		}
@@ -1303,14 +1303,14 @@ func TestGetResourceUsage(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		workspaceID := "ws-123"
-		expectedUsage := &workspace.ResourceUsage{
-			CPU: workspace.ResourceMetric{
+		expectedUsage := &domain.ResourceUsage{
+			CPU: domain.ResourceMetric{
 				Used:      0.5,
 				Requested: 1.0,
 				Limit:     2.0,
 				Unit:      "cores",
 			},
-			Memory: workspace.ResourceMetric{
+			Memory: domain.ResourceMetric{
 				Used:      512.0,
 				Requested: 1024.0,
 				Limit:     2048.0,
@@ -1319,7 +1319,7 @@ func TestGetResourceUsage(t *testing.T) {
 		}
 
 		mockK8s.On("GetResourceMetrics", ctx, workspaceID).Return(expectedUsage, nil)
-		mockRepo.On("CreateResourceUsage", ctx, mock.AnythingOfType("*workspace.ResourceUsage")).Return(nil)
+		mockRepo.On("CreateResourceUsage", ctx, mock.AnythingOfType("*domain.ResourceUsage")).Return(nil)
 
 		// Execute
 		usage, err := service.GetResourceUsage(ctx, workspaceID)
@@ -1372,7 +1372,7 @@ func TestGetTask(t *testing.T) {
 
 	t.Run("successful task retrieval", func(t *testing.T) {
 		taskID := "task-123"
-		expectedTask := &workspace.Task{
+		expectedTask := &domain.Task{
 			ID:          taskID,
 			WorkspaceID: "ws-123",
 			Type:        "provision_vcluster",
@@ -1422,7 +1422,7 @@ func TestListTasks(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		workspaceID := "ws-123"
-		expectedTasks := []*workspace.Task{
+		expectedTasks := []*domain.Task{
 			{
 				ID:          "task-1",
 				WorkspaceID: workspaceID,
@@ -1487,7 +1487,7 @@ func TestListWorkspaceMembers(t *testing.T) {
 
 	t.Run("successful member listing", func(t *testing.T) {
 		workspaceID := "ws-123"
-		expectedMembers := []*workspace.WorkspaceMember{
+		expectedMembers := []*domain.WorkspaceMember{
 			{
 				ID:          "member-1",
 				WorkspaceID: workspaceID,
@@ -1529,38 +1529,38 @@ func TestProcessProvisioningTask(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:          taskID,
 			WorkspaceID: "ws-123",
 			Type:        "create",
 			Status:      "pending",
 		}
 
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanShared,
+			Plan: domain.WorkspacePlanShared,
 		}
 
 		mockRepo.On("GetTask", ctx, taskID).Return(task, nil)
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "running"
 		})).Return(nil)
 		mockRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 		
 		// VCluster provisioning expectations
-		mockK8s.On("CreateVCluster", ctx, "ws-123", workspace.WorkspacePlanShared).Return(nil)
+		mockK8s.On("CreateVCluster", ctx, "ws-123", domain.WorkspacePlanShared).Return(nil)
 		mockK8s.On("WaitForVClusterReady", ctx, "ws-123").Return(nil)
 		mockK8s.On("ConfigureOIDC", ctx, "ws-123").Return(nil)
-		mockK8s.On("ApplyResourceQuotas", ctx, "ws-123", workspace.WorkspacePlanShared).Return(nil)
+		mockK8s.On("ApplyResourceQuotas", ctx, "ws-123", domain.WorkspacePlanShared).Return(nil)
 		
 		// Helm deployment for shared plan
 		mockHelm.On("InstallOrUpgrade", "hks-observability-agents", "./deployments/helm/hks-observability-agents", mock.AnythingOfType("string"), mock.AnythingOfType("map[string]interface {}")).Return(nil)
 		
-		mockRepo.On("UpdateWorkspace", ctx, mock.MatchedBy(func(ws *workspace.Workspace) bool {
+		mockRepo.On("UpdateWorkspace", ctx, mock.MatchedBy(func(ws *domain.Workspace) bool {
 			return ws.Status == "active"
 		})).Return(nil)
 		
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "completed" && t.Progress == 100
 		})).Return(nil)
 
@@ -1608,7 +1608,7 @@ func TestProcessProvisioningTask(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:   taskID,
 			Type: "invalid-type",
 		}
@@ -1635,27 +1635,27 @@ func TestProcessProvisioningTask(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:          taskID,
 			WorkspaceID: "ws-123",
 			Type:        "create",
 			Status:      "pending",
 		}
 
-		ws := &workspace.Workspace{
+		ws := &domain.Workspace{
 			ID:   "ws-123",
-			Plan: workspace.WorkspacePlanShared,
+			Plan: domain.WorkspacePlanShared,
 		}
 
 		mockRepo.On("GetTask", ctx, taskID).Return(task, nil)
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "running"
 		})).Return(nil)
 		mockRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
-		mockK8s.On("CreateVCluster", ctx, "ws-123", workspace.WorkspacePlanShared).Return(errors.New("vcluster creation failed"))
+		mockK8s.On("CreateVCluster", ctx, "ws-123", domain.WorkspacePlanShared).Return(errors.New("vcluster creation failed"))
 		
 		// Failure update expectations
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "failed" && t.Error != ""
 		})).Return(nil)
 
@@ -1683,7 +1683,7 @@ func TestProcessDeletionTask(t *testing.T) {
 
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:          taskID,
 			WorkspaceID: "ws-123",
 			Type:        "delete",
@@ -1691,7 +1691,7 @@ func TestProcessDeletionTask(t *testing.T) {
 		}
 
 		mockRepo.On("GetTask", ctx, taskID).Return(task, nil)
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "running"
 		})).Return(nil)
 		
@@ -1700,7 +1700,7 @@ func TestProcessDeletionTask(t *testing.T) {
 		mockK8s.On("WaitForVClusterDeleted", ctx, "ws-123").Return(nil)
 		mockRepo.On("DeleteWorkspace", ctx, "ws-123").Return(nil)
 		
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "completed" && t.Progress == 100
 		})).Return(nil)
 
@@ -1747,7 +1747,7 @@ func TestProcessDeletionTask(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:   taskID,
 			Type: "invalid-type",
 		}
@@ -1774,7 +1774,7 @@ func TestProcessDeletionTask(t *testing.T) {
 		service := NewService(mockRepo, mockK8s, mockAuth, mockHelm, logger)
 
 		taskID := "task-123"
-		task := &workspace.Task{
+		task := &domain.Task{
 			ID:          taskID,
 			WorkspaceID: "ws-123",
 			Type:        "delete",
@@ -1782,13 +1782,13 @@ func TestProcessDeletionTask(t *testing.T) {
 		}
 
 		mockRepo.On("GetTask", ctx, taskID).Return(task, nil)
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "running"
 		})).Return(nil)
 		mockK8s.On("DeleteVCluster", ctx, "ws-123").Return(errors.New("deletion failed"))
 		
 		// Failure update expectations
-		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *workspace.Task) bool {
+		mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
 			return t.Status == "failed" && t.Error != ""
 		})).Return(nil)
 

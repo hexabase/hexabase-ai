@@ -1,4 +1,4 @@
-package workspace
+package repository
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -41,7 +41,7 @@ func TestPostgresRepository_NewPostgresRepository(t *testing.T) {
 		gormDB, _ := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 		assert.NotNil(t, repo)
-		assert.Implements(t, (*workspace.Repository)(nil), repo)
+		assert.Implements(t, (*domain.Repository)(nil), repo)
 	})
 }
 
@@ -54,7 +54,7 @@ func TestPostgresRepository_WorkspaceMembers(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		member := &workspace.WorkspaceMember{
+		member := &domain.WorkspaceMember{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-123",
 			UserID:      "user-123",
@@ -85,7 +85,7 @@ func TestPostgresRepository_WorkspaceMembers(t *testing.T) {
 		gormDB, mock := setupTestDB(t)
 		repo := NewPostgresRepository(gormDB)
 
-		member := &workspace.WorkspaceMember{
+		member := &domain.WorkspaceMember{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-123",
 			UserID:      "user-123",
@@ -187,7 +187,7 @@ func TestPostgresRepository_ErrorHandling(t *testing.T) {
 		// These will fail due to parsing errors, but we verify the methods exist
 		
 		// Workspace operations
-		err := repo.CreateWorkspace(ctx, &workspace.Workspace{})
+		err := repo.CreateWorkspace(ctx, &domain.Workspace{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
 		_, err = repo.GetWorkspace(ctx, "test")
@@ -196,23 +196,23 @@ func TestPostgresRepository_ErrorHandling(t *testing.T) {
 		_, err = repo.GetWorkspaceByNameAndOrg(ctx, "test", "org")
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
-		err = repo.UpdateWorkspace(ctx, &workspace.Workspace{})
+		err = repo.UpdateWorkspace(ctx, &domain.Workspace{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
 		err = repo.DeleteWorkspace(ctx, "test")
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
-		_, _, err = repo.ListWorkspaces(ctx, workspace.WorkspaceFilter{})
+		_, _, err = repo.ListWorkspaces(ctx, domain.WorkspaceFilter{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 
 		// Task operations  
-		err = repo.CreateTask(ctx, &workspace.Task{})
+		err = repo.CreateTask(ctx, &domain.Task{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
 		_, err = repo.GetTask(ctx, "test")
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
-		err = repo.UpdateTask(ctx, &workspace.Task{})
+		err = repo.UpdateTask(ctx, &domain.Task{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
 		_, err = repo.ListTasks(ctx, "test")
@@ -222,7 +222,7 @@ func TestPostgresRepository_ErrorHandling(t *testing.T) {
 		assert.Error(t, err) // Expected to fail due to struct parsing
 
 		// Status operations
-		err = repo.SaveWorkspaceStatus(ctx, &workspace.WorkspaceStatus{})
+		err = repo.SaveWorkspaceStatus(ctx, &domain.WorkspaceStatus{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 		
 		_, err = repo.GetWorkspaceStatus(ctx, "test")
@@ -243,7 +243,7 @@ func TestPostgresRepository_ErrorHandling(t *testing.T) {
 		assert.Error(t, err) // Expected to fail due to struct parsing
 
 		// Resource usage operations
-		err = repo.CreateResourceUsage(ctx, &workspace.ResourceUsage{})
+		err = repo.CreateResourceUsage(ctx, &domain.ResourceUsage{})
 		assert.Error(t, err) // Expected to fail due to struct parsing
 	})
 }
@@ -253,7 +253,7 @@ func TestConvertDomainToDatabase(t *testing.T) {
 	t.Run("converts domain workspace to database model successfully", func(t *testing.T) {
 		// Arrange
 		now := time.Now().UTC()
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-123",
 			Name:           "test-workspace",
 			OrganizationID: "org-456",
@@ -302,7 +302,7 @@ func TestConvertDomainToDatabase(t *testing.T) {
 
 	t.Run("handles nil and empty values correctly", func(t *testing.T) {
 		// Arrange
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-minimal",
 			Name:           "minimal-workspace",
 			OrganizationID: "org-123",
@@ -326,7 +326,7 @@ func TestConvertDomainToDatabase(t *testing.T) {
 
 	t.Run("returns error when JSON marshaling fails", func(t *testing.T) {
 		// Arrange - create a workspace with unmarshalable data
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-error",
 			Name:           "error-workspace",
 			OrganizationID: "org-123",
@@ -348,7 +348,7 @@ func TestConvertDomainToDatabase(t *testing.T) {
 
 	t.Run("returns error when metadata marshaling fails", func(t *testing.T) {
 		// Arrange - create a workspace with unmarshalable metadata
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-error",
 			Name:           "error-workspace",
 			OrganizationID: "org-123",
@@ -439,7 +439,7 @@ func TestCreateWorkspaceWithConversion(t *testing.T) {
 		ctx := context.Background()
 
 		// Arrange
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-123",
 			Name:           "test-workspace",
 			OrganizationID: "org-456",
@@ -491,7 +491,7 @@ func TestUpdateWorkspaceWithConversion(t *testing.T) {
 		ctx := context.Background()
 
 		// Arrange
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-123",
 			Name:           "updated-workspace",
 			OrganizationID: "org-456",
@@ -629,7 +629,7 @@ func TestListWorkspacesWithConversion(t *testing.T) {
 		}
 
 		// Act - convert all database models to domain models
-		domainWorkspaces := make([]*workspace.Workspace, len(dbWorkspaces))
+		domainWorkspaces := make([]*domain.Workspace, len(dbWorkspaces))
 		for i, dbWs := range dbWorkspaces {
 			domainWs, err := toDomainModel(&dbWs)
 			require.NoError(t, err)
@@ -663,7 +663,7 @@ func TestUpdateWorkspacePreservesCreatedAt(t *testing.T) {
 		ctx := context.Background()
 
 		// Arrange - create a workspace for updating
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-123",
 			Name:           "updated-workspace",
 			OrganizationID: "org-456",
@@ -707,7 +707,7 @@ func TestUpdateWorkspacePreservesCreatedAt(t *testing.T) {
 		repo := NewPostgresRepository(gormDB)
 		ctx := context.Background()
 
-		domainWs := &workspace.Workspace{
+		domainWs := &domain.Workspace{
 			ID:             "ws-not-found",
 			Name:           "updated-workspace",
 			OrganizationID: "org-456",

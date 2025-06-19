@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,12 +24,12 @@ type MockWorkspaceService struct {
 }
 
 // We only need to mock the method we're using in the handler.
-func (m *MockWorkspaceService) GetNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+func (m *MockWorkspaceService) GetNodes(ctx context.Context, workspaceID string) ([]workspaceDomain.Node, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]workspace.Node), args.Error(1)
+	return args.Get(0).([]workspaceDomain.Node), args.Error(1)
 }
 
 // We need to add the new method to our mock service.
@@ -63,7 +62,7 @@ func TestInternalHandler_GetNodes(t *testing.T) {
 		internalHandler := handlers.NewInternalHandler(mockWorkspaceSvc, nil)
 
 		workspaceID := "ws-12345"
-		expectedNodes := []workspace.Node{
+		expectedNodes := []workspaceDomain.Node{
 			{Name: "node-1", Status: "Ready", CPU: "500m", Memory: "2Gi"},
 			{Name: "node-2", Status: "Ready", CPU: "500m", Memory: "2Gi"},
 		}
@@ -82,7 +81,7 @@ func TestInternalHandler_GetNodes(t *testing.T) {
 		// Assert
 		assert.Equal(t, http.StatusOK, rr.Code)
 
-		var responseBody []workspace.Node
+		var responseBody []workspaceDomain.Node
 		err := json.Unmarshal(rr.Body.Bytes(), &responseBody)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedNodes, responseBody)

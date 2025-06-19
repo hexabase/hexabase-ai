@@ -1,11 +1,11 @@
-package workspace
+package repository
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -25,7 +25,7 @@ type kubernetesRepository struct {
 }
 
 // NewKubernetesRepository creates a new Kubernetes workspace repository
-func NewKubernetesRepository(clientset kubernetes.Interface, dynamicClient dynamic.Interface, config *rest.Config) workspace.KubernetesRepository {
+func NewKubernetesRepository(clientset kubernetes.Interface, dynamicClient dynamic.Interface, config *rest.Config) domain.KubernetesRepository {
 	return &kubernetesRepository{
 		clientset:     clientset,
 		dynamicClient: dynamicClient,
@@ -302,31 +302,31 @@ func (r *kubernetesRepository) ApplyResourceQuotas(ctx context.Context, workspac
 	return nil
 }
 
-func (r *kubernetesRepository) GetResourceMetrics(ctx context.Context, workspaceID string) (*workspace.ResourceUsage, error) {
+func (r *kubernetesRepository) GetResourceMetrics(ctx context.Context, workspaceID string) (*domain.ResourceUsage, error) {
 	// Get vCluster metrics
 	// This would typically query metrics-server or Prometheus
 	
 	// For now, return mock data
-	usage := &workspace.ResourceUsage{
-		CPU: workspace.ResourceMetric{
+	usage := &domain.ResourceUsage{
+		CPU: domain.ResourceMetric{
 			Used:      0.5,
 			Requested: 1.0,
 			Limit:     2.0,
 			Unit:      "cores",
 		},
-		Memory: workspace.ResourceMetric{
+		Memory: domain.ResourceMetric{
 			Used:      1024,
 			Requested: 2048,
 			Limit:     4096,
 			Unit:      "MB",
 		},
-		Storage: workspace.ResourceMetric{
+		Storage: domain.ResourceMetric{
 			Used:      5120,
 			Requested: 10240,
 			Limit:     20480,
 			Unit:      "MB",
 		},
-		Pods: workspace.PodMetric{
+		Pods: domain.PodMetric{
 			Running: 5,
 			Pending: 2,
 			Failed:  1,
@@ -339,7 +339,7 @@ func (r *kubernetesRepository) GetResourceMetrics(ctx context.Context, workspace
 	return usage, nil
 }
 
-func (r *kubernetesRepository) GetVClusterInfo(ctx context.Context, workspaceID string) (*workspace.ClusterInfo, error) {
+func (r *kubernetesRepository) GetVClusterInfo(ctx context.Context, workspaceID string) (*domain.ClusterInfo, error) {
 	vclusterGVR := schema.GroupVersionResource{
 		Group:    "cluster.loft.sh",
 		Version:  "v1alpha1",
@@ -355,12 +355,12 @@ func (r *kubernetesRepository) GetVClusterInfo(ctx context.Context, workspaceID 
 	// Extract status
 	status, ok := vcluster.Object["status"].(map[string]interface{})
 	if !ok {
-		return &workspace.ClusterInfo{
+		return &domain.ClusterInfo{
 			Status: "unknown",
 		}, nil
 	}
 
-	info := &workspace.ClusterInfo{
+	info := &domain.ClusterInfo{
 		Status: "unknown",
 	}
 
@@ -486,7 +486,7 @@ func getPlanLimits(plan string) planLimits {
 }
 
 // ListVClusterNodes lists nodes in the vCluster
-func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]domain.Node, error) {
 	// Get vCluster kubeconfig
 	kubeconfig, err := r.GetVClusterKubeconfig(ctx, workspaceID)
 	if err != nil {
@@ -510,9 +510,9 @@ func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceI
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
-	nodes := make([]workspace.Node, 0, len(nodeList.Items))
+	nodes := make([]domain.Node, 0, len(nodeList.Items))
 	for _, node := range nodeList.Items {
-		nodes = append(nodes, workspace.Node{
+		nodes = append(nodes, domain.Node{
 			Name:   node.Name,
 			Status: string(node.Status.Phase),
 		})

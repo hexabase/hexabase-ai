@@ -1,4 +1,4 @@
-package workspace
+package service
 
 import (
 	"context"
@@ -7,26 +7,26 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
 type service struct {
-	repo      workspace.Repository
-	k8sRepo   workspace.KubernetesRepository
-	authRepo  workspace.AuthRepository
+	repo      domain.Repository
+	k8sRepo   domain.KubernetesRepository
+	authRepo  domain.AuthRepository
 	helmSvc   helm.Service
 	logger    *slog.Logger
 }
 
 // NewService creates a new workspace service
 func NewService(
-	repo workspace.Repository,
-	k8sRepo workspace.KubernetesRepository,
-	authRepo workspace.AuthRepository,
+	repo domain.Repository,
+	k8sRepo domain.KubernetesRepository,
+	authRepo domain.AuthRepository,
 	helmSvc helm.Service,
 	logger *slog.Logger,
-) workspace.Service {
+) domain.Service {
 	return &service{
 		repo:     repo,
 		k8sRepo:  k8sRepo,
@@ -36,14 +36,14 @@ func NewService(
 	}
 }
 
-func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWorkspaceRequest) (*workspace.Workspace, *workspace.Task, error) {
+func (s *service) CreateWorkspace(ctx context.Context, req *domain.CreateWorkspaceRequest) (*domain.Workspace, *domain.Task, error) {
 	// Validate request
 	if req.Name == "" {
 		return nil, nil, fmt.Errorf("workspace name is required")
 	}
 
 	// Create workspace record
-	ws := &workspace.Workspace{
+	ws := &domain.Workspace{
 		ID:             uuid.New().String(),
 		OrganizationID: req.OrganizationID,
 		Name:           req.Name,
@@ -60,7 +60,7 @@ func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWork
 	}
 
 	// Create provisioning task
-	task := &workspace.Task{
+	task := &domain.Task{
 		ID:          uuid.New().String(),
 		WorkspaceID: ws.ID,
 		Type:        "provision_vcluster",
@@ -77,7 +77,7 @@ func (s *service) CreateWorkspace(ctx context.Context, req *workspace.CreateWork
 	return ws, task, nil
 }
 
-func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*workspace.Workspace, error) {
+func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*domain.Workspace, error) {
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
@@ -98,13 +98,13 @@ func (s *service) GetWorkspace(ctx context.Context, workspaceID string) (*worksp
 	return ws, nil
 }
 
-func (s *service) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) (*workspace.WorkspaceList, error) {
+func (s *service) ListWorkspaces(ctx context.Context, filter domain.WorkspaceFilter) (*domain.WorkspaceList, error) {
 	workspaces, total, err := s.repo.ListWorkspaces(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	return &workspace.WorkspaceList{
+	return &domain.WorkspaceList{
 		Workspaces: workspaces,
 		Total:      total,
 		Page:       filter.Page,
@@ -112,7 +112,7 @@ func (s *service) ListWorkspaces(ctx context.Context, filter workspace.Workspace
 	}, nil
 }
 
-func (s *service) UpdateWorkspace(ctx context.Context, workspaceID string, req *workspace.UpdateWorkspaceRequest) (*workspace.Workspace, error) {
+func (s *service) UpdateWorkspace(ctx context.Context, workspaceID string, req *domain.UpdateWorkspaceRequest) (*domain.Workspace, error) {
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
@@ -138,7 +138,7 @@ func (s *service) UpdateWorkspace(ctx context.Context, workspaceID string, req *
 	return ws, nil
 }
 
-func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
+func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*domain.WorkspaceStatus, error) {
 	// Get workspace
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
@@ -164,7 +164,7 @@ func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*
 		s.logger.Error("failed to get cluster info", slog.String("error", err.Error()))
 	}
 
-	status := &workspace.WorkspaceStatus{
+	status := &domain.WorkspaceStatus{
 		WorkspaceID:   workspaceID,
 		Status:        ws.Status,
 		Healthy:       vclusterStatus == "running",
@@ -189,7 +189,7 @@ func (s *service) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*
 	return status, nil
 }
 
-func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req *workspace.WorkspaceOperationRequest) (*workspace.Task, error) {
+func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req *domain.WorkspaceOperationRequest) (*domain.Task, error) {
 	// Get workspace
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
@@ -197,7 +197,7 @@ func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req 
 	}
 
 	// Create task based on operation type
-	task := &workspace.Task{
+	task := &domain.Task{
 		ID:          generateID(),
 		WorkspaceID: workspaceID,
 		Type:        req.Operation,
@@ -244,7 +244,7 @@ func (s *service) ExecuteOperation(ctx context.Context, workspaceID string, req 
 	return task, nil
 }
 
-func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) (*workspace.Task, error) {
+func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) (*domain.Task, error) {
 	ws, err := s.repo.GetWorkspace(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workspace: %w", err)
@@ -263,7 +263,7 @@ func (s *service) DeleteWorkspace(ctx context.Context, workspaceID string) (*wor
 	}
 
 	// Create deletion task
-	task := &workspace.Task{
+	task := &domain.Task{
 		ID:          uuid.New().String(),
 		WorkspaceID: ws.ID,
 		Type:        "delete_vcluster",
@@ -332,7 +332,7 @@ func (s *service) ReactivateWorkspace(ctx context.Context, workspaceID string) e
 	return nil
 }
 
-func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*workspace.ResourceUsage, error) {
+func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*domain.ResourceUsage, error) {
 	usage, err := s.k8sRepo.GetResourceMetrics(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource metrics: %w", err)
@@ -387,7 +387,7 @@ func (s *service) updateKubeconfigWithToken(kubeconfig, token string) string {
 	return kubeconfig
 }
 
-func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, req *workspace.AddMemberRequest) (*workspace.WorkspaceMember, error) {
+func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, req *domain.AddMemberRequest) (*domain.WorkspaceMember, error) {
 	// Check if workspace exists
 	if _, err := s.repo.GetWorkspace(ctx, workspaceID); err != nil {
 		return nil, fmt.Errorf("workspace not found: %w", err)
@@ -406,7 +406,7 @@ func (s *service) AddWorkspaceMember(ctx context.Context, workspaceID string, re
 	}
 
 	// Add member
-	member := &workspace.WorkspaceMember{
+	member := &domain.WorkspaceMember{
 		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		UserID:      req.UserID,
@@ -472,7 +472,7 @@ func (s *service) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID
 	return nil
 }
 
-func (s *service) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspace.WorkspaceMember, error) {
+func (s *service) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*domain.WorkspaceMember, error) {
 	return s.repo.ListWorkspaceMembers(ctx, workspaceID)
 }
 
@@ -521,7 +521,7 @@ func (s *service) ProcessTask(ctx context.Context, taskID string) error {
 	return processErr
 }
 
-func (s *service) provisionVCluster(ctx context.Context, task *workspace.Task) error {
+func (s *service) provisionVCluster(ctx context.Context, task *domain.Task) error {
 	workspaceID := task.WorkspaceID
 	log := s.logger.With("workspace_id", workspaceID, "task_id", task.ID)
 
@@ -588,7 +588,7 @@ func (s *service) provisionVCluster(ctx context.Context, task *workspace.Task) e
 	return nil
 }
 
-func (s *service) deleteVCluster(ctx context.Context, task *workspace.Task) error {
+func (s *service) deleteVCluster(ctx context.Context, task *domain.Task) error {
 	workspaceID := task.WorkspaceID
 
 	// Delete vCluster
@@ -609,7 +609,7 @@ func (s *service) deleteVCluster(ctx context.Context, task *workspace.Task) erro
 	return nil
 }
 
-func (s *service) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
+func (s *service) GetTask(ctx context.Context, taskID string) (*domain.Task, error) {
 	task, err := s.repo.GetTask(ctx, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %w", err)
@@ -617,7 +617,7 @@ func (s *service) GetTask(ctx context.Context, taskID string) (*workspace.Task, 
 	return task, nil
 }
 
-func (s *service) GetWorkspaceTask(ctx context.Context, taskID string) (*workspace.Task, error) {
+func (s *service) GetWorkspaceTask(ctx context.Context, taskID string) (*domain.Task, error) {
 	task, err := s.repo.GetTask(ctx, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workspace task: %w", err)
@@ -625,7 +625,7 @@ func (s *service) GetWorkspaceTask(ctx context.Context, taskID string) (*workspa
 	return task, nil
 }
 
-func (s *service) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
+func (s *service) ListTasks(ctx context.Context, workspaceID string) ([]*domain.Task, error) {
 	tasks, err := s.repo.ListTasks(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tasks: %w", err)
@@ -633,7 +633,7 @@ func (s *service) ListTasks(ctx context.Context, workspaceID string) ([]*workspa
 	return tasks, nil
 }
 
-func (s *service) ListWorkspaceTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
+func (s *service) ListWorkspaceTasks(ctx context.Context, workspaceID string) ([]*domain.Task, error) {
 	tasks, err := s.repo.ListTasks(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workspace tasks: %w", err)
@@ -737,7 +737,7 @@ func generateID() string {
 	return uuid.New().String()
 }
 
-func (s *service) publishTask(ctx context.Context, task *workspace.Task) error {
+func (s *service) publishTask(ctx context.Context, task *domain.Task) error {
 	// TODO: Implement message queue publishing
 	// For now, just log the task
 	s.logger.Info("task created", 
@@ -763,7 +763,7 @@ func (s *service) ValidateWorkspaceAccess(ctx context.Context, userID, workspace
 	return fmt.Errorf("user does not have access to workspace")
 }
 
-func (s *service) GetNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+func (s *service) GetNodes(ctx context.Context, workspaceID string) ([]domain.Node, error) {
 	// This method will call the Kubernetes repository to list nodes
 	// and their metrics for the given workspace's vCluster.
 	// The repository will handle the logic of finding the correct vCluster context.

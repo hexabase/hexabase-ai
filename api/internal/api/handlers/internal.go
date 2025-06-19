@@ -14,12 +14,12 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
 // InternalHandler handles internal-only API requests for AI agents.
 type InternalHandler struct {
-	workspaceSvc    workspace.Service
+	workspaceSvc    workspaceDomain.Service
 	projectSvc      project.Service
 	applicationSvc  application.Service
 	nodeSvc         node.Service
@@ -33,7 +33,7 @@ type InternalHandler struct {
 
 // NewInternalHandler creates a new handler for internal operations.
 func NewInternalHandler(
-	workspaceSvc workspace.Service,
+	workspaceSvc workspaceDomain.Service,
 	projectSvc project.Service,
 	applicationSvc application.Service,
 	nodeSvc node.Service,

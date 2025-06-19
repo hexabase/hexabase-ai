@@ -26,7 +26,6 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
@@ -43,7 +42,6 @@ import (
 	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/repository/node"
 	projectRepo "github.com/hexabase/hexabase-ai/api/internal/repository/project"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
-	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/repository/workspace"
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
@@ -54,8 +52,11 @@ import (
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	nodeSvc "github.com/hexabase/hexabase-ai/api/internal/service/node"
 	projectSvc "github.com/hexabase/hexabase-ai/api/internal/service/project"
-	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/service/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
+	workspaceHandler "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
+	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
+	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/workspace/service"
 	"gorm.io/gorm"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -76,7 +77,7 @@ var MonitoringSet = wire.NewSet(monitoringRepo.NewPostgresRepository, k8sRepo.Ne
 var NodeSet = wire.NewSet(nodeRepo.NewPostgresRepository, ProvideNodeRepository, ProvideProxmoxRepository, ProvideProxmoxRepositoryInterface, nodeSvc.NewService, ProvideNodeService, handlers.NewNodeHandler)
 var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, orgHandler.NewHandler)
 var ProjectSet = wire.NewSet(projectRepo.NewPostgresRepository, projectRepo.NewKubernetesRepository, projectSvc.NewService, handlers.NewProjectHandler)
-var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, handlers.NewWorkspaceHandler)
+var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, workspaceHandler.NewHandler)
 var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicdSvc.NewService, handlers.NewCICDHandler)
 var FunctionSet = wire.NewSet(
 	ProvideSQLDB,
@@ -100,10 +101,10 @@ var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepos
 var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
-	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *orgHandler.Handler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *handlers.WorkspaceHandler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
+	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *orgHandler.Handler; ProjectHandler *handlers.ProjectHandler; WorkspaceHandler *workspaceHandler.Handler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *orgHandler.Handler, projH *handlers.ProjectHandler, workH *handlers.WorkspaceHandler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
+func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *orgHandler.Handler, projH *handlers.ProjectHandler, workH *workspaceHandler.Handler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
 	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
 }
 
@@ -201,7 +202,7 @@ func ProvideBackupService(
 	repo backup.Repository,
 	proxmoxRepo backup.ProxmoxRepository,
 	appRepo application.Repository,
-	workspaceRepo workspace.Repository,
+	workspaceRepo workspaceDomain.Repository,
 	k8sClient kubernetes.Interface,
 	cfg *config.Config,
 ) backup.Service {
@@ -229,7 +230,7 @@ func ProvideOllamaService(cfg *config.Config) aiops.LLMService {
 }
 
 func ProvideInternalHandler(
-	workspaceSvc workspace.Service,
+	workspaceSvc workspaceDomain.Service,
 	projectSvc project.Service,
 	applicationSvc application.Service,
 	nodeSvc node.Service,

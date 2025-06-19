@@ -3,9 +3,10 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,7 +151,7 @@ func (r *kubernetesRepository) getVClusterClient(ctx context.Context, workspaceI
 }
 
 // ListVClusterNodes lists the nodes available to a specific vCluster.
-func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspace.Node, error) {
+func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceID string) ([]workspaceDomain.Node, error) {
 	clientset, _, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vcluster client: %w", err)
@@ -161,7 +162,7 @@ func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceI
 		return nil, fmt.Errorf("failed to list nodes for workspace %s: %w", workspaceID, err)
 	}
 
-	var nodes []workspace.Node
+	var nodes []workspaceDomain.Node
 	for _, item := range nodeList.Items {
 		// Determine node status
 		status := "NotReady"
@@ -172,7 +173,7 @@ func (r *kubernetesRepository) ListVClusterNodes(ctx context.Context, workspaceI
 			}
 		}
 		
-		nodes = append(nodes, workspace.Node{
+		nodes = append(nodes, workspaceDomain.Node{
 			Name:   item.Name,
 			Status: status,
 			CPU:    item.Status.Capacity.Cpu().String(),
@@ -279,5 +280,22 @@ func parseResourceValue(value string) float64 {
 	if err != nil {
 		return 0
 	}
-	return float64(quantity.MilliValue()) / 1000
+	
+	// For CPU resources, return in millicores
+	if strings.HasSuffix(value, "m") {
+		// Already in millicores
+		return float64(quantity.MilliValue())
+	} else if strings.HasSuffix(value, "Mi") {
+		// Memory in MiB - convert to KiB: 1 MiB = 1024 KiB
+		return float64(quantity.Value()) / 1024
+	} else if strings.HasSuffix(value, "Gi") {
+		// Memory in GiB - convert to KiB: 1 GiB = 1024*1024 KiB
+		return float64(quantity.Value()) / 1024
+	} else if strings.Contains(value, "i") || strings.Contains(value, "G") || strings.Contains(value, "M") || strings.Contains(value, "K") {
+		// Other memory resources - return in kilobytes
+		return float64(quantity.Value()) / 1024
+	} else {
+		// CPU cores - convert to millicores
+		return float64(quantity.MilliValue())
+	}
 }

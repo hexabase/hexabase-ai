@@ -1,4 +1,4 @@
-package workspace
+package repository
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/workspace"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
+	"github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"gorm.io/gorm"
 )
 
@@ -16,12 +16,12 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL workspace repository
-func NewPostgresRepository(db *gorm.DB) workspace.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &postgresRepository{db: db}
 }
 
 // toDTO converts domain workspace model to database model
-func toDTO(domainWs *workspace.Workspace) (*db.Workspace, error) {
+func toDTO(domainWs *domain.Workspace) (*db.Workspace, error) {
 	dbWs := &db.Workspace{
 		ID:             domainWs.ID,
 		OrganizationID: domainWs.OrganizationID,
@@ -86,8 +86,8 @@ func toDTO(domainWs *workspace.Workspace) (*db.Workspace, error) {
 }
 
 // toDomainModel converts database workspace model to domain model
-func toDomainModel(dbWs *db.Workspace) (*workspace.Workspace, error) {
-	domainWs := &workspace.Workspace{
+func toDomainModel(dbWs *db.Workspace) (*domain.Workspace, error) {
+	domainWs := &domain.Workspace{
 		ID:             dbWs.ID,
 		OrganizationID: dbWs.OrganizationID,
 		Name:           dbWs.Name,
@@ -204,7 +204,7 @@ func toDomainStatus(dbStatus string) string {
 	}
 }
 
-func (r *postgresRepository) CreateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+func (r *postgresRepository) CreateWorkspace(ctx context.Context, ws *domain.Workspace) error {
 	dbWs, err := toDTO(ws)
 	if err != nil {
 		return fmt.Errorf("failed to convert workspace to database model: %w", err)
@@ -215,7 +215,7 @@ func (r *postgresRepository) CreateWorkspace(ctx context.Context, ws *workspace.
 	return nil
 }
 
-func (r *postgresRepository) GetWorkspace(ctx context.Context, workspaceID string) (*workspace.Workspace, error) {
+func (r *postgresRepository) GetWorkspace(ctx context.Context, workspaceID string) (*domain.Workspace, error) {
 	var dbWs db.Workspace
 	if err := r.db.WithContext(ctx).Where("id = ?", workspaceID).First(&dbWs).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -232,7 +232,7 @@ func (r *postgresRepository) GetWorkspace(ctx context.Context, workspaceID strin
 	return domainWs, nil
 }
 
-func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*workspace.Workspace, error) {
+func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name, orgID string) (*domain.Workspace, error) {
 	var dbWs db.Workspace
 	if err := r.db.WithContext(ctx).
 		Where("name = ? AND organization_id = ?", name, orgID).
@@ -251,7 +251,7 @@ func (r *postgresRepository) GetWorkspaceByNameAndOrg(ctx context.Context, name,
 	return domainWs, nil
 }
 
-func (r *postgresRepository) UpdateWorkspace(ctx context.Context, ws *workspace.Workspace) error {
+func (r *postgresRepository) UpdateWorkspace(ctx context.Context, ws *domain.Workspace) error {
 	dbWs, err := toDTO(ws)
 	if err != nil {
 		return fmt.Errorf("failed to convert workspace to database model: %w", err)
@@ -280,7 +280,7 @@ func (r *postgresRepository) DeleteWorkspace(ctx context.Context, workspaceID st
 	return nil
 }
 
-func (r *postgresRepository) ListWorkspaces(ctx context.Context, filter workspace.WorkspaceFilter) ([]*workspace.Workspace, int, error) {
+func (r *postgresRepository) ListWorkspaces(ctx context.Context, filter domain.WorkspaceFilter) ([]*domain.Workspace, int, error) {
 	var dbWorkspaces []db.Workspace
 	var total int64
 
@@ -326,7 +326,7 @@ func (r *postgresRepository) ListWorkspaces(ctx context.Context, filter workspac
 	}
 
 	// Convert database models to domain models
-	domainWorkspaces := make([]*workspace.Workspace, len(dbWorkspaces))
+	domainWorkspaces := make([]*domain.Workspace, len(dbWorkspaces))
 	for i, dbWs := range dbWorkspaces {
 		domainWs, err := toDomainModel(&dbWs)
 		if err != nil {
@@ -338,7 +338,7 @@ func (r *postgresRepository) ListWorkspaces(ctx context.Context, filter workspac
 	return domainWorkspaces, int(total), nil
 }
 
-func (r *postgresRepository) AddWorkspaceMember(ctx context.Context, member *workspace.WorkspaceMember) error {
+func (r *postgresRepository) AddWorkspaceMember(ctx context.Context, member *domain.WorkspaceMember) error {
 	if err := r.db.WithContext(ctx).Create(member).Error; err != nil {
 		return fmt.Errorf("failed to add workspace member: %w", err)
 	}
@@ -348,14 +348,14 @@ func (r *postgresRepository) AddWorkspaceMember(ctx context.Context, member *wor
 func (r *postgresRepository) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID string) error {
 	if err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
-		Delete(&workspace.WorkspaceMember{}).Error; err != nil {
+		Delete(&domain.WorkspaceMember{}).Error; err != nil {
 		return fmt.Errorf("failed to remove workspace member: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*workspace.WorkspaceMember, error) {
-	var members []*workspace.WorkspaceMember
+func (r *postgresRepository) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]*domain.WorkspaceMember, error) {
+	var members []*domain.WorkspaceMember
 	if err := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
 		Find(&members).Error; err != nil {
@@ -364,15 +364,15 @@ func (r *postgresRepository) ListWorkspaceMembers(ctx context.Context, workspace
 	return members, nil
 }
 
-func (r *postgresRepository) CreateTask(ctx context.Context, task *workspace.Task) error {
+func (r *postgresRepository) CreateTask(ctx context.Context, task *domain.Task) error {
 	if err := r.db.WithContext(ctx).Create(task).Error; err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetTask(ctx context.Context, taskID string) (*workspace.Task, error) {
-	var task workspace.Task
+func (r *postgresRepository) GetTask(ctx context.Context, taskID string) (*domain.Task, error) {
+	var task domain.Task
 	if err := r.db.WithContext(ctx).Where("id = ?", taskID).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("task not found")
@@ -382,9 +382,9 @@ func (r *postgresRepository) GetTask(ctx context.Context, taskID string) (*works
 	return &task, nil
 }
 
-func (r *postgresRepository) UpdateTask(ctx context.Context, task *workspace.Task) error {
+func (r *postgresRepository) UpdateTask(ctx context.Context, task *domain.Task) error {
 	result := r.db.WithContext(ctx).
-		Model(&workspace.Task{}).
+		Model(&domain.Task{}).
 		Where("id = ?", task.ID).
 		Omit("created_at").
 		Updates(task)
@@ -400,8 +400,8 @@ func (r *postgresRepository) UpdateTask(ctx context.Context, task *workspace.Tas
 	return nil
 }
 
-func (r *postgresRepository) ListTasks(ctx context.Context, workspaceID string) ([]*workspace.Task, error) {
-	var tasks []*workspace.Task
+func (r *postgresRepository) ListTasks(ctx context.Context, workspaceID string) ([]*domain.Task, error) {
+	var tasks []*domain.Task
 	if err := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
 		Order("created_at DESC").
@@ -411,8 +411,8 @@ func (r *postgresRepository) ListTasks(ctx context.Context, workspaceID string) 
 	return tasks, nil
 }
 
-func (r *postgresRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*workspace.Task, error) {
-	var tasks []*workspace.Task
+func (r *postgresRepository) GetPendingTasks(ctx context.Context, taskType string, limit int) ([]*domain.Task, error) {
+	var tasks []*domain.Task
 	query := r.db.WithContext(ctx).Where("status = ?", "pending")
 	
 	if taskType != "" {
@@ -429,15 +429,15 @@ func (r *postgresRepository) GetPendingTasks(ctx context.Context, taskType strin
 	return tasks, nil
 }
 
-func (r *postgresRepository) CreateResourceUsage(ctx context.Context, usage *workspace.ResourceUsage) error {
+func (r *postgresRepository) CreateResourceUsage(ctx context.Context, usage *domain.ResourceUsage) error {
 	if err := r.db.WithContext(ctx).Create(usage).Error; err != nil {
 		return fmt.Errorf("failed to create resource usage: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetResourceUsageHistory(ctx context.Context, workspaceID string, limit int) ([]*workspace.ResourceUsage, error) {
-	var usages []*workspace.ResourceUsage
+func (r *postgresRepository) GetResourceUsageHistory(ctx context.Context, workspaceID string, limit int) ([]*domain.ResourceUsage, error) {
+	var usages []*domain.ResourceUsage
 	if err := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
 		Order("timestamp DESC").
@@ -452,7 +452,7 @@ func (r *postgresRepository) GetResourceUsageHistory(ctx context.Context, worksp
 func (r *postgresRepository) CleanupExpiredTasks(ctx context.Context, before time.Time) error {
 	return r.db.WithContext(ctx).
 		Where("updated_at < ? AND status IN ?", before, []string{"completed", "failed"}).
-		Delete(&workspace.Task{}).Error
+		Delete(&domain.Task{}).Error
 }
 
 // CleanupDeletedWorkspaces removes deleted workspaces
@@ -463,9 +463,9 @@ func (r *postgresRepository) CleanupDeletedWorkspaces(ctx context.Context, befor
 }
 
 // SaveWorkspaceStatus saves the workspace status
-func (r *postgresRepository) SaveWorkspaceStatus(ctx context.Context, status *workspace.WorkspaceStatus) error {
+func (r *postgresRepository) SaveWorkspaceStatus(ctx context.Context, status *domain.WorkspaceStatus) error {
 	result := r.db.WithContext(ctx).
-		Model(&workspace.WorkspaceStatus{}).
+		Model(&domain.WorkspaceStatus{}).
 		Where("workspace_id = ?", status.WorkspaceID).
 		Omit("created_at").
 		Updates(status)
@@ -485,8 +485,8 @@ func (r *postgresRepository) SaveWorkspaceStatus(ctx context.Context, status *wo
 }
 
 // GetWorkspaceStatus retrieves the workspace status
-func (r *postgresRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*workspace.WorkspaceStatus, error) {
-	var status workspace.WorkspaceStatus
+func (r *postgresRepository) GetWorkspaceStatus(ctx context.Context, workspaceID string) (*domain.WorkspaceStatus, error) {
+	var status domain.WorkspaceStatus
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).First(&status).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
