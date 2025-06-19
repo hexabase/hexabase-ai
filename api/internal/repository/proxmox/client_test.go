@@ -5,33 +5,32 @@ import (
 	"testing"
 	"time"
 
+	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
+	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 )
 
 func TestProxmoxClient_CreateVM(t *testing.T) {
 	tests := []struct {
 		name      string
-		spec      node.VMSpec
+		spec      nodeDomain.VMSpec
 		mockSetup func(*proxmox.MockHTTPClient)
-		expected  *node.ProxmoxVMInfo
+		expected  *nodeDomain.ProxmoxVMInfo
 		wantErr   bool
 		errMsg    string
 	}{
 		{
 			name: "successful VM creation",
-			spec: node.VMSpec{
+			spec: nodeDomain.VMSpec{
 				Name:       "test-node-1",
 				NodeType:   "S-Type",
 				TemplateID: 9000,
-				TargetNode: "pve-node1",
 				CPUCores:   4,
-				MemoryMB:   16384,
+				MemoryMB:   8 * 1024,
 				DiskGB:     200,
 				NetworkBridge: "vmbr0",
-				CloudInit: node.CloudInitConfig{
+				CloudInit: nodeDomain.CloudInitConfig{
 					SSHKeys: []string{"ssh-rsa AAAAB3NzaC1yc2E..."},
 				},
 			},
@@ -67,7 +66,7 @@ func TestProxmoxClient_CreateVM(t *testing.T) {
 				mock.ExpectPut("/api2/json/nodes/pve-node1/qemu/100/config").
 					WithJSON(map[string]interface{}{
 						"cores":   float64(4),
-						"memory":  float64(16384),
+						"memory":  float64(8 * 1024),
 						"scsihw":  "virtio-scsi-pci",
 						"net0":    "virtio,bridge=vmbr0",
 					}).
@@ -107,7 +106,7 @@ func TestProxmoxClient_CreateVM(t *testing.T) {
 						},
 					})
 			},
-			expected: &node.ProxmoxVMInfo{
+			expected: &nodeDomain.ProxmoxVMInfo{
 				VMID:    100,
 				Node:    "pve-node1",
 				Status:  "running",
@@ -119,7 +118,7 @@ func TestProxmoxClient_CreateVM(t *testing.T) {
 		},
 		{
 			name: "template not found",
-			spec: node.VMSpec{
+			spec: nodeDomain.VMSpec{
 				Name:       "test-node-2",
 				TemplateID: 9999,
 				TargetNode: "pve-node1",
@@ -143,7 +142,7 @@ func TestProxmoxClient_CreateVM(t *testing.T) {
 		},
 		{
 			name: "insufficient resources",
-			spec: node.VMSpec{
+			spec: nodeDomain.VMSpec{
 				Name:       "test-node-3",
 				TemplateID: 9000,
 				TargetNode: "pve-node1",
@@ -327,7 +326,7 @@ func TestProxmoxClient_GetVMResourceUsage(t *testing.T) {
 		name      string
 		vmid      int
 		mockSetup func(*proxmox.MockHTTPClient)
-		expected  *node.VMResourceUsage
+		expected  *nodeDomain.VMResourceUsage
 		wantErr   bool
 	}{
 		{
@@ -347,7 +346,7 @@ func TestProxmoxClient_GetVMResourceUsage(t *testing.T) {
 						},
 					})
 			},
-			expected: &node.VMResourceUsage{
+			expected: &nodeDomain.VMResourceUsage{
 				CPUUsage:    15.6,
 				MemoryUsage: 8589934592,
 				DiskUsage:   0,
@@ -369,7 +368,7 @@ func TestProxmoxClient_GetVMResourceUsage(t *testing.T) {
 						},
 					})
 			},
-			expected: &node.VMResourceUsage{
+			expected: &nodeDomain.VMResourceUsage{
 				CPUUsage:    0,
 				MemoryUsage: 0,
 				DiskUsage:   0,
@@ -431,14 +430,14 @@ runcmd:
 	tests := []struct {
 		name      string
 		vmid      int
-		config    node.CloudInitConfig
+		config    nodeDomain.CloudInitConfig
 		mockSetup func(*proxmox.MockHTTPClient)
 		wantErr   bool
 	}{
 		{
 			name: "set cloud-init config successfully",
 			vmid: 100,
-			config: node.CloudInitConfig{
+			config: nodeDomain.CloudInitConfig{
 				UserData:    userData,
 				SSHKeys:     []string{"ssh-rsa AAAAB3NzaC1yc2E..."},
 				IPAddress:   "10.0.0.100/24",

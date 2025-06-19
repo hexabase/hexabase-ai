@@ -1,4 +1,4 @@
-package node_test
+package service_test
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
+	nodeService "github.com/hexabase/hexabase-ai/api/internal/node/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
-	nodeService "github.com/hexabase/hexabase-ai/api/internal/service/node"
 )
 
 // Mock repositories
@@ -18,46 +18,46 @@ type MockNodeRepository struct {
 	mock.Mock
 }
 
-func (m *MockNodeRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan, error) {
+func (m *MockNodeRepository) GetNodePlans(ctx context.Context) ([]domain.NodePlan, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]node.NodePlan), args.Error(1)
+	return args.Get(0).([]domain.NodePlan), args.Error(1)
 }
 
-func (m *MockNodeRepository) GetNodePlan(ctx context.Context, planID string) (*node.NodePlan, error) {
+func (m *MockNodeRepository) GetNodePlan(ctx context.Context, planID string) (*domain.NodePlan, error) {
 	args := m.Called(ctx, planID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.NodePlan), args.Error(1)
+	return args.Get(0).(*domain.NodePlan), args.Error(1)
 }
 
-func (m *MockNodeRepository) CreateDedicatedNode(ctx context.Context, n *node.DedicatedNode) error {
+func (m *MockNodeRepository) CreateDedicatedNode(ctx context.Context, n *domain.DedicatedNode) error {
 	args := m.Called(ctx, n)
 	return args.Error(0)
 }
 
-func (m *MockNodeRepository) GetDedicatedNode(ctx context.Context, nodeID string) (*node.DedicatedNode, error) {
+func (m *MockNodeRepository) GetDedicatedNode(ctx context.Context, nodeID string) (*domain.DedicatedNode, error) {
 	args := m.Called(ctx, nodeID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.DedicatedNode), args.Error(1)
+	return args.Get(0).(*domain.DedicatedNode), args.Error(1)
 }
 
-func (m *MockNodeRepository) GetDedicatedNodeByVMID(ctx context.Context, vmid int) (*node.DedicatedNode, error) {
+func (m *MockNodeRepository) GetDedicatedNodeByVMID(ctx context.Context, vmid int) (*domain.DedicatedNode, error) {
 	args := m.Called(ctx, vmid)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.DedicatedNode), args.Error(1)
+	return args.Get(0).(*domain.DedicatedNode), args.Error(1)
 }
 
-func (m *MockNodeRepository) ListDedicatedNodes(ctx context.Context, workspaceID string) ([]node.DedicatedNode, error) {
+func (m *MockNodeRepository) ListDedicatedNodes(ctx context.Context, workspaceID string) ([]domain.DedicatedNode, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]node.DedicatedNode), args.Error(1)
+	return args.Get(0).([]domain.DedicatedNode), args.Error(1)
 }
 
-func (m *MockNodeRepository) UpdateDedicatedNode(ctx context.Context, n *node.DedicatedNode) error {
+func (m *MockNodeRepository) UpdateDedicatedNode(ctx context.Context, n *domain.DedicatedNode) error {
 	args := m.Called(ctx, n)
 	return args.Error(0)
 }
@@ -67,30 +67,30 @@ func (m *MockNodeRepository) DeleteDedicatedNode(ctx context.Context, nodeID str
 	return args.Error(0)
 }
 
-func (m *MockNodeRepository) CreateNodeEvent(ctx context.Context, event *node.NodeEvent) error {
+func (m *MockNodeRepository) CreateNodeEvent(ctx context.Context, event *domain.NodeEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
-func (m *MockNodeRepository) ListNodeEvents(ctx context.Context, nodeID string, limit int) ([]node.NodeEvent, error) {
+func (m *MockNodeRepository) ListNodeEvents(ctx context.Context, nodeID string, limit int) ([]domain.NodeEvent, error) {
 	args := m.Called(ctx, nodeID, limit)
-	return args.Get(0).([]node.NodeEvent), args.Error(1)
+	return args.Get(0).([]domain.NodeEvent), args.Error(1)
 }
 
-func (m *MockNodeRepository) GetWorkspaceAllocation(ctx context.Context, workspaceID string) (*node.WorkspaceNodeAllocation, error) {
+func (m *MockNodeRepository) GetWorkspaceAllocation(ctx context.Context, workspaceID string) (*domain.WorkspaceNodeAllocation, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.WorkspaceNodeAllocation), args.Error(1)
+	return args.Get(0).(*domain.WorkspaceNodeAllocation), args.Error(1)
 }
 
-func (m *MockNodeRepository) CreateWorkspaceAllocation(ctx context.Context, allocation *node.WorkspaceNodeAllocation) error {
+func (m *MockNodeRepository) CreateWorkspaceAllocation(ctx context.Context, allocation *domain.WorkspaceNodeAllocation) error {
 	args := m.Called(ctx, allocation)
 	return args.Error(0)
 }
 
-func (m *MockNodeRepository) UpdateWorkspaceAllocation(ctx context.Context, allocation *node.WorkspaceNodeAllocation) error {
+func (m *MockNodeRepository) UpdateWorkspaceAllocation(ctx context.Context, allocation *domain.WorkspaceNodeAllocation) error {
 	args := m.Called(ctx, allocation)
 	return args.Error(0)
 }
@@ -100,32 +100,32 @@ func (m *MockNodeRepository) UpdateSharedQuotaUsage(ctx context.Context, workspa
 	return args.Error(0)
 }
 
-func (m *MockNodeRepository) GetNodeResourceUsage(ctx context.Context, nodeID string) (*node.ResourceUsage, error) {
+func (m *MockNodeRepository) GetNodeResourceUsage(ctx context.Context, nodeID string) (*domain.ResourceUsage, error) {
 	args := m.Called(ctx, nodeID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.ResourceUsage), args.Error(1)
+	return args.Get(0).(*domain.ResourceUsage), args.Error(1)
 }
 
 type MockProxmoxRepository struct {
 	mock.Mock
 }
 
-func (m *MockProxmoxRepository) CreateVM(ctx context.Context, spec node.VMSpec) (*node.ProxmoxVMInfo, error) {
+func (m *MockProxmoxRepository) CreateVM(ctx context.Context, spec domain.VMSpec) (*domain.ProxmoxVMInfo, error) {
 	args := m.Called(ctx, spec)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.ProxmoxVMInfo), args.Error(1)
+	return args.Get(0).(*domain.ProxmoxVMInfo), args.Error(1)
 }
 
-func (m *MockProxmoxRepository) GetVM(ctx context.Context, vmid int) (*node.ProxmoxVMInfo, error) {
+func (m *MockProxmoxRepository) GetVM(ctx context.Context, vmid int) (*domain.ProxmoxVMInfo, error) {
 	args := m.Called(ctx, vmid)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.ProxmoxVMInfo), args.Error(1)
+	return args.Get(0).(*domain.ProxmoxVMInfo), args.Error(1)
 }
 
 func (m *MockProxmoxRepository) StartVM(ctx context.Context, vmid int) error {
@@ -148,7 +148,7 @@ func (m *MockProxmoxRepository) DeleteVM(ctx context.Context, vmid int) error {
 	return args.Error(0)
 }
 
-func (m *MockProxmoxRepository) UpdateVMConfig(ctx context.Context, vmid int, config node.VMConfig) error {
+func (m *MockProxmoxRepository) UpdateVMConfig(ctx context.Context, vmid int, config domain.VMConfig) error {
 	args := m.Called(ctx, vmid, config)
 	return args.Error(0)
 }
@@ -158,17 +158,17 @@ func (m *MockProxmoxRepository) GetVMStatus(ctx context.Context, vmid int) (stri
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockProxmoxRepository) SetCloudInitConfig(ctx context.Context, vmid int, config node.CloudInitConfig) error {
+func (m *MockProxmoxRepository) SetCloudInitConfig(ctx context.Context, vmid int, config domain.CloudInitConfig) error {
 	args := m.Called(ctx, vmid, config)
 	return args.Error(0)
 }
 
-func (m *MockProxmoxRepository) GetVMResourceUsage(ctx context.Context, vmid int) (*node.VMResourceUsage, error) {
+func (m *MockProxmoxRepository) GetVMResourceUsage(ctx context.Context, vmid int) (*domain.VMResourceUsage, error) {
 	args := m.Called(ctx, vmid)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*node.VMResourceUsage), args.Error(1)
+	return args.Get(0).(*domain.VMResourceUsage), args.Error(1)
 }
 
 func (m *MockProxmoxRepository) CloneTemplate(ctx context.Context, templateID int, name string) (int, error) {
@@ -176,16 +176,16 @@ func (m *MockProxmoxRepository) CloneTemplate(ctx context.Context, templateID in
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockProxmoxRepository) ListTemplates(ctx context.Context) ([]node.VMTemplate, error) {
+func (m *MockProxmoxRepository) ListTemplates(ctx context.Context) ([]domain.VMTemplate, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]node.VMTemplate), args.Error(1)
+	return args.Get(0).([]domain.VMTemplate), args.Error(1)
 }
 
 func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 	tests := []struct {
 		name        string
 		workspaceID string
-		request     node.ProvisionRequest
+		request     domain.ProvisionRequest
 		setup       func(*MockNodeRepository, *MockProxmoxRepository)
 		expectError bool
 		errorMsg    string
@@ -193,7 +193,7 @@ func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 		{
 			name:        "successful node provisioning",
 			workspaceID: "ws-123",
-			request: node.ProvisionRequest{
+			request: domain.ProvisionRequest{
 				NodeName:     "test-node",
 				NodeType:     "S-Type",
 				Region:       "us-west-1",
@@ -202,46 +202,46 @@ func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				// Mock workspace allocation check
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-123").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-123",
-						PlanType:    node.PlanTypeShared,
+						PlanType:    domain.PlanTypeShared,
 					}, nil)
 
 				// Mock VM creation
-				proxmoxRepo.On("CreateVM", mock.Anything, mock.MatchedBy(func(spec node.VMSpec) bool {
+				proxmoxRepo.On("CreateVM", mock.Anything, mock.MatchedBy(func(spec domain.VMSpec) bool {
 					return spec.Name == "test-node" && spec.NodeType == "S-Type"
-				})).Return(&node.ProxmoxVMInfo{
+				})).Return(&domain.ProxmoxVMInfo{
 					VMID:   100,
 					Status: "running",
 					Node:   "pve-node1",
 				}, nil)
 
 				// Mock node creation
-				nodeRepo.On("CreateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
+				nodeRepo.On("CreateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
 					return n.Name == "test-node" && 
 						n.WorkspaceID == "ws-123" &&
-						n.Status == node.NodeStatusProvisioning
+						n.Status == domain.NodeStatusProvisioning
 				})).Return(nil)
 
 				// Mock node update after VM creation
-				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
-					return n.Status == node.NodeStatusReady && n.ProxmoxVMID == 100
+				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
+					return n.Status == domain.NodeStatusReady && n.ProxmoxVMID == 100
 				})).Return(nil)
 
 				// Mock workspace allocation update to dedicated plan
-				nodeRepo.On("UpdateWorkspaceAllocation", mock.Anything, mock.MatchedBy(func(allocation *node.WorkspaceNodeAllocation) bool {
-					return allocation.PlanType == node.PlanTypeDedicated
+				nodeRepo.On("UpdateWorkspaceAllocation", mock.Anything, mock.MatchedBy(func(allocation *domain.WorkspaceNodeAllocation) bool {
+					return allocation.PlanType == domain.PlanTypeDedicated
 				})).Return(nil)
 
 				// Mock event creation
-				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*node.NodeEvent")).Return(nil)
+				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*domain.NodeEvent")).Return(nil)
 			},
 			expectError: false,
 		},
 		{
 			name:        "workspace not found",
 			workspaceID: "ws-nonexistent",
-			request: node.ProvisionRequest{
+			request: domain.ProvisionRequest{
 				NodeName: "test-node",
 				NodeType: "S-Type",
 			},
@@ -255,33 +255,33 @@ func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 		{
 			name:        "VM creation fails",
 			workspaceID: "ws-123",
-			request: node.ProvisionRequest{
+			request: domain.ProvisionRequest{
 				NodeName: "test-node",
 				NodeType: "S-Type",
 			},
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-123").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-123",
-						PlanType:    node.PlanTypeShared,
+						PlanType:    domain.PlanTypeShared,
 					}, nil)
 
 				// Mock node creation
-				nodeRepo.On("CreateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
+				nodeRepo.On("CreateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
 					return n.Name == "test-node" && 
 						n.WorkspaceID == "ws-123" &&
-						n.Status == node.NodeStatusProvisioning
+						n.Status == domain.NodeStatusProvisioning
 				})).Return(nil)
 
 				// Mock event creation
-				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*node.NodeEvent")).Return(nil)
+				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*domain.NodeEvent")).Return(nil)
 
-				proxmoxRepo.On("CreateVM", mock.Anything, mock.AnythingOfType("node.VMSpec")).Return(
+				proxmoxRepo.On("CreateVM", mock.Anything, mock.AnythingOfType("domain.VMSpec")).Return(
 					nil, errors.New("insufficient resources"))
 
 				// Mock node update to failed status
-				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
-					return n.Status == node.NodeStatusFailed
+				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
+					return n.Status == domain.NodeStatusFailed
 				})).Return(nil)
 			},
 			expectError: true,
@@ -290,7 +290,7 @@ func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 		{
 			name:        "invalid node type",
 			workspaceID: "ws-123",
-			request: node.ProvisionRequest{
+			request: domain.ProvisionRequest{
 				NodeName: "test-node",
 				NodeType: "Invalid-Type",
 			},
@@ -325,7 +325,7 @@ func TestNodeService_ProvisionDedicatedNode(t *testing.T) {
 				require.NotNil(t, result)
 				assert.Equal(t, tt.request.NodeName, result.Name)
 				assert.Equal(t, tt.workspaceID, result.WorkspaceID)
-				assert.Equal(t, node.NodeStatusReady, result.Status)
+				assert.Equal(t, domain.NodeStatusReady, result.Status)
 			}
 
 			nodeRepo.AssertExpectations(t)
@@ -349,19 +349,19 @@ func TestNodeService_NodeLifecycle(t *testing.T) {
 			operation: "start",
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetDedicatedNode", mock.Anything, "node-123").Return(
-					&node.DedicatedNode{
+					&domain.DedicatedNode{
 						ID:          "node-123",
-						Status:      node.NodeStatusStopped,
+						Status:      domain.NodeStatusStopped,
 						ProxmoxVMID: 100,
 					}, nil)
 
 				proxmoxRepo.On("StartVM", mock.Anything, 100).Return(nil)
 
-				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
-					return n.Status == node.NodeStatusStarting
+				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
+					return n.Status == domain.NodeStatusStarting
 				})).Return(nil)
 
-				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*node.NodeEvent")).Return(nil)
+				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*domain.NodeEvent")).Return(nil)
 			},
 			expectError: false,
 		},
@@ -371,19 +371,19 @@ func TestNodeService_NodeLifecycle(t *testing.T) {
 			operation: "stop",
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetDedicatedNode", mock.Anything, "node-123").Return(
-					&node.DedicatedNode{
+					&domain.DedicatedNode{
 						ID:          "node-123",
-						Status:      node.NodeStatusReady,
+						Status:      domain.NodeStatusReady,
 						ProxmoxVMID: 100,
 					}, nil)
 
 				proxmoxRepo.On("StopVM", mock.Anything, 100).Return(nil)
 
-				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *node.DedicatedNode) bool {
-					return n.Status == node.NodeStatusStopping
+				nodeRepo.On("UpdateDedicatedNode", mock.Anything, mock.MatchedBy(func(n *domain.DedicatedNode) bool {
+					return n.Status == domain.NodeStatusStopping
 				})).Return(nil)
 
-				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*node.NodeEvent")).Return(nil)
+				nodeRepo.On("CreateNodeEvent", mock.Anything, mock.AnythingOfType("*domain.NodeEvent")).Return(nil)
 			},
 			expectError: false,
 		},
@@ -439,7 +439,7 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 		name        string
 		workspaceID string
 		setup       func(*MockNodeRepository, *MockProxmoxRepository)
-		expected    *node.WorkspaceResourceUsage
+		expected    *domain.WorkspaceResourceUsage
 		expectError bool
 	}{
 		{
@@ -447,10 +447,10 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 			workspaceID: "ws-shared",
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-shared").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-shared",
-						PlanType:    node.PlanTypeShared,
-						SharedQuota: &node.SharedQuota{
+						PlanType:    domain.PlanTypeShared,
+						SharedQuota: &domain.SharedQuota{
 							CPULimit:    4,
 							MemoryLimit: 8,
 							CPUUsed:     2,
@@ -458,10 +458,10 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 						},
 					}, nil)
 			},
-			expected: &node.WorkspaceResourceUsage{
+			expected: &domain.WorkspaceResourceUsage{
 				WorkspaceID: "ws-shared",
-				PlanType:    node.PlanTypeShared,
-				SharedUsage: &node.SharedResourceUsage{
+				PlanType:    domain.PlanTypeShared,
+				SharedUsage: &domain.SharedResourceUsage{
 					CPUUsed:       2,
 					CPULimit:      4,
 					MemoryUsedGB:  4,
@@ -474,11 +474,11 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 			name:        "dedicated plan workspace",
 			workspaceID: "ws-dedicated",
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
-				nodes := []node.DedicatedNode{
+				nodes := []domain.DedicatedNode{
 					{
 						ID:     "node-1",
-						Status: node.NodeStatusReady,
-						Specification: node.NodeSpecification{
+						Status: domain.NodeStatusReady,
+						Specification: domain.NodeSpecification{
 							CPUCores:  4,
 							MemoryGB:  16,
 							StorageGB: 200,
@@ -487,8 +487,8 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 					},
 					{
 						ID:     "node-2",
-						Status: node.NodeStatusReady,
-						Specification: node.NodeSpecification{
+						Status: domain.NodeStatusReady,
+						Specification: domain.NodeSpecification{
 							CPUCores:  8,
 							MemoryGB:  32,
 							StorageGB: 500,
@@ -498,29 +498,29 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 				}
 
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-dedicated").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID:    "ws-dedicated",
-						PlanType:       node.PlanTypeDedicated,
+						PlanType:       domain.PlanTypeDedicated,
 						DedicatedNodes: nodes,
 					}, nil)
 
 				// Mock resource usage for each node
 				proxmoxRepo.On("GetVMResourceUsage", mock.Anything, 100).Return(
-					&node.VMResourceUsage{
+					&domain.VMResourceUsage{
 						CPUUsage:    50,
 						MemoryUsage: 8589934592, // 8GB
 					}, nil)
 
 				proxmoxRepo.On("GetVMResourceUsage", mock.Anything, 101).Return(
-					&node.VMResourceUsage{
+					&domain.VMResourceUsage{
 						CPUUsage:    25,
 						MemoryUsage: 17179869184, // 16GB
 					}, nil)
 			},
-			expected: &node.WorkspaceResourceUsage{
+			expected: &domain.WorkspaceResourceUsage{
 				WorkspaceID: "ws-dedicated",
-				PlanType:    node.PlanTypeDedicated,
-				DedicatedUsage: &node.DedicatedResourceUsage{
+				PlanType:    domain.PlanTypeDedicated,
+				DedicatedUsage: &domain.DedicatedResourceUsage{
 					TotalNodes:     2,
 					ActiveNodes:    2,
 					TotalCPUCores:  12,
@@ -575,7 +575,7 @@ func TestNodeService_GetWorkspaceResourceUsage(t *testing.T) {
 
 func TestNodeService_GetNodeCosts(t *testing.T) {
 	workspaceID := "ws-123"
-	period := node.BillingPeriod{
+	period := domain.BillingPeriod{
 		Start: time.Now().Add(-24 * time.Hour),
 		End:   time.Now(),
 	}
@@ -588,23 +588,23 @@ func TestNodeService_GetNodeCosts(t *testing.T) {
 		{
 			name: "calculate costs for dedicated nodes",
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
-				nodes := []node.DedicatedNode{
+				nodes := []domain.DedicatedNode{
 					{
 						ID:   "node-1",
 						Name: "prod-node-1",
-						Specification: node.NodeSpecification{
+						Specification: domain.NodeSpecification{
 							Type: "S-Type",
 						},
-						Status:    node.NodeStatusReady,
+						Status:    domain.NodeStatusReady,
 						CreatedAt: time.Now().Add(-12 * time.Hour),
 					},
 					{
 						ID:   "node-2",
 						Name: "prod-node-2",
-						Specification: node.NodeSpecification{
+						Specification: domain.NodeSpecification{
 							Type: "M-Type",
 						},
-						Status:    node.NodeStatusReady,
+						Status:    domain.NodeStatusReady,
 						CreatedAt: time.Now().Add(-8 * time.Hour),
 					},
 				}
@@ -650,7 +650,7 @@ func TestNodeService_CanAllocateResources(t *testing.T) {
 	tests := []struct {
 		name        string
 		workspaceID string
-		request     node.ResourceRequest
+		request     domain.ResourceRequest
 		setup       func(*MockNodeRepository, *MockProxmoxRepository)
 		expected    bool
 		expectError bool
@@ -658,16 +658,16 @@ func TestNodeService_CanAllocateResources(t *testing.T) {
 		{
 			name:        "shared plan - within quota",
 			workspaceID: "ws-shared",
-			request: node.ResourceRequest{
+			request: domain.ResourceRequest{
 				CPU:    1,
 				Memory: 2,
 			},
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-shared").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-shared",
-						PlanType:    node.PlanTypeShared,
-						SharedQuota: &node.SharedQuota{
+						PlanType:    domain.PlanTypeShared,
+						SharedQuota: &domain.SharedQuota{
 							CPULimit:    4,
 							MemoryLimit: 8,
 							CPUUsed:     2,
@@ -681,16 +681,16 @@ func TestNodeService_CanAllocateResources(t *testing.T) {
 		{
 			name:        "shared plan - exceeds quota",
 			workspaceID: "ws-shared",
-			request: node.ResourceRequest{
+			request: domain.ResourceRequest{
 				CPU:    3,
 				Memory: 6,
 			},
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-shared").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-shared",
-						PlanType:    node.PlanTypeShared,
-						SharedQuota: &node.SharedQuota{
+						PlanType:    domain.PlanTypeShared,
+						SharedQuota: &domain.SharedQuota{
 							CPULimit:    4,
 							MemoryLimit: 8,
 							CPUUsed:     2,
@@ -704,19 +704,19 @@ func TestNodeService_CanAllocateResources(t *testing.T) {
 		{
 			name:        "dedicated plan - has available nodes",
 			workspaceID: "ws-dedicated",
-			request: node.ResourceRequest{
+			request: domain.ResourceRequest{
 				CPU:    2,
 				Memory: 4,
 			},
 			setup: func(nodeRepo *MockNodeRepository, proxmoxRepo *MockProxmoxRepository) {
 				nodeRepo.On("GetWorkspaceAllocation", mock.Anything, "ws-dedicated").Return(
-					&node.WorkspaceNodeAllocation{
+					&domain.WorkspaceNodeAllocation{
 						WorkspaceID: "ws-dedicated",
-						PlanType:    node.PlanTypeDedicated,
-						DedicatedNodes: []node.DedicatedNode{
+						PlanType:    domain.PlanTypeDedicated,
+						DedicatedNodes: []domain.DedicatedNode{
 							{
 								ID:     "node-1",
-								Status: node.NodeStatusReady,
+								Status: domain.NodeStatusReady,
 							},
 						},
 					}, nil)

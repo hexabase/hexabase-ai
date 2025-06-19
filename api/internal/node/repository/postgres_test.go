@@ -1,4 +1,4 @@
-package node
+package repository_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
+	"github.com/hexabase/hexabase-ai/api/internal/node/repository"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -31,15 +32,15 @@ func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 func TestPostgresRepository_CreateDedicatedNode(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("successful node creation", func(t *testing.T) {
-		n := &node.DedicatedNode{
+		n := &domain.DedicatedNode{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-123",
 			Name:        "worker-node-1",
-			Status:      node.NodeStatusProvisioning,
-			Specification: node.NodeSpecification{
+			Status:      domain.NodeStatusProvisioning,
+			Specification: domain.NodeSpecification{
 				Type:      "S-Type",
 				CPUCores:  4,
 				MemoryGB:  8,
@@ -89,7 +90,7 @@ func TestPostgresRepository_CreateDedicatedNode(t *testing.T) {
 func TestPostgresRepository_GetDedicatedNode(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("get node by ID", func(t *testing.T) {
 		nodeID := uuid.New().String()
@@ -107,7 +108,7 @@ func TestPostgresRepository_GetDedicatedNode(t *testing.T) {
 			`{"role":"master"}`, `[]`, now, now, nil,
 		)
 
-		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE id = \$1 AND "dedicated_nodes"\."deleted_at" IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
+		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE id = \$1 AND deleted_at IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
 			WithArgs(nodeID, 1).
 			WillReturnRows(rows)
 
@@ -115,7 +116,7 @@ func TestPostgresRepository_GetDedicatedNode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, n)
 		assert.Equal(t, nodeID, n.ID)
-		assert.Equal(t, node.NodeStatusReady, n.Status)
+		assert.Equal(t, domain.NodeStatusReady, n.Status)
 		assert.Equal(t, 8, n.Specification.CPUCores)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -123,7 +124,7 @@ func TestPostgresRepository_GetDedicatedNode(t *testing.T) {
 	t.Run("node not found", func(t *testing.T) {
 		nodeID := uuid.New().String()
 
-		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE id = \$1 AND "dedicated_nodes"\."deleted_at" IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
+		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE id = \$1 AND deleted_at IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
 			WithArgs(nodeID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -137,7 +138,7 @@ func TestPostgresRepository_GetDedicatedNode(t *testing.T) {
 func TestPostgresRepository_ListDedicatedNodes(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("list workspace nodes", func(t *testing.T) {
 		workspaceID := "ws-456"
@@ -168,7 +169,7 @@ func TestPostgresRepository_ListDedicatedNodes(t *testing.T) {
 				`{}`, `[]`, now, now, nil,
 			)
 
-		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE workspace_id = \$1 AND "dedicated_nodes"\."deleted_at" IS NULL`).
+		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE workspace_id = \$1 AND deleted_at IS NULL ORDER BY created_at DESC`).
 			WithArgs(workspaceID).
 			WillReturnRows(rows)
 
@@ -182,15 +183,15 @@ func TestPostgresRepository_ListDedicatedNodes(t *testing.T) {
 func TestPostgresRepository_UpdateDedicatedNode(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("update node status", func(t *testing.T) {
-		n := &node.DedicatedNode{
+		n := &domain.DedicatedNode{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-789",
 			Name:        "updated-worker",
-			Status:      node.NodeStatusReady,
-			Specification: node.NodeSpecification{
+			Status:      domain.NodeStatusReady,
+			Specification: domain.NodeSpecification{
 				Type:      "L-Type",
 				CPUCores:  16,
 				MemoryGB:  32,
@@ -223,7 +224,9 @@ func TestPostgresRepository_UpdateDedicatedNode(t *testing.T) {
 				n.SSHPublicKey,
 				sqlmock.AnyArg(), // labels
 				sqlmock.AnyArg(), // taints
+				sqlmock.AnyArg(), // created_at
 				sqlmock.AnyArg(), // updated_at
+				sqlmock.AnyArg(), // deleted_at
 				n.ID,             // WHERE id = ?
 			).
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -238,13 +241,13 @@ func TestPostgresRepository_UpdateDedicatedNode(t *testing.T) {
 func TestPostgresRepository_DeleteDedicatedNode(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("soft delete node", func(t *testing.T) {
 		nodeID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "dedicated_nodes" SET "deleted_at"=\$1 WHERE "dedicated_nodes"\."id" = \$2 AND "dedicated_nodes"\."deleted_at" IS NULL`).
+		mock.ExpectExec(`UPDATE "dedicated_nodes" SET "deleted_at"=NOW\(\),"updated_at"=\$1 WHERE id = \$2`).
 			WithArgs(sqlmock.AnyArg(), nodeID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
@@ -258,7 +261,7 @@ func TestPostgresRepository_DeleteDedicatedNode(t *testing.T) {
 func TestPostgresRepository_GetDedicatedNodeByVMID(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("get node by proxmox VM ID", func(t *testing.T) {
 		vmID := 2001
@@ -276,7 +279,7 @@ func TestPostgresRepository_GetDedicatedNodeByVMID(t *testing.T) {
 			`{}`, `[]`, now, now, nil,
 		)
 
-		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE proxmox_vmid = \$1 AND "dedicated_nodes"\."deleted_at" IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
+		mock.ExpectQuery(`SELECT \* FROM "dedicated_nodes" WHERE proxmox_vmid = \$1 AND deleted_at IS NULL ORDER BY "dedicated_nodes"\."id" LIMIT \$2`).
 			WithArgs(vmID, 1).
 			WillReturnRows(rows)
 
@@ -291,14 +294,14 @@ func TestPostgresRepository_GetDedicatedNodeByVMID(t *testing.T) {
 func TestPostgresRepository_CreateNodeEvent(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("create node event", func(t *testing.T) {
-		event := &node.NodeEvent{
+		event := &domain.NodeEvent{
 			ID:          uuid.New().String(),
 			NodeID:      "node-123",
 			WorkspaceID: "ws-123",
-			Type:        node.EventTypeStatusChange,
+			Type:        domain.EventTypeStatusChange,
 			Message:     "Node status changed from provisioning to ready",
 			Details:     "Node initialization completed successfully",
 			Timestamp:   time.Now(),
@@ -327,7 +330,7 @@ func TestPostgresRepository_CreateNodeEvent(t *testing.T) {
 func TestPostgresRepository_ListNodeEvents(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("list node events", func(t *testing.T) {
 		nodeID := "node-456"
@@ -354,7 +357,7 @@ func TestPostgresRepository_ListNodeEvents(t *testing.T) {
 func TestPostgresRepository_GetWorkspaceAllocation(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("get shared plan allocation", func(t *testing.T) {
 		workspaceID := "ws-shared"
@@ -365,7 +368,7 @@ func TestPostgresRepository_GetWorkspaceAllocation(t *testing.T) {
 			"quota_cpu_limit", "quota_memory_limit", "quota_cpu_used", "quota_memory_used",
 			"created_at", "updated_at",
 		}).AddRow(
-			uuid.New().String(), workspaceID, node.PlanTypeShared,
+			uuid.New().String(), workspaceID, domain.PlanTypeShared,
 			2.0, 4.0, 0.5, 1.0,
 			now, now,
 		)
@@ -377,7 +380,7 @@ func TestPostgresRepository_GetWorkspaceAllocation(t *testing.T) {
 		allocation, err := repo.GetWorkspaceAllocation(ctx, workspaceID)
 		assert.NoError(t, err)
 		assert.NotNil(t, allocation)
-		assert.Equal(t, node.PlanTypeShared, allocation.PlanType)
+		assert.Equal(t, domain.PlanTypeShared, allocation.PlanType)
 		assert.NotNil(t, allocation.SharedQuota)
 		assert.Equal(t, 2.0, allocation.SharedQuota.CPULimit)
 		assert.Equal(t, 0.5, allocation.SharedQuota.CPUUsed)
@@ -388,7 +391,7 @@ func TestPostgresRepository_GetWorkspaceAllocation(t *testing.T) {
 func TestPostgresRepository_UpdateSharedQuotaUsage(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)
-	repo := NewPostgresRepository(gormDB)
+	repo := repository.NewPostgresRepository(gormDB)
 
 	t.Run("update shared plan usage", func(t *testing.T) {
 		workspaceID := "ws-update"
@@ -397,7 +400,7 @@ func TestPostgresRepository_UpdateSharedQuotaUsage(t *testing.T) {
 
 		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE "workspace_node_allocations" SET "quota_cpu_used"=quota_cpu_used \+ \$1,"quota_memory_used"=quota_memory_used \+ \$2,"updated_at"=\$3 WHERE workspace_id = \$4 AND plan_type = \$5`).
-			WithArgs(cpuDelta, memoryDelta, sqlmock.AnyArg(), workspaceID, node.PlanTypeShared).
+			WithArgs(cpuDelta, memoryDelta, sqlmock.AnyArg(), workspaceID, domain.PlanTypeShared).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 

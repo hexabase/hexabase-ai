@@ -43,6 +43,12 @@ import (
 	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
 	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/workspace/service"
 
+	// Node domain (migrated)
+	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
+	nodeHandler "github.com/hexabase/hexabase-ai/api/internal/node/handler"
+	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/node/repository"
+	nodeService "github.com/hexabase/hexabase-ai/api/internal/node/service"
+
 	// Legacy domains that haven't been migrated yet
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
@@ -51,7 +57,6 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 
 	// Legacy repositories that haven't been migrated yet
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
@@ -62,7 +67,6 @@ import (
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
-	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/repository/node"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	// Legacy services that haven't been migrated yet
@@ -73,7 +77,6 @@ import (
 	functionSvc "github.com/hexabase/hexabase-ai/api/internal/service/function"
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
-	nodeSvc "github.com/hexabase/hexabase-ai/api/internal/service/node"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -150,9 +153,9 @@ var NodeSet = wire.NewSet(
 	ProvideNodeRepository,
 	ProvideProxmoxRepository,
 	ProvideProxmoxRepositoryInterface,
-	nodeSvc.NewService,
+	nodeService.NewService,
 	ProvideNodeService,
-	handlers.NewNodeHandler,
+	nodeHandler.NewHandler,
 )
 
 var CICDSet = wire.NewSet(
@@ -199,7 +202,7 @@ type App struct {
 	BackupHandler      *handlers.BackupHandler
 	BillingHandler     *handlers.BillingHandler
 	MonitoringHandler  *handlers.MonitoringHandler
-	NodeHandler        *handlers.NodeHandler
+	NodeHandler        *nodeHandler.Handler
 	OrganizationHandler *orgHandler.Handler
 	ProjectHandler     *projectHandler.Handler
 	WorkspaceHandler   *workspaceHandler.Handler
@@ -215,7 +218,7 @@ func NewApp(
 	backupH *handlers.BackupHandler,
 	billH *handlers.BillingHandler,
 	monH *handlers.MonitoringHandler,
-	nodeH *handlers.NodeHandler,
+	nodeH *nodeHandler.Handler,
 	orgH *orgHandler.Handler,
 	projH *projectHandler.Handler,
 	workH *workspaceHandler.Handler,
@@ -312,15 +315,15 @@ func ProvideMetricsClientset(k8sConfig *rest.Config) (versioned.Interface, error
 	return versioned.NewForConfig(k8sConfig)
 }
 
-func ProvideNodeService(svc *nodeSvc.Service) node.Service {
+func ProvideNodeService(svc *nodeService.Service) nodeDomain.Service {
 	return svc
 }
 
-func ProvideNodeRepository(repo *nodeRepo.PostgresRepository) node.Repository {
+func ProvideNodeRepository(repo *nodeRepo.PostgresRepository) nodeDomain.Repository {
 	return repo
 }
 
-func ProvideProxmoxRepositoryInterface(repo *nodeRepo.ProxmoxRepository) node.ProxmoxRepository {
+func ProvideProxmoxRepositoryInterface(repo *nodeRepo.ProxmoxRepository) nodeDomain.ProxmoxRepository {
 	return repo
 }
 
@@ -366,7 +369,7 @@ func ProvideInternalHandler(
 	workspaceSvc workspaceDomain.Service,
 	projectSvc projectDomain.Service,
 	applicationSvc domain.Service,
-	nodeSvc node.Service,
+	nodeSvc nodeDomain.Service,
 	logSvc logs.Service,
 	monitoringSvc monitoring.Service,
 	aiopsSvc aiops.Service,

@@ -1,4 +1,4 @@
-package node
+package repository
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 )
 
-// ProxmoxRepository implements the node.ProxmoxRepository interface
+// ProxmoxRepository implements the domain.ProxmoxRepository interface
 type ProxmoxRepository struct {
 	client proxmoxRepo.HTTPClient
 	apiURL string
@@ -27,7 +27,7 @@ func NewProxmoxRepository(client proxmoxRepo.HTTPClient, apiURL, token string) *
 }
 
 // CreateVM creates a new VM in Proxmox
-func (r *ProxmoxRepository) CreateVM(ctx context.Context, spec node.VMSpec) (*node.ProxmoxVMInfo, error) {
+func (r *ProxmoxRepository) CreateVM(ctx context.Context, spec domain.VMSpec) (*domain.ProxmoxVMInfo, error) {
 	// In a real implementation, this would make API calls to Proxmox
 	// For now, return mock data
 	vmid := generateVMID()
@@ -35,7 +35,7 @@ func (r *ProxmoxRepository) CreateVM(ctx context.Context, spec node.VMSpec) (*no
 	// Simulate VM creation
 	time.Sleep(100 * time.Millisecond)
 	
-	return &node.ProxmoxVMInfo{
+	return &domain.ProxmoxVMInfo{
 		VMID:      vmid,
 		Node:      spec.TargetNode,
 		Status:    "running",
@@ -53,9 +53,9 @@ func (r *ProxmoxRepository) CreateVM(ctx context.Context, spec node.VMSpec) (*no
 }
 
 // GetVM gets VM information from Proxmox
-func (r *ProxmoxRepository) GetVM(ctx context.Context, vmid int) (*node.ProxmoxVMInfo, error) {
+func (r *ProxmoxRepository) GetVM(ctx context.Context, vmid int) (*domain.ProxmoxVMInfo, error) {
 	// Mock implementation
-	return &node.ProxmoxVMInfo{
+	return &domain.ProxmoxVMInfo{
 		VMID:      vmid,
 		Node:      "pve-node1",
 		Status:    "running",
@@ -101,7 +101,7 @@ func (r *ProxmoxRepository) DeleteVM(ctx context.Context, vmid int) error {
 }
 
 // UpdateVMConfig updates VM configuration
-func (r *ProxmoxRepository) UpdateVMConfig(ctx context.Context, vmid int, config node.VMConfig) error {
+func (r *ProxmoxRepository) UpdateVMConfig(ctx context.Context, vmid int, config domain.VMConfig) error {
 	// Mock implementation
 	return nil
 }
@@ -114,15 +114,15 @@ func (r *ProxmoxRepository) GetVMStatus(ctx context.Context, vmid int) (string, 
 }
 
 // SetCloudInitConfig sets cloud-init configuration for a VM
-func (r *ProxmoxRepository) SetCloudInitConfig(ctx context.Context, vmid int, config node.CloudInitConfig) error {
+func (r *ProxmoxRepository) SetCloudInitConfig(ctx context.Context, vmid int, config domain.CloudInitConfig) error {
 	// Mock implementation
 	return nil
 }
 
 // GetVMResourceUsage gets current resource usage of a VM
-func (r *ProxmoxRepository) GetVMResourceUsage(ctx context.Context, vmid int) (*node.VMResourceUsage, error) {
+func (r *ProxmoxRepository) GetVMResourceUsage(ctx context.Context, vmid int) (*domain.VMResourceUsage, error) {
 	// Mock implementation with random values
-	return &node.VMResourceUsage{
+	return &domain.VMResourceUsage{
 		CPUUsage:    rand.Float64() * 100,
 		MemoryUsage: int64(rand.Intn(16)) * 1024 * 1024 * 1024,
 		DiskUsage:   int64(rand.Intn(200)) * 1024 * 1024 * 1024,
@@ -138,9 +138,9 @@ func (r *ProxmoxRepository) CloneTemplate(ctx context.Context, templateID int, n
 }
 
 // ListTemplates lists available VM templates
-func (r *ProxmoxRepository) ListTemplates(ctx context.Context) ([]node.VMTemplate, error) {
+func (r *ProxmoxRepository) ListTemplates(ctx context.Context) ([]domain.VMTemplate, error) {
 	// Mock implementation
-	templates := []node.VMTemplate{
+	templates := []domain.VMTemplate{
 		{
 			ID:          9000,
 			Name:        "ubuntu-22.04-k3s-small",

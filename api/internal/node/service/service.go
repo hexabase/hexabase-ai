@@ -1,4 +1,4 @@
-package node
+package service
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -15,13 +15,13 @@ import (
 
 // Service implements the node business logic
 type Service struct {
-	nodeRepo    node.Repository
-	proxmoxRepo node.ProxmoxRepository
+	nodeRepo    domain.Repository
+	proxmoxRepo domain.ProxmoxRepository
 	k8sClient   kubernetes.Interface
 }
 
 // NewService creates a new node service
-func NewService(nodeRepo node.Repository, proxmoxRepo node.ProxmoxRepository) *Service {
+func NewService(nodeRepo domain.Repository, proxmoxRepo domain.ProxmoxRepository) *Service {
 	return &Service{
 		nodeRepo:    nodeRepo,
 		proxmoxRepo: proxmoxRepo,
@@ -34,17 +34,17 @@ func (s *Service) SetK8sClient(client kubernetes.Interface) {
 }
 
 // GetAvailablePlans returns all available node plans
-func (s *Service) GetAvailablePlans(ctx context.Context) ([]node.NodePlan, error) {
+func (s *Service) GetAvailablePlans(ctx context.Context) ([]domain.NodePlan, error) {
 	return s.nodeRepo.GetNodePlans(ctx)
 }
 
 // GetPlanDetails returns details for a specific plan
-func (s *Service) GetPlanDetails(ctx context.Context, planID string) (*node.NodePlan, error) {
+func (s *Service) GetPlanDetails(ctx context.Context, planID string) (*domain.NodePlan, error) {
 	return s.nodeRepo.GetNodePlan(ctx, planID)
 }
 
 // ProvisionDedicatedNode provisions a new dedicated node for a workspace
-func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string, req node.ProvisionRequest) (*node.DedicatedNode, error) {
+func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string, req domain.ProvisionRequest) (*domain.DedicatedNode, error) {
 	// Validate request
 	if err := s.validateProvisionRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
@@ -66,7 +66,7 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	}
 
 	// Create VM specification for Proxmox
-	vmSpec := node.VMSpec{
+	vmSpec := domain.VMSpec{
 		Name:          req.NodeName,
 		NodeType:      req.NodeType,
 		TemplateID:    s.getTemplateID(req.NodeType),
@@ -75,7 +75,7 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 		MemoryMB:      spec.MemoryGB * 1024,
 		DiskGB:        spec.StorageGB,
 		NetworkBridge: "vmbr0",
-		CloudInit: node.CloudInitConfig{
+		CloudInit: domain.CloudInitConfig{
 			SSHKeys: []string{req.SSHPublicKey},
 			UserData: s.generateCloudInitUserData(workspaceID, nodeID),
 		},
@@ -83,11 +83,11 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	}
 
 	// Create dedicated node record
-	dedicatedNode := &node.DedicatedNode{
+	dedicatedNode := &domain.DedicatedNode{
 		ID:            nodeID,
 		WorkspaceID:   workspaceID,
 		Name:          req.NodeName,
-		Status:        node.NodeStatusProvisioning,
+		Status:        domain.NodeStatusProvisioning,
 		Specification: *spec,
 		SSHPublicKey:  req.SSHPublicKey,
 		Labels:        req.Labels,
@@ -101,7 +101,7 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	}
 
 	// Create event for provisioning start
-	event := dedicatedNode.CreateEvent(node.EventTypeProvisioning, "Starting node provisioning")
+	event := dedicatedNode.CreateEvent(domain.EventTypeProvisioning, "Starting node provisioning")
 	if err := s.nodeRepo.CreateNodeEvent(ctx, &event); err != nil {
 		// Log but don't fail - events are not critical
 	}
@@ -110,11 +110,11 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	vmInfo, err := s.proxmoxRepo.CreateVM(ctx, vmSpec)
 	if err != nil {
 		// Update node status to failed
-		dedicatedNode.Status = node.NodeStatusFailed
+		dedicatedNode.Status = domain.NodeStatusFailed
 		s.nodeRepo.UpdateDedicatedNode(ctx, dedicatedNode)
 		
 		// Create failure event
-		failEvent := dedicatedNode.CreateEvent(node.EventTypeError, fmt.Sprintf("VM creation failed: %v", err))
+		failEvent := dedicatedNode.CreateEvent(domain.EventTypeError, fmt.Sprintf("VM creation failed: %v", err))
 		s.nodeRepo.CreateNodeEvent(ctx, &failEvent)
 		
 		return nil, fmt.Errorf("failed to create VM: %w", err)
@@ -124,7 +124,7 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	dedicatedNode.ProxmoxVMID = vmInfo.VMID
 	dedicatedNode.ProxmoxNode = vmInfo.Node
 	dedicatedNode.IPAddress = s.extractIPAddress(vmInfo)
-	dedicatedNode.Status = node.NodeStatusReady
+	dedicatedNode.Status = domain.NodeStatusReady
 	dedicatedNode.UpdatedAt = time.Now()
 
 	if err := s.nodeRepo.UpdateDedicatedNode(ctx, dedicatedNode); err != nil {
@@ -132,8 +132,8 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	}
 
 	// Transition workspace to dedicated plan if this is the first node
-	if allocation.PlanType == node.PlanTypeShared {
-		allocation.PlanType = node.PlanTypeDedicated
+	if allocation.PlanType == domain.PlanTypeShared {
+		allocation.PlanType = domain.PlanTypeDedicated
 		allocation.SharedQuota = nil // Clear shared quota
 		allocation.UpdatedAt = time.Now()
 		
@@ -143,39 +143,39 @@ func (s *Service) ProvisionDedicatedNode(ctx context.Context, workspaceID string
 	}
 
 	// Create completion event
-	completeEvent := dedicatedNode.CreateEvent(node.EventTypeStatusChange, "Node provisioning completed")
+	completeEvent := dedicatedNode.CreateEvent(domain.EventTypeStatusChange, "Node provisioning completed")
 	s.nodeRepo.CreateNodeEvent(ctx, &completeEvent)
 
 	return dedicatedNode, nil
 }
 
 // GetNode returns a dedicated node by ID
-func (s *Service) GetNode(ctx context.Context, nodeID string) (*node.DedicatedNode, error) {
+func (s *Service) GetNode(ctx context.Context, nodeID string) (*domain.DedicatedNode, error) {
 	return s.nodeRepo.GetDedicatedNode(ctx, nodeID)
 }
 
 // ListNodes returns all dedicated nodes for a workspace
-func (s *Service) ListNodes(ctx context.Context, workspaceID string) ([]node.DedicatedNode, error) {
+func (s *Service) ListNodes(ctx context.Context, workspaceID string) ([]domain.DedicatedNode, error) {
 	return s.nodeRepo.ListDedicatedNodes(ctx, workspaceID)
 }
 
 // StartNode starts a stopped node
 func (s *Service) StartNode(ctx context.Context, nodeID string) error {
-	return s.performNodeAction(ctx, nodeID, "start", func(n *node.DedicatedNode) error {
+	return s.performNodeAction(ctx, nodeID, "start", func(n *domain.DedicatedNode) error {
 		return s.proxmoxRepo.StartVM(ctx, n.ProxmoxVMID)
 	})
 }
 
 // StopNode stops a running node
 func (s *Service) StopNode(ctx context.Context, nodeID string) error {
-	return s.performNodeAction(ctx, nodeID, "stop", func(n *node.DedicatedNode) error {
+	return s.performNodeAction(ctx, nodeID, "stop", func(n *domain.DedicatedNode) error {
 		return s.proxmoxRepo.StopVM(ctx, n.ProxmoxVMID)
 	})
 }
 
 // RebootNode reboots a node
 func (s *Service) RebootNode(ctx context.Context, nodeID string) error {
-	return s.performNodeAction(ctx, nodeID, "reboot", func(n *node.DedicatedNode) error {
+	return s.performNodeAction(ctx, nodeID, "reboot", func(n *domain.DedicatedNode) error {
 		return s.proxmoxRepo.RebootVM(ctx, n.ProxmoxVMID)
 	})
 }
@@ -197,16 +197,16 @@ func (s *Service) DeleteNode(ctx context.Context, nodeID string) error {
 	}
 
 	// Create deletion event
-	event := dedicatedNode.CreateEvent(node.EventTypeDeletion, "Starting node deletion")
+	event := dedicatedNode.CreateEvent(domain.EventTypeDeletion, "Starting node deletion")
 	s.nodeRepo.CreateNodeEvent(ctx, &event)
 
 	// Delete VM from Proxmox
 	if err := s.proxmoxRepo.DeleteVM(ctx, dedicatedNode.ProxmoxVMID); err != nil {
 		// Update status to failed but continue with soft deletion
-		dedicatedNode.Status = node.NodeStatusFailed
+		dedicatedNode.Status = domain.NodeStatusFailed
 		s.nodeRepo.UpdateDedicatedNode(ctx, dedicatedNode)
 		
-		failEvent := dedicatedNode.CreateEvent(node.EventTypeError, fmt.Sprintf("VM deletion failed: %v", err))
+		failEvent := dedicatedNode.CreateEvent(domain.EventTypeError, fmt.Sprintf("VM deletion failed: %v", err))
 		s.nodeRepo.CreateNodeEvent(ctx, &failEvent)
 		
 		return fmt.Errorf("failed to delete VM: %w", err)
@@ -221,22 +221,22 @@ func (s *Service) DeleteNode(ctx context.Context, nodeID string) error {
 }
 
 // GetWorkspaceResourceUsage returns resource usage for a workspace
-func (s *Service) GetWorkspaceResourceUsage(ctx context.Context, workspaceID string) (*node.WorkspaceResourceUsage, error) {
+func (s *Service) GetWorkspaceResourceUsage(ctx context.Context, workspaceID string) (*domain.WorkspaceResourceUsage, error) {
 	allocation, err := s.nodeRepo.GetWorkspaceAllocation(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workspace allocation: %w", err)
 	}
 
-	usage := &node.WorkspaceResourceUsage{
+	usage := &domain.WorkspaceResourceUsage{
 		WorkspaceID: workspaceID,
 		PlanType:    allocation.PlanType,
 		Timestamp:   time.Now(),
 	}
 
-	if allocation.PlanType == node.PlanTypeShared {
+	if allocation.PlanType == domain.PlanTypeShared {
 		// Calculate shared resource usage
 		if allocation.SharedQuota != nil {
-			usage.SharedUsage = &node.SharedResourceUsage{
+			usage.SharedUsage = &domain.SharedResourceUsage{
 				CPUUsed:       allocation.SharedQuota.CPUUsed,
 				CPULimit:      allocation.SharedQuota.CPULimit,
 				MemoryUsedGB:  allocation.SharedQuota.MemoryUsed,
@@ -250,9 +250,9 @@ func (s *Service) GetWorkspaceResourceUsage(ctx context.Context, workspaceID str
 			return nil, fmt.Errorf("failed to list dedicated nodes: %w", err)
 		}
 
-		dedicatedUsage := &node.DedicatedResourceUsage{
+		dedicatedUsage := &domain.DedicatedResourceUsage{
 			TotalNodes: len(nodes),
-			NodeUsage:  make([]node.NodeResourceSummary, 0, len(nodes)),
+			NodeUsage:  make([]domain.NodeResourceSummary, 0, len(nodes)),
 		}
 
 		for _, n := range nodes {
@@ -266,7 +266,7 @@ func (s *Service) GetWorkspaceResourceUsage(ctx context.Context, workspaceID str
 
 			// Get current resource usage from Proxmox
 			if vmUsage, err := s.proxmoxRepo.GetVMResourceUsage(ctx, n.ProxmoxVMID); err == nil {
-				summary := node.NodeResourceSummary{
+				summary := domain.NodeResourceSummary{
 					NodeID:       n.ID,
 					NodeName:     n.Name,
 					CPUUsage:     vmUsage.CPUUsage,
@@ -285,7 +285,7 @@ func (s *Service) GetWorkspaceResourceUsage(ctx context.Context, workspaceID str
 }
 
 // CanAllocateResources checks if workspace can allocate requested resources
-func (s *Service) CanAllocateResources(ctx context.Context, workspaceID string, request node.ResourceRequest) (bool, error) {
+func (s *Service) CanAllocateResources(ctx context.Context, workspaceID string, request domain.ResourceRequest) (bool, error) {
 	allocation, err := s.nodeRepo.GetWorkspaceAllocation(ctx, workspaceID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get workspace allocation: %w", err)
@@ -295,7 +295,7 @@ func (s *Service) CanAllocateResources(ctx context.Context, workspaceID string, 
 }
 
 // GetNodeStatus returns detailed status information for a node
-func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*node.NodeStatusInfo, error) {
+func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*domain.NodeStatusInfo, error) {
 	dedicatedNode, err := s.nodeRepo.GetDedicatedNode(ctx, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node: %w", err)
@@ -315,13 +315,13 @@ func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*node.NodeS
 		}
 	}
 
-	statusInfo := &node.NodeStatusInfo{
+	statusInfo := &domain.NodeStatusInfo{
 		NodeID:        nodeID,
 		Status:        dedicatedNode.Status,
 		ProxmoxStatus: proxmoxStatus,
 		K3sStatus:     k3sStatus,
 		LastUpdated:   dedicatedNode.UpdatedAt,
-		Conditions:    []node.NodeCondition{},
+		Conditions:    []domain.NodeCondition{},
 	}
 
 	// Get K3s conditions if available
@@ -332,8 +332,8 @@ func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*node.NodeS
 	}
 
 	// Add basic conditions if no K3s conditions are available
-	if len(statusInfo.Conditions) == 0 && dedicatedNode.Status == node.NodeStatusReady && proxmoxStatus == "running" {
-		statusInfo.Conditions = append(statusInfo.Conditions, node.NodeCondition{
+	if len(statusInfo.Conditions) == 0 && dedicatedNode.Status == domain.NodeStatusReady && proxmoxStatus == "running" {
+		statusInfo.Conditions = append(statusInfo.Conditions, domain.NodeCondition{
 			Type:    "Ready",
 			Status:  "True",
 			Reason:  "NodeReady",
@@ -346,7 +346,7 @@ func (s *Service) GetNodeStatus(ctx context.Context, nodeID string) (*node.NodeS
 }
 
 // GetNodeMetrics returns performance metrics for a node
-func (s *Service) GetNodeMetrics(ctx context.Context, nodeID string) (*node.NodeMetrics, error) {
+func (s *Service) GetNodeMetrics(ctx context.Context, nodeID string) (*domain.NodeMetrics, error) {
 	dedicatedNode, err := s.nodeRepo.GetDedicatedNode(ctx, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node: %w", err)
@@ -357,23 +357,23 @@ func (s *Service) GetNodeMetrics(ctx context.Context, nodeID string) (*node.Node
 		return nil, fmt.Errorf("failed to get VM resource usage: %w", err)
 	}
 
-	metrics := &node.NodeMetrics{
+	metrics := &domain.NodeMetrics{
 		NodeID:    nodeID,
 		Timestamp: time.Now(),
-		CPU: node.CPUMetrics{
+		CPU: domain.CPUMetrics{
 			UsagePercent: vmUsage.CPUUsage,
 		},
-		Memory: node.MemoryMetrics{
+		Memory: domain.MemoryMetrics{
 			UsedBytes:    vmUsage.MemoryUsage,
 			TotalBytes:   int64(dedicatedNode.Specification.MemoryGB) * 1024 * 1024 * 1024,
 			UsagePercent: float64(vmUsage.MemoryUsage) / float64(dedicatedNode.Specification.MemoryGB*1024*1024*1024) * 100,
 		},
-		Disk: node.DiskMetrics{
+		Disk: domain.DiskMetrics{
 			UsedBytes:    vmUsage.DiskUsage,
 			TotalBytes:   int64(dedicatedNode.Specification.StorageGB) * 1024 * 1024 * 1024,
 			UsagePercent: float64(vmUsage.DiskUsage) / float64(dedicatedNode.Specification.StorageGB*1024*1024*1024) * 100,
 		},
-		Network: node.NetworkMetrics{
+		Network: domain.NetworkMetrics{
 			BytesIn:  vmUsage.NetworkIn,
 			BytesOut: vmUsage.NetworkOut,
 		},
@@ -386,22 +386,22 @@ func (s *Service) GetNodeMetrics(ctx context.Context, nodeID string) (*node.Node
 }
 
 // GetNodeEvents returns events for a node
-func (s *Service) GetNodeEvents(ctx context.Context, nodeID string, limit int) ([]node.NodeEvent, error) {
+func (s *Service) GetNodeEvents(ctx context.Context, nodeID string, limit int) ([]domain.NodeEvent, error) {
 	return s.nodeRepo.ListNodeEvents(ctx, nodeID, limit)
 }
 
 // GetNodeCosts calculates costs for nodes in a workspace
-func (s *Service) GetNodeCosts(ctx context.Context, workspaceID string, period node.BillingPeriod) (*node.NodeCostReport, error) {
+func (s *Service) GetNodeCosts(ctx context.Context, workspaceID string, period domain.BillingPeriod) (*domain.NodeCostReport, error) {
 	nodes, err := s.nodeRepo.ListDedicatedNodes(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
-	report := &node.NodeCostReport{
+	report := &domain.NodeCostReport{
 		WorkspaceID: workspaceID,
 		Period:      period,
 		Currency:    "USD",
-		NodeCosts:   make([]node.NodeCost, 0, len(nodes)),
+		NodeCosts:   make([]domain.NodeCost, 0, len(nodes)),
 	}
 
 	for _, n := range nodes {
@@ -420,7 +420,7 @@ func (s *Service) TransitionToSharedPlan(ctx context.Context, workspaceID string
 		return fmt.Errorf("failed to get workspace allocation: %w", err)
 	}
 
-	if allocation.PlanType == node.PlanTypeShared {
+	if allocation.PlanType == domain.PlanTypeShared {
 		return nil // Already on shared plan
 	}
 
@@ -432,7 +432,7 @@ func (s *Service) TransitionToSharedPlan(ctx context.Context, workspaceID string
 
 	activeNodes := 0
 	for _, n := range nodes {
-		if n.Status != node.NodeStatusDeleted {
+		if n.Status != domain.NodeStatusDeleted {
 			activeNodes++
 		}
 	}
@@ -442,8 +442,8 @@ func (s *Service) TransitionToSharedPlan(ctx context.Context, workspaceID string
 	}
 
 	// Transition to shared plan
-	allocation.PlanType = node.PlanTypeShared
-	allocation.SharedQuota = &node.SharedQuota{
+	allocation.PlanType = domain.PlanTypeShared
+	allocation.SharedQuota = &domain.SharedQuota{
 		CPULimit:    2,
 		MemoryLimit: 4,
 		CPUUsed:     0,
@@ -461,11 +461,11 @@ func (s *Service) TransitionToDedicatedPlan(ctx context.Context, workspaceID str
 		return fmt.Errorf("failed to get workspace allocation: %w", err)
 	}
 
-	if allocation.PlanType == node.PlanTypeDedicated {
+	if allocation.PlanType == domain.PlanTypeDedicated {
 		return nil // Already on dedicated plan
 	}
 
-	allocation.PlanType = node.PlanTypeDedicated
+	allocation.PlanType = domain.PlanTypeDedicated
 	allocation.SharedQuota = nil
 	allocation.UpdatedAt = time.Now()
 
@@ -474,7 +474,7 @@ func (s *Service) TransitionToDedicatedPlan(ctx context.Context, workspaceID str
 
 // Helper methods
 
-func (s *Service) validateProvisionRequest(req node.ProvisionRequest) error {
+func (s *Service) validateProvisionRequest(req domain.ProvisionRequest) error {
 	if req.NodeName == "" {
 		return errors.New("node name is required")
 	}
@@ -492,8 +492,8 @@ func (s *Service) validateProvisionRequest(req node.ProvisionRequest) error {
 	return nil
 }
 
-func (s *Service) getNodeSpecification(nodeType string) (*node.NodeSpecification, error) {
-	specs := map[string]node.NodeSpecification{
+func (s *Service) getNodeSpecification(nodeType string) (*domain.NodeSpecification, error) {
+	specs := map[string]domain.NodeSpecification{
 		"S-Type": {
 			Type:        "S-Type",
 			CPUCores:    4,
@@ -557,19 +557,19 @@ users:
 
 runcmd:
   - curl -sfL https://get.k3s.io | K3S_TOKEN=mytoken K3S_URL=https://k3s-server:6443 sh -s - agent
-  - echo "workspace=%s node=%s" > /etc/hexabase/node.conf
+  - echo "workspace=%s node=%s" > /etc/hexabase/domain.conf
 
 final_message: "Hexabase node is ready"
 `, workspaceID, nodeID)
 }
 
-func (s *Service) extractIPAddress(vmInfo *node.ProxmoxVMInfo) string {
+func (s *Service) extractIPAddress(vmInfo *domain.ProxmoxVMInfo) string {
 	// In a real implementation, this would extract the IP from Proxmox
 	// For now, return a placeholder
 	return "10.0.0.100"
 }
 
-func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, vmAction func(*node.DedicatedNode) error) error {
+func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, vmAction func(*domain.DedicatedNode) error) error {
 	dedicatedNode, err := s.nodeRepo.GetDedicatedNode(ctx, nodeID)
 	if err != nil {
 		return fmt.Errorf("failed to get node: %w", err)
@@ -586,7 +586,7 @@ func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, 
 	}
 
 	// Create event
-	event := dedicatedNode.CreateEvent(node.EventTypeStatusChange, fmt.Sprintf("Node %s initiated", action))
+	event := dedicatedNode.CreateEvent(domain.EventTypeStatusChange, fmt.Sprintf("Node %s initiated", action))
 	s.nodeRepo.CreateNodeEvent(ctx, &event)
 
 	// Perform VM action
@@ -594,13 +594,13 @@ func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, 
 		// Revert status on failure
 		switch action {
 		case "start":
-			dedicatedNode.Status = node.NodeStatusStopped
+			dedicatedNode.Status = domain.NodeStatusStopped
 		case "stop":
-			dedicatedNode.Status = node.NodeStatusReady
+			dedicatedNode.Status = domain.NodeStatusReady
 		}
 		s.nodeRepo.UpdateDedicatedNode(ctx, dedicatedNode)
 		
-		failEvent := dedicatedNode.CreateEvent(node.EventTypeError, fmt.Sprintf("Node %s failed: %v", action, err))
+		failEvent := dedicatedNode.CreateEvent(domain.EventTypeError, fmt.Sprintf("Node %s failed: %v", action, err))
 		s.nodeRepo.CreateNodeEvent(ctx, &failEvent)
 		
 		return fmt.Errorf("VM %s failed: %w", action, err)
@@ -609,11 +609,11 @@ func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, 
 	// Update to final status
 	switch action {
 	case "start":
-		dedicatedNode.Status = node.NodeStatusReady
+		dedicatedNode.Status = domain.NodeStatusReady
 	case "stop":
-		dedicatedNode.Status = node.NodeStatusStopped
+		dedicatedNode.Status = domain.NodeStatusStopped
 	case "reboot":
-		dedicatedNode.Status = node.NodeStatusReady
+		dedicatedNode.Status = domain.NodeStatusReady
 	}
 
 	dedicatedNode.UpdatedAt = time.Now()
@@ -622,13 +622,13 @@ func (s *Service) performNodeAction(ctx context.Context, nodeID, action string, 
 	}
 
 	// Create completion event
-	completeEvent := dedicatedNode.CreateEvent(node.EventTypeStatusChange, fmt.Sprintf("Node %s completed", action))
+	completeEvent := dedicatedNode.CreateEvent(domain.EventTypeStatusChange, fmt.Sprintf("Node %s completed", action))
 	s.nodeRepo.CreateNodeEvent(ctx, &completeEvent)
 
 	return nil
 }
 
-func (s *Service) calculateNodeCost(n node.DedicatedNode, period node.BillingPeriod) node.NodeCost {
+func (s *Service) calculateNodeCost(n domain.DedicatedNode, period domain.BillingPeriod) domain.NodeCost {
 	// Calculate hours the node was active during the period
 	start := period.Start
 	if n.CreatedAt.After(start) {
@@ -653,7 +653,7 @@ func (s *Service) calculateNodeCost(n node.DedicatedNode, period node.BillingPer
 	hourlyRate := hourlyRates[n.Specification.Type]
 	totalCost := hourlyRate * hoursActive
 
-	return node.NodeCost{
+	return domain.NodeCost{
 		NodeID:      n.ID,
 		NodeName:    n.Name,
 		NodeType:    n.Specification.Type,
@@ -678,15 +678,15 @@ func (s *Service) CheckK3sAgentStatus(ctx context.Context, nodeID string) (strin
 
 	// If node is not ready or provisioning, return appropriate status
 	switch dedicatedNode.Status {
-	case node.NodeStatusProvisioning:
+	case domain.NodeStatusProvisioning:
 		return "provisioning", nil
-	case node.NodeStatusStopped, node.NodeStatusFailed:
+	case domain.NodeStatusStopped, domain.NodeStatusFailed:
 		return "stopped", nil
 	}
 
 	// List all nodes in the cluster
 	nodes, err := s.k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("node.hexabase.io/node-id=%s", nodeID),
+		LabelSelector: fmt.Sprintf("domain.hexabase.io/node-id=%s", nodeID),
 	})
 	if err != nil {
 		return "unknown", fmt.Errorf("failed to list k8s nodes: %w", err)
@@ -725,7 +725,7 @@ func (s *Service) CheckK3sAgentStatus(ctx context.Context, nodeID string) (strin
 }
 
 // GetK3sAgentConditions returns the Kubernetes node conditions for a dedicated node
-func (s *Service) GetK3sAgentConditions(ctx context.Context, nodeID string) ([]node.NodeCondition, error) {
+func (s *Service) GetK3sAgentConditions(ctx context.Context, nodeID string) ([]domain.NodeCondition, error) {
 	if s.k8sClient == nil {
 		return nil, errors.New("kubernetes client not configured")
 	}
@@ -738,7 +738,7 @@ func (s *Service) GetK3sAgentConditions(ctx context.Context, nodeID string) ([]n
 
 	// List nodes with matching label
 	nodes, err := s.k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("node.hexabase.io/node-id=%s", nodeID),
+		LabelSelector: fmt.Sprintf("domain.hexabase.io/node-id=%s", nodeID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list k8s nodes: %w", err)
@@ -751,15 +751,15 @@ func (s *Service) GetK3sAgentConditions(ctx context.Context, nodeID string) ([]n
 			nodes.Items = []corev1.Node{*k8sNode}
 		} else {
 			// Node not found, return empty conditions
-			return []node.NodeCondition{}, nil
+			return []domain.NodeCondition{}, nil
 		}
 	}
 
 	// Convert Kubernetes conditions to our domain model
-	var conditions []node.NodeCondition
+	var conditions []domain.NodeCondition
 	for _, k8sNode := range nodes.Items {
 		for _, cond := range k8sNode.Status.Conditions {
-			conditions = append(conditions, node.NodeCondition{
+			conditions = append(conditions, domain.NodeCondition{
 				Type:    string(cond.Type),
 				Status:  string(cond.Status),
 				Reason:  cond.Reason,

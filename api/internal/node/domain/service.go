@@ -1,4 +1,4 @@
-package node
+package domain
 
 import (
 	"context"

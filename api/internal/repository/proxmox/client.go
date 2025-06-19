@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 )
 
 // Common errors
@@ -107,7 +107,7 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 }
 
 // CreateVM creates a new VM by cloning a template
-func (c *Client) CreateVM(ctx context.Context, spec node.VMSpec) (*node.ProxmoxVMInfo, error) {
+func (c *Client) CreateVM(ctx context.Context, spec nodeDomain.VMSpec) (*nodeDomain.ProxmoxVMInfo, error) {
 	// Find next available VMID
 	vmid, err := c.getNextVMID(ctx)
 	if err != nil {
@@ -190,7 +190,7 @@ func (c *Client) CreateVM(ctx context.Context, spec node.VMSpec) (*node.ProxmoxV
 }
 
 // GetVM retrieves VM information
-func (c *Client) GetVM(ctx context.Context, vmid int) (*node.ProxmoxVMInfo, error) {
+func (c *Client) GetVM(ctx context.Context, vmid int) (*nodeDomain.ProxmoxVMInfo, error) {
 	path := fmt.Sprintf("/api2/json/nodes/%s/qemu/%d/status/current", c.defaultNode, vmid)
 	resp, err := c.request(ctx, "GET", path, nil)
 	if err != nil {
@@ -206,7 +206,7 @@ func (c *Client) GetVM(ctx context.Context, vmid int) (*node.ProxmoxVMInfo, erro
 	}
 
 	var result struct {
-		Data node.ProxmoxVMInfo `json:"data"`
+		Data nodeDomain.ProxmoxVMInfo `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
@@ -264,7 +264,7 @@ func (c *Client) DeleteVM(ctx context.Context, vmid int) error {
 }
 
 // UpdateVMConfig updates VM configuration
-func (c *Client) UpdateVMConfig(ctx context.Context, vmid int, config node.VMConfig) error {
+func (c *Client) UpdateVMConfig(ctx context.Context, vmid int, config nodeDomain.VMConfig) error {
 	data := make(map[string]interface{})
 	if config.CPUCores > 0 {
 		data["cores"] = config.CPUCores
@@ -300,7 +300,7 @@ func (c *Client) GetVMStatus(ctx context.Context, vmid int) (string, error) {
 }
 
 // SetCloudInitConfig sets cloud-init configuration for a VM
-func (c *Client) SetCloudInitConfig(ctx context.Context, vmid int, config node.CloudInitConfig) error {
+func (c *Client) SetCloudInitConfig(ctx context.Context, vmid int, config nodeDomain.CloudInitConfig) error {
 	data := make(map[string]interface{})
 
 	if config.UserData != "" {
@@ -344,13 +344,13 @@ func (c *Client) SetCloudInitConfig(ctx context.Context, vmid int, config node.C
 }
 
 // GetVMResourceUsage retrieves current resource usage for a VM
-func (c *Client) GetVMResourceUsage(ctx context.Context, vmid int) (*node.VMResourceUsage, error) {
+func (c *Client) GetVMResourceUsage(ctx context.Context, vmid int) (*nodeDomain.VMResourceUsage, error) {
 	vm, err := c.GetVM(ctx, vmid)
 	if err != nil {
 		return nil, err
 	}
 
-	return &node.VMResourceUsage{
+	return &nodeDomain.VMResourceUsage{
 		CPUUsage:    vm.CPU * 100, // Convert to percentage
 		MemoryUsage: vm.Mem,       // Current memory usage in bytes
 		DiskUsage:   vm.Disk,      // Current disk usage in bytes
@@ -361,7 +361,7 @@ func (c *Client) GetVMResourceUsage(ctx context.Context, vmid int) (*node.VMReso
 
 // CloneTemplate clones a template to create a new VM
 func (c *Client) CloneTemplate(ctx context.Context, templateID int, name string) (int, error) {
-	spec := node.VMSpec{
+	spec := nodeDomain.VMSpec{
 		Name:       name,
 		TemplateID: templateID,
 		TargetNode: c.defaultNode,
@@ -376,7 +376,7 @@ func (c *Client) CloneTemplate(ctx context.Context, templateID int, name string)
 }
 
 // ListTemplates lists available VM templates
-func (c *Client) ListTemplates(ctx context.Context) ([]node.VMTemplate, error) {
+func (c *Client) ListTemplates(ctx context.Context) ([]nodeDomain.VMTemplate, error) {
 	path := fmt.Sprintf("/api2/json/nodes/%s/qemu", c.defaultNode)
 	resp, err := c.request(ctx, "GET", path, nil)
 	if err != nil {
@@ -397,10 +397,10 @@ func (c *Client) ListTemplates(ctx context.Context) ([]node.VMTemplate, error) {
 		return nil, err
 	}
 
-	var templates []node.VMTemplate
+	var templates []nodeDomain.VMTemplate
 	for _, vm := range result.Data {
 		if vm.Template == 1 {
-			templates = append(templates, node.VMTemplate{
+			templates = append(templates, nodeDomain.VMTemplate{
 				ID:   vm.VMID,
 				Name: vm.Name,
 			})

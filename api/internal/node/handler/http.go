@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
@@ -6,18 +6,18 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	node "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 )
 
-// NodeHandler handles node-related HTTP requests
-type NodeHandler struct {
+// Handler handles node-related HTTP requests
+type Handler struct {
 	service node.Service
 	logger  *slog.Logger
 }
 
-// NewNodeHandler creates a new node handler
-func NewNodeHandler(service node.Service, logger *slog.Logger) *NodeHandler {
-	return &NodeHandler{
+// NewHandler creates a new node handler
+func NewHandler(service node.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
@@ -33,7 +33,7 @@ type ProvisionRequest struct {
 }
 
 // GetAvailablePlans returns all available node plans
-func (h *NodeHandler) GetAvailablePlans(c *gin.Context) {
+func (h *Handler) GetAvailablePlans(c *gin.Context) {
 	plans, err := h.service.GetAvailablePlans(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get available plans", slog.String("error", err.Error()))
@@ -45,7 +45,7 @@ func (h *NodeHandler) GetAvailablePlans(c *gin.Context) {
 }
 
 // GetPlanDetails returns details for a specific plan
-func (h *NodeHandler) GetPlanDetails(c *gin.Context) {
+func (h *Handler) GetPlanDetails(c *gin.Context) {
 	planID := c.Param("planId")
 
 	plan, err := h.service.GetPlanDetails(c.Request.Context(), planID)
@@ -59,7 +59,7 @@ func (h *NodeHandler) GetPlanDetails(c *gin.Context) {
 }
 
 // ProvisionDedicatedNode provisions a new dedicated node for a workspace
-func (h *NodeHandler) ProvisionDedicatedNode(c *gin.Context) {
+func (h *Handler) ProvisionDedicatedNode(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 
@@ -104,7 +104,7 @@ func (h *NodeHandler) ProvisionDedicatedNode(c *gin.Context) {
 }
 
 // GetNode returns a dedicated node by ID
-func (h *NodeHandler) GetNode(c *gin.Context) {
+func (h *Handler) GetNode(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 
 	dedicatedNode, err := h.service.GetNode(c.Request.Context(), nodeID)
@@ -118,7 +118,7 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 }
 
 // ListNodes returns all dedicated nodes for a workspace
-func (h *NodeHandler) ListNodes(c *gin.Context) {
+func (h *Handler) ListNodes(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	nodes, err := h.service.ListNodes(c.Request.Context(), workspaceID)
@@ -132,7 +132,7 @@ func (h *NodeHandler) ListNodes(c *gin.Context) {
 }
 
 // StartNode starts a stopped node
-func (h *NodeHandler) StartNode(c *gin.Context) {
+func (h *Handler) StartNode(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 	userID := c.GetString("user_id")
 
@@ -154,7 +154,7 @@ func (h *NodeHandler) StartNode(c *gin.Context) {
 }
 
 // StopNode stops a running node
-func (h *NodeHandler) StopNode(c *gin.Context) {
+func (h *Handler) StopNode(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 	userID := c.GetString("user_id")
 
@@ -176,7 +176,7 @@ func (h *NodeHandler) StopNode(c *gin.Context) {
 }
 
 // RebootNode reboots a node
-func (h *NodeHandler) RebootNode(c *gin.Context) {
+func (h *Handler) RebootNode(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 	userID := c.GetString("user_id")
 
@@ -198,7 +198,7 @@ func (h *NodeHandler) RebootNode(c *gin.Context) {
 }
 
 // DeleteNode deletes a dedicated node
-func (h *NodeHandler) DeleteNode(c *gin.Context) {
+func (h *Handler) DeleteNode(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 	userID := c.GetString("user_id")
 
@@ -220,7 +220,7 @@ func (h *NodeHandler) DeleteNode(c *gin.Context) {
 }
 
 // GetWorkspaceResourceUsage returns resource usage for a workspace
-func (h *NodeHandler) GetWorkspaceResourceUsage(c *gin.Context) {
+func (h *Handler) GetWorkspaceResourceUsage(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	usage, err := h.service.GetWorkspaceResourceUsage(c.Request.Context(), workspaceID)
@@ -236,7 +236,7 @@ func (h *NodeHandler) GetWorkspaceResourceUsage(c *gin.Context) {
 }
 
 // GetNodeStatus returns detailed status information for a node
-func (h *NodeHandler) GetNodeStatus(c *gin.Context) {
+func (h *Handler) GetNodeStatus(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 
 	status, err := h.service.GetNodeStatus(c.Request.Context(), nodeID)
@@ -250,7 +250,7 @@ func (h *NodeHandler) GetNodeStatus(c *gin.Context) {
 }
 
 // GetNodeMetrics returns performance metrics for a node
-func (h *NodeHandler) GetNodeMetrics(c *gin.Context) {
+func (h *Handler) GetNodeMetrics(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 
 	metrics, err := h.service.GetNodeMetrics(c.Request.Context(), nodeID)
@@ -264,7 +264,7 @@ func (h *NodeHandler) GetNodeMetrics(c *gin.Context) {
 }
 
 // GetNodeEvents returns events for a node
-func (h *NodeHandler) GetNodeEvents(c *gin.Context) {
+func (h *Handler) GetNodeEvents(c *gin.Context) {
 	nodeID := c.Param("nodeId")
 
 	// Parse limit parameter
@@ -291,7 +291,7 @@ func (h *NodeHandler) GetNodeEvents(c *gin.Context) {
 }
 
 // GetNodeCosts calculates costs for nodes in a workspace
-func (h *NodeHandler) GetNodeCosts(c *gin.Context) {
+func (h *Handler) GetNodeCosts(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	// Parse query parameters for billing period
@@ -329,7 +329,7 @@ func (h *NodeHandler) GetNodeCosts(c *gin.Context) {
 }
 
 // CanAllocateResources checks if workspace can allocate requested resources
-func (h *NodeHandler) CanAllocateResources(c *gin.Context) {
+func (h *Handler) CanAllocateResources(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	var req node.ResourceRequest
@@ -354,7 +354,7 @@ func (h *NodeHandler) CanAllocateResources(c *gin.Context) {
 }
 
 // TransitionToSharedPlan transitions workspace to shared plan
-func (h *NodeHandler) TransitionToSharedPlan(c *gin.Context) {
+func (h *Handler) TransitionToSharedPlan(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 
@@ -376,7 +376,7 @@ func (h *NodeHandler) TransitionToSharedPlan(c *gin.Context) {
 }
 
 // TransitionToDedicatedPlan transitions workspace to dedicated plan
-func (h *NodeHandler) TransitionToDedicatedPlan(c *gin.Context) {
+func (h *Handler) TransitionToDedicatedPlan(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 

@@ -1,28 +1,28 @@
-package node_test
+package domain_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
 )
 
 func TestNodePlan_Validation(t *testing.T) {
 	tests := []struct {
 		name    string
-		plan    *node.NodePlan
+		plan    *domain.NodePlan
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid shared plan",
-			plan: &node.NodePlan{
+			plan: &domain.NodePlan{
 				ID:   "shared-basic",
 				Name: "Shared Basic",
-				Type: node.PlanTypeShared,
-				Resources: node.ResourceSpec{
+				Type: domain.PlanTypeShared,
+				Resources: domain.ResourceSpec{
 					CPUCores:    2,
 					MemoryGB:    4,
 					StorageGB:   50,
@@ -35,11 +35,11 @@ func TestNodePlan_Validation(t *testing.T) {
 		},
 		{
 			name: "valid dedicated plan",
-			plan: &node.NodePlan{
+			plan: &domain.NodePlan{
 				ID:   "dedicated-s",
 				Name: "Dedicated S-Type",
-				Type: node.PlanTypeDedicated,
-				Resources: node.ResourceSpec{
+				Type: domain.PlanTypeDedicated,
+				Resources: domain.ResourceSpec{
 					CPUCores:    4,
 					MemoryGB:    16,
 					StorageGB:   200,
@@ -52,7 +52,7 @@ func TestNodePlan_Validation(t *testing.T) {
 		},
 		{
 			name: "invalid plan type",
-			plan: &node.NodePlan{
+			plan: &domain.NodePlan{
 				ID:   "invalid",
 				Name: "Invalid Plan",
 				Type: "invalid-type",
@@ -62,21 +62,21 @@ func TestNodePlan_Validation(t *testing.T) {
 		},
 		{
 			name: "missing resources",
-			plan: &node.NodePlan{
+			plan: &domain.NodePlan{
 				ID:   "no-resources",
 				Name: "No Resources",
-				Type: node.PlanTypeShared,
+				Type: domain.PlanTypeShared,
 			},
 			wantErr: true,
 			errMsg:  "invalid resource specification",
 		},
 		{
 			name: "negative price for dedicated plan",
-			plan: &node.NodePlan{
+			plan: &domain.NodePlan{
 				ID:   "negative-price",
 				Name: "Negative Price",
-				Type: node.PlanTypeDedicated,
-				Resources: node.ResourceSpec{
+				Type: domain.PlanTypeDedicated,
+				Resources: domain.ResourceSpec{
 					CPUCores:  4,
 					MemoryGB:  16,
 					StorageGB: 200,
@@ -104,65 +104,65 @@ func TestNodePlan_Validation(t *testing.T) {
 func TestDedicatedNode_StateTransitions(t *testing.T) {
 	tests := []struct {
 		name         string
-		currentState node.NodeStatus
+		currentState domain.NodeStatus
 		action       string
-		expectedNext node.NodeStatus
+		expectedNext domain.NodeStatus
 		shouldError  bool
 	}{
 		{
 			name:         "provision new node",
 			currentState: "",
 			action:       "provision",
-			expectedNext: node.NodeStatusProvisioning,
+			expectedNext: domain.NodeStatusProvisioning,
 			shouldError:  false,
 		},
 		{
 			name:         "provisioning to ready",
-			currentState: node.NodeStatusProvisioning,
+			currentState: domain.NodeStatusProvisioning,
 			action:       "complete",
-			expectedNext: node.NodeStatusReady,
+			expectedNext: domain.NodeStatusReady,
 			shouldError:  false,
 		},
 		{
 			name:         "ready to stopping",
-			currentState: node.NodeStatusReady,
+			currentState: domain.NodeStatusReady,
 			action:       "stop",
-			expectedNext: node.NodeStatusStopping,
+			expectedNext: domain.NodeStatusStopping,
 			shouldError:  false,
 		},
 		{
 			name:         "stopped to starting",
-			currentState: node.NodeStatusStopped,
+			currentState: domain.NodeStatusStopped,
 			action:       "start",
-			expectedNext: node.NodeStatusStarting,
+			expectedNext: domain.NodeStatusStarting,
 			shouldError:  false,
 		},
 		{
 			name:         "invalid transition - stopped to ready",
-			currentState: node.NodeStatusStopped,
+			currentState: domain.NodeStatusStopped,
 			action:       "complete",
 			expectedNext: "",
 			shouldError:  true,
 		},
 		{
 			name:         "provisioning failed",
-			currentState: node.NodeStatusProvisioning,
+			currentState: domain.NodeStatusProvisioning,
 			action:       "fail",
-			expectedNext: node.NodeStatusFailed,
+			expectedNext: domain.NodeStatusFailed,
 			shouldError:  false,
 		},
 		{
 			name:         "ready to deleting",
-			currentState: node.NodeStatusReady,
+			currentState: domain.NodeStatusReady,
 			action:       "delete",
-			expectedNext: node.NodeStatusDeleting,
+			expectedNext: domain.NodeStatusDeleting,
 			shouldError:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dedicatedNode := &node.DedicatedNode{
+			dedicatedNode := &domain.DedicatedNode{
 				Status: tt.currentState,
 			}
 
@@ -180,34 +180,34 @@ func TestDedicatedNode_StateTransitions(t *testing.T) {
 func TestDedicatedNode_CanScheduleWorkload(t *testing.T) {
 	tests := []struct {
 		name     string
-		node     *node.DedicatedNode
+		node     *domain.DedicatedNode
 		expected bool
 	}{
 		{
 			name: "ready node can schedule",
-			node: &node.DedicatedNode{
-				Status: node.NodeStatusReady,
+			node: &domain.DedicatedNode{
+				Status: domain.NodeStatusReady,
 			},
 			expected: true,
 		},
 		{
 			name: "provisioning node cannot schedule",
-			node: &node.DedicatedNode{
-				Status: node.NodeStatusProvisioning,
+			node: &domain.DedicatedNode{
+				Status: domain.NodeStatusProvisioning,
 			},
 			expected: false,
 		},
 		{
 			name: "stopped node cannot schedule",
-			node: &node.DedicatedNode{
-				Status: node.NodeStatusStopped,
+			node: &domain.DedicatedNode{
+				Status: domain.NodeStatusStopped,
 			},
 			expected: false,
 		},
 		{
 			name: "failed node cannot schedule",
-			node: &node.DedicatedNode{
-				Status: node.NodeStatusFailed,
+			node: &domain.DedicatedNode{
+				Status: domain.NodeStatusFailed,
 			},
 			expected: false,
 		},
@@ -224,12 +224,12 @@ func TestDedicatedNode_CanScheduleWorkload(t *testing.T) {
 func TestNodeSpecification_Validation(t *testing.T) {
 	tests := []struct {
 		name    string
-		spec    node.NodeSpecification
+		spec    domain.NodeSpecification
 		wantErr bool
 	}{
 		{
 			name: "valid S-Type spec",
-			spec: node.NodeSpecification{
+			spec: domain.NodeSpecification{
 				Type:      "S-Type",
 				CPUCores:  4,
 				MemoryGB:  16,
@@ -240,7 +240,7 @@ func TestNodeSpecification_Validation(t *testing.T) {
 		},
 		{
 			name: "valid M-Type spec",
-			spec: node.NodeSpecification{
+			spec: domain.NodeSpecification{
 				Type:      "M-Type",
 				CPUCores:  8,
 				MemoryGB:  32,
@@ -251,7 +251,7 @@ func TestNodeSpecification_Validation(t *testing.T) {
 		},
 		{
 			name: "invalid - zero CPU",
-			spec: node.NodeSpecification{
+			spec: domain.NodeSpecification{
 				Type:      "S-Type",
 				CPUCores:  0,
 				MemoryGB:  16,
@@ -261,7 +261,7 @@ func TestNodeSpecification_Validation(t *testing.T) {
 		},
 		{
 			name: "invalid - insufficient memory",
-			spec: node.NodeSpecification{
+			spec: domain.NodeSpecification{
 				Type:      "S-Type",
 				CPUCores:  4,
 				MemoryGB:  2, // Too low
@@ -286,12 +286,12 @@ func TestNodeSpecification_Validation(t *testing.T) {
 func TestProxmoxVMInfo_IsRunning(t *testing.T) {
 	tests := []struct {
 		name     string
-		vmInfo   node.ProxmoxVMInfo
+		vmInfo   domain.ProxmoxVMInfo
 		expected bool
 	}{
 		{
 			name: "running VM",
-			vmInfo: node.ProxmoxVMInfo{
+			vmInfo: domain.ProxmoxVMInfo{
 				VMID:   100,
 				Status: "running",
 			},
@@ -299,7 +299,7 @@ func TestProxmoxVMInfo_IsRunning(t *testing.T) {
 		},
 		{
 			name: "stopped VM",
-			vmInfo: node.ProxmoxVMInfo{
+			vmInfo: domain.ProxmoxVMInfo{
 				VMID:   101,
 				Status: "stopped",
 			},
@@ -307,7 +307,7 @@ func TestProxmoxVMInfo_IsRunning(t *testing.T) {
 		},
 		{
 			name: "paused VM",
-			vmInfo: node.ProxmoxVMInfo{
+			vmInfo: domain.ProxmoxVMInfo{
 				VMID:   102,
 				Status: "paused",
 			},
@@ -324,26 +324,26 @@ func TestProxmoxVMInfo_IsRunning(t *testing.T) {
 }
 
 func TestNodeEvent_Creation(t *testing.T) {
-	nodeObj := &node.DedicatedNode{
+	nodeObj := &domain.DedicatedNode{
 		ID:          "node-123",
 		WorkspaceID: "ws-456",
 		Name:        "dedicated-node-1",
 	}
 
-	event := nodeObj.CreateEvent(node.EventTypeProvisioning, "Starting VM provisioning")
+	event := nodeObj.CreateEvent(domain.EventTypeProvisioning, "Starting VM provisioning")
 	
 	assert.Equal(t, "node-123", event.NodeID)
 	assert.Equal(t, "ws-456", event.WorkspaceID)
-	assert.Equal(t, node.EventTypeProvisioning, event.Type)
+	assert.Equal(t, domain.EventTypeProvisioning, event.Type)
 	assert.Equal(t, "Starting VM provisioning", event.Message)
 	assert.WithinDuration(t, time.Now(), event.Timestamp, time.Second)
 }
 
 func TestWorkspaceNodeAllocation_QuotaCheck(t *testing.T) {
-	allocation := &node.WorkspaceNodeAllocation{
+	allocation := &domain.WorkspaceNodeAllocation{
 		WorkspaceID: "ws-123",
-		PlanType:    node.PlanTypeShared,
-		SharedQuota: &node.SharedQuota{
+		PlanType:    domain.PlanTypeShared,
+		SharedQuota: &domain.SharedQuota{
 			CPULimit:    4,
 			MemoryLimit: 8,
 			CPUUsed:     2,
@@ -353,12 +353,12 @@ func TestWorkspaceNodeAllocation_QuotaCheck(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		requested node.ResourceRequest
+		requested domain.ResourceRequest
 		expected  bool
 	}{
 		{
 			name: "within quota",
-			requested: node.ResourceRequest{
+			requested: domain.ResourceRequest{
 				CPU:    1,
 				Memory: 2,
 			},
@@ -366,7 +366,7 @@ func TestWorkspaceNodeAllocation_QuotaCheck(t *testing.T) {
 		},
 		{
 			name: "exceeds CPU quota",
-			requested: node.ResourceRequest{
+			requested: domain.ResourceRequest{
 				CPU:    3,
 				Memory: 2,
 			},
@@ -374,7 +374,7 @@ func TestWorkspaceNodeAllocation_QuotaCheck(t *testing.T) {
 		},
 		{
 			name: "exceeds memory quota",
-			requested: node.ResourceRequest{
+			requested: domain.ResourceRequest{
 				CPU:    1,
 				Memory: 5,
 			},
@@ -391,13 +391,13 @@ func TestWorkspaceNodeAllocation_QuotaCheck(t *testing.T) {
 }
 
 func TestDedicatedNode_BillingCalculation(t *testing.T) {
-	dedicatedNode := &node.DedicatedNode{
+	dedicatedNode := &domain.DedicatedNode{
 		ID: "node-123",
-		Specification: node.NodeSpecification{
+		Specification: domain.NodeSpecification{
 			Type: "S-Type",
 		},
 		CreatedAt: time.Now().Add(-24 * time.Hour), // Created 1 day ago
-		Status:    node.NodeStatusReady,
+		Status:    domain.NodeStatusReady,
 	}
 
 	// Assuming S-Type costs $99.99/month
@@ -409,12 +409,12 @@ func TestDedicatedNode_BillingCalculation(t *testing.T) {
 }
 
 func TestNodePool_Selection(t *testing.T) {
-	pool := &node.NodePool{
+	pool := &domain.NodePool{
 		Name: "production-pool",
-		Nodes: []node.DedicatedNode{
-			{ID: "node-1", Status: node.NodeStatusReady},
-			{ID: "node-2", Status: node.NodeStatusReady},
-			{ID: "node-3", Status: node.NodeStatusStopped},
+		Nodes: []domain.DedicatedNode{
+			{ID: "node-1", Status: domain.NodeStatusReady},
+			{ID: "node-2", Status: domain.NodeStatusReady},
+			{ID: "node-3", Status: domain.NodeStatusStopped},
 		},
 	}
 

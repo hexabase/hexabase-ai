@@ -1,4 +1,4 @@
-package node
+package repository
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
 )
 
-// PostgresRepository implements the node.Repository interface using PostgreSQL
+// PostgresRepository implements the domain.Repository interface using PostgreSQL
 type PostgresRepository struct {
 	db *gorm.DB
 }
@@ -21,15 +21,15 @@ func NewPostgresRepository(db *gorm.DB) *PostgresRepository {
 }
 
 // GetNodePlans returns all available node plans
-func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan, error) {
+func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]domain.NodePlan, error) {
 	// In a real implementation, these would come from the database
 	// For now, return hardcoded plans
-	plans := []node.NodePlan{
+	plans := []domain.NodePlan{
 		{
 			ID:   "shared-plan",
 			Name: "Shared Plan",
-			Type: node.PlanTypeShared,
-			Resources: node.ResourceSpec{
+			Type: domain.PlanTypeShared,
+			Resources: domain.ResourceSpec{
 				CPUCores:    2,
 				MemoryGB:    4,
 				StorageGB:   100,
@@ -48,8 +48,8 @@ func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan,
 		{
 			ID:   "s-type-plan",
 			Name: "S-Type Dedicated",
-			Type: node.PlanTypeDedicated,
-			Resources: node.ResourceSpec{
+			Type: domain.PlanTypeDedicated,
+			Resources: domain.ResourceSpec{
 				CPUCores:    4,
 				MemoryGB:    16,
 				StorageGB:   200,
@@ -70,8 +70,8 @@ func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan,
 		{
 			ID:   "m-type-plan",
 			Name: "M-Type Dedicated",
-			Type: node.PlanTypeDedicated,
-			Resources: node.ResourceSpec{
+			Type: domain.PlanTypeDedicated,
+			Resources: domain.ResourceSpec{
 				CPUCores:    8,
 				MemoryGB:    32,
 				StorageGB:   500,
@@ -92,8 +92,8 @@ func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan,
 		{
 			ID:   "l-type-plan",
 			Name: "L-Type Dedicated",
-			Type: node.PlanTypeDedicated,
-			Resources: node.ResourceSpec{
+			Type: domain.PlanTypeDedicated,
+			Resources: domain.ResourceSpec{
 				CPUCores:    16,
 				MemoryGB:    64,
 				StorageGB:   1000,
@@ -117,7 +117,7 @@ func (r *PostgresRepository) GetNodePlans(ctx context.Context) ([]node.NodePlan,
 }
 
 // GetNodePlan returns a specific node plan
-func (r *PostgresRepository) GetNodePlan(ctx context.Context, planID string) (*node.NodePlan, error) {
+func (r *PostgresRepository) GetNodePlan(ctx context.Context, planID string) (*domain.NodePlan, error) {
 	plans, err := r.GetNodePlans(ctx)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (r *PostgresRepository) GetNodePlan(ctx context.Context, planID string) (*n
 }
 
 // CreateDedicatedNode creates a new dedicated node record
-func (r *PostgresRepository) CreateDedicatedNode(ctx context.Context, node *node.DedicatedNode) error {
+func (r *PostgresRepository) CreateDedicatedNode(ctx context.Context, node *domain.DedicatedNode) error {
 	if node.ID == "" {
 		node.ID = uuid.New().String()
 	}
@@ -141,9 +141,9 @@ func (r *PostgresRepository) CreateDedicatedNode(ctx context.Context, node *node
 }
 
 // GetDedicatedNode retrieves a dedicated node by ID
-func (r *PostgresRepository) GetDedicatedNode(ctx context.Context, nodeID string) (*node.DedicatedNode, error) {
-	var dedicatedNode node.DedicatedNode
-	err := r.db.WithContext(ctx).Where("id = ?", nodeID).First(&dedicatedNode).Error
+func (r *PostgresRepository) GetDedicatedNode(ctx context.Context, nodeID string) (*domain.DedicatedNode, error) {
+	var dedicatedNode domain.DedicatedNode
+	err := r.db.WithContext(ctx).Where("id = ?", nodeID).Where("deleted_at IS NULL").First(&dedicatedNode).Error
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +151,9 @@ func (r *PostgresRepository) GetDedicatedNode(ctx context.Context, nodeID string
 }
 
 // GetDedicatedNodeByVMID retrieves a dedicated node by Proxmox VM ID
-func (r *PostgresRepository) GetDedicatedNodeByVMID(ctx context.Context, vmid int) (*node.DedicatedNode, error) {
-	var dedicatedNode node.DedicatedNode
-	err := r.db.WithContext(ctx).Where("proxmox_vmid = ?", vmid).First(&dedicatedNode).Error
+func (r *PostgresRepository) GetDedicatedNodeByVMID(ctx context.Context, vmid int) (*domain.DedicatedNode, error) {
+	var dedicatedNode domain.DedicatedNode
+	err := r.db.WithContext(ctx).Where("proxmox_vmid = ?", vmid).Where("deleted_at IS NULL").First(&dedicatedNode).Error
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +161,8 @@ func (r *PostgresRepository) GetDedicatedNodeByVMID(ctx context.Context, vmid in
 }
 
 // ListDedicatedNodes lists all dedicated nodes for a workspace
-func (r *PostgresRepository) ListDedicatedNodes(ctx context.Context, workspaceID string) ([]node.DedicatedNode, error) {
-	var nodes []node.DedicatedNode
+func (r *PostgresRepository) ListDedicatedNodes(ctx context.Context, workspaceID string) ([]domain.DedicatedNode, error) {
+	var nodes []domain.DedicatedNode
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
 		Where("deleted_at IS NULL").
@@ -175,20 +175,20 @@ func (r *PostgresRepository) ListDedicatedNodes(ctx context.Context, workspaceID
 }
 
 // UpdateDedicatedNode updates a dedicated node
-func (r *PostgresRepository) UpdateDedicatedNode(ctx context.Context, dedicatedNode *node.DedicatedNode) error {
+func (r *PostgresRepository) UpdateDedicatedNode(ctx context.Context, dedicatedNode *domain.DedicatedNode) error {
 	return r.db.WithContext(ctx).Save(dedicatedNode).Error
 }
 
 // DeleteDedicatedNode soft deletes a dedicated node
 func (r *PostgresRepository) DeleteDedicatedNode(ctx context.Context, nodeID string) error {
 	return r.db.WithContext(ctx).
-		Model(&node.DedicatedNode{}).
+		Model(&domain.DedicatedNode{}).
 		Where("id = ?", nodeID).
 		Update("deleted_at", gorm.Expr("NOW()")).Error
 }
 
 // CreateNodeEvent creates a new node event
-func (r *PostgresRepository) CreateNodeEvent(ctx context.Context, event *node.NodeEvent) error {
+func (r *PostgresRepository) CreateNodeEvent(ctx context.Context, event *domain.NodeEvent) error {
 	if event.ID == "" {
 		event.ID = uuid.New().String()
 	}
@@ -196,8 +196,8 @@ func (r *PostgresRepository) CreateNodeEvent(ctx context.Context, event *node.No
 }
 
 // ListNodeEvents lists events for a node
-func (r *PostgresRepository) ListNodeEvents(ctx context.Context, nodeID string, limit int) ([]node.NodeEvent, error) {
-	var events []node.NodeEvent
+func (r *PostgresRepository) ListNodeEvents(ctx context.Context, nodeID string, limit int) ([]domain.NodeEvent, error) {
+	var events []domain.NodeEvent
 	query := r.db.WithContext(ctx).
 		Where("node_id = ?", nodeID).
 		Order("timestamp DESC")
@@ -214,8 +214,8 @@ func (r *PostgresRepository) ListNodeEvents(ctx context.Context, nodeID string, 
 }
 
 // GetWorkspaceAllocation gets the allocation record for a workspace
-func (r *PostgresRepository) GetWorkspaceAllocation(ctx context.Context, workspaceID string) (*node.WorkspaceNodeAllocation, error) {
-	var allocation node.WorkspaceNodeAllocation
+func (r *PostgresRepository) GetWorkspaceAllocation(ctx context.Context, workspaceID string) (*domain.WorkspaceNodeAllocation, error) {
+	var allocation domain.WorkspaceNodeAllocation
 	err := r.db.WithContext(ctx).
 		Preload("DedicatedNodes").
 		Where("workspace_id = ?", workspaceID).
@@ -223,11 +223,11 @@ func (r *PostgresRepository) GetWorkspaceAllocation(ctx context.Context, workspa
 	
 	if err == gorm.ErrRecordNotFound {
 		// Create default shared allocation if not exists
-		allocation = node.WorkspaceNodeAllocation{
+		allocation = domain.WorkspaceNodeAllocation{
 			ID:          uuid.New().String(),
 			WorkspaceID: workspaceID,
-			PlanType:    node.PlanTypeShared,
-			SharedQuota: &node.SharedQuota{
+			PlanType:    domain.PlanTypeShared,
+			SharedQuota: &domain.SharedQuota{
 				CPULimit:    2,
 				MemoryLimit: 4,
 				CPUUsed:     0,
@@ -246,7 +246,7 @@ func (r *PostgresRepository) GetWorkspaceAllocation(ctx context.Context, workspa
 }
 
 // CreateWorkspaceAllocation creates a new workspace allocation
-func (r *PostgresRepository) CreateWorkspaceAllocation(ctx context.Context, allocation *node.WorkspaceNodeAllocation) error {
+func (r *PostgresRepository) CreateWorkspaceAllocation(ctx context.Context, allocation *domain.WorkspaceNodeAllocation) error {
 	if allocation.ID == "" {
 		allocation.ID = uuid.New().String()
 	}
@@ -254,14 +254,14 @@ func (r *PostgresRepository) CreateWorkspaceAllocation(ctx context.Context, allo
 }
 
 // UpdateWorkspaceAllocation updates a workspace allocation
-func (r *PostgresRepository) UpdateWorkspaceAllocation(ctx context.Context, allocation *node.WorkspaceNodeAllocation) error {
+func (r *PostgresRepository) UpdateWorkspaceAllocation(ctx context.Context, allocation *domain.WorkspaceNodeAllocation) error {
 	return r.db.WithContext(ctx).Save(allocation).Error
 }
 
 // UpdateSharedQuotaUsage updates the shared quota usage for a workspace
 func (r *PostgresRepository) UpdateSharedQuotaUsage(ctx context.Context, workspaceID string, cpu, memory float64) error {
 	return r.db.WithContext(ctx).
-		Model(&node.WorkspaceNodeAllocation{}).
+		Model(&domain.WorkspaceNodeAllocation{}).
 		Where("workspace_id = ?", workspaceID).
 		Updates(map[string]interface{}{
 			"quota_cpu_used":    cpu,
@@ -270,7 +270,7 @@ func (r *PostgresRepository) UpdateSharedQuotaUsage(ctx context.Context, workspa
 }
 
 // GetNodeResourceUsage gets resource usage for a specific node
-func (r *PostgresRepository) GetNodeResourceUsage(ctx context.Context, nodeID string) (*node.ResourceUsage, error) {
+func (r *PostgresRepository) GetNodeResourceUsage(ctx context.Context, nodeID string) (*domain.ResourceUsage, error) {
 	// In a real implementation, this would query metrics from monitoring system
 	// For now, return mock data
 	dedicatedNode, err := r.GetDedicatedNode(ctx, nodeID)
@@ -278,7 +278,7 @@ func (r *PostgresRepository) GetNodeResourceUsage(ctx context.Context, nodeID st
 		return nil, err
 	}
 
-	return &node.ResourceUsage{
+	return &domain.ResourceUsage{
 		NodeID:    nodeID,
 		CPUCores:  float64(dedicatedNode.Specification.CPUCores) * 0.7,  // 70% usage
 		MemoryGB:  float64(dedicatedNode.Specification.MemoryGB) * 0.6, // 60% usage

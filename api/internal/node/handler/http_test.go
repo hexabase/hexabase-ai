@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"bytes"
@@ -11,13 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"log/slog"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	node "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 )
 
 // MockNodeService mocks the node service interface
@@ -131,11 +132,11 @@ func (m *MockNodeService) TransitionToDedicatedPlan(ctx context.Context, workspa
 	return args.Error(0)
 }
 
-func setupNodeHandler() (*NodeHandler, *MockNodeService) {
+func setupNodeHandler() (*Handler, *MockNodeService) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mockService := new(MockNodeService)
 	
-	handler := NewNodeHandler(mockService, logger)
+	handler := NewHandler(mockService, logger)
 	
 	return handler, mockService
 }
@@ -345,7 +346,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 		name           string
 		nodeID         string
 		operation      string
-		handler        func(*NodeHandler, *gin.Context)
+		handler        func(*Handler, *gin.Context)
 		setupMock      func(*MockNodeService, string)
 		expectedStatus int
 	}{
@@ -353,7 +354,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 			name:      "start node successfully",
 			nodeID:    "node-123",
 			operation: "start",
-			handler:   (*NodeHandler).StartNode,
+			handler:   (*Handler).StartNode,
 			setupMock: func(mockService *MockNodeService, nodeID string) {
 				mockService.On("StartNode", mock.Anything, nodeID).Return(nil)
 			},
@@ -363,7 +364,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 			name:      "stop node successfully",
 			nodeID:    "node-123",
 			operation: "stop",
-			handler:   (*NodeHandler).StopNode,
+			handler:   (*Handler).StopNode,
 			setupMock: func(mockService *MockNodeService, nodeID string) {
 				mockService.On("StopNode", mock.Anything, nodeID).Return(nil)
 			},
@@ -373,7 +374,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 			name:      "reboot node successfully",
 			nodeID:    "node-123",
 			operation: "reboot",
-			handler:   (*NodeHandler).RebootNode,
+			handler:   (*Handler).RebootNode,
 			setupMock: func(mockService *MockNodeService, nodeID string) {
 				mockService.On("RebootNode", mock.Anything, nodeID).Return(nil)
 			},
@@ -383,7 +384,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 			name:      "delete node successfully",
 			nodeID:    "node-123",
 			operation: "delete",
-			handler:   (*NodeHandler).DeleteNode,
+			handler:   (*Handler).DeleteNode,
 			setupMock: func(mockService *MockNodeService, nodeID string) {
 				mockService.On("DeleteNode", mock.Anything, nodeID).Return(nil)
 			},
@@ -393,7 +394,7 @@ func TestNodeHandler_NodeLifecycle(t *testing.T) {
 			name:      "node not found error",
 			nodeID:    "node-nonexistent",
 			operation: "start",
-			handler:   (*NodeHandler).StartNode,
+			handler:   (*Handler).StartNode,
 			setupMock: func(mockService *MockNodeService, nodeID string) {
 				mockService.On("StartNode", mock.Anything, nodeID).Return(errors.New("node not found"))
 			},

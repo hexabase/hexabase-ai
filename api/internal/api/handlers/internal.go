@@ -12,7 +12,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
+	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
@@ -22,7 +22,7 @@ type InternalHandler struct {
 	workspaceSvc    workspaceDomain.Service
 	projectSvc      projectDomain.Service
 	applicationSvc  applicationDomain.Service
-	nodeSvc         node.Service
+	nodeSvc         nodeDomain.Service
 	logSvc          logs.Service
 	monitoringSvc   monitoring.Service
 	aiopsSvc        aiops.Service
@@ -36,7 +36,7 @@ func NewInternalHandler(
 	workspaceSvc workspaceDomain.Service,
 	projectSvc projectDomain.Service,
 	applicationSvc applicationDomain.Service,
-	nodeSvc node.Service,
+	nodeSvc nodeDomain.Service,
 	logSvc logs.Service,
 	monitoringSvc monitoring.Service,
 	aiopsSvc aiops.Service,
@@ -151,14 +151,14 @@ func (h *InternalHandler) GetWorkspaceOverview(c *gin.Context) {
 	nodes, err := h.nodeSvc.ListNodes(c.Request.Context(), workspaceID)
 	if err != nil {
 		h.logger.Error("failed to get nodes", "workspace_id", workspaceID, "error", err)
-		nodes = []node.DedicatedNode{}
+		nodes = []nodeDomain.DedicatedNode{}
 	}
 
 	// Get resource usage
 	usage, err := h.nodeSvc.GetWorkspaceResourceUsage(c.Request.Context(), workspaceID)
 	if err != nil {
 		h.logger.Error("failed to get resource usage", "workspace_id", workspaceID, "error", err)
-		usage = &node.WorkspaceResourceUsage{}
+		usage = &nodeDomain.WorkspaceResourceUsage{}
 	}
 
 	// Get monitoring metrics
