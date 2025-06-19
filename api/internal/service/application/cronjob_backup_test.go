@@ -12,7 +12,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
 // Extend existing mocks with additional methods if needed
@@ -23,36 +23,36 @@ type MockProjectService struct {
 	mock.Mock
 }
 
-func (m *MockProjectService) GetProject(ctx context.Context, projectID string) (*project.Project, error) {
+func (m *MockProjectService) GetProject(ctx context.Context, projectID string) (*projectDomain.Project, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*projectDomain.Project), args.Error(1)
 }
 
-func (m *MockProjectService) CreateProject(ctx context.Context, req *project.CreateProjectRequest) (*project.Project, error) {
+func (m *MockProjectService) CreateProject(ctx context.Context, req *projectDomain.CreateProjectRequest) (*projectDomain.Project, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*projectDomain.Project), args.Error(1)
 }
 
-func (m *MockProjectService) ListProjects(ctx context.Context, filter project.ProjectFilter) (*project.ProjectList, error) {
+func (m *MockProjectService) ListProjects(ctx context.Context, filter projectDomain.ProjectFilter) (*projectDomain.ProjectList, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectList), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectList), args.Error(1)
 }
 
-func (m *MockProjectService) UpdateProject(ctx context.Context, projectID string, req *project.UpdateProjectRequest) (*project.Project, error) {
+func (m *MockProjectService) UpdateProject(ctx context.Context, projectID string, req *projectDomain.UpdateProjectRequest) (*projectDomain.Project, error) {
 	args := m.Called(ctx, projectID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*projectDomain.Project), args.Error(1)
 }
 
 func (m *MockProjectService) DeleteProject(ctx context.Context, projectID string) error {
@@ -60,73 +60,73 @@ func (m *MockProjectService) DeleteProject(ctx context.Context, projectID string
 	return args.Error(0)
 }
 
-func (m *MockProjectService) GetProjectStats(ctx context.Context, projectID string) (*project.ProjectStats, error) {
+func (m *MockProjectService) GetProjectStats(ctx context.Context, projectID string) (*projectDomain.ProjectStats, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectStats), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectStats), args.Error(1)
 }
 
-func (m *MockProjectService) CreateSubProject(ctx context.Context, parentID string, req *project.CreateProjectRequest) (*project.Project, error) {
+func (m *MockProjectService) CreateSubProject(ctx context.Context, parentID string, req *projectDomain.CreateProjectRequest) (*projectDomain.Project, error) {
 	args := m.Called(ctx, parentID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*projectDomain.Project), args.Error(1)
 }
 
-func (m *MockProjectService) GetProjectHierarchy(ctx context.Context, projectID string) (*project.ProjectHierarchy, error) {
+func (m *MockProjectService) GetProjectHierarchy(ctx context.Context, projectID string) (*projectDomain.ProjectHierarchy, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectHierarchy), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectHierarchy), args.Error(1)
 }
 
-func (m *MockProjectService) ApplyResourceQuota(ctx context.Context, projectID string, quota *project.ResourceQuota) error {
+func (m *MockProjectService) ApplyResourceQuota(ctx context.Context, projectID string, quota *projectDomain.ResourceQuota) error {
 	args := m.Called(ctx, projectID, quota)
 	return args.Error(0)
 }
 
-func (m *MockProjectService) GetResourceUsage(ctx context.Context, projectID string) (*project.ResourceUsage, error) {
+func (m *MockProjectService) GetResourceUsage(ctx context.Context, projectID string) (*projectDomain.ResourceUsage, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ResourceUsage), args.Error(1)
+	return args.Get(0).(*projectDomain.ResourceUsage), args.Error(1)
 }
 
-func (m *MockProjectService) CreateNamespace(ctx context.Context, projectID string, req *project.CreateNamespaceRequest) (*project.Namespace, error) {
+func (m *MockProjectService) CreateNamespace(ctx context.Context, projectID string, req *projectDomain.CreateNamespaceRequest) (*projectDomain.Namespace, error) {
 	args := m.Called(ctx, projectID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Namespace), args.Error(1)
+	return args.Get(0).(*projectDomain.Namespace), args.Error(1)
 }
 
-func (m *MockProjectService) GetNamespace(ctx context.Context, projectID, namespaceID string) (*project.Namespace, error) {
+func (m *MockProjectService) GetNamespace(ctx context.Context, projectID, namespaceID string) (*projectDomain.Namespace, error) {
 	args := m.Called(ctx, projectID, namespaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Namespace), args.Error(1)
+	return args.Get(0).(*projectDomain.Namespace), args.Error(1)
 }
 
-func (m *MockProjectService) ListNamespaces(ctx context.Context, projectID string) (*project.NamespaceList, error) {
+func (m *MockProjectService) ListNamespaces(ctx context.Context, projectID string) (*projectDomain.NamespaceList, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.NamespaceList), args.Error(1)
+	return args.Get(0).(*projectDomain.NamespaceList), args.Error(1)
 }
 
-func (m *MockProjectService) UpdateNamespace(ctx context.Context, projectID, namespaceID string, req *project.CreateNamespaceRequest) (*project.Namespace, error) {
+func (m *MockProjectService) UpdateNamespace(ctx context.Context, projectID, namespaceID string, req *projectDomain.CreateNamespaceRequest) (*projectDomain.Namespace, error) {
 	args := m.Called(ctx, projectID, namespaceID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Namespace), args.Error(1)
+	return args.Get(0).(*projectDomain.Namespace), args.Error(1)
 }
 
 func (m *MockProjectService) DeleteNamespace(ctx context.Context, projectID, namespaceID string) error {
@@ -134,44 +134,44 @@ func (m *MockProjectService) DeleteNamespace(ctx context.Context, projectID, nam
 	return args.Error(0)
 }
 
-func (m *MockProjectService) GetNamespaceUsage(ctx context.Context, projectID, namespaceID string) (*project.NamespaceUsage, error) {
+func (m *MockProjectService) GetNamespaceUsage(ctx context.Context, projectID, namespaceID string) (*projectDomain.NamespaceUsage, error) {
 	args := m.Called(ctx, projectID, namespaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.NamespaceUsage), args.Error(1)
+	return args.Get(0).(*projectDomain.NamespaceUsage), args.Error(1)
 }
 
-func (m *MockProjectService) AddMember(ctx context.Context, projectID, adderID string, req *project.AddMemberRequest) (*project.ProjectMember, error) {
+func (m *MockProjectService) AddMember(ctx context.Context, projectID, adderID string, req *projectDomain.AddMemberRequest) (*projectDomain.ProjectMember, error) {
 	args := m.Called(ctx, projectID, adderID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectMember), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectMember), args.Error(1)
 }
 
-func (m *MockProjectService) GetMember(ctx context.Context, projectID, memberID string) (*project.ProjectMember, error) {
+func (m *MockProjectService) GetMember(ctx context.Context, projectID, memberID string) (*projectDomain.ProjectMember, error) {
 	args := m.Called(ctx, projectID, memberID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectMember), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectMember), args.Error(1)
 }
 
-func (m *MockProjectService) ListMembers(ctx context.Context, projectID string) (*project.MemberList, error) {
+func (m *MockProjectService) ListMembers(ctx context.Context, projectID string) (*projectDomain.MemberList, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.MemberList), args.Error(1)
+	return args.Get(0).(*projectDomain.MemberList), args.Error(1)
 }
 
-func (m *MockProjectService) UpdateMemberRole(ctx context.Context, projectID, memberID string, req *project.UpdateMemberRoleRequest) (*project.ProjectMember, error) {
+func (m *MockProjectService) UpdateMemberRole(ctx context.Context, projectID, memberID string, req *projectDomain.UpdateMemberRoleRequest) (*projectDomain.ProjectMember, error) {
 	args := m.Called(ctx, projectID, memberID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectMember), args.Error(1)
+	return args.Get(0).(*projectDomain.ProjectMember), args.Error(1)
 }
 
 func (m *MockProjectService) RemoveMember(ctx context.Context, projectID, memberID, removerID string) error {
@@ -179,7 +179,7 @@ func (m *MockProjectService) RemoveMember(ctx context.Context, projectID, member
 	return args.Error(0)
 }
 
-func (m *MockProjectService) AddProjectMember(ctx context.Context, projectID string, req *project.AddMemberRequest) error {
+func (m *MockProjectService) AddProjectMember(ctx context.Context, projectID string, req *projectDomain.AddMemberRequest) error {
 	args := m.Called(ctx, projectID, req)
 	return args.Error(0)
 }
@@ -189,33 +189,33 @@ func (m *MockProjectService) RemoveProjectMember(ctx context.Context, projectID,
 	return args.Error(0)
 }
 
-func (m *MockProjectService) ListProjectMembers(ctx context.Context, projectID string) ([]*project.ProjectMember, error) {
+func (m *MockProjectService) ListProjectMembers(ctx context.Context, projectID string) ([]*projectDomain.ProjectMember, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*project.ProjectMember), args.Error(1)
+	return args.Get(0).([]*projectDomain.ProjectMember), args.Error(1)
 }
 
-func (m *MockProjectService) ListActivities(ctx context.Context, projectID string, limit int) (*project.ActivityList, error) {
+func (m *MockProjectService) ListActivities(ctx context.Context, projectID string, limit int) (*projectDomain.ActivityList, error) {
 	args := m.Called(ctx, projectID, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ActivityList), args.Error(1)
+	return args.Get(0).(*projectDomain.ActivityList), args.Error(1)
 }
 
-func (m *MockProjectService) LogActivity(ctx context.Context, activity *project.ProjectActivity) error {
+func (m *MockProjectService) LogActivity(ctx context.Context, activity *projectDomain.ProjectActivity) error {
 	args := m.Called(ctx, activity)
 	return args.Error(0)
 }
 
-func (m *MockProjectService) GetActivityLogs(ctx context.Context, projectID string, filter project.ActivityFilter) ([]*project.ProjectActivity, error) {
+func (m *MockProjectService) GetActivityLogs(ctx context.Context, projectID string, filter projectDomain.ActivityFilter) ([]*projectDomain.ProjectActivity, error) {
 	args := m.Called(ctx, projectID, filter)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*project.ProjectActivity), args.Error(1)
+	return args.Get(0).([]*projectDomain.ProjectActivity), args.Error(1)
 }
 
 func (m *MockProjectService) ValidateProjectAccess(ctx context.Context, userID, projectID string, requiredRole string) error {
@@ -323,6 +323,9 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				EncryptionEnabled:  true,
 			},
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
+				// Check if application already exists (should return nil, indicating not found)
+				appRepo.On("GetApplicationByName", mock.Anything, "proj-123", "proj-123", "backup-cronjob").Return(nil, nil)
+				
 				// Create application
 				appRepo.On("Create", mock.Anything, mock.MatchedBy(func(app *application.Application) bool {
 					return app.Name == "backup-cronjob" && 
@@ -387,6 +390,9 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				PostBackupHook: "kubectl exec -n {namespace} {pod} -- /scripts/post-backup.sh",
 			},
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
+				// Check if application already exists
+				appRepo.On("GetApplicationByName", mock.Anything, "proj-123", "proj-123", "db-backup-cronjob").Return(nil, nil)
+				
 				appRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything).Return(nil)
 				
@@ -414,7 +420,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 			monitoringSvc := new(MockMonitoringService)
 
 			// Configure project mock
-			projectService.On("GetProject", mock.Anything, "proj-123").Return(&project.Project{
+			projectService.On("GetProject", mock.Anything, "proj-123").Return(&projectDomain.Project{
 				ID:            "proj-123",
 				NamespaceName: "test-namespace",
 			}, nil)
@@ -556,7 +562,7 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 			backupSvc := new(MockBackupService)
 
 			// Configure project mock
-			projectService.On("GetProject", mock.Anything, mock.Anything).Return(&project.Project{
+			projectService.On("GetProject", mock.Anything, mock.Anything).Return(&projectDomain.Project{
 				ID:        "proj-123",
 				NamespaceName: "test-namespace",
 			}, nil)

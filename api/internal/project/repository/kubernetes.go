@@ -1,10 +1,10 @@
-package project
+package repository
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +25,7 @@ type kubernetesRepository struct {
 }
 
 // NewKubernetesRepository creates a new Kubernetes project repository
-func NewKubernetesRepository(clientset kubernetes.Interface, dynamicClient dynamic.Interface, config *rest.Config) project.KubernetesRepository {
+func NewKubernetesRepository(clientset kubernetes.Interface, dynamicClient dynamic.Interface, config *rest.Config) domain.KubernetesRepository {
 	return &kubernetesRepository{
 		clientset:     clientset,
 		dynamicClient: dynamicClient,
@@ -148,7 +148,7 @@ func (r *kubernetesRepository) ConfigureHNC(ctx context.Context, workspaceID, pa
 	return nil
 }
 
-func (r *kubernetesRepository) ApplyResourceQuota(ctx context.Context, workspaceID, namespaceName string, quota *project.ResourceQuota) error {
+func (r *kubernetesRepository) ApplyResourceQuota(ctx context.Context, workspaceID, namespaceName string, quota *domain.ResourceQuota) error {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -210,7 +210,7 @@ func (r *kubernetesRepository) ApplyResourceQuota(ctx context.Context, workspace
 	return nil
 }
 
-func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespaceName string) (*project.ResourceUsage, error) {
+func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespaceName string) (*domain.ResourceUsage, error) {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -222,7 +222,7 @@ func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, wo
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// No quota, return empty usage
-			return &project.ResourceUsage{
+			return &domain.ResourceUsage{
 				CPU:    "0",
 				Memory: "0",
 				Pods:   0,
@@ -246,7 +246,7 @@ func (r *kubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, wo
 		podsUsed = int(used.Value())
 	}
 
-	return &project.ResourceUsage{
+	return &domain.ResourceUsage{
 		CPU:    cpuUsed,
 		Memory: memoryUsed,
 		Pods:   podsUsed,
@@ -330,7 +330,7 @@ func (r *kubernetesRepository) RemoveRBAC(ctx context.Context, workspaceID, name
 	return nil
 }
 
-func (r *kubernetesRepository) CreateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+func (r *kubernetesRepository) CreateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *domain.ResourceQuota) error {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -363,7 +363,7 @@ func (r *kubernetesRepository) CreateResourceQuota(ctx context.Context, workspac
 	return nil
 }
 
-func (r *kubernetesRepository) UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+func (r *kubernetesRepository) UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *domain.ResourceQuota) error {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -398,7 +398,7 @@ func (r *kubernetesRepository) UpdateResourceQuota(ctx context.Context, workspac
 	return nil
 }
 
-func (r *kubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*project.ResourceQuota, error) {
+func (r *kubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*domain.ResourceQuota, error) {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -419,7 +419,7 @@ func (r *kubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID
 	servicesQuantity := resourceQuota.Spec.Hard[corev1.ResourceServices]
 	pvcsQuantity := resourceQuota.Spec.Hard[corev1.ResourcePersistentVolumeClaims]
 	
-	quota := &project.ResourceQuota{
+	quota := &domain.ResourceQuota{
 		CPU:                    cpuQuantity.String(),
 		Memory:                 memoryQuantity.String(),
 		Storage:                storageQuantity.String(),
@@ -446,7 +446,7 @@ func (r *kubernetesRepository) DeleteResourceQuota(ctx context.Context, workspac
 	return nil
 }
 
-func (r *kubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceID, namespaceName string) (*project.NamespaceUsage, error) {
+func (r *kubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceID, namespaceName string) (*domain.NamespaceUsage, error) {
 	// Get vCluster client
 	vClusterClient, err := r.getVClusterClient(ctx, workspaceID)
 	if err != nil {
@@ -458,7 +458,7 @@ func (r *kubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceI
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// No quota, return empty usage
-			return &project.NamespaceUsage{
+			return &domain.NamespaceUsage{
 				CPU:     "0",
 				Memory:  "0",
 				Storage: "0",
@@ -487,7 +487,7 @@ func (r *kubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceI
 		podsUsed = int(used.Value())
 	}
 
-	return &project.NamespaceUsage{
+	return &domain.NamespaceUsage{
 		CPU:     cpuUsed,
 		Memory:  memoryUsed,
 		Storage: storageUsed,

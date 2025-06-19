@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
@@ -6,29 +6,29 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
-// ProjectHandler handles project-related HTTP requests
-type ProjectHandler struct {
-	service project.Service
+// Handler handles project-related HTTP requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewProjectHandler creates a new project handler
-func NewProjectHandler(service project.Service, logger *slog.Logger) *ProjectHandler {
-	return &ProjectHandler{
+// NewHandler creates a new project handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreateProject handles project creation
-func (h *ProjectHandler) CreateProject(c *gin.Context) {
+func (h *Handler) CreateProject(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	userID := c.GetString("user_id")
 
-	var req project.CreateProjectRequest
+	var req domain.CreateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -53,7 +53,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 }
 
 // GetProject handles getting a project
-func (h *ProjectHandler) GetProject(c *gin.Context) {
+func (h *Handler) GetProject(c *gin.Context) {
 	projectID := c.Param("projectId")
 
 	proj, err := h.service.GetProject(c.Request.Context(), projectID)
@@ -67,11 +67,11 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 }
 
 // ListProjects handles listing projects in a workspace
-func (h *ProjectHandler) ListProjects(c *gin.Context) {
+func (h *Handler) ListProjects(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	// Parse query parameters for filtering
-	filter := project.ProjectFilter{
+	filter := domain.ProjectFilter{
 		WorkspaceID: workspaceID,
 		Status:      c.Query("status"),
 		Search:      c.Query("search"),
@@ -107,11 +107,11 @@ func (h *ProjectHandler) ListProjects(c *gin.Context) {
 }
 
 // UpdateProject handles updating a project
-func (h *ProjectHandler) UpdateProject(c *gin.Context) {
+func (h *Handler) UpdateProject(c *gin.Context) {
 	projectID := c.Param("projectId")
 	userID := c.GetString("user_id")
 
-	var req project.UpdateProjectRequest
+	var req domain.UpdateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -134,7 +134,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 }
 
 // DeleteProject handles deleting a project
-func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+func (h *Handler) DeleteProject(c *gin.Context) {
 	projectID := c.Param("projectId")
 	userID := c.GetString("user_id")
 
@@ -153,11 +153,11 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 }
 
 // CreateSubProject handles creating a sub-project
-func (h *ProjectHandler) CreateSubProject(c *gin.Context) {
+func (h *Handler) CreateSubProject(c *gin.Context) {
 	parentID := c.Param("projectId")
 	userID := c.GetString("user_id")
 
-	var req project.CreateProjectRequest
+	var req domain.CreateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -176,7 +176,7 @@ func (h *ProjectHandler) CreateSubProject(c *gin.Context) {
 }
 
 // GetProjectHierarchy handles getting project hierarchy
-func (h *ProjectHandler) GetProjectHierarchy(c *gin.Context) {
+func (h *Handler) GetProjectHierarchy(c *gin.Context) {
 	projectID := c.Param("projectId")
 
 	hierarchy, err := h.service.GetProjectHierarchy(c.Request.Context(), projectID)
@@ -190,10 +190,10 @@ func (h *ProjectHandler) GetProjectHierarchy(c *gin.Context) {
 }
 
 // ApplyResourceQuota handles applying resource quota to a project
-func (h *ProjectHandler) ApplyResourceQuota(c *gin.Context) {
+func (h *Handler) ApplyResourceQuota(c *gin.Context) {
 	projectID := c.Param("projectId")
 
-	var quota project.ResourceQuota
+	var quota domain.ResourceQuota
 	if err := c.ShouldBindJSON(&quota); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -206,11 +206,15 @@ func (h *ProjectHandler) ApplyResourceQuota(c *gin.Context) {
 		return
 	}
 
+	h.logger.Info("resource quota applied",
+		"project_id", projectID,
+		"quota", quota)
+
 	c.JSON(http.StatusOK, gin.H{"message": "resource quota applied successfully"})
 }
 
-// GetResourceUsage handles getting project resource usage
-func (h *ProjectHandler) GetResourceUsage(c *gin.Context) {
+// GetResourceUsage handles getting resource usage for a project
+func (h *Handler) GetResourceUsage(c *gin.Context) {
 	projectID := c.Param("projectId")
 
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), projectID)
@@ -223,18 +227,15 @@ func (h *ProjectHandler) GetResourceUsage(c *gin.Context) {
 	c.JSON(http.StatusOK, usage)
 }
 
-// AddProjectMember handles adding a member to project
-func (h *ProjectHandler) AddProjectMember(c *gin.Context) {
+// AddProjectMember handles adding a member to a project
+func (h *Handler) AddProjectMember(c *gin.Context) {
 	projectID := c.Param("projectId")
-	addedBy := c.GetString("user_id")
 
-	var req project.AddMemberRequest
+	var req domain.AddMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
 	}
-
-	req.AddedBy = addedBy
 
 	err := h.service.AddProjectMember(c.Request.Context(), projectID, &req)
 	if err != nil {
@@ -246,8 +247,8 @@ func (h *ProjectHandler) AddProjectMember(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "member added successfully"})
 }
 
-// RemoveProjectMember handles removing a member from project
-func (h *ProjectHandler) RemoveProjectMember(c *gin.Context) {
+// RemoveProjectMember handles removing a member from a project
+func (h *Handler) RemoveProjectMember(c *gin.Context) {
 	projectID := c.Param("projectId")
 	userID := c.Param("userId")
 
@@ -262,7 +263,7 @@ func (h *ProjectHandler) RemoveProjectMember(c *gin.Context) {
 }
 
 // ListProjectMembers handles listing project members
-func (h *ProjectHandler) ListProjectMembers(c *gin.Context) {
+func (h *Handler) ListProjectMembers(c *gin.Context) {
 	projectID := c.Param("projectId")
 
 	members, err := h.service.ListProjectMembers(c.Request.Context(), projectID)
@@ -272,21 +273,25 @@ func (h *ProjectHandler) ListProjectMembers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"members": members,
-		"total":   len(members),
-	})
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
-// GetActivityLogs handles getting project activity logs
-func (h *ProjectHandler) GetActivityLogs(c *gin.Context) {
+// GetActivityLogs handles getting activity logs for a project
+func (h *Handler) GetActivityLogs(c *gin.Context) {
 	projectID := c.Param("projectId")
-	var filter project.ActivityFilter
+
+	// Create default filter
+	filter := domain.ActivityFilter{
+		ProjectID: projectID,
+		PageSize: 50, // Default limit
+	}
+
 	logs, err := h.service.GetActivityLogs(c.Request.Context(), projectID, filter)
 	if err != nil {
 		h.logger.Error("failed to get activity logs", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"activities": logs, "total": len(logs)})
+
+	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }

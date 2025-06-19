@@ -1,4 +1,4 @@
-package project
+package domain
 
 import (
 	"time"
@@ -11,14 +11,14 @@ type Project struct {
 	DisplayName   string               `json:"display_name,omitempty"`
 	Description   string               `json:"description,omitempty"`
 	WorkspaceID   string               `json:"workspace_id"`
-	WorkspaceName string               `json:"workspace_name,omitempty"`
+	WorkspaceName string               `json:"workspace_name,omitempty" gorm:"-"`
 	ParentID      *string              `json:"parent_id,omitempty"`
 	Status        string               `json:"status"` // active, inactive, archived
 	NamespaceName string               `json:"namespace_name,omitempty"`
-	ResourceQuotas *ResourceQuotas     `json:"resource_quotas,omitempty"`
-	ResourceUsage  *ResourceUsage      `json:"resource_usage,omitempty"`
+	ResourceQuotas *ResourceQuotas     `json:"resource_quotas,omitempty" gorm:"type:jsonb"`
+	ResourceUsage  *ResourceUsage      `json:"resource_usage,omitempty" gorm:"type:jsonb"`
 	Settings      map[string]interface{} `json:"settings,omitempty" gorm:"type:jsonb"`
-	Labels         map[string]string   `json:"labels,omitempty"`
+	Labels         map[string]string   `json:"labels,omitempty" gorm:"type:jsonb"`
 	CreatedAt      time.Time           `json:"created_at"`
 	UpdatedAt      time.Time           `json:"updated_at"`
 	DeletedAt      *time.Time          `json:"deleted_at,omitempty"`
@@ -71,9 +71,9 @@ type Namespace struct {
 	ProjectID     string           `json:"project_id"`
 	Description   string           `json:"description,omitempty"`
 	Status        string           `json:"status"` // active, terminating
-	ResourceQuota *ResourceQuota   `json:"resource_quota,omitempty"`
-	ResourceUsage *NamespaceUsage  `json:"resource_usage,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
+	ResourceQuota *ResourceQuota   `json:"resource_quota,omitempty" gorm:"type:jsonb"`
+	ResourceUsage *NamespaceUsage  `json:"resource_usage,omitempty" gorm:"type:jsonb"`
+	Labels        map[string]string `json:"labels,omitempty" gorm:"type:jsonb"`
 	CreatedAt     time.Time        `json:"created_at"`
 	UpdatedAt     time.Time        `json:"updated_at"`
 }
@@ -116,7 +116,6 @@ type ProjectMember struct {
 	AddedAt     time.Time `json:"added_at"`
 }
 
-
 // UpdateMemberRoleRequest represents a request to update member role
 type UpdateMemberRoleRequest struct {
 	Role string `json:"role" binding:"required,oneof=admin developer viewer"`
@@ -131,7 +130,7 @@ type ProjectActivity struct {
 	UserID      string                 `json:"user_id"`
 	UserEmail   string                 `json:"user_email"`
 	UserName    string                 `json:"user_name"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
 	CreatedAt   time.Time              `json:"created_at"`
 }
 

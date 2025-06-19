@@ -13,14 +13,14 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
 // InternalHandler handles internal-only API requests for AI agents.
 type InternalHandler struct {
 	workspaceSvc    workspaceDomain.Service
-	projectSvc      project.Service
+	projectSvc      projectDomain.Service
 	applicationSvc  application.Service
 	nodeSvc         node.Service
 	logSvc          logs.Service
@@ -34,7 +34,7 @@ type InternalHandler struct {
 // NewInternalHandler creates a new handler for internal operations.
 func NewInternalHandler(
 	workspaceSvc workspaceDomain.Service,
-	projectSvc project.Service,
+	projectSvc projectDomain.Service,
 	applicationSvc application.Service,
 	nodeSvc node.Service,
 	logSvc logs.Service,
@@ -138,13 +138,13 @@ func (h *InternalHandler) GetWorkspaceOverview(c *gin.Context) {
 	}
 
 	// Get projects
-	projectFilter := project.ProjectFilter{
+	projectFilter := projectDomain.ProjectFilter{
 		WorkspaceID: workspaceID,
 	}
 	projectList, err := h.projectSvc.ListProjects(c.Request.Context(), projectFilter)
 	if err != nil {
 		h.logger.Error("failed to get projects", "workspace_id", workspaceID, "error", err)
-		projectList = &project.ProjectList{Projects: []*project.Project{}}
+		projectList = &projectDomain.ProjectList{Projects: []*projectDomain.Project{}}
 	}
 
 	// Get nodes

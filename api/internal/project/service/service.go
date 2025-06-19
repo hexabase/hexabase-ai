@@ -1,27 +1,28 @@
-package project
+package service
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 	"log/slog"
+
+	"github.com/google/uuid"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
 type service struct {
-	repo      project.Repository
-	k8sRepo   project.KubernetesRepository
+	repo      domain.Repository
+	k8sRepo   domain.KubernetesRepository
 	logger    *slog.Logger
 }
 
 // NewService creates a new project service
 func NewService(
-	repo project.Repository,
-	k8sRepo project.KubernetesRepository,
+	repo domain.Repository,
+	k8sRepo domain.KubernetesRepository,
 	logger *slog.Logger,
-) project.Service {
+) domain.Service {
 	return &service{
 		repo:    repo,
 		k8sRepo: k8sRepo,
@@ -29,7 +30,7 @@ func NewService(
 	}
 }
 
-func (s *service) CreateProject(ctx context.Context, req *project.CreateProjectRequest) (*project.Project, error) {
+func (s *service) CreateProject(ctx context.Context, req *domain.CreateProjectRequest) (*domain.Project, error) {
 	// Validate request
 	if req.Name == "" {
 		return nil, fmt.Errorf("project name is required")
@@ -47,7 +48,7 @@ func (s *service) CreateProject(ctx context.Context, req *project.CreateProjectR
 	}
 
 	// Create project
-	proj := &project.Project{
+	proj := &domain.Project{
 		ID:          uuid.New().String(),
 		WorkspaceID: req.WorkspaceID,
 		Name:        req.Name,
@@ -89,7 +90,7 @@ func (s *service) CreateProject(ctx context.Context, req *project.CreateProjectR
 	return proj, nil
 }
 
-func (s *service) GetProject(ctx context.Context, projectID string) (*project.Project, error) {
+func (s *service) GetProject(ctx context.Context, projectID string) (*domain.Project, error) {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
@@ -120,7 +121,7 @@ func (s *service) GetProject(ctx context.Context, projectID string) (*project.Pr
 	return proj, nil
 }
 
-func (s *service) ListProjects(ctx context.Context, filter project.ProjectFilter) (*project.ProjectList, error) {
+func (s *service) ListProjects(ctx context.Context, filter domain.ProjectFilter) (*domain.ProjectList, error) {
 	projects, total, err := s.repo.ListProjects(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
@@ -143,7 +144,7 @@ func (s *service) ListProjects(ctx context.Context, filter project.ProjectFilter
 		}
 	}
 
-	return &project.ProjectList{
+	return &domain.ProjectList{
 		Projects: projects,
 		Total:    total,
 		Page:     filter.Page,
@@ -151,7 +152,7 @@ func (s *service) ListProjects(ctx context.Context, filter project.ProjectFilter
 	}, nil
 }
 
-func (s *service) UpdateProject(ctx context.Context, projectID string, req *project.UpdateProjectRequest) (*project.Project, error) {
+func (s *service) UpdateProject(ctx context.Context, projectID string, req *domain.UpdateProjectRequest) (*domain.Project, error) {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
@@ -205,7 +206,7 @@ func (s *service) DeleteProject(ctx context.Context, projectID string) error {
 
 // Namespace management methods
 
-func (s *service) CreateNamespace(ctx context.Context, projectID string, req *project.CreateNamespaceRequest) (*project.Namespace, error) {
+func (s *service) CreateNamespace(ctx context.Context, projectID string, req *domain.CreateNamespaceRequest) (*domain.Namespace, error) {
 	// Get project
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
@@ -241,7 +242,7 @@ func (s *service) CreateNamespace(ctx context.Context, projectID string, req *pr
 	}
 
 	// Create namespace record
-	namespace := &project.Namespace{
+	namespace := &domain.Namespace{
 		ID:            generateID(),
 		Name:          namespaceName,
 		ProjectID:     projectID,
@@ -260,7 +261,7 @@ func (s *service) CreateNamespace(ctx context.Context, projectID string, req *pr
 	}
 
 	// Log activity
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          generateID(),
 		ProjectID:   projectID,
 		Type:        "namespace_created",
@@ -272,7 +273,7 @@ func (s *service) CreateNamespace(ctx context.Context, projectID string, req *pr
 	return namespace, nil
 }
 
-func (s *service) GetNamespace(ctx context.Context, projectID, namespaceID string) (*project.Namespace, error) {
+func (s *service) GetNamespace(ctx context.Context, projectID, namespaceID string) (*domain.Namespace, error) {
 	namespace, err := s.repo.GetNamespace(ctx, namespaceID)
 	if err != nil {
 		return nil, err
@@ -299,19 +300,19 @@ func (s *service) GetNamespace(ctx context.Context, projectID, namespaceID strin
 	return namespace, nil
 }
 
-func (s *service) ListNamespaces(ctx context.Context, projectID string) (*project.NamespaceList, error) {
+func (s *service) ListNamespaces(ctx context.Context, projectID string) (*domain.NamespaceList, error) {
 	namespaces, err := s.repo.ListNamespaces(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &project.NamespaceList{
+	return &domain.NamespaceList{
 		Namespaces: namespaces,
 		Total:      len(namespaces),
 	}, nil
 }
 
-func (s *service) UpdateNamespace(ctx context.Context, projectID, namespaceID string, req *project.CreateNamespaceRequest) (*project.Namespace, error) {
+func (s *service) UpdateNamespace(ctx context.Context, projectID, namespaceID string, req *domain.CreateNamespaceRequest) (*domain.Namespace, error) {
 	namespace, err := s.repo.GetNamespace(ctx, namespaceID)
 	if err != nil {
 		return nil, err
@@ -378,7 +379,7 @@ func (s *service) DeleteNamespace(ctx context.Context, projectID, namespaceID st
 	}
 
 	// Log activity
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          generateID(),
 		ProjectID:   projectID,
 		Type:        "namespace_deleted",
@@ -390,7 +391,7 @@ func (s *service) DeleteNamespace(ctx context.Context, projectID, namespaceID st
 	return nil
 }
 
-func (s *service) GetNamespaceUsage(ctx context.Context, projectID, namespaceID string) (*project.NamespaceUsage, error) {
+func (s *service) GetNamespaceUsage(ctx context.Context, projectID, namespaceID string) (*domain.NamespaceUsage, error) {
 	namespace, err := s.repo.GetNamespace(ctx, namespaceID)
 	if err != nil {
 		return nil, err
@@ -409,7 +410,7 @@ func (s *service) GetNamespaceUsage(ctx context.Context, projectID, namespaceID 
 	return s.k8sRepo.GetNamespaceUsage(ctx, proj.WorkspaceID, namespace.Name)
 }
 
-func (s *service) CreateSubProject(ctx context.Context, parentID string, req *project.CreateProjectRequest) (*project.Project, error) {
+func (s *service) CreateSubProject(ctx context.Context, parentID string, req *domain.CreateProjectRequest) (*domain.Project, error) {
 	// Get parent project
 	parent, err := s.repo.GetProject(ctx, parentID)
 	if err != nil {
@@ -443,15 +444,15 @@ func (s *service) CreateSubProject(ctx context.Context, parentID string, req *pr
 	return subProj, nil
 }
 
-func (s *service) GetProjectHierarchy(ctx context.Context, projectID string) (*project.ProjectHierarchy, error) {
+func (s *service) GetProjectHierarchy(ctx context.Context, projectID string) (*domain.ProjectHierarchy, error) {
 	root, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	hierarchy := &project.ProjectHierarchy{
+	hierarchy := &domain.ProjectHierarchy{
 		Project:  root,
-		Children: []*project.ProjectHierarchy{},
+		Children: []*domain.ProjectHierarchy{},
 	}
 
 	// Recursively get children
@@ -462,16 +463,16 @@ func (s *service) GetProjectHierarchy(ctx context.Context, projectID string) (*p
 	return hierarchy, nil
 }
 
-func (s *service) buildHierarchy(ctx context.Context, node *project.ProjectHierarchy) error {
+func (s *service) buildHierarchy(ctx context.Context, node *domain.ProjectHierarchy) error {
 	children, err := s.repo.GetChildProjects(ctx, node.Project.ID)
 	if err != nil {
 		return err
 	}
 
 	for _, child := range children {
-		childNode := &project.ProjectHierarchy{
+		childNode := &domain.ProjectHierarchy{
 			Project:  child,
-			Children: []*project.ProjectHierarchy{},
+			Children: []*domain.ProjectHierarchy{},
 		}
 
 		// Recursively build children
@@ -485,7 +486,7 @@ func (s *service) buildHierarchy(ctx context.Context, node *project.ProjectHiera
 	return nil
 }
 
-func (s *service) ApplyResourceQuota(ctx context.Context, projectID string, quota *project.ResourceQuota) error {
+func (s *service) ApplyResourceQuota(ctx context.Context, projectID string, quota *domain.ResourceQuota) error {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("failed to get project: %w", err)
@@ -514,7 +515,7 @@ func (s *service) ApplyResourceQuota(ctx context.Context, projectID string, quot
 	return nil
 }
 
-func (s *service) GetResourceUsage(ctx context.Context, projectID string) (*project.ResourceUsage, error) {
+func (s *service) GetResourceUsage(ctx context.Context, projectID string) (*domain.ResourceUsage, error) {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
@@ -528,7 +529,7 @@ func (s *service) GetResourceUsage(ctx context.Context, projectID string) (*proj
 	return usage, nil
 }
 
-func (s *service) AddMember(ctx context.Context, projectID, adderID string, req *project.AddMemberRequest) (*project.ProjectMember, error) {
+func (s *service) AddMember(ctx context.Context, projectID, adderID string, req *domain.AddMemberRequest) (*domain.ProjectMember, error) {
 	// Check if project exists
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
@@ -554,7 +555,7 @@ func (s *service) AddMember(ctx context.Context, projectID, adderID string, req 
 	}
 
 	// Add member
-	member := &project.ProjectMember{
+	member := &domain.ProjectMember{
 		ID:        generateID(),
 		ProjectID: projectID,
 		UserID:    user.ID,
@@ -575,7 +576,7 @@ func (s *service) AddMember(ctx context.Context, projectID, adderID string, req 
 	}
 
 	// Log activity
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          generateID(),
 		ProjectID:   projectID,
 		Type:        "member_added",
@@ -588,7 +589,7 @@ func (s *service) AddMember(ctx context.Context, projectID, adderID string, req 
 	return member, nil
 }
 
-func (s *service) GetMember(ctx context.Context, projectID, memberID string) (*project.ProjectMember, error) {
+func (s *service) GetMember(ctx context.Context, projectID, memberID string) (*domain.ProjectMember, error) {
 	member, err := s.repo.GetMemberByID(ctx, memberID)
 	if err != nil {
 		return nil, err
@@ -602,19 +603,19 @@ func (s *service) GetMember(ctx context.Context, projectID, memberID string) (*p
 	return member, nil
 }
 
-func (s *service) ListMembers(ctx context.Context, projectID string) (*project.MemberList, error) {
+func (s *service) ListMembers(ctx context.Context, projectID string) (*domain.MemberList, error) {
 	members, err := s.repo.ListMembers(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &project.MemberList{
+	return &domain.MemberList{
 		Members: members,
 		Total:   len(members),
 	}, nil
 }
 
-func (s *service) UpdateMemberRole(ctx context.Context, projectID, memberID string, req *project.UpdateMemberRoleRequest) (*project.ProjectMember, error) {
+func (s *service) UpdateMemberRole(ctx context.Context, projectID, memberID string, req *domain.UpdateMemberRoleRequest) (*domain.ProjectMember, error) {
 	member, err := s.repo.GetMemberByID(ctx, memberID)
 	if err != nil {
 		return nil, err
@@ -643,7 +644,7 @@ func (s *service) UpdateMemberRole(ctx context.Context, projectID, memberID stri
 	}
 
 	// Log activity
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          generateID(),
 		ProjectID:   projectID,
 		Type:        "member_role_updated",
@@ -682,7 +683,7 @@ func (s *service) RemoveMember(ctx context.Context, projectID, memberID, remover
 	}
 
 	// Log activity
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          generateID(),
 		ProjectID:   projectID,
 		Type:        "member_removed",
@@ -695,7 +696,7 @@ func (s *service) RemoveMember(ctx context.Context, projectID, memberID, remover
 	return nil
 }
 
-func (s *service) AddProjectMember(ctx context.Context, projectID string, req *project.AddMemberRequest) error {
+func (s *service) AddProjectMember(ctx context.Context, projectID string, req *domain.AddMemberRequest) error {
 	// Use the existing AddMember method
 	adderID := req.AddedBy
 	if adderID == "" {
@@ -736,16 +737,16 @@ func (s *service) RemoveProjectMember(ctx context.Context, projectID, userID str
 	return nil
 }
 
-func (s *service) ListProjectMembers(ctx context.Context, projectID string) ([]*project.ProjectMember, error) {
+func (s *service) ListProjectMembers(ctx context.Context, projectID string) ([]*domain.ProjectMember, error) {
 	return s.repo.ListMembers(ctx, projectID)
 }
 
-func (s *service) GetActivityLogs(ctx context.Context, projectID string, filter project.ActivityFilter) ([]*project.Activity, error) {
+func (s *service) GetActivityLogs(ctx context.Context, projectID string, filter domain.ActivityFilter) ([]*domain.Activity, error) {
 	filter.ProjectID = projectID
 	return s.repo.ListActivities(ctx, filter)
 }
 
-func (s *service) GetProjectStats(ctx context.Context, projectID string) (*project.ProjectStats, error) {
+func (s *service) GetProjectStats(ctx context.Context, projectID string) (*domain.ProjectStats, error) {
 	proj, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("project not found: %w", err)
@@ -776,7 +777,7 @@ func (s *service) GetProjectStats(ctx context.Context, projectID string) (*proje
 		lastActivityTime = &lastActivity.CreatedAt
 	}
 
-	return &project.ProjectStats{
+	return &domain.ProjectStats{
 		ProjectID:      projectID,
 		NamespaceCount: namespaceCount,
 		MemberCount:    memberCount,
@@ -785,8 +786,8 @@ func (s *service) GetProjectStats(ctx context.Context, projectID string) (*proje
 	}, nil
 }
 
-func (s *service) ListActivities(ctx context.Context, projectID string, limit int) (*project.ActivityList, error) {
-	filter := project.ActivityFilter{
+func (s *service) ListActivities(ctx context.Context, projectID string, limit int) (*domain.ActivityList, error) {
+	filter := domain.ActivityFilter{
 		ProjectID: projectID,
 		PageSize:  limit,
 	}
@@ -795,13 +796,13 @@ func (s *service) ListActivities(ctx context.Context, projectID string, limit in
 		return nil, err
 	}
 
-	return &project.ActivityList{
+	return &domain.ActivityList{
 		Activities: activities,
 		Total:      len(activities),
 	}, nil
 }
 
-func (s *service) LogActivity(ctx context.Context, activity *project.ProjectActivity) error {
+func (s *service) LogActivity(ctx context.Context, activity *domain.ProjectActivity) error {
 	if activity.ID == "" {
 		activity.ID = generateID()
 	}
@@ -883,7 +884,7 @@ func isAlphaNumeric(c byte) bool {
 }
 
 func (s *service) logActivity(ctx context.Context, projectID, activityType, description, userID string) {
-	activity := &project.ProjectActivity{
+	activity := &domain.ProjectActivity{
 		ID:          uuid.New().String(),
 		ProjectID:   projectID,
 		Type:        activityType,

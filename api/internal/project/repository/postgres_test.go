@@ -1,4 +1,4 @@
-package project
+package repository
 
 import (
 	"context"
@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
 )
 
 // AnyTime is a sqlmock.Argument that matches any time.Time
@@ -156,9 +155,11 @@ func TestPostgresRepository_DeleteProject(t *testing.T) {
 	t.Run("successful project deletion", func(t *testing.T) {
 		projectID := "proj-123"
 
+		mock.ExpectBegin()
 		mock.ExpectExec(`^DELETE FROM "projects" WHERE id = \$1`).
 			WithArgs(projectID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 
 		err := repo.DeleteProject(ctx, projectID)
 		assert.NoError(t, err)
@@ -177,7 +178,7 @@ func TestPostgresRepository_ListProjects(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("list projects with filter", func(t *testing.T) {
-		filter := project.ProjectFilter{
+		filter := domain.ProjectFilter{
 			WorkspaceID: "ws-123",
 			Status:      "active",
 			Search:      "test",
@@ -202,7 +203,7 @@ func TestPostgresRepository_ListProjects(t *testing.T) {
 			AddRow("proj-2", "test-project-2", "Test 2", "ws-123", "active", time.Now(), time.Now())
 
 		mock.ExpectQuery(`^SELECT \* FROM "projects" WHERE`).
-			WithArgs("ws-123", "active", "%test%", "%test%").
+			WithArgs("ws-123", "active", "%test%", "%test%", 10).
 			WillReturnRows(listRows)
 
 		projects, total, err := repo.ListProjects(ctx, filter)
@@ -264,7 +265,7 @@ func TestPostgresRepository_ProjectMembers(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "project_members" WHERE project_id = \$1 AND user_id = \$2`).
-			WithArgs(projectID, userID).
+			WithArgs(projectID, userID, 1).
 			WillReturnRows(rows)
 
 		member, err := repo.GetMember(ctx, projectID, userID)
@@ -296,9 +297,11 @@ func TestPostgresRepository_ProjectMembers(t *testing.T) {
 	t.Run("remove member", func(t *testing.T) {
 		memberID := "member-123"
 
+		mock.ExpectBegin()
 		mock.ExpectExec(`^DELETE FROM "project_members" WHERE id = \$1`).
 			WithArgs(memberID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 
 		err := repo.RemoveMember(ctx, memberID)
 		assert.NoError(t, err)
@@ -333,7 +336,7 @@ func TestPostgresRepository_Activities(t *testing.T) {
 	t.Run("list activities with filter", func(t *testing.T) {
 		startTime := time.Now().Add(-24 * time.Hour)
 		endTime := time.Now()
-		filter := project.ActivityFilter{
+		filter := domain.ActivityFilter{
 			ProjectID: "proj-123",
 			UserID:    "user-123",
 			Type:      "member_added",
@@ -349,8 +352,8 @@ func TestPostgresRepository_Activities(t *testing.T) {
 			AddRow("act-1", "proj-123", "member_added", "Added member", "user-123", "user@example.com", "User", nil, time.Now()).
 			AddRow("act-2", "proj-123", "member_added", "Added another", "user-123", "user@example.com", "User", nil, time.Now())
 
-		mock.ExpectQuery(`^SELECT \* FROM "activities"`).
-			WithArgs("proj-123", "user-123", "member_added", startTime, endTime).
+		mock.ExpectQuery(`^SELECT \* FROM "project_activities"`).
+			WithArgs("proj-123", "user-123", "member_added", startTime, endTime, 10).
 			WillReturnRows(rows)
 
 		activities, err := repo.ListActivities(ctx, filter)
@@ -368,8 +371,8 @@ func TestPostgresRepository_Activities(t *testing.T) {
 			"act-latest", projectID, "project_updated", "Updated project", "user-123", time.Now(),
 		)
 
-		mock.ExpectQuery(`^SELECT \* FROM "activities" WHERE project_id = \$1 ORDER BY created_at DESC`).
-			WithArgs(projectID).
+		mock.ExpectQuery(`^SELECT \* FROM "project_activities" WHERE project_id = \$1 ORDER BY created_at DESC`).
+			WithArgs(projectID, 1).
 			WillReturnRows(rows)
 
 		activity, err := repo.GetLastActivity(ctx, projectID)
@@ -382,9 +385,11 @@ func TestPostgresRepository_Activities(t *testing.T) {
 	t.Run("cleanup old activities", func(t *testing.T) {
 		before := time.Now().Add(-30 * 24 * time.Hour)
 
-		mock.ExpectExec(`^DELETE FROM "activities" WHERE created_at < \$1`).
+		mock.ExpectBegin()
+		mock.ExpectExec(`^DELETE FROM "project_activities" WHERE created_at < \$1`).
 			WithArgs(before).
 			WillReturnResult(sqlmock.NewResult(0, 10))
+		mock.ExpectCommit()
 
 		err := repo.CleanupOldActivities(ctx, before)
 		assert.NoError(t, err)
@@ -414,7 +419,7 @@ func TestPostgresRepository_Namespaces(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "namespaces" WHERE id = \$1`).
-			WithArgs(namespaceID).
+			WithArgs(namespaceID, 1).
 			WillReturnRows(rows)
 
 		ns, err := repo.GetNamespace(ctx, namespaceID)
@@ -435,7 +440,7 @@ func TestPostgresRepository_Namespaces(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "namespaces" WHERE project_id = \$1 AND name = \$2`).
-			WithArgs(projectID, name).
+			WithArgs(projectID, name, 1).
 			WillReturnRows(rows)
 
 		ns, err := repo.GetNamespaceByName(ctx, projectID, name)
@@ -467,9 +472,11 @@ func TestPostgresRepository_Namespaces(t *testing.T) {
 	t.Run("delete namespace", func(t *testing.T) {
 		namespaceID := "ns-123"
 
+		mock.ExpectBegin()
 		mock.ExpectExec(`^DELETE FROM "namespaces" WHERE id = \$1`).
 			WithArgs(namespaceID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 
 		err := repo.DeleteNamespace(ctx, namespaceID)
 		assert.NoError(t, err)
@@ -497,7 +504,7 @@ func TestPostgresRepository_Users(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "users" WHERE id = \$1`).
-			WithArgs(userID).
+			WithArgs(userID, 1).
 			WillReturnRows(rows)
 
 		user, err := repo.GetUser(ctx, userID)
@@ -517,7 +524,7 @@ func TestPostgresRepository_Users(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "users" WHERE email = \$1`).
-			WithArgs(email).
+			WithArgs(email, 1).
 			WillReturnRows(rows)
 
 		user, err := repo.GetUserByEmail(ctx, email)
@@ -531,7 +538,7 @@ func TestPostgresRepository_Users(t *testing.T) {
 		userID := "non-existent"
 
 		mock.ExpectQuery(`^SELECT \* FROM "users" WHERE id = \$1`).
-			WithArgs(userID).
+			WithArgs(userID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
 		user, err := repo.GetUser(ctx, userID)
@@ -597,7 +604,7 @@ func TestPostgresRepository_ComplexQueries(t *testing.T) {
 		)
 
 		mock.ExpectQuery(`^SELECT \* FROM "projects" WHERE name = \$1 AND workspace_id = \$2`).
-			WithArgs(name, workspaceID).
+			WithArgs(name, workspaceID, 1).
 			WillReturnRows(rows)
 
 		proj, err := repo.GetProjectByNameAndWorkspace(ctx, name, workspaceID)
@@ -663,9 +670,11 @@ func TestPostgresRepository_DeprecatedMethods(t *testing.T) {
 		projectID := "proj-123"
 		userID := "user-123"
 
+		mock.ExpectBegin()
 		mock.ExpectExec(`^DELETE FROM "project_members" WHERE project_id = \$1 AND user_id = \$2`).
 			WithArgs(projectID, userID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 
 		err := repo.RemoveProjectMember(ctx, projectID, userID)
 		assert.NoError(t, err)
@@ -704,7 +713,7 @@ func TestPostgresRepository_EdgeCases(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("list projects with empty result", func(t *testing.T) {
-		filter := project.ProjectFilter{
+		filter := domain.ProjectFilter{
 			WorkspaceID: "ws-123",
 		}
 
@@ -730,7 +739,7 @@ func TestPostgresRepository_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("activity filter with no time range", func(t *testing.T) {
-		filter := project.ActivityFilter{
+		filter := domain.ActivityFilter{
 			ProjectID: "proj-123",
 		}
 
@@ -740,7 +749,7 @@ func TestPostgresRepository_EdgeCases(t *testing.T) {
 			"act-1", "proj-123", "created", "Project created", time.Now(),
 		)
 
-		mock.ExpectQuery(`^SELECT \* FROM "activities"`).
+		mock.ExpectQuery(`^SELECT \* FROM "project_activities"`).
 			WillReturnRows(rows)
 
 		activities, err := repo.ListActivities(ctx, filter)
@@ -766,7 +775,7 @@ func TestPostgresRepository_EdgeCases(t *testing.T) {
 	t.Run("last activity not found returns nil", func(t *testing.T) {
 		projectID := "proj-123"
 
-		mock.ExpectQuery(`^SELECT \* FROM "activities" WHERE project_id = \$1 ORDER BY created_at DESC`).
+		mock.ExpectQuery(`^SELECT \* FROM "project_activities" WHERE project_id = \$1 ORDER BY created_at DESC`).
 			WithArgs(projectID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 

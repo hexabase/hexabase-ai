@@ -1,4 +1,4 @@
-package project
+package service
 
 import (
 	"context"
@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"log/slog"
+
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
 )
 
 // Mock implementations
@@ -18,41 +19,41 @@ type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) CreateProject(ctx context.Context, proj *project.Project) error {
+func (m *MockRepository) CreateProject(ctx context.Context, proj *domain.Project) error {
 	args := m.Called(ctx, proj)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetProject(ctx context.Context, projectID string) (*project.Project, error) {
+func (m *MockRepository) GetProject(ctx context.Context, projectID string) (*domain.Project, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*domain.Project), args.Error(1)
 }
 
-func (m *MockRepository) GetProjectByName(ctx context.Context, name string) (*project.Project, error) {
+func (m *MockRepository) GetProjectByName(ctx context.Context, name string) (*domain.Project, error) {
 	args := m.Called(ctx, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*domain.Project), args.Error(1)
 }
 
-func (m *MockRepository) GetProjectByNameAndWorkspace(ctx context.Context, name, workspaceID string) (*project.Project, error) {
+func (m *MockRepository) GetProjectByNameAndWorkspace(ctx context.Context, name, workspaceID string) (*domain.Project, error) {
 	args := m.Called(ctx, name, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*domain.Project), args.Error(1)
 }
 
-func (m *MockRepository) ListProjects(ctx context.Context, filter project.ProjectFilter) ([]*project.Project, int, error) {
+func (m *MockRepository) ListProjects(ctx context.Context, filter domain.ProjectFilter) ([]*domain.Project, int, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*project.Project), args.Int(1), args.Error(2)
+	return args.Get(0).([]*domain.Project), args.Int(1), args.Error(2)
 }
 
-func (m *MockRepository) UpdateProject(ctx context.Context, proj *project.Project) error {
+func (m *MockRepository) UpdateProject(ctx context.Context, proj *domain.Project) error {
 	args := m.Called(ctx, proj)
 	return args.Error(0)
 }
@@ -67,33 +68,33 @@ func (m *MockRepository) CountProjects(ctx context.Context, workspaceID string) 
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockRepository) CreateNamespace(ctx context.Context, namespace *project.Namespace) error {
+func (m *MockRepository) CreateNamespace(ctx context.Context, namespace *domain.Namespace) error {
 	args := m.Called(ctx, namespace)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetNamespace(ctx context.Context, namespaceID string) (*project.Namespace, error) {
+func (m *MockRepository) GetNamespace(ctx context.Context, namespaceID string) (*domain.Namespace, error) {
 	args := m.Called(ctx, namespaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Namespace), args.Error(1)
+	return args.Get(0).(*domain.Namespace), args.Error(1)
 }
 
-func (m *MockRepository) GetNamespaceByName(ctx context.Context, projectID, name string) (*project.Namespace, error) {
+func (m *MockRepository) GetNamespaceByName(ctx context.Context, projectID, name string) (*domain.Namespace, error) {
 	args := m.Called(ctx, projectID, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Namespace), args.Error(1)
+	return args.Get(0).(*domain.Namespace), args.Error(1)
 }
 
-func (m *MockRepository) ListNamespaces(ctx context.Context, projectID string) ([]*project.Namespace, error) {
+func (m *MockRepository) ListNamespaces(ctx context.Context, projectID string) ([]*domain.Namespace, error) {
 	args := m.Called(ctx, projectID)
-	return args.Get(0).([]*project.Namespace), args.Error(1)
+	return args.Get(0).([]*domain.Namespace), args.Error(1)
 }
 
-func (m *MockRepository) UpdateNamespace(ctx context.Context, namespace *project.Namespace) error {
+func (m *MockRepository) UpdateNamespace(ctx context.Context, namespace *domain.Namespace) error {
 	args := m.Called(ctx, namespace)
 	return args.Error(0)
 }
@@ -103,33 +104,33 @@ func (m *MockRepository) DeleteNamespace(ctx context.Context, namespaceID string
 	return args.Error(0)
 }
 
-func (m *MockRepository) AddMember(ctx context.Context, member *project.ProjectMember) error {
+func (m *MockRepository) AddMember(ctx context.Context, member *domain.ProjectMember) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetMember(ctx context.Context, projectID, userID string) (*project.ProjectMember, error) {
+func (m *MockRepository) GetMember(ctx context.Context, projectID, userID string) (*domain.ProjectMember, error) {
 	args := m.Called(ctx, projectID, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectMember), args.Error(1)
+	return args.Get(0).(*domain.ProjectMember), args.Error(1)
 }
 
-func (m *MockRepository) GetMemberByID(ctx context.Context, memberID string) (*project.ProjectMember, error) {
+func (m *MockRepository) GetMemberByID(ctx context.Context, memberID string) (*domain.ProjectMember, error) {
 	args := m.Called(ctx, memberID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectMember), args.Error(1)
+	return args.Get(0).(*domain.ProjectMember), args.Error(1)
 }
 
-func (m *MockRepository) ListMembers(ctx context.Context, projectID string) ([]*project.ProjectMember, error) {
+func (m *MockRepository) ListMembers(ctx context.Context, projectID string) ([]*domain.ProjectMember, error) {
 	args := m.Called(ctx, projectID)
-	return args.Get(0).([]*project.ProjectMember), args.Error(1)
+	return args.Get(0).([]*domain.ProjectMember), args.Error(1)
 }
 
-func (m *MockRepository) UpdateMember(ctx context.Context, member *project.ProjectMember) error {
+func (m *MockRepository) UpdateMember(ctx context.Context, member *domain.ProjectMember) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
@@ -144,22 +145,22 @@ func (m *MockRepository) CountMembers(ctx context.Context, projectID string) (in
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockRepository) CreateActivity(ctx context.Context, activity *project.ProjectActivity) error {
+func (m *MockRepository) CreateActivity(ctx context.Context, activity *domain.ProjectActivity) error {
 	args := m.Called(ctx, activity)
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListActivities(ctx context.Context, filter project.ActivityFilter) ([]*project.ProjectActivity, error) {
+func (m *MockRepository) ListActivities(ctx context.Context, filter domain.ActivityFilter) ([]*domain.ProjectActivity, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*project.ProjectActivity), args.Error(1)
+	return args.Get(0).([]*domain.ProjectActivity), args.Error(1)
 }
 
-func (m *MockRepository) GetLastActivity(ctx context.Context, projectID string) (*project.ProjectActivity, error) {
+func (m *MockRepository) GetLastActivity(ctx context.Context, projectID string) (*domain.ProjectActivity, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectActivity), args.Error(1)
+	return args.Get(0).(*domain.ProjectActivity), args.Error(1)
 }
 
 func (m *MockRepository) CleanupOldActivities(ctx context.Context, before time.Time) error {
@@ -167,41 +168,41 @@ func (m *MockRepository) CleanupOldActivities(ctx context.Context, before time.T
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetChildProjects(ctx context.Context, parentID string) ([]*project.Project, error) {
+func (m *MockRepository) GetChildProjects(ctx context.Context, parentID string) ([]*domain.Project, error) {
 	args := m.Called(ctx, parentID)
-	return args.Get(0).([]*project.Project), args.Error(1)
+	return args.Get(0).([]*domain.Project), args.Error(1)
 }
 
-func (m *MockRepository) GetUser(ctx context.Context, userID string) (*project.User, error) {
+func (m *MockRepository) GetUser(ctx context.Context, userID string) (*domain.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*project.User, error) {
+func (m *MockRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	args := m.Called(ctx, email)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.User), args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockRepository) GetProjectResourceUsage(ctx context.Context, projectID string) (*project.ResourceUsage, error) {
+func (m *MockRepository) GetProjectResourceUsage(ctx context.Context, projectID string) (*domain.ResourceUsage, error) {
 	args := m.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ResourceUsage), args.Error(1)
+	return args.Get(0).(*domain.ResourceUsage), args.Error(1)
 }
 
-func (m *MockRepository) GetNamespaceResourceUsage(ctx context.Context, namespaceID string) (*project.NamespaceUsage, error) {
+func (m *MockRepository) GetNamespaceResourceUsage(ctx context.Context, namespaceID string) (*domain.NamespaceUsage, error) {
 	args := m.Called(ctx, namespaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.NamespaceUsage), args.Error(1)
+	return args.Get(0).(*domain.NamespaceUsage), args.Error(1)
 }
 
 type MockKubernetesRepository struct {
@@ -231,22 +232,22 @@ func (m *MockKubernetesRepository) ListNamespaces(ctx context.Context, workspace
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *MockKubernetesRepository) CreateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+func (m *MockKubernetesRepository) CreateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *domain.ResourceQuota) error {
 	args := m.Called(ctx, workspaceID, namespace, quota)
 	return args.Error(0)
 }
 
-func (m *MockKubernetesRepository) UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+func (m *MockKubernetesRepository) UpdateResourceQuota(ctx context.Context, workspaceID, namespace string, quota *domain.ResourceQuota) error {
 	args := m.Called(ctx, workspaceID, namespace, quota)
 	return args.Error(0)
 }
 
-func (m *MockKubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*project.ResourceQuota, error) {
+func (m *MockKubernetesRepository) GetResourceQuota(ctx context.Context, workspaceID, namespace string) (*domain.ResourceQuota, error) {
 	args := m.Called(ctx, workspaceID, namespace)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ResourceQuota), args.Error(1)
+	return args.Get(0).(*domain.ResourceQuota), args.Error(1)
 }
 
 func (m *MockKubernetesRepository) DeleteResourceQuota(ctx context.Context, workspaceID, namespace string) error {
@@ -254,25 +255,25 @@ func (m *MockKubernetesRepository) DeleteResourceQuota(ctx context.Context, work
 	return args.Error(0)
 }
 
-func (m *MockKubernetesRepository) ApplyResourceQuota(ctx context.Context, workspaceID, namespace string, quota *project.ResourceQuota) error {
+func (m *MockKubernetesRepository) ApplyResourceQuota(ctx context.Context, workspaceID, namespace string, quota *domain.ResourceQuota) error {
 	args := m.Called(ctx, workspaceID, namespace, quota)
 	return args.Error(0)
 }
 
-func (m *MockKubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceID, namespace string) (*project.NamespaceUsage, error) {
+func (m *MockKubernetesRepository) GetNamespaceUsage(ctx context.Context, workspaceID, namespace string) (*domain.NamespaceUsage, error) {
 	args := m.Called(ctx, workspaceID, namespace)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.NamespaceUsage), args.Error(1)
+	return args.Get(0).(*domain.NamespaceUsage), args.Error(1)
 }
 
-func (m *MockKubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespace string) (*project.ResourceUsage, error) {
+func (m *MockKubernetesRepository) GetNamespaceResourceUsage(ctx context.Context, workspaceID, namespace string) (*domain.ResourceUsage, error) {
 	args := m.Called(ctx, workspaceID, namespace)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ResourceUsage), args.Error(1)
+	return args.Get(0).(*domain.ResourceUsage), args.Error(1)
 }
 
 func (m *MockKubernetesRepository) ApplyRBAC(ctx context.Context, workspaceID, namespace, userID, role string) error {
@@ -306,7 +307,7 @@ func TestCreateProject(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful project creation", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "test-project",
 			DisplayName: "Test Project",
 			Description: "A test project",
@@ -315,7 +316,7 @@ func TestCreateProject(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetProjectByNameAndWorkspace", ctx, "test-project", "ws-123").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateProject", ctx, mock.MatchedBy(func(p *project.Project) bool {
+		mockRepo.On("CreateProject", ctx, mock.MatchedBy(func(p *domain.Project) bool {
 			return p.Name == "test-project" &&
 				p.DisplayName == "Test Project" &&
 				p.Description == "A test project" &&
@@ -327,8 +328,8 @@ func TestCreateProject(t *testing.T) {
 				labels["hexabase.ai/managed"] == "true" &&
 				labels["hexabase.ai/project-id"] != ""
 		})).Return(nil)
-		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		proj, err := service.CreateProject(ctx, req)
@@ -344,12 +345,12 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("project name already exists", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "existing-project",
 			WorkspaceID: "ws-123",
 		}
 
-		existingProject := &project.Project{
+		existingProject := &domain.Project{
 			ID:   "proj-existing",
 			Name: "existing-project",
 		}
@@ -367,7 +368,7 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("invalid project name", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "Invalid-Name!",
 			WorkspaceID: "ws-123",
 		}
@@ -382,7 +383,7 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("empty project name", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "",
 			WorkspaceID: "ws-123",
 		}
@@ -397,15 +398,15 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("namespace creation fails but project still created", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "test-project-no-ns",
 			WorkspaceID: "ws-123",
 		}
 
 		mockRepo.On("GetProjectByNameAndWorkspace", ctx, "test-project-no-ns", "ws-123").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil)
+		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil)
 		mockK8sRepo.On("CreateNamespace", ctx, "ws-123", "test-project-no-ns", mock.Anything).Return(errors.New("namespace creation failed"))
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		proj, err := service.CreateProject(ctx, req)
@@ -429,7 +430,7 @@ func TestGetProject(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful project retrieval with namespace status", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			Name:          "test-project",
 			WorkspaceID:   "ws-123",
@@ -440,7 +441,7 @@ func TestGetProject(t *testing.T) {
 			"status": "active",
 		}
 
-		usage := &project.ResourceUsage{
+		usage := &domain.ResourceUsage{
 			CPU:    "250m",
 			Memory: "512Mi",
 			Pods:   5,
@@ -482,7 +483,7 @@ func TestGetProject(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			Name:          "test-project",
 			WorkspaceID:   "ws-123",
@@ -516,13 +517,13 @@ func TestListProjects(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful project listing", func(t *testing.T) {
-		filter := project.ProjectFilter{
+		filter := domain.ProjectFilter{
 			WorkspaceID: "ws-123",
 			Page:        1,
 			PageSize:    10,
 		}
 
-		projects := []*project.Project{
+		projects := []*domain.Project{
 			{
 				ID:            "proj-1",
 				Name:          "project-1",
@@ -561,13 +562,13 @@ func TestListProjects(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		filter := project.ProjectFilter{
+		filter := domain.ProjectFilter{
 			WorkspaceID: "ws-123",
 			Page:        1,
 			PageSize:    10,
 		}
 
-		mockRepoLocal.On("ListProjects", ctx, filter).Return([]*project.Project{}, 0, nil)
+		mockRepoLocal.On("ListProjects", ctx, filter).Return([]*domain.Project{}, 0, nil)
 
 		// Execute
 		result, err := serviceLocal.ListProjects(ctx, filter)
@@ -590,14 +591,14 @@ func TestUpdateProject(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful project update", func(t *testing.T) {
-		existingProject := &project.Project{
+		existingProject := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			DisplayName: "Old Name",
 			Description: "Old description",
 		}
 
-		req := &project.UpdateProjectRequest{
+		req := &domain.UpdateProjectRequest{
 			DisplayName: "New Name",
 			Description: "New description",
 			Settings: map[string]interface{}{
@@ -606,12 +607,12 @@ func TestUpdateProject(t *testing.T) {
 		}
 
 		mockRepo.On("GetProject", ctx, "proj-123").Return(existingProject, nil)
-		mockRepo.On("UpdateProject", ctx, mock.MatchedBy(func(p *project.Project) bool {
+		mockRepo.On("UpdateProject", ctx, mock.MatchedBy(func(p *domain.Project) bool {
 			return p.DisplayName == "New Name" &&
 				p.Description == "New description" &&
 				p.Settings["feature"] == "enabled"
 		})).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		result, err := service.UpdateProject(ctx, "proj-123", req)
@@ -625,7 +626,7 @@ func TestUpdateProject(t *testing.T) {
 	})
 
 	t.Run("project not found", func(t *testing.T) {
-		req := &project.UpdateProjectRequest{
+		req := &domain.UpdateProjectRequest{
 			DisplayName: "New Name",
 		}
 
@@ -651,7 +652,7 @@ func TestDeleteProject(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful project deletion", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
@@ -660,7 +661,7 @@ func TestDeleteProject(t *testing.T) {
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockK8sRepo.On("DeleteNamespace", ctx, "ws-123", "test-project").Return(nil)
 		mockRepo.On("DeleteProject", ctx, "proj-123").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.DeleteProject(ctx, "proj-123")
@@ -672,7 +673,7 @@ func TestDeleteProject(t *testing.T) {
 	})
 
 	t.Run("namespace deletion fails but project still deleted", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
@@ -681,7 +682,7 @@ func TestDeleteProject(t *testing.T) {
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockK8sRepo.On("DeleteNamespace", ctx, "ws-123", "test-project").Return(errors.New("namespace deletion failed"))
 		mockRepo.On("DeleteProject", ctx, "proj-123").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.DeleteProject(ctx, "proj-123")
@@ -702,13 +703,13 @@ func TestCreateSubProject(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful sub-project creation", func(t *testing.T) {
-		parentProject := &project.Project{
+		parentProject := &domain.Project{
 			ID:          "parent-123",
 			Name:        "parent-project",
 			WorkspaceID: "ws-123",
 		}
 
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "sub-project",
 			DisplayName: "Sub Project",
 		}
@@ -718,10 +719,10 @@ func TestCreateSubProject(t *testing.T) {
 		
 		// Mock sub-project creation (same as CreateProject)
 		mockRepo.On("GetProjectByNameAndWorkspace", ctx, "sub-project", "ws-123").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil)
+		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil)
 		mockK8sRepo.On("CreateNamespace", ctx, "ws-123", "sub-project", mock.Anything).Return(nil)
-		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil).Times(2) // Once for namespace, once for parent relationship
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil).Times(2) // Once for namespace, once for parent relationship
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 		
 		// Mock HNC configuration
 		mockK8sRepo.On("ConfigureHNC", ctx, "ws-123", "parent-project", "sub-project").Return(nil)
@@ -740,7 +741,7 @@ func TestCreateSubProject(t *testing.T) {
 	})
 
 	t.Run("parent project not found", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name: "sub-project",
 		}
 
@@ -766,12 +767,12 @@ func TestGetProjectHierarchy(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful hierarchy retrieval", func(t *testing.T) {
-		rootProject := &project.Project{
+		rootProject := &domain.Project{
 			ID:   "root-123",
 			Name: "root-project",
 		}
 
-		childProjects := []*project.Project{
+		childProjects := []*domain.Project{
 			{
 				ID:   "child-1",
 				Name: "child-project-1",
@@ -782,7 +783,7 @@ func TestGetProjectHierarchy(t *testing.T) {
 			},
 		}
 
-		grandchildProjects := []*project.Project{
+		grandchildProjects := []*domain.Project{
 			{
 				ID:   "grandchild-1",
 				Name: "grandchild-project-1",
@@ -792,8 +793,8 @@ func TestGetProjectHierarchy(t *testing.T) {
 		mockRepo.On("GetProject", ctx, "root-123").Return(rootProject, nil)
 		mockRepo.On("GetChildProjects", ctx, "root-123").Return(childProjects, nil)
 		mockRepo.On("GetChildProjects", ctx, "child-1").Return(grandchildProjects, nil)
-		mockRepo.On("GetChildProjects", ctx, "child-2").Return([]*project.Project{}, nil)
-		mockRepo.On("GetChildProjects", ctx, "grandchild-1").Return([]*project.Project{}, nil)
+		mockRepo.On("GetChildProjects", ctx, "child-2").Return([]*domain.Project{}, nil)
+		mockRepo.On("GetChildProjects", ctx, "grandchild-1").Return([]*domain.Project{}, nil)
 
 		// Execute
 		result, err := service.GetProjectHierarchy(ctx, "root-123")
@@ -818,13 +819,13 @@ func TestApplyResourceQuota(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful resource quota application", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
 		}
 
-		quota := &project.ResourceQuota{
+		quota := &domain.ResourceQuota{
 			CPU:     "4",
 			Memory:  "8Gi",
 			Storage: "100Gi",
@@ -833,10 +834,10 @@ func TestApplyResourceQuota(t *testing.T) {
 
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockK8sRepo.On("ApplyResourceQuota", ctx, "ws-123", "test-project", quota).Return(nil)
-		mockRepo.On("UpdateProject", ctx, mock.MatchedBy(func(p *project.Project) bool {
+		mockRepo.On("UpdateProject", ctx, mock.MatchedBy(func(p *domain.Project) bool {
 			return p.Settings["resource_quota"] != nil
 		})).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.ApplyResourceQuota(ctx, "proj-123", quota)
@@ -857,14 +858,14 @@ func TestGetResourceUsage(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful resource usage retrieval", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			Name:          "test-project",
 			WorkspaceID:   "ws-123",
 			NamespaceName: "test-namespace",
 		}
 
-		usage := &project.ResourceUsage{
+		usage := &domain.ResourceUsage{
 			CPU:    "500m",
 			Memory: "1Gi",
 			Pods:   10,
@@ -896,16 +897,16 @@ func TestNamespaceManagement(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("create namespace successfully", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
 		}
 
-		req := &project.CreateNamespaceRequest{
+		req := &domain.CreateNamespaceRequest{
 			Name:        "test-namespace",
 			Description: "Test namespace",
-			ResourceQuota: &project.ResourceQuota{
+			ResourceQuota: &domain.ResourceQuota{
 				CPU:    "2",
 				Memory: "4Gi",
 			},
@@ -919,12 +920,12 @@ func TestNamespaceManagement(t *testing.T) {
 		}
 		mockK8sRepo.On("CreateNamespace", ctx, "ws-123", "test-namespace", labels).Return(nil)
 		mockK8sRepo.On("CreateResourceQuota", ctx, "ws-123", "test-namespace", req.ResourceQuota).Return(nil)
-		mockRepo.On("CreateNamespace", ctx, mock.MatchedBy(func(ns *project.Namespace) bool {
+		mockRepo.On("CreateNamespace", ctx, mock.MatchedBy(func(ns *domain.Namespace) bool {
 			return ns.Name == "test-namespace" &&
 				ns.ProjectID == "proj-123" &&
 				ns.Description == "Test namespace"
 		})).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		result, err := service.CreateNamespace(ctx, "proj-123", req)
@@ -939,7 +940,7 @@ func TestNamespaceManagement(t *testing.T) {
 	})
 
 	t.Run("list namespaces", func(t *testing.T) {
-		namespaces := []*project.Namespace{
+		namespaces := []*domain.Namespace{
 			{
 				ID:        "ns-1",
 				Name:      "namespace-1",
@@ -966,13 +967,13 @@ func TestNamespaceManagement(t *testing.T) {
 	})
 
 	t.Run("delete namespace", func(t *testing.T) {
-		namespace := &project.Namespace{
+		namespace := &domain.Namespace{
 			ID:        "ns-123",
 			Name:      "test-namespace",
 			ProjectID: "proj-123",
 		}
 
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			WorkspaceID: "ws-123",
 		}
@@ -981,7 +982,7 @@ func TestNamespaceManagement(t *testing.T) {
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockK8sRepo.On("DeleteNamespace", ctx, "ws-123", "test-namespace").Return(nil)
 		mockRepo.On("DeleteNamespace", ctx, "ns-123").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.DeleteNamespace(ctx, "proj-123", "ns-123")
@@ -1002,35 +1003,35 @@ func TestMemberManagement(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("add member successfully", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			WorkspaceID:   "ws-123",
 			NamespaceName: "test-project",
 		}
 
-		user := &project.User{
+		user := &domain.User{
 			ID:          "user-456",
 			Email:       "user@example.com",
 			DisplayName: "Test User",
 		}
 
-		req := &project.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserEmail: "user@example.com",
 			Role:      "developer",
 		}
 
-		existingMembers := []*project.ProjectMember{}
+		existingMembers := []*domain.ProjectMember{}
 
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockRepo.On("GetUserByEmail", ctx, "user@example.com").Return(user, nil)
 		mockRepo.On("ListMembers", ctx, "proj-123").Return(existingMembers, nil)
-		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(m *project.ProjectMember) bool {
+		mockRepo.On("AddMember", ctx, mock.MatchedBy(func(m *domain.ProjectMember) bool {
 			return m.ProjectID == "proj-123" &&
 				m.UserID == "user-456" &&
 				m.Role == "developer"
 		})).Return(nil)
 		mockK8sRepo.On("ApplyRBAC", ctx, "ws-123", "test-project", "user-456", "developer").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		result, err := service.AddMember(ctx, "proj-123", "adder-123", req)
@@ -1050,21 +1051,21 @@ func TestMemberManagement(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID: "proj-123",
 		}
 
-		user := &project.User{
+		user := &domain.User{
 			ID:    "user-456",
 			Email: "user@example.com",
 		}
 
-		req := &project.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserEmail: "user@example.com",
 			Role:      "developer",
 		}
 
-		existingMembers := []*project.ProjectMember{
+		existingMembers := []*domain.ProjectMember{
 			{
 				UserID: "user-456",
 			},
@@ -1085,14 +1086,14 @@ func TestMemberManagement(t *testing.T) {
 	})
 
 	t.Run("remove member successfully", func(t *testing.T) {
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			ID:        "member-123",
 			ProjectID: "proj-123",
 			UserID:    "user-456",
 			UserEmail: "user@example.com",
 		}
 
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			WorkspaceID:   "ws-123",
 			NamespaceName: "test-project",
@@ -1102,7 +1103,7 @@ func TestMemberManagement(t *testing.T) {
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockRepo.On("RemoveMember", ctx, "member-123").Return(nil)
 		mockK8sRepo.On("RemoveRBAC", ctx, "ws-123", "test-project", "user-456").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.RemoveMember(ctx, "proj-123", "member-123", "remover-123")
@@ -1114,30 +1115,30 @@ func TestMemberManagement(t *testing.T) {
 	})
 
 	t.Run("update member role", func(t *testing.T) {
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			ID:        "member-123",
 			ProjectID: "proj-123",
 			UserID:    "user-456",
 			Role:      "viewer",
 		}
 
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			WorkspaceID:   "ws-123",
 			NamespaceName: "test-project",
 		}
 
-		req := &project.UpdateMemberRoleRequest{
+		req := &domain.UpdateMemberRoleRequest{
 			Role: "admin",
 		}
 
 		mockRepo.On("GetMemberByID", ctx, "member-123").Return(member, nil)
-		mockRepo.On("UpdateMember", ctx, mock.MatchedBy(func(m *project.ProjectMember) bool {
+		mockRepo.On("UpdateMember", ctx, mock.MatchedBy(func(m *domain.ProjectMember) bool {
 			return m.Role == "admin"
 		})).Return(nil)
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockK8sRepo.On("ApplyRBAC", ctx, "ws-123", "test-project", "user-456", "admin").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		result, err := service.UpdateMemberRole(ctx, "proj-123", "member-123", req)
@@ -1160,7 +1161,7 @@ func TestActivityManagement(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("list activities", func(t *testing.T) {
-		activities := []*project.ProjectActivity{
+		activities := []*domain.ProjectActivity{
 			{
 				ID:        "act-1",
 				ProjectID: "proj-123",
@@ -1173,7 +1174,7 @@ func TestActivityManagement(t *testing.T) {
 			},
 		}
 
-		mockRepo.On("ListActivities", ctx, mock.MatchedBy(func(filter project.ActivityFilter) bool {
+		mockRepo.On("ListActivities", ctx, mock.MatchedBy(func(filter domain.ActivityFilter) bool {
 			return filter.ProjectID == "proj-123" && filter.PageSize == 10
 		})).Return(activities, nil)
 
@@ -1189,13 +1190,13 @@ func TestActivityManagement(t *testing.T) {
 	})
 
 	t.Run("log activity", func(t *testing.T) {
-		activity := &project.ProjectActivity{
+		activity := &domain.ProjectActivity{
 			ProjectID:   "proj-123",
 			Type:        "custom_event",
 			Description: "Custom event occurred",
 		}
 
-		mockRepo.On("CreateActivity", ctx, mock.MatchedBy(func(a *project.ProjectActivity) bool {
+		mockRepo.On("CreateActivity", ctx, mock.MatchedBy(func(a *domain.ProjectActivity) bool {
 			return a.ProjectID == "proj-123" &&
 				a.Type == "custom_event" &&
 				a.ID != "" &&
@@ -1220,20 +1221,20 @@ func TestProjectStats(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("get project stats", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID: "proj-123",
 			Settings: map[string]interface{}{
 				"namespaces": []interface{}{"ns-1", "ns-2", "ns-3"},
 			},
 		}
 
-		usage := &project.ResourceUsage{
+		usage := &domain.ResourceUsage{
 			CPU:    "2",
 			Memory: "4Gi",
 			Pods:   20,
 		}
 
-		lastActivity := &project.ProjectActivity{
+		lastActivity := &domain.ProjectActivity{
 			CreatedAt: time.Now().Add(-1 * time.Hour),
 		}
 
@@ -1266,7 +1267,7 @@ func TestAccessControl(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("validate project access - allowed", func(t *testing.T) {
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			UserID: "user-123",
 			Role:   "admin",
 		}
@@ -1304,7 +1305,7 @@ func TestAccessControl(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			UserID: "user-123",
 			Role:   "viewer",
 		}
@@ -1326,7 +1327,7 @@ func TestAccessControl(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			UserID: "user-123",
 			Role:   "developer",
 		}
@@ -1409,17 +1410,17 @@ func TestEdgeCases(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("create project with nil settings", func(t *testing.T) {
-		req := &project.CreateProjectRequest{
+		req := &domain.CreateProjectRequest{
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
 			Settings:    nil,
 		}
 
 		mockRepo.On("GetProjectByNameAndWorkspace", ctx, "test-project", "ws-123").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil)
+		mockRepo.On("CreateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil)
 		mockK8sRepo.On("CreateNamespace", ctx, "ws-123", "test-project", mock.Anything).Return(nil)
-		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*project.Project")).Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("UpdateProject", ctx, mock.AnythingOfType("*domain.Project")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		proj, err := service.CreateProject(ctx, req)
@@ -1431,12 +1432,12 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("update namespace with wrong project ID", func(t *testing.T) {
-		namespace := &project.Namespace{
+		namespace := &domain.Namespace{
 			ID:        "ns-123",
 			ProjectID: "proj-456",
 		}
 
-		req := &project.CreateNamespaceRequest{
+		req := &domain.CreateNamespaceRequest{
 			Description: "Updated description",
 		}
 
@@ -1453,7 +1454,7 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("get member with wrong project ID", func(t *testing.T) {
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			ID:        "member-123",
 			ProjectID: "proj-456",
 		}
@@ -1481,18 +1482,18 @@ func TestGetNamespace(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful namespace retrieval", func(t *testing.T) {
-		namespace := &project.Namespace{
+		namespace := &domain.Namespace{
 			ID:        "ns-123",
 			Name:      "test-namespace",
 			ProjectID: "proj-123",
 		}
 
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			WorkspaceID: "ws-123",
 		}
 
-		usage := &project.NamespaceUsage{
+		usage := &domain.NamespaceUsage{
 			CPU:     "100m",
 			Memory:  "256Mi",
 			Storage: "1Gi",
@@ -1521,7 +1522,7 @@ func TestGetNamespace(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		namespace := &project.Namespace{
+		namespace := &domain.Namespace{
 			ID:        "ns-123",
 			ProjectID: "proj-456",
 		}
@@ -1548,18 +1549,18 @@ func TestGetNamespaceUsage(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful usage retrieval", func(t *testing.T) {
-		namespace := &project.Namespace{
+		namespace := &domain.Namespace{
 			ID:        "ns-123",
 			Name:      "test-namespace",
 			ProjectID: "proj-123",
 		}
 
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			WorkspaceID: "ws-123",
 		}
 
-		usage := &project.NamespaceUsage{
+		usage := &domain.NamespaceUsage{
 			CPU:     "200m",
 			Memory:  "512Mi",
 			Storage: "5Gi",
@@ -1591,7 +1592,7 @@ func TestListMembers(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful member listing", func(t *testing.T) {
-		members := []*project.ProjectMember{
+		members := []*domain.ProjectMember{
 			{
 				ID:        "member-1",
 				ProjectID: "proj-123",
@@ -1629,29 +1630,29 @@ func TestProjectMemberAliases(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("AddProjectMember", func(t *testing.T) {
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:            "proj-123",
 			WorkspaceID:   "ws-123",
 			NamespaceName: "test-project",
 		}
 
-		user := &project.User{
+		user := &domain.User{
 			ID:          "user-456",
 			Email:       "newuser@example.com",
 			DisplayName: "New User",
 		}
 
-		req := &project.AddMemberRequest{
+		req := &domain.AddMemberRequest{
 			UserEmail: "newuser@example.com",
 			Role:      "viewer",
 		}
 
 		mockRepo.On("GetProject", ctx, "proj-123").Return(proj, nil)
 		mockRepo.On("GetUserByEmail", ctx, "newuser@example.com").Return(user, nil)
-		mockRepo.On("ListMembers", ctx, "proj-123").Return([]*project.ProjectMember{}, nil)
-		mockRepo.On("AddMember", ctx, mock.AnythingOfType("*project.ProjectMember")).Return(nil)
+		mockRepo.On("ListMembers", ctx, "proj-123").Return([]*domain.ProjectMember{}, nil)
+		mockRepo.On("AddMember", ctx, mock.AnythingOfType("*domain.ProjectMember")).Return(nil)
 		mockK8sRepo.On("ApplyRBAC", ctx, "ws-123", "test-project", "user-456", "viewer").Return(nil)
-		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepo.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := service.AddProjectMember(ctx, "proj-123", req)
@@ -1668,13 +1669,13 @@ func TestProjectMemberAliases(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		proj := &project.Project{
+		proj := &domain.Project{
 			ID:          "proj-123",
 			Name:        "test-project",
 			WorkspaceID: "ws-123",
 		}
 
-		member := &project.ProjectMember{
+		member := &domain.ProjectMember{
 			ID:        "member-123",
 			ProjectID: "proj-123",
 			UserID:    "user-456",
@@ -1684,7 +1685,7 @@ func TestProjectMemberAliases(t *testing.T) {
 		mockRepoLocal.On("GetMember", ctx, "proj-123", "user-456").Return(member, nil)
 		mockRepoLocal.On("RemoveMember", ctx, "member-123").Return(nil)
 		mockK8sRepoLocal.On("RemoveRBAC", ctx, "ws-123", "test-project", "user-456").Return(nil)
-		mockRepoLocal.On("CreateActivity", ctx, mock.AnythingOfType("*project.ProjectActivity")).Return(nil)
+		mockRepoLocal.On("CreateActivity", ctx, mock.AnythingOfType("*domain.ProjectActivity")).Return(nil)
 
 		// Execute
 		err := serviceLocal.RemoveProjectMember(ctx, "proj-123", "user-456")
@@ -1701,7 +1702,7 @@ func TestProjectMemberAliases(t *testing.T) {
 		mockK8sRepoLocal := new(MockKubernetesRepository)
 		serviceLocal := NewService(mockRepoLocal, mockK8sRepoLocal, logger)
 		
-		members := []*project.ProjectMember{
+		members := []*domain.ProjectMember{
 			{
 				ID:     "member-1",
 				UserID: "user-1",
@@ -1729,7 +1730,7 @@ func TestGetActivityLogs(t *testing.T) {
 	service := NewService(mockRepo, mockK8sRepo, logger)
 
 	t.Run("successful activity logs retrieval", func(t *testing.T) {
-		activities := []*project.ProjectActivity{
+		activities := []*domain.ProjectActivity{
 			{
 				ID:        "act-1",
 				ProjectID: "proj-123",
@@ -1742,11 +1743,11 @@ func TestGetActivityLogs(t *testing.T) {
 			},
 		}
 
-		filter := project.ActivityFilter{
+		filter := domain.ActivityFilter{
 			Type: "member_added",
 		}
 
-		mockRepo.On("ListActivities", ctx, mock.MatchedBy(func(f project.ActivityFilter) bool {
+		mockRepo.On("ListActivities", ctx, mock.MatchedBy(func(f domain.ActivityFilter) bool {
 			return f.ProjectID == "proj-123" && f.Type == "member_added"
 		})).Return(activities, nil)
 

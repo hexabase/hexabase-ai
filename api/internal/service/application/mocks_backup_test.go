@@ -6,7 +6,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -228,12 +228,12 @@ type MockProjectRepository struct {
 	mock.Mock
 }
 
-func (m *MockProjectRepository) GetByID(ctx context.Context, id string) (*project.Project, error) {
+func (m *MockProjectRepository) GetByID(ctx context.Context, id string) (*domain.Project, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.Project), args.Error(1)
+	return args.Get(0).(*domain.Project), args.Error(1)
 }
 
 // MockMonitoringService mocks the monitoring service

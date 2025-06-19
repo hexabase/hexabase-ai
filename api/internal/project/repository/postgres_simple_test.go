@@ -1,4 +1,4 @@
-package project
+package repository
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	"github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
 func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
@@ -83,7 +83,7 @@ func TestNewPostgresRepository(t *testing.T) {
 	assert.NotNil(t, repo)
 	
 	// Verify it implements the interface
-	var _ project.Repository = repo
+	var _ domain.Repository = repo
 }
 
 // Test delete operations that use simple SQL
@@ -149,7 +149,7 @@ func TestPostgresRepository_DeleteOperations(t *testing.T) {
 	t.Run("CleanupOldActivities executes correct SQL", func(t *testing.T) {
 		before := time.Now().Add(-30 * 24 * time.Hour)
 
-		mock.ExpectExec(`DELETE FROM "activities" WHERE created_at < \$1`).
+		mock.ExpectExec(`DELETE FROM "project_activities" WHERE created_at < \$1`).
 			WithArgs(before).
 			WillReturnResult(sqlmock.NewResult(0, 10))
 

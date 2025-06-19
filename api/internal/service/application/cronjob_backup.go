@@ -10,13 +10,13 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/project"
+	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
 // Update to use project.Service instead of direct repository
 type ExtendedService struct {
 	*Service
-	projectService    project.Service  // Change from Repository to Service
+	projectService    projectDomain.Service  // Change from Repository to Service
 	backupService     backup.Service
 	monitoringService monitoring.Service
 }
