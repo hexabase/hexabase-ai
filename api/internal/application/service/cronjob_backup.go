@@ -1,4 +1,4 @@
-package application
+package service
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
@@ -24,11 +24,12 @@ type ExtendedService struct {
 // CreateApplicationWithBackupPolicy creates a CronJob application with an associated backup policy
 func (s *ExtendedService) CreateApplicationWithBackupPolicy(
 	ctx context.Context,
-	req *application.CreateApplicationRequest,
+	workspaceID string,
+	req *domain.CreateApplicationRequest,
 	backupPolicyReq *backup.CreateBackupPolicyRequest,
-) (*application.Application, error) {
+) (*domain.Application, error) {
 	// Validate CronJob type
-	if req.Type != application.ApplicationTypeCronJob {
+	if req.Type != domain.ApplicationTypeCronJob {
 		return nil, fmt.Errorf("backup policy can only be created for CronJob applications")
 	}
 
@@ -50,7 +51,7 @@ func (s *ExtendedService) CreateApplicationWithBackupPolicy(
 	}
 
 	// Create the application
-	app, err := s.CreateApplication(ctx, req.ProjectID, *req)
+	app, err := s.CreateApplication(ctx, workspaceID, *req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create application: %w", err)
 	}
@@ -65,29 +66,38 @@ func (s *ExtendedService) CreateApplicationWithBackupPolicy(
 			return nil, fmt.Errorf("failed to create backup policy: %w", err)
 		}
 
+		// Initialize metadata if not exists
+		if app.Metadata == nil {
+			app.Metadata = make(map[string]string)
+		}
+		
 		// Update application metadata with backup policy ID
 		app.Metadata["backup_policy_id"] = policy.ID
 		if err := s.repo.UpdateApplication(ctx, app); err != nil {
 			return nil, fmt.Errorf("failed to update application with backup policy: %w", err)
 		}
+		
+		// Ensure backup_enabled is still set after update
+		app.Metadata["backup_enabled"] = "true"
 	}
 
 	return app, nil
 }
 
 // TriggerCronJob triggers a CronJob and creates backup execution if configured
-func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.TriggerCronJobRequest) (*application.CronJobExecution, error) {
+func (s *ExtendedService) TriggerCronJob(ctx context.Context,
+	workspaceID string, req *domain.TriggerCronJobRequest) (*domain.CronJobExecution, error) {
 	// Get application
 	app, err := s.repo.GetApplication(ctx, req.ApplicationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application: %w", err)
 	}
 
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return nil, fmt.Errorf("application is not a CronJob")
 	}
 
-	if app.Status != application.ApplicationStatusRunning {
+	if app.Status != domain.ApplicationStatusRunning {
 		return nil, fmt.Errorf("CronJob is not in running state")
 	}
 
@@ -98,12 +108,12 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.T
 	}
 
 	// Trigger the CronJob in Kubernetes
-	execution := &application.CronJobExecution{
+	execution := &domain.CronJobExecution{
 		ID:            "cje-" + uuid.New().String(),
 		ApplicationID: app.ID,
 		JobName:       app.Name + "-manual-" + time.Now().Format("20060102150405"),
 		StartedAt:     time.Now(),
-		Status:        application.CronJobExecutionStatusRunning,
+		Status:        domain.CronJobExecutionStatusRunning,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -146,8 +156,9 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context, req *application.T
 // UpdateCronJobExecutionStatus updates CronJob execution status and related backup status
 func (s *ExtendedService) UpdateCronJobExecutionStatus(
 	ctx context.Context,
+	workspaceID string,
 	executionID string,
-	status application.CronJobExecutionStatus,
+	status domain.CronJobExecutionStatus,
 ) error {
 	// Get the execution
 	execution, err := s.repo.GetCronJobExecution(ctx, executionID)

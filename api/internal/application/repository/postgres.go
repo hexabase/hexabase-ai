@@ -1,4 +1,4 @@
-package application
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -18,14 +18,14 @@ type PostgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL repository
-func NewPostgresRepository(db *gorm.DB) application.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &PostgresRepository{db: db}
 }
 
 // CreateApplication creates a new application
-func (r *PostgresRepository) CreateApplication(ctx context.Context, app *application.Application) error {
+func (r *PostgresRepository) CreateApplication(ctx context.Context, app *domain.Application) error {
 	// For CronJob with template, fetch template app first
-	if app.Type == application.ApplicationTypeCronJob && app.TemplateAppID != "" {
+	if app.Type == domain.ApplicationTypeCronJob && app.TemplateAppID != "" {
 		templateApp, err := r.GetApplication(ctx, app.TemplateAppID)
 		if err != nil {
 			return fmt.Errorf("failed to get template application: %w", err)
@@ -60,7 +60,7 @@ func (r *PostgresRepository) CreateApplication(ctx context.Context, app *applica
 }
 
 // GetApplication retrieves an application by ID
-func (r *PostgresRepository) GetApplication(ctx context.Context, id string) (*application.Application, error) {
+func (r *PostgresRepository) GetApplication(ctx context.Context, id string) (*domain.Application, error) {
 	var dbApp db.Application
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&dbApp).Error
 	if err != nil {
@@ -74,7 +74,7 @@ func (r *PostgresRepository) GetApplication(ctx context.Context, id string) (*ap
 }
 
 // GetApplicationByName retrieves an application by name within a workspace and project
-func (r *PostgresRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*application.Application, error) {
+func (r *PostgresRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*domain.Application, error) {
 	var dbApp db.Application
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ? AND project_id = ? AND name = ?", workspaceID, projectID, name).
@@ -89,7 +89,7 @@ func (r *PostgresRepository) GetApplicationByName(ctx context.Context, workspace
 }
 
 // ListApplications lists all applications in a workspace/project
-func (r *PostgresRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]application.Application, error) {
+func (r *PostgresRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]domain.Application, error) {
 	var dbApps []db.Application
 	query := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID)
 	if projectID != "" {
@@ -100,7 +100,7 @@ func (r *PostgresRepository) ListApplications(ctx context.Context, workspaceID, 
 		return nil, err
 	}
 	
-	var apps []application.Application
+	var apps []domain.Application
 	for _, dbApp := range dbApps {
 		app, err := r.dbToDomainApp(&dbApp)
 		if err != nil {
@@ -112,7 +112,7 @@ func (r *PostgresRepository) ListApplications(ctx context.Context, workspaceID, 
 }
 
 // UpdateApplication updates an application
-func (r *PostgresRepository) UpdateApplication(ctx context.Context, app *application.Application) error {
+func (r *PostgresRepository) UpdateApplication(ctx context.Context, app *domain.Application) error {
 	dbApp, err := r.domainToDBApp(app)
 	if err != nil {
 		return err
@@ -126,13 +126,13 @@ func (r *PostgresRepository) DeleteApplication(ctx context.Context, id string) e
 }
 
 // CreateEvent creates a new application event
-func (r *PostgresRepository) CreateEvent(ctx context.Context, event *application.ApplicationEvent) error {
+func (r *PostgresRepository) CreateEvent(ctx context.Context, event *domain.ApplicationEvent) error {
 	return r.db.WithContext(ctx).Create(event).Error
 }
 
 // ListEvents lists events for an application
-func (r *PostgresRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]application.ApplicationEvent, error) {
-	var events []application.ApplicationEvent
+func (r *PostgresRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]domain.ApplicationEvent, error) {
+	var events []domain.ApplicationEvent
 	query := r.db.WithContext(ctx).Where("application_id = ?", applicationID).Order("timestamp DESC")
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -142,7 +142,7 @@ func (r *PostgresRepository) ListEvents(ctx context.Context, applicationID strin
 }
 
 // GetApplicationsByNode retrieves applications running on a specific node
-func (r *PostgresRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]application.Application, error) {
+func (r *PostgresRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]domain.Application, error) {
 	var dbApps []db.Application
 	// Use JSON query for node selector
 	err := r.db.WithContext(ctx).
@@ -152,7 +152,7 @@ func (r *PostgresRepository) GetApplicationsByNode(ctx context.Context, nodeID s
 		return nil, err
 	}
 	
-	var apps []application.Application
+	var apps []domain.Application
 	for _, dbApp := range dbApps {
 		app, err := r.dbToDomainApp(&dbApp)
 		if err != nil {
@@ -164,7 +164,7 @@ func (r *PostgresRepository) GetApplicationsByNode(ctx context.Context, nodeID s
 }
 
 // GetApplicationsByStatus retrieves applications by status
-func (r *PostgresRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status application.ApplicationStatus) ([]application.Application, error) {
+func (r *PostgresRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status domain.ApplicationStatus) ([]domain.Application, error) {
 	var dbApps []db.Application
 	query := r.db.WithContext(ctx).Where("status = ?", string(status))
 	if workspaceID != "" {
@@ -175,7 +175,7 @@ func (r *PostgresRepository) GetApplicationsByStatus(ctx context.Context, worksp
 		return nil, err
 	}
 	
-	var apps []application.Application
+	var apps []domain.Application
 	for _, dbApp := range dbApps {
 		app, err := r.dbToDomainApp(&dbApp)
 		if err != nil {
@@ -187,13 +187,13 @@ func (r *PostgresRepository) GetApplicationsByStatus(ctx context.Context, worksp
 }
 
 // Create is an alias for CreateApplication (for backward compatibility)
-func (r *PostgresRepository) Create(ctx context.Context, app *application.Application) error {
+func (r *PostgresRepository) Create(ctx context.Context, app *domain.Application) error {
 	return r.CreateApplication(ctx, app)
 }
 
 // GetCronJobExecutions retrieves executions for a CronJob application
-func (r *PostgresRepository) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
-	var executions []application.CronJobExecution
+func (r *PostgresRepository) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]domain.CronJobExecution, int, error) {
+	var executions []domain.CronJobExecution
 	var total int64
 
 	// Count total executions
@@ -217,13 +217,13 @@ func (r *PostgresRepository) GetCronJobExecutions(ctx context.Context, applicati
 
 	// Convert to domain models
 	for _, dbExec := range dbExecutions {
-		exec := application.CronJobExecution{
+		exec := domain.CronJobExecution{
 			ID:            dbExec.ID,
 			ApplicationID: dbExec.ApplicationID,
 			JobName:       dbExec.JobName,
 			StartedAt:     dbExec.StartedAt,
 			CompletedAt:   dbExec.CompletedAt,
-			Status:        application.CronJobExecutionStatus(dbExec.Status),
+			Status:        domain.CronJobExecutionStatus(dbExec.Status),
 			ExitCode:      dbExec.ExitCode,
 			Logs:          dbExec.Logs,
 			CreatedAt:     dbExec.CreatedAt,
@@ -236,7 +236,7 @@ func (r *PostgresRepository) GetCronJobExecutions(ctx context.Context, applicati
 }
 
 // CreateCronJobExecution creates a new CronJob execution record
-func (r *PostgresRepository) CreateCronJobExecution(ctx context.Context, execution *application.CronJobExecution) error {
+func (r *PostgresRepository) CreateCronJobExecution(ctx context.Context, execution *domain.CronJobExecution) error {
 	dbExec := &db.CronJobExecution{
 		ID:            execution.ID,
 		ApplicationID: execution.ApplicationID,
@@ -261,7 +261,7 @@ func (r *PostgresRepository) CreateCronJobExecution(ctx context.Context, executi
 }
 
 // UpdateCronJobExecution updates a CronJob execution record
-func (r *PostgresRepository) UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status application.CronJobExecutionStatus, exitCode *int, logs string) error {
+func (r *PostgresRepository) UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status domain.CronJobExecutionStatus, exitCode *int, logs string) error {
 	updates := map[string]interface{}{
 		"completed_at": completedAt,
 		"status":       string(status),
@@ -285,7 +285,7 @@ func (r *PostgresRepository) UpdateCronSchedule(ctx context.Context, application
 }
 
 // GetCronJobExecutionByID retrieves a single CronJob execution by ID
-func (r *PostgresRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+func (r *PostgresRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*domain.CronJobExecution, error) {
 	var dbExec db.CronJobExecution
 	if err := r.db.WithContext(ctx).Where("id = ?", executionID).First(&dbExec).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -294,13 +294,13 @@ func (r *PostgresRepository) GetCronJobExecutionByID(ctx context.Context, execut
 		return nil, err
 	}
 
-	exec := &application.CronJobExecution{
+	exec := &domain.CronJobExecution{
 		ID:            dbExec.ID,
 		ApplicationID: dbExec.ApplicationID,
 		JobName:       dbExec.JobName,
 		StartedAt:     dbExec.StartedAt,
 		CompletedAt:   dbExec.CompletedAt,
-		Status:        application.CronJobExecutionStatus(dbExec.Status),
+		Status:        domain.CronJobExecutionStatus(dbExec.Status),
 		ExitCode:      dbExec.ExitCode,
 		Logs:          dbExec.Logs,
 		CreatedAt:     dbExec.CreatedAt,
@@ -311,9 +311,9 @@ func (r *PostgresRepository) GetCronJobExecutionByID(ctx context.Context, execut
 }
 
 // Helper method to convert DB Application to Domain Application
-func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.Application, error) {
+func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*domain.Application, error) {
 	// Parse config JSON
-	var config application.ApplicationConfig
+	var config domain.ApplicationConfig
 	if dbApp.Config != nil {
 		if err := json.Unmarshal(dbApp.Config, &config); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
@@ -321,20 +321,20 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 	}
 
 	// Parse endpoints JSON
-	var endpoints []application.Endpoint
+	var endpoints []domain.Endpoint
 	if dbApp.Endpoints != nil {
 		if err := json.Unmarshal(dbApp.Endpoints, &endpoints); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal endpoints: %w", err)
 		}
 	}
 
-	app := &application.Application{
+	app := &domain.Application{
 		ID:              dbApp.ID,
 		WorkspaceID:     dbApp.WorkspaceID,
 		ProjectID:       dbApp.ProjectID,
 		Name:            dbApp.Name,
-		Type:            application.ApplicationType(dbApp.Type),
-		Status:          application.ApplicationStatus(dbApp.Status),
+		Type:            domain.ApplicationType(dbApp.Type),
+		Status:          domain.ApplicationStatus(dbApp.Status),
 		Config:          config,
 		Endpoints:       endpoints,
 		CronSchedule:    ptrToString(dbApp.CronSchedule),
@@ -349,7 +349,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 
 	// Function specific fields
 	if dbApp.FunctionRuntime != nil {
-		app.FunctionRuntime = application.FunctionRuntime(*dbApp.FunctionRuntime)
+		app.FunctionRuntime = domain.FunctionRuntime(*dbApp.FunctionRuntime)
 	}
 	if dbApp.FunctionHandler != nil {
 		app.FunctionHandler = *dbApp.FunctionHandler
@@ -361,7 +361,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 		app.FunctionMemory = *dbApp.FunctionMemory
 	}
 	if dbApp.FunctionTriggerType != nil {
-		app.FunctionTriggerType = application.FunctionTriggerType(*dbApp.FunctionTriggerType)
+		app.FunctionTriggerType = domain.FunctionTriggerType(*dbApp.FunctionTriggerType)
 	}
 	if dbApp.FunctionTriggerConfig != nil {
 		var triggerConfig map[string]interface{}
@@ -383,7 +383,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 	}
 
 	// Set source
-	app.Source.Type = application.SourceType(dbApp.SourceType)
+	app.Source.Type = domain.SourceType(dbApp.SourceType)
 	app.Source.Image = dbApp.SourceImage
 	app.Source.GitURL = dbApp.SourceGitURL
 	app.Source.GitRef = dbApp.SourceGitRef
@@ -392,7 +392,7 @@ func (r *PostgresRepository) dbToDomainApp(dbApp *db.Application) (*application.
 }
 
 // Helper method to convert Domain Application to DB Application
-func (r *PostgresRepository) domainToDBApp(app *application.Application) (*db.Application, error) {
+func (r *PostgresRepository) domainToDBApp(app *domain.Application) (*db.Application, error) {
 	// Marshal config to JSON
 	configJSON, err := json.Marshal(app.Config)
 	if err != nil {
@@ -429,7 +429,7 @@ func (r *PostgresRepository) domainToDBApp(app *application.Application) (*db.Ap
 	}
 
 	// Function specific fields
-	if app.Type == application.ApplicationTypeFunction {
+	if app.Type == domain.ApplicationTypeFunction {
 		runtime := string(app.FunctionRuntime)
 		dbApp.FunctionRuntime = &runtime
 		dbApp.FunctionHandler = &app.FunctionHandler
@@ -456,7 +456,7 @@ func (r *PostgresRepository) domainToDBApp(app *application.Application) (*db.Ap
 }
 
 // CreateFunctionVersion creates a new function version
-func (r *PostgresRepository) CreateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+func (r *PostgresRepository) CreateFunctionVersion(ctx context.Context, version *domain.FunctionVersion) error {
 	dbVersion := &db.FunctionVersion{
 		ID:            version.ID,
 		ApplicationID: version.ApplicationID,
@@ -484,7 +484,7 @@ func (r *PostgresRepository) CreateFunctionVersion(ctx context.Context, version 
 }
 
 // GetFunctionVersion retrieves a function version by ID
-func (r *PostgresRepository) GetFunctionVersion(ctx context.Context, versionID string) (*application.FunctionVersion, error) {
+func (r *PostgresRepository) GetFunctionVersion(ctx context.Context, versionID string) (*domain.FunctionVersion, error) {
 	var dbVersion db.FunctionVersion
 	if err := r.db.WithContext(ctx).Where("id = ?", versionID).First(&dbVersion).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -497,7 +497,7 @@ func (r *PostgresRepository) GetFunctionVersion(ctx context.Context, versionID s
 }
 
 // GetFunctionVersions retrieves all versions for an application
-func (r *PostgresRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+func (r *PostgresRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]domain.FunctionVersion, error) {
 	var dbVersions []db.FunctionVersion
 	if err := r.db.WithContext(ctx).
 		Where("application_id = ?", applicationID).
@@ -506,7 +506,7 @@ func (r *PostgresRepository) GetFunctionVersions(ctx context.Context, applicatio
 		return nil, err
 	}
 
-	var versions []application.FunctionVersion
+	var versions []domain.FunctionVersion
 	for _, dbVersion := range dbVersions {
 		versions = append(versions, *r.dbToDomainFunctionVersion(&dbVersion))
 	}
@@ -514,7 +514,7 @@ func (r *PostgresRepository) GetFunctionVersions(ctx context.Context, applicatio
 }
 
 // GetActiveFunctionVersion retrieves the active function version for an application
-func (r *PostgresRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*application.FunctionVersion, error) {
+func (r *PostgresRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*domain.FunctionVersion, error) {
 	var dbVersion db.FunctionVersion
 	if err := r.db.WithContext(ctx).
 		Where("application_id = ? AND is_active = ?", applicationID, true).
@@ -529,7 +529,7 @@ func (r *PostgresRepository) GetActiveFunctionVersion(ctx context.Context, appli
 }
 
 // UpdateFunctionVersion updates a function version
-func (r *PostgresRepository) UpdateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+func (r *PostgresRepository) UpdateFunctionVersion(ctx context.Context, version *domain.FunctionVersion) error {
 	dbVersion := &db.FunctionVersion{
 		ID:          version.ID,
 		BuildLogs:   version.BuildLogs,
@@ -571,7 +571,7 @@ func (r *PostgresRepository) SetActiveFunctionVersion(ctx context.Context, appli
 }
 
 // CreateFunctionInvocation creates a new function invocation record
-func (r *PostgresRepository) CreateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+func (r *PostgresRepository) CreateFunctionInvocation(ctx context.Context, invocation *domain.FunctionInvocation) error {
 	dbInvocation := r.domainToDBFunctionInvocation(invocation)
 
 	if err := r.db.WithContext(ctx).Create(dbInvocation).Error; err != nil {
@@ -584,7 +584,7 @@ func (r *PostgresRepository) CreateFunctionInvocation(ctx context.Context, invoc
 }
 
 // GetFunctionInvocation retrieves a function invocation by ID
-func (r *PostgresRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*application.FunctionInvocation, error) {
+func (r *PostgresRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*domain.FunctionInvocation, error) {
 	var dbInvocation db.FunctionInvocation
 	if err := r.db.WithContext(ctx).Where("id = ?", invocationID).First(&dbInvocation).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -597,7 +597,7 @@ func (r *PostgresRepository) GetFunctionInvocation(ctx context.Context, invocati
 }
 
 // GetFunctionInvocations retrieves invocations for an application
-func (r *PostgresRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+func (r *PostgresRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]domain.FunctionInvocation, int, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).
 		Model(&db.FunctionInvocation{}).
@@ -616,7 +616,7 @@ func (r *PostgresRepository) GetFunctionInvocations(ctx context.Context, applica
 		return nil, 0, err
 	}
 
-	var invocations []application.FunctionInvocation
+	var invocations []domain.FunctionInvocation
 	for _, dbInvocation := range dbInvocations {
 		inv, err := r.dbToDomainFunctionInvocation(&dbInvocation)
 		if err != nil {
@@ -629,7 +629,7 @@ func (r *PostgresRepository) GetFunctionInvocations(ctx context.Context, applica
 }
 
 // UpdateFunctionInvocation updates a function invocation
-func (r *PostgresRepository) UpdateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+func (r *PostgresRepository) UpdateFunctionInvocation(ctx context.Context, invocation *domain.FunctionInvocation) error {
 	updates := map[string]interface{}{
 		"response_status":  invocation.ResponseStatus,
 		"response_headers": r.marshalJSONField(invocation.ResponseHeaders),
@@ -647,7 +647,7 @@ func (r *PostgresRepository) UpdateFunctionInvocation(ctx context.Context, invoc
 }
 
 // CreateFunctionEvent creates a new function event
-func (r *PostgresRepository) CreateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+func (r *PostgresRepository) CreateFunctionEvent(ctx context.Context, event *domain.FunctionEvent) error {
 	dbEvent, err := r.domainToDBFunctionEvent(event)
 	if err != nil {
 		return err
@@ -663,7 +663,7 @@ func (r *PostgresRepository) CreateFunctionEvent(ctx context.Context, event *app
 }
 
 // GetFunctionEvent retrieves a function event by ID
-func (r *PostgresRepository) GetFunctionEvent(ctx context.Context, eventID string) (*application.FunctionEvent, error) {
+func (r *PostgresRepository) GetFunctionEvent(ctx context.Context, eventID string) (*domain.FunctionEvent, error) {
 	var dbEvent db.FunctionEvent
 	if err := r.db.WithContext(ctx).Where("id = ?", eventID).First(&dbEvent).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -676,7 +676,7 @@ func (r *PostgresRepository) GetFunctionEvent(ctx context.Context, eventID strin
 }
 
 // GetPendingFunctionEvents retrieves pending events for an application
-func (r *PostgresRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+func (r *PostgresRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]domain.FunctionEvent, error) {
 	var dbEvents []db.FunctionEvent
 	query := r.db.WithContext(ctx).
 		Where("application_id = ? AND processing_status IN ?", applicationID, []string{"pending", "retry"}).
@@ -690,7 +690,7 @@ func (r *PostgresRepository) GetPendingFunctionEvents(ctx context.Context, appli
 		return nil, err
 	}
 
-	var events []application.FunctionEvent
+	var events []domain.FunctionEvent
 	for _, dbEvent := range dbEvents {
 		event, err := r.dbToDomainFunctionEvent(&dbEvent)
 		if err != nil {
@@ -703,7 +703,7 @@ func (r *PostgresRepository) GetPendingFunctionEvents(ctx context.Context, appli
 }
 
 // UpdateFunctionEvent updates a function event
-func (r *PostgresRepository) UpdateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+func (r *PostgresRepository) UpdateFunctionEvent(ctx context.Context, event *domain.FunctionEvent) error {
 	updates := map[string]interface{}{
 		"processing_status": event.ProcessingStatus,
 		"retry_count":       event.RetryCount,
@@ -719,16 +719,16 @@ func (r *PostgresRepository) UpdateFunctionEvent(ctx context.Context, event *app
 }
 
 // Helper methods for Function domain/db conversion
-func (r *PostgresRepository) dbToDomainFunctionVersion(dbVersion *db.FunctionVersion) *application.FunctionVersion {
-	return &application.FunctionVersion{
+func (r *PostgresRepository) dbToDomainFunctionVersion(dbVersion *db.FunctionVersion) *domain.FunctionVersion {
+	return &domain.FunctionVersion{
 		ID:            dbVersion.ID,
 		ApplicationID: dbVersion.ApplicationID,
 		VersionNumber: dbVersion.VersionNumber,
 		SourceCode:    dbVersion.SourceCode,
-		SourceType:    application.FunctionSourceType(dbVersion.SourceType),
+		SourceType:    domain.FunctionSourceType(dbVersion.SourceType),
 		SourceURL:     dbVersion.SourceURL,
 		BuildLogs:     dbVersion.BuildLogs,
-		BuildStatus:   application.FunctionBuildStatus(dbVersion.BuildStatus),
+		BuildStatus:   domain.FunctionBuildStatus(dbVersion.BuildStatus),
 		ImageURI:      dbVersion.ImageURI,
 		IsActive:      dbVersion.IsActive,
 		DeployedAt:    dbVersion.DeployedAt,
@@ -737,7 +737,7 @@ func (r *PostgresRepository) dbToDomainFunctionVersion(dbVersion *db.FunctionVer
 	}
 }
 
-func (r *PostgresRepository) domainToDBFunctionInvocation(inv *application.FunctionInvocation) *db.FunctionInvocation {
+func (r *PostgresRepository) domainToDBFunctionInvocation(inv *domain.FunctionInvocation) *db.FunctionInvocation {
 	return &db.FunctionInvocation{
 		ID:              inv.ID,
 		ApplicationID:   inv.ApplicationID,
@@ -761,8 +761,8 @@ func (r *PostgresRepository) domainToDBFunctionInvocation(inv *application.Funct
 	}
 }
 
-func (r *PostgresRepository) dbToDomainFunctionInvocation(dbInv *db.FunctionInvocation) (*application.FunctionInvocation, error) {
-	inv := &application.FunctionInvocation{
+func (r *PostgresRepository) dbToDomainFunctionInvocation(dbInv *db.FunctionInvocation) (*domain.FunctionInvocation, error) {
+	inv := &domain.FunctionInvocation{
 		ID:             dbInv.ID,
 		ApplicationID:  dbInv.ApplicationID,
 		VersionID:      dbInv.VersionID,
@@ -802,7 +802,7 @@ func (r *PostgresRepository) dbToDomainFunctionInvocation(dbInv *db.FunctionInvo
 	return inv, nil
 }
 
-func (r *PostgresRepository) domainToDBFunctionEvent(event *application.FunctionEvent) (*db.FunctionEvent, error) {
+func (r *PostgresRepository) domainToDBFunctionEvent(event *domain.FunctionEvent) (*db.FunctionEvent, error) {
 	eventData, err := json.Marshal(event.EventData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal event data: %w", err)
@@ -824,7 +824,7 @@ func (r *PostgresRepository) domainToDBFunctionEvent(event *application.Function
 	}, nil
 }
 
-func (r *PostgresRepository) dbToDomainFunctionEvent(dbEvent *db.FunctionEvent) (*application.FunctionEvent, error) {
+func (r *PostgresRepository) dbToDomainFunctionEvent(dbEvent *db.FunctionEvent) (*domain.FunctionEvent, error) {
 	var eventData map[string]interface{}
 	if dbEvent.EventData != nil {
 		if err := json.Unmarshal([]byte(dbEvent.EventData), &eventData); err != nil {
@@ -832,7 +832,7 @@ func (r *PostgresRepository) dbToDomainFunctionEvent(dbEvent *db.FunctionEvent) 
 		}
 	}
 
-	return &application.FunctionEvent{
+	return &domain.FunctionEvent{
 		ID:               dbEvent.ID,
 		ApplicationID:    dbEvent.ApplicationID,
 		EventType:        dbEvent.EventType,
@@ -872,6 +872,6 @@ func stringToPtr(s string) *string {
 }
 
 // GetCronJobExecution retrieves a CronJob execution by ID
-func (r *PostgresRepository) GetCronJobExecution(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+func (r *PostgresRepository) GetCronJobExecution(ctx context.Context, executionID string) (*domain.CronJobExecution, error) {
 	return r.GetCronJobExecutionByID(ctx, executionID)
 }

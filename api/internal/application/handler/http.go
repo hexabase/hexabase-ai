@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	application "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 )
 
 // ApplicationHandler handles application-related requests

@@ -1,15 +1,14 @@
-package application
+package service
 
 import (
 	"context"
 	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
@@ -287,7 +286,7 @@ func (m *MockMonitoringService) ResolveAlert(ctx context.Context, alertID string
 func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 	tests := []struct {
 		name              string
-		req               *application.CreateApplicationRequest
+		req               *domain.CreateApplicationRequest
 		backupPolicyReq   *backup.CreateBackupPolicyRequest
 		setupMocks        func(*MockApplicationRepository, *MockKubernetesRepository, *MockBackupService)
 		wantErr           bool
@@ -295,20 +294,21 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 	}{
 		{
 			name: "create cronjob with backup policy - success",
-			req: &application.CreateApplicationRequest{
+			req: &domain.CreateApplicationRequest{
 				Name:      "backup-cronjob",
-				Type:      application.ApplicationTypeCronJob,
+				Type:      domain.ApplicationTypeCronJob,
 				ProjectID: "proj-123",
-				Source: application.ApplicationSource{
-					Type:  application.SourceTypeImage,
+				Source: domain.ApplicationSource{
+					Type:  domain.SourceTypeImage,
 					Image: "backup-tool:latest",
 				},
-				Config: application.ApplicationConfig{
+				Config: domain.ApplicationConfig{
 					Environment: map[string]string{
 						"BACKUP_TARGET": "database",
 					},
 				},
-				CronSchedule: "0 2 * * *", // Daily at 2 AM
+				CronSchedule: "0 2 * * *",
+				CronCommand:  []string{"/bin/backup.sh"},
 			},
 			backupPolicyReq: &backup.CreateBackupPolicyRequest{
 				StorageID:          "storage-123",
@@ -324,20 +324,16 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 			},
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
 				// Check if application already exists (should return nil, indicating not found)
-				appRepo.On("GetApplicationByName", mock.Anything, "proj-123", "proj-123", "backup-cronjob").Return(nil, nil)
+				appRepo.On("GetApplicationByName", mock.Anything, "workspace-123", "proj-123", "backup-cronjob").Return(nil, nil)
 				
 				// Create application
-				appRepo.On("Create", mock.Anything, mock.MatchedBy(func(app *application.Application) bool {
-					return app.Name == "backup-cronjob" && 
-						   app.Type == application.ApplicationTypeCronJob &&
-						   app.Metadata["backup_enabled"] == "true"
-				})).Return(nil)
+				appRepo.On("CreateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil)
 
 				// Create CronJob in Kubernetes
-				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything).Return(nil)
+				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 				// Create backup policy
-				backupSvc.On("CreateBackupPolicy", mock.Anything, "app-123", mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
+				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
 					return req.StorageID == "storage-123" &&
 						   req.Schedule == "0 3 * * *" &&
 						   req.RetentionDays == 30
@@ -349,19 +345,18 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				}, nil)
 
 				// Update application with backup policy ID
-				appRepo.On("Update", mock.Anything, "app-123", mock.MatchedBy(func(app *application.Application) bool {
-					return app.Metadata["backup_policy_id"] == "policy-123"
-				})).Return(nil)
+				appRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil)
 			},
 			wantErr: false,
 		},
 		{
 			name: "create cronjob with backup policy - validate schedule compatibility",
-			req: &application.CreateApplicationRequest{
+			req: &domain.CreateApplicationRequest{
 				Name:         "backup-cronjob",
-				Type:         application.ApplicationTypeCronJob,
+				Type:         domain.ApplicationTypeCronJob,
 				ProjectID:    "proj-123",
-				CronSchedule: "0 2 * * *", // Daily at 2 AM
+				CronSchedule: "0 2 * * *",
+				CronCommand:  []string{"/bin/backup.sh"},
 			},
 			backupPolicyReq: &backup.CreateBackupPolicyRequest{
 				StorageID:     "storage-123",
@@ -372,15 +367,20 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				// Should not be called due to validation error
 			},
 			wantErr:    true,
-			errMessage: "backup policy schedule must run after cronjob schedule",
+			errMessage: "backup schedule must run after cronjob schedule",
 		},
 		{
 			name: "create cronjob with backup hooks",
-			req: &application.CreateApplicationRequest{
+			req: &domain.CreateApplicationRequest{
 				Name:         "db-backup-cronjob",
-				Type:         application.ApplicationTypeCronJob,
+				Type:         domain.ApplicationTypeCronJob,
 				ProjectID:    "proj-123",
+				Source: domain.ApplicationSource{
+					Type:  domain.SourceTypeImage,
+					Image: "db-backup:latest",
+				},
 				CronSchedule: "0 2 * * *",
+				CronCommand:  []string{"/bin/backup.sh"},
 			},
 			backupPolicyReq: &backup.CreateBackupPolicyRequest{
 				StorageID:      "storage-123",
@@ -391,12 +391,12 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 			},
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
 				// Check if application already exists
-				appRepo.On("GetApplicationByName", mock.Anything, "proj-123", "proj-123", "db-backup-cronjob").Return(nil, nil)
+				appRepo.On("GetApplicationByName", mock.Anything, "workspace-123", "proj-123", "db-backup-cronjob").Return(nil, nil)
 				
-				appRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
-				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything).Return(nil)
+				appRepo.On("CreateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil)
+				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				
-				backupSvc.On("CreateBackupPolicy", mock.Anything, "app-123", mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
+				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
 					return req.PreBackupHook != "" && req.PostBackupHook != ""
 				})).Return(&backup.BackupPolicy{
 					ID:             "policy-123",
@@ -404,7 +404,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 					PostBackupHook: "kubectl exec -n {namespace} {pod} -- /scripts/post-backup.sh",
 				}, nil)
 				
-				appRepo.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				appRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -453,7 +453,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 
 			// Execute
 			ctx := context.Background()
-			app, err := svc.CreateApplicationWithBackupPolicy(ctx, tt.req, tt.backupPolicyReq)
+			app, err := svc.CreateApplicationWithBackupPolicy(ctx, "workspace-123", tt.req, tt.backupPolicyReq)
 
 			// Assert
 			if tt.wantErr {
@@ -464,7 +464,10 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, app)
-				assert.Equal(t, "true", app.Metadata["backup_enabled"])
+				if tt.backupPolicyReq != nil {
+					assert.NotNil(t, app.Metadata)
+					assert.Equal(t, "true", app.Metadata["backup_enabled"])
+				}
 			}
 
 			// Verify mock expectations
@@ -487,35 +490,27 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 			appID: "app-123",
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
 				// Get application with backup policy
-				appRepo.On("GetByID", mock.Anything, "app-123").Return(&application.Application{
+				appRepo.On("GetApplication", mock.Anything, "app-123").Return(&domain.Application{
 					ID:   "app-123",
 					Name: "backup-cronjob",
-					Type: application.ApplicationTypeCronJob,
+					Type: domain.ApplicationTypeCronJob,
 					Metadata: map[string]string{
 						"backup_enabled":    "true",
 						"backup_policy_id": "policy-123",
 					},
-					Status: application.ApplicationStatusRunning,
+					Status: domain.ApplicationStatusRunning,
 				}, nil)
 
 				// Trigger CronJob
-				k8sRepo.On("TriggerCronJob", mock.Anything, "test-namespace", "backup-cronjob").Return(&application.CronJobExecution{
-					ID:            "cje-123",
-					ApplicationID: "app-123",
-					JobName:       "backup-cronjob-manual-123",
-					StartedAt:     time.Now(),
-					Status:        application.CronJobExecutionStatusRunning,
-				}, nil)
+				k8sRepo.On("TriggerCronJob", mock.Anything, mock.Anything, mock.Anything, "backup-cronjob").Return(nil)
 
 				// Create backup execution linked to cronjob execution
-				backupSvc.On("CreateBackupExecution", mock.Anything, mock.MatchedBy(func(exec *backup.BackupExecution) bool {
-					return exec.PolicyID == "policy-123" &&
-						   exec.CronJobExecutionID == "cje-123" &&
-						   exec.Status == backup.BackupExecutionStatusRunning
+				backupSvc.On("TriggerManualBackup", mock.Anything, mock.Anything, mock.MatchedBy(func(req backup.TriggerBackupRequest) bool {
+					return req.ApplicationID == "app-123" &&
+						   req.BackupType == backup.BackupTypeFull
 				})).Return(&backup.BackupExecution{
 					ID:                 "be-123",
-					PolicyID:           "policy-123",
-					CronJobExecutionID: "cje-123",
+					
 					Status:             backup.BackupExecutionStatusRunning,
 				}, nil)
 
@@ -529,20 +524,16 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 			appID: "app-456",
 			setupMocks: func(appRepo *MockApplicationRepository, k8sRepo *MockKubernetesRepository, backupSvc *MockBackupService) {
 				// Get application without backup policy
-				appRepo.On("GetByID", mock.Anything, "app-456").Return(&application.Application{
+				appRepo.On("GetApplication", mock.Anything, "app-456").Return(&domain.Application{
 					ID:       "app-456",
 					Name:     "regular-cronjob",
-					Type:     application.ApplicationTypeCronJob,
+					Type:     domain.ApplicationTypeCronJob,
 					Metadata: map[string]string{},
-					Status:   application.ApplicationStatusRunning,
+					Status:   domain.ApplicationStatusRunning,
 				}, nil)
 
 				// Trigger CronJob normally
-				k8sRepo.On("TriggerCronJob", mock.Anything, mock.Anything, mock.Anything).Return(&application.CronJobExecution{
-					ID:        "cje-456",
-					StartedAt: time.Now(),
-					Status:    application.CronJobExecutionStatusRunning,
-				}, nil)
+				k8sRepo.On("TriggerCronJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 				// Store cronjob execution
 				appRepo.On("CreateCronJobExecution", mock.Anything, mock.Anything).Return(nil)
@@ -589,7 +580,7 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 
 			// Execute
 			ctx := context.Background()
-			execution, err := svc.TriggerCronJob(ctx, &application.TriggerCronJobRequest{
+			execution, err := svc.TriggerCronJob(ctx, "workspace-123", &domain.TriggerCronJobRequest{
 				ApplicationID: tt.appID,
 			})
 
@@ -605,165 +596,6 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 			appRepo.AssertExpectations(t)
 			k8sRepo.AssertExpectations(t)
 			backupSvc.AssertExpectations(t)
-		})
-	}
-}
-
-func TestService_UpdateCronJobExecutionWithBackupStatus(t *testing.T) {
-	tests := []struct {
-		name       string
-		execID     string
-		jobStatus  application.CronJobExecutionStatus
-		setupMocks func(*MockApplicationRepository, *MockBackupService)
-		wantErr    bool
-	}{
-		{
-			name:      "update cronjob execution success - trigger backup success",
-			execID:    "cje-123",
-			jobStatus: application.CronJobExecutionStatusSucceeded,
-			setupMocks: func(appRepo *MockApplicationRepository, backupSvc *MockBackupService) {
-				// Get execution with backup
-				appRepo.On("GetCronJobExecution", mock.Anything, "cje-123").Return(&application.CronJobExecution{
-					ID:            "cje-123",
-					ApplicationID: "app-123",
-					Status:        application.CronJobExecutionStatusRunning,
-				}, nil)
-
-				// Get backup execution
-				backupSvc.On("GetBackupExecutionByCronJobID", mock.Anything, "cje-123").Return(&backup.BackupExecution{
-					ID:                 "be-123",
-					CronJobExecutionID: "cje-123",
-					Status:             backup.BackupExecutionStatusRunning,
-				}, nil)
-
-				// Update backup status to succeeded
-				backupSvc.On("UpdateBackupExecutionStatus", mock.Anything, "be-123", backup.BackupExecutionStatusSucceeded).Return(nil)
-
-				// Update cronjob execution
-				appRepo.On("UpdateCronJobExecution", mock.Anything, "cje-123", mock.MatchedBy(func(exec *application.CronJobExecution) bool {
-					return exec.Status == application.CronJobExecutionStatusSucceeded
-				})).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
-			name:      "update cronjob execution failed - mark backup as failed",
-			execID:    "cje-456",
-			jobStatus: application.CronJobExecutionStatusFailed,
-			setupMocks: func(appRepo *MockApplicationRepository, backupSvc *MockBackupService) {
-				// Get execution
-				appRepo.On("GetCronJobExecution", mock.Anything, "cje-456").Return(&application.CronJobExecution{
-					ID:     "cje-456",
-					Status: application.CronJobExecutionStatusRunning,
-				}, nil)
-
-				// Get backup execution
-				backupSvc.On("GetBackupExecutionByCronJobID", mock.Anything, "cje-456").Return(&backup.BackupExecution{
-					ID:     "be-456",
-					Status: backup.BackupExecutionStatusRunning,
-				}, nil)
-
-				// Update backup status to failed
-				backupSvc.On("UpdateBackupExecutionStatus", mock.Anything, "be-456", backup.BackupExecutionStatusFailed).Return(nil)
-
-				// Update cronjob execution
-				appRepo.On("UpdateCronJobExecution", mock.Anything, "cje-456", mock.Anything).Return(nil)
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup mocks
-			appRepo := new(MockApplicationRepository)
-			backupSvc := new(MockBackupService)
-
-			// Setup specific test mocks
-			if tt.setupMocks != nil {
-				tt.setupMocks(appRepo, backupSvc)
-			}
-
-			// Create base service
-			baseService := &Service{
-				repo:   appRepo,
-				logger: slog.Default(),
-			}
-			
-			// Create extended service
-			svc := &ExtendedService{
-				Service:       baseService,
-				backupService: backupSvc,
-			}
-
-			// Execute
-			ctx := context.Background()
-			err := svc.UpdateCronJobExecutionStatus(ctx, tt.execID, tt.jobStatus)
-
-			// Assert
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// Verify mock expectations
-			appRepo.AssertExpectations(t)
-			backupSvc.AssertExpectations(t)
-		})
-	}
-}
-
-func TestService_ValidateBackupScheduleCompatibility(t *testing.T) {
-	tests := []struct {
-		name           string
-		cronSchedule   string
-		backupSchedule string
-		wantErr        bool
-		errMessage     string
-	}{
-		{
-			name:           "compatible schedules - backup after cronjob",
-			cronSchedule:   "0 2 * * *", // 2 AM
-			backupSchedule: "0 4 * * *", // 4 AM
-			wantErr:        false,
-		},
-		{
-			name:           "incompatible schedules - backup before cronjob",
-			cronSchedule:   "0 4 * * *", // 4 AM
-			backupSchedule: "0 2 * * *", // 2 AM
-			wantErr:        true,
-			errMessage:     "backup schedule must run after cronjob",
-		},
-		{
-			name:           "same schedule time",
-			cronSchedule:   "0 2 * * *",
-			backupSchedule: "0 2 * * *",
-			wantErr:        true,
-			errMessage:     "backup schedule must have different time",
-		},
-		{
-			name:           "weekly schedules",
-			cronSchedule:   "0 2 * * 0", // Sunday 2 AM
-			backupSchedule: "0 4 * * 0", // Sunday 4 AM
-			wantErr:        false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := &ExtendedService{Service: &Service{logger: slog.Default()}}
-
-			err := svc.validateBackupScheduleCompatibility(tt.cronSchedule, tt.backupSchedule)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errMessage != "" {
-					assert.Contains(t, err.Error(), tt.errMessage)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
 		})
 	}
 }

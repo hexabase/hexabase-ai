@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"github.com/stretchr/testify/assert"
@@ -240,34 +240,34 @@ type MockApplicationRepository struct {
 	mock.Mock
 }
 
-func (m *MockApplicationRepository) GetApplication(ctx context.Context, applicationID string) (*application.Application, error) {
+func (m *MockApplicationRepository) GetApplication(ctx context.Context, applicationID string) (*applicationDomain.Application, error) {
 	args := m.Called(ctx, applicationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.Application), args.Error(1)
+	return args.Get(0).(*applicationDomain.Application), args.Error(1)
 }
 
-// Implement all required methods for application.Repository interface
-func (m *MockApplicationRepository) CreateApplication(ctx context.Context, app *application.Application) error {
+// Implement all required methods for applicationDomain.Repository interface
+func (m *MockApplicationRepository) CreateApplication(ctx context.Context, app *applicationDomain.Application) error {
 	args := m.Called(ctx, app)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*application.Application, error) {
+func (m *MockApplicationRepository) GetApplicationByName(ctx context.Context, workspaceID, projectID, name string) (*applicationDomain.Application, error) {
 	args := m.Called(ctx, workspaceID, projectID, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.Application), args.Error(1)
+	return args.Get(0).(*applicationDomain.Application), args.Error(1)
 }
 
-func (m *MockApplicationRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]application.Application, error) {
+func (m *MockApplicationRepository) ListApplications(ctx context.Context, workspaceID, projectID string) ([]applicationDomain.Application, error) {
 	args := m.Called(ctx, workspaceID, projectID)
-	return args.Get(0).([]application.Application), args.Error(1)
+	return args.Get(0).([]applicationDomain.Application), args.Error(1)
 }
 
-func (m *MockApplicationRepository) UpdateApplication(ctx context.Context, app *application.Application) error {
+func (m *MockApplicationRepository) UpdateApplication(ctx context.Context, app *applicationDomain.Application) error {
 	args := m.Called(ctx, app)
 	return args.Error(0)
 }
@@ -277,42 +277,42 @@ func (m *MockApplicationRepository) DeleteApplication(ctx context.Context, id st
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) CreateEvent(ctx context.Context, event *application.ApplicationEvent) error {
+func (m *MockApplicationRepository) CreateEvent(ctx context.Context, event *applicationDomain.ApplicationEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]application.ApplicationEvent, error) {
+func (m *MockApplicationRepository) ListEvents(ctx context.Context, applicationID string, limit int) ([]applicationDomain.ApplicationEvent, error) {
 	args := m.Called(ctx, applicationID, limit)
-	return args.Get(0).([]application.ApplicationEvent), args.Error(1)
+	return args.Get(0).([]applicationDomain.ApplicationEvent), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]application.Application, error) {
+func (m *MockApplicationRepository) GetApplicationsByNode(ctx context.Context, nodeID string) ([]applicationDomain.Application, error) {
 	args := m.Called(ctx, nodeID)
-	return args.Get(0).([]application.Application), args.Error(1)
+	return args.Get(0).([]applicationDomain.Application), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status application.ApplicationStatus) ([]application.Application, error) {
+func (m *MockApplicationRepository) GetApplicationsByStatus(ctx context.Context, workspaceID string, status applicationDomain.ApplicationStatus) ([]applicationDomain.Application, error) {
 	args := m.Called(ctx, workspaceID, status)
-	return args.Get(0).([]application.Application), args.Error(1)
+	return args.Get(0).([]applicationDomain.Application), args.Error(1)
 }
 
-func (m *MockApplicationRepository) Create(ctx context.Context, app *application.Application) error {
+func (m *MockApplicationRepository) Create(ctx context.Context, app *applicationDomain.Application) error {
 	args := m.Called(ctx, app)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
+func (m *MockApplicationRepository) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]applicationDomain.CronJobExecution, int, error) {
 	args := m.Called(ctx, applicationID, limit, offset)
-	return args.Get(0).([]application.CronJobExecution), args.Int(1), args.Error(2)
+	return args.Get(0).([]applicationDomain.CronJobExecution), args.Int(1), args.Error(2)
 }
 
-func (m *MockApplicationRepository) CreateCronJobExecution(ctx context.Context, execution *application.CronJobExecution) error {
+func (m *MockApplicationRepository) CreateCronJobExecution(ctx context.Context, execution *applicationDomain.CronJobExecution) error {
 	args := m.Called(ctx, execution)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status application.CronJobExecutionStatus, exitCode *int, logs string) error {
+func (m *MockApplicationRepository) UpdateCronJobExecution(ctx context.Context, executionID string, completedAt *time.Time, status applicationDomain.CronJobExecutionStatus, exitCode *int, logs string) error {
 	args := m.Called(ctx, executionID, completedAt, status, exitCode, logs)
 	return args.Error(0)
 }
@@ -322,49 +322,49 @@ func (m *MockApplicationRepository) UpdateCronSchedule(ctx context.Context, appl
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetCronJobExecution(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+func (m *MockApplicationRepository) GetCronJobExecution(ctx context.Context, executionID string) (*applicationDomain.CronJobExecution, error) {
 	args := m.Called(ctx, executionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.CronJobExecution), args.Error(1)
+	return args.Get(0).(*applicationDomain.CronJobExecution), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*application.CronJobExecution, error) {
+func (m *MockApplicationRepository) GetCronJobExecutionByID(ctx context.Context, executionID string) (*applicationDomain.CronJobExecution, error) {
 	args := m.Called(ctx, executionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.CronJobExecution), args.Error(1)
+	return args.Get(0).(*applicationDomain.CronJobExecution), args.Error(1)
 }
 
-func (m *MockApplicationRepository) CreateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+func (m *MockApplicationRepository) CreateFunctionVersion(ctx context.Context, version *applicationDomain.FunctionVersion) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetFunctionVersion(ctx context.Context, versionID string) (*application.FunctionVersion, error) {
+func (m *MockApplicationRepository) GetFunctionVersion(ctx context.Context, versionID string) (*applicationDomain.FunctionVersion, error) {
 	args := m.Called(ctx, versionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+	return args.Get(0).(*applicationDomain.FunctionVersion), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+func (m *MockApplicationRepository) GetFunctionVersions(ctx context.Context, applicationID string) ([]applicationDomain.FunctionVersion, error) {
 	args := m.Called(ctx, applicationID)
-	return args.Get(0).([]application.FunctionVersion), args.Error(1)
+	return args.Get(0).([]applicationDomain.FunctionVersion), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*application.FunctionVersion, error) {
+func (m *MockApplicationRepository) GetActiveFunctionVersion(ctx context.Context, applicationID string) (*applicationDomain.FunctionVersion, error) {
 	args := m.Called(ctx, applicationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.FunctionVersion), args.Error(1)
+	return args.Get(0).(*applicationDomain.FunctionVersion), args.Error(1)
 }
 
-func (m *MockApplicationRepository) UpdateFunctionVersion(ctx context.Context, version *application.FunctionVersion) error {
+func (m *MockApplicationRepository) UpdateFunctionVersion(ctx context.Context, version *applicationDomain.FunctionVersion) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
 }
@@ -374,48 +374,48 @@ func (m *MockApplicationRepository) SetActiveFunctionVersion(ctx context.Context
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) CreateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+func (m *MockApplicationRepository) CreateFunctionInvocation(ctx context.Context, invocation *applicationDomain.FunctionInvocation) error {
 	args := m.Called(ctx, invocation)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*application.FunctionInvocation, error) {
+func (m *MockApplicationRepository) GetFunctionInvocation(ctx context.Context, invocationID string) (*applicationDomain.FunctionInvocation, error) {
 	args := m.Called(ctx, invocationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.FunctionInvocation), args.Error(1)
+	return args.Get(0).(*applicationDomain.FunctionInvocation), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+func (m *MockApplicationRepository) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]applicationDomain.FunctionInvocation, int, error) {
 	args := m.Called(ctx, applicationID, limit, offset)
-	return args.Get(0).([]application.FunctionInvocation), args.Int(1), args.Error(2)
+	return args.Get(0).([]applicationDomain.FunctionInvocation), args.Int(1), args.Error(2)
 }
 
-func (m *MockApplicationRepository) UpdateFunctionInvocation(ctx context.Context, invocation *application.FunctionInvocation) error {
+func (m *MockApplicationRepository) UpdateFunctionInvocation(ctx context.Context, invocation *applicationDomain.FunctionInvocation) error {
 	args := m.Called(ctx, invocation)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) CreateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+func (m *MockApplicationRepository) CreateFunctionEvent(ctx context.Context, event *applicationDomain.FunctionEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
 
-func (m *MockApplicationRepository) GetFunctionEvent(ctx context.Context, eventID string) (*application.FunctionEvent, error) {
+func (m *MockApplicationRepository) GetFunctionEvent(ctx context.Context, eventID string) (*applicationDomain.FunctionEvent, error) {
 	args := m.Called(ctx, eventID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*application.FunctionEvent), args.Error(1)
+	return args.Get(0).(*applicationDomain.FunctionEvent), args.Error(1)
 }
 
-func (m *MockApplicationRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+func (m *MockApplicationRepository) GetPendingFunctionEvents(ctx context.Context, applicationID string, limit int) ([]applicationDomain.FunctionEvent, error) {
 	args := m.Called(ctx, applicationID, limit)
-	return args.Get(0).([]application.FunctionEvent), args.Error(1)
+	return args.Get(0).([]applicationDomain.FunctionEvent), args.Error(1)
 }
 
-func (m *MockApplicationRepository) UpdateFunctionEvent(ctx context.Context, event *application.FunctionEvent) error {
+func (m *MockApplicationRepository) UpdateFunctionEvent(ctx context.Context, event *applicationDomain.FunctionEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
@@ -649,7 +649,7 @@ func TestCreateBackupPolicy(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock application
-		app := &application.Application{
+		app := &applicationDomain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			Name:        "test-app",
@@ -717,7 +717,7 @@ func TestCreateBackupPolicy(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock application
-		app := &application.Application{
+		app := &applicationDomain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 		}

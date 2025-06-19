@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
@@ -21,7 +21,7 @@ import (
 type InternalHandler struct {
 	workspaceSvc    workspaceDomain.Service
 	projectSvc      projectDomain.Service
-	applicationSvc  application.Service
+	applicationSvc  applicationDomain.Service
 	nodeSvc         node.Service
 	logSvc          logs.Service
 	monitoringSvc   monitoring.Service
@@ -35,7 +35,7 @@ type InternalHandler struct {
 func NewInternalHandler(
 	workspaceSvc workspaceDomain.Service,
 	projectSvc projectDomain.Service,
-	applicationSvc application.Service,
+	applicationSvc applicationDomain.Service,
 	nodeSvc node.Service,
 	logSvc logs.Service,
 	monitoringSvc monitoring.Service,
@@ -209,7 +209,7 @@ func (h *InternalHandler) GetApplicationDetails(c *gin.Context) {
 	events, err := h.applicationSvc.GetApplicationEvents(c.Request.Context(), appID, 20)
 	if err != nil {
 		h.logger.Error("failed to get events", "app_id", appID, "error", err)
-		events = []application.ApplicationEvent{}
+		events = []applicationDomain.ApplicationEvent{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

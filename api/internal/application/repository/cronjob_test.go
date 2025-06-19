@@ -1,4 +1,4 @@
-package application
+package repository
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 )
 
 func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
@@ -43,24 +43,24 @@ func TestPostgresRepository_CreateCronJob(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Create CronJob with Template", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:            "app-123",
 			WorkspaceID:   "ws-123",
 			ProjectID:     "proj-123",
 			Name:          "test-cronjob",
-			Type:          application.ApplicationTypeCronJob,
-			Status:        application.ApplicationStatusPending,
+			Type:          domain.ApplicationTypeCronJob,
+			Status:        domain.ApplicationStatusPending,
 			CronSchedule:  "0 */6 * * *", // Every 6 hours
 			CronCommand:   []string{"/bin/backup.sh"},
 			CronArgs:      []string{"--compress", "--incremental"},
 			TemplateAppID: "app-template-123",
-			Source: application.ApplicationSource{
-				Type:  application.SourceTypeImage,
+			Source: domain.ApplicationSource{
+				Type:  domain.SourceTypeImage,
 				Image: "backup-tool:latest",
 			},
-			Config: application.ApplicationConfig{
+			Config: domain.ApplicationConfig{
 				Replicas: 1,
-				Resources: application.ResourceRequests{
+				Resources: domain.ResourceRequests{
 					CPURequest:    "100m",
 					CPULimit:      "500m",
 					MemoryRequest: "128Mi",
@@ -120,18 +120,18 @@ func TestPostgresRepository_CreateCronJob(t *testing.T) {
 	})
 
 	t.Run("Create CronJob without Template", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			WorkspaceID:  "ws-123",
 			ProjectID:    "proj-123",
 			Name:         "standalone-cronjob",
-			Type:         application.ApplicationTypeCronJob,
-			Status:       application.ApplicationStatusPending,
+			Type:         domain.ApplicationTypeCronJob,
+			Status:       domain.ApplicationStatusPending,
 			CronSchedule: "0 0 * * *", // Daily at midnight
-			Source: application.ApplicationSource{
-				Type:  application.SourceTypeImage,
+			Source: domain.ApplicationSource{
+				Type:  domain.SourceTypeImage,
 				Image: "alpine:latest",
 			},
-			Config: application.ApplicationConfig{
+			Config: domain.ApplicationConfig{
 				Replicas: 1,
 			},
 		}
@@ -205,12 +205,12 @@ func TestPostgresRepository_GetCronJobExecutions(t *testing.T) {
 		assert.Len(t, executions, 2)
 
 		assert.Equal(t, "cje-1", executions[0].ID)
-		assert.Equal(t, application.CronJobExecutionStatusSucceeded, executions[0].Status)
+		assert.Equal(t, domain.CronJobExecutionStatusSucceeded, executions[0].Status)
 		assert.NotNil(t, executions[0].CompletedAt)
 		assert.Equal(t, 0, *executions[0].ExitCode)
 
 		assert.Equal(t, "cje-2", executions[1].ID)
-		assert.Equal(t, application.CronJobExecutionStatusRunning, executions[1].Status)
+		assert.Equal(t, domain.CronJobExecutionStatusRunning, executions[1].Status)
 		assert.Nil(t, executions[1].CompletedAt)
 		
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -228,11 +228,11 @@ func TestPostgresRepository_CreateCronJobExecution(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Create New Execution", func(t *testing.T) {
-		execution := &application.CronJobExecution{
+		execution := &domain.CronJobExecution{
 			ApplicationID: "app-123",
 			JobName:       "test-cronjob-28474952",
 			StartedAt:     time.Now(),
-			Status:        application.CronJobExecutionStatusRunning,
+			Status:        domain.CronJobExecutionStatusRunning,
 		}
 
 		mock.ExpectExec(`INSERT INTO "cron_job_executions"`).
@@ -280,14 +280,14 @@ func TestPostgresRepository_UpdateCronJobExecution(t *testing.T) {
 				&completedAt,         // completed_at
 				&exitCode,            // exit_code
 				logs,                 // logs
-				string(application.CronJobExecutionStatusSucceeded), // status
+				string(domain.CronJobExecutionStatusSucceeded), // status
 				sqlmock.AnyArg(),     // updated_at
 				executionID,          // WHERE id = ?
 			).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		err := repo.UpdateCronJobExecution(ctx, executionID, &completedAt, 
-			application.CronJobExecutionStatusSucceeded, &exitCode, logs)
+			domain.CronJobExecutionStatusSucceeded, &exitCode, logs)
 		assert.NoError(t, err)
 
 		assert.NoError(t, mock.ExpectationsWereMet())

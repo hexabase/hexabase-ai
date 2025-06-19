@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"k8s.io/client-go/kubernetes"
@@ -18,7 +18,7 @@ import (
 type Service struct {
 	repo           backup.Repository
 	proxmoxRepo    backup.ProxmoxRepository
-	appRepo        application.Repository
+	appRepo        applicationDomain.Repository
 	workspaceRepo  workspaceDomain.Repository
 	k8sClient      kubernetes.Interface
 	executor       *BackupExecutor
@@ -29,7 +29,7 @@ type Service struct {
 func NewService(
 	repo backup.Repository,
 	proxmoxRepo backup.ProxmoxRepository,
-	appRepo application.Repository,
+	appRepo applicationDomain.Repository,
 	workspaceRepo workspaceDomain.Repository,
 	k8sClient kubernetes.Interface,
 	encryptionKey string,
@@ -343,7 +343,7 @@ func (s *Service) CreateBackupPolicy(ctx context.Context, applicationID string, 
 }
 
 // createBackupCronJob creates a CronJob for scheduled backups
-func (s *Service) createBackupCronJob(ctx context.Context, app *application.Application, policy *backup.BackupPolicy) {
+func (s *Service) createBackupCronJob(ctx context.Context, app *applicationDomain.Application, policy *backup.BackupPolicy) {
 	// This will integrate with the CronJob feature to schedule backup executions
 	// Implementation will be added when integrating with CronJob feature
 	s.logger.Info("creating backup CronJob", "applicationID", app.ID, "policyID", policy.ID, "schedule", policy.Schedule)

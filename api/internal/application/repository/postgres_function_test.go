@@ -1,16 +1,17 @@
-package application
+package repository
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
-	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
+	"gorm.io/driver/sqlite"
 )
 
 func setupFunctionTestDB(t *testing.T) *gorm.DB {
@@ -54,34 +55,34 @@ func TestCreateFunctionVersion(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a function application first
-	app := &application.Application{
+	app := &domain.Application{
 		ID:          "app-func-1",
 		WorkspaceID: "ws-test",
 		ProjectID:   "proj-test",
 		Name:        "test-function",
-		Type:        application.ApplicationTypeFunction,
-		Status:      application.ApplicationStatusPending,
-		Source: application.ApplicationSource{
-			Type: application.SourceTypeImage,
+		Type:        domain.ApplicationTypeFunction,
+		Status:      domain.ApplicationStatusPending,
+		Source: domain.ApplicationSource{
+			Type: domain.SourceTypeImage,
 		},
-		Config:              application.ApplicationConfig{},
-		FunctionRuntime:     application.FunctionRuntimePython39,
+		Config:              domain.ApplicationConfig{},
+		FunctionRuntime:     domain.FunctionRuntimePython39,
 		FunctionHandler:     "main.handler",
 		FunctionTimeout:     300,
 		FunctionMemory:      256,
-		FunctionTriggerType: application.FunctionTriggerHTTP,
+		FunctionTriggerType: domain.FunctionTriggerHTTP,
 	}
 
 	err := repo.CreateApplication(ctx, app)
 	require.NoError(t, err)
 
 	// Test creating a function version
-	version := &application.FunctionVersion{
+	version := &domain.FunctionVersion{
 		ApplicationID: app.ID,
 		VersionNumber: 1,
 		SourceCode:    "def handler(event, context):\n    return {'statusCode': 200}",
-		SourceType:    application.FunctionSourceInline,
-		BuildStatus:   application.FunctionBuildPending,
+		SourceType:    domain.FunctionSourceInline,
+		BuildStatus:   domain.FunctionBuildPending,
 		IsActive:      true,
 	}
 
@@ -211,7 +212,7 @@ func TestCreateFunctionInvocation(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 	ctx := context.Background()
 
-	invocation := &application.FunctionInvocation{
+	invocation := &domain.FunctionInvocation{
 		ApplicationID: "app-func-1",
 		VersionID:     "fv-1",
 		InvocationID:  "inv-test-1",
@@ -259,7 +260,7 @@ func TestCreateFunctionEvent(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 	ctx := context.Background()
 
-	event := &application.FunctionEvent{
+	event := &domain.FunctionEvent{
 		ApplicationID: "app-func-1",
 		EventType:     "webhook.github",
 		EventSource:   "github",
@@ -337,7 +338,7 @@ func TestUpdateFunctionInvocation(t *testing.T) {
 
 	// Update invocation
 	completedAt := time.Now()
-	update := &application.FunctionInvocation{
+	update := &domain.FunctionInvocation{
 		ID:              inv.ID,
 		ResponseStatus:  200,
 		ResponseBody:    "success",

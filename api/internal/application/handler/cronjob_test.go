@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,23 +19,23 @@ func TestApplicationHandler_CreateCronJob(t *testing.T) {
 	
 	tests := []struct {
 		name           string
-		request        application.CreateApplicationRequest
+		request        domain.CreateApplicationRequest
 		expectedStatus int
 		expectedError  bool
 		setupMocks     func(*MockApplicationService)
 	}{
 		{
 			name: "successful cronjob creation",
-			request: application.CreateApplicationRequest{
+			request: domain.CreateApplicationRequest{
 				ProjectID: "proj-123",
 				Name:      "daily-backup",
-				Type:      application.ApplicationTypeCronJob,
-				Source: application.ApplicationSource{
-					Type:  application.SourceTypeImage,
+				Type:      domain.ApplicationTypeCronJob,
+				Source: domain.ApplicationSource{
+					Type:  domain.SourceTypeImage,
 					Image: "backup-tool:latest",
 				},
-				Config: application.ApplicationConfig{
-					Resources: application.ResourceRequests{
+				Config: domain.ApplicationConfig{
+					Resources: domain.ResourceRequests{
 						CPURequest:    "100m",
 						MemoryRequest: "256Mi",
 						CPULimit:      "500m",
@@ -52,17 +52,17 @@ func TestApplicationHandler_CreateCronJob(t *testing.T) {
 			expectedStatus: http.StatusCreated,
 			expectedError:  false,
 			setupMocks: func(svc *MockApplicationService) {
-				svc.On("CreateApplication", mock.Anything, "ws-123", mock.MatchedBy(func(req application.CreateApplicationRequest) bool {
+				svc.On("CreateApplication", mock.Anything, "ws-123", mock.MatchedBy(func(req domain.CreateApplicationRequest) bool {
 					return req.Name == "daily-backup" &&
-						req.Type == application.ApplicationTypeCronJob &&
+						req.Type == domain.ApplicationTypeCronJob &&
 						req.CronSchedule == "0 2 * * *"
-				})).Return(&application.Application{
+				})).Return(&domain.Application{
 					ID:           "app-789",
 					WorkspaceID:  "ws-123",
 					ProjectID:    "proj-123",
 					Name:         "daily-backup",
-					Type:         application.ApplicationTypeCronJob,
-					Status:       application.ApplicationStatusRunning,
+					Type:         domain.ApplicationTypeCronJob,
+					Status:       domain.ApplicationStatusRunning,
 					CronSchedule: "0 2 * * *",
 					CronCommand:  []string{"/usr/bin/backup.sh"},
 					CronArgs:     []string{"--full", "--compress"},
@@ -73,26 +73,26 @@ func TestApplicationHandler_CreateCronJob(t *testing.T) {
 		},
 		{
 			name: "cronjob with template",
-			request: application.CreateApplicationRequest{
+			request: domain.CreateApplicationRequest{
 				ProjectID:     "proj-123",
 				Name:          "scheduled-task",
-				Type:          application.ApplicationTypeCronJob,
+				Type:          domain.ApplicationTypeCronJob,
 				CronSchedule:  "*/5 * * * *",
 				TemplateAppID: "template-123",
 			},
 			expectedStatus: http.StatusCreated,
 			expectedError:  false,
 			setupMocks: func(svc *MockApplicationService) {
-				svc.On("CreateApplication", mock.Anything, "ws-123", mock.MatchedBy(func(req application.CreateApplicationRequest) bool {
+				svc.On("CreateApplication", mock.Anything, "ws-123", mock.MatchedBy(func(req domain.CreateApplicationRequest) bool {
 					return req.Name == "scheduled-task" &&
 						req.TemplateAppID == "template-123"
-				})).Return(&application.Application{
+				})).Return(&domain.Application{
 					ID:            "app-890",
 					WorkspaceID:   "ws-123",
 					ProjectID:     "proj-123",
 					Name:          "scheduled-task",
-					Type:          application.ApplicationTypeCronJob,
-					Status:        application.ApplicationStatusRunning,
+					Type:          domain.ApplicationTypeCronJob,
+					Status:        domain.ApplicationStatusRunning,
 					CronSchedule:  "*/5 * * * *",
 					TemplateAppID: "template-123",
 					CreatedAt:     time.Now(),
@@ -136,10 +136,10 @@ func TestApplicationHandler_CreateCronJob(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			
 			if !tt.expectedError {
-				var response application.Application
+				var response domain.Application
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, application.ApplicationTypeCronJob, response.Type)
+				assert.Equal(t, domain.ApplicationTypeCronJob, response.Type)
 			}
 			
 			mockService.AssertExpectations(t)
@@ -153,7 +153,7 @@ func TestApplicationHandler_UpdateCronJobSchedule(t *testing.T) {
 	tests := []struct {
 		name           string
 		applicationID  string
-		request        application.UpdateCronScheduleRequest
+		request        domain.UpdateCronScheduleRequest
 		expectedStatus int
 		expectedError  bool
 		setupMocks     func(*MockApplicationService)
@@ -161,7 +161,7 @@ func TestApplicationHandler_UpdateCronJobSchedule(t *testing.T) {
 		{
 			name:          "successful schedule update",
 			applicationID: "app-123",
-			request: application.UpdateCronScheduleRequest{
+			request: domain.UpdateCronScheduleRequest{
 				Schedule: "0 4 * * *",
 			},
 			expectedStatus: http.StatusOK,
@@ -223,11 +223,11 @@ func TestApplicationHandler_TriggerCronJob(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
 			setupMocks: func(svc *MockApplicationService) {
-				req := &application.TriggerCronJobRequest{ApplicationID: "app-123"}
-				execution := &application.CronJobExecution{
+				req := &domain.TriggerCronJobRequest{ApplicationID: "app-123"}
+				execution := &domain.CronJobExecution{
 					ID:            "cje-123",
 					ApplicationID: "app-123",
-					Status:        application.CronJobExecutionStatusSucceeded,
+					Status:        domain.CronJobExecutionStatusSucceeded,
 				}
 				svc.On("TriggerCronJob", mock.Anything, req).Return(execution, nil)
 			},
@@ -289,14 +289,14 @@ func TestApplicationHandler_GetCronJobExecutions(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
 			setupMocks: func(svc *MockApplicationService) {
-				executions := []application.CronJobExecution{
+				executions := []domain.CronJobExecution{
 					{
 						ID:            "exec-1",
 						ApplicationID: "app-123",
 						JobName:       "daily-backup-1234567890",
 						StartedAt:     now.Add(-1 * time.Hour),
 						CompletedAt:   &now,
-						Status:        application.CronJobExecutionStatusSucceeded,
+						Status:        domain.CronJobExecutionStatusSucceeded,
 						ExitCode:      intPtr(0),
 						Logs:          "Backup completed successfully",
 					},
@@ -341,7 +341,7 @@ func TestApplicationHandler_GetCronJobExecutions(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			
 			if !tt.expectedError {
-				var response application.CronJobExecutionList
+				var response domain.CronJobExecutionList
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
 				assert.GreaterOrEqual(t, response.Total, 0)

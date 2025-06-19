@@ -1,4 +1,4 @@
-package application
+package service
 
 import (
 	"context"
@@ -11,19 +11,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 )
 
 // Service implements the application service interface
 type Service struct {
-	repo    application.Repository
-	k8s     application.KubernetesRepository
-	k8sRepo application.KubernetesRepository // Alias for backward compatibility
+	repo    domain.Repository
+	k8s     domain.KubernetesRepository
+	k8sRepo domain.KubernetesRepository // Alias for backward compatibility
 	logger  *slog.Logger
 }
 
 // NewService creates a new application service
-func NewService(repo application.Repository, k8s application.KubernetesRepository) application.Service {
+func NewService(repo domain.Repository, k8s domain.KubernetesRepository) domain.Service {
 	return &Service{
 		repo:    repo,
 		k8s:     k8s,
@@ -33,7 +33,7 @@ func NewService(repo application.Repository, k8s application.KubernetesRepositor
 }
 
 // CreateApplication creates a new application
-func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req application.CreateApplicationRequest) (*application.Application, error) {
+func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req domain.CreateApplicationRequest) (*domain.Application, error) {
 	// Validate request
 	if !req.Type.IsValid() {
 		return nil, errors.New("invalid application type")
@@ -41,10 +41,10 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 	if !req.Source.Type.IsValid() {
 		return nil, errors.New("invalid source type")
 	}
-	if req.Source.Type == application.SourceTypeImage && req.Source.Image == "" {
+	if req.Source.Type == domain.SourceTypeImage && req.Source.Image == "" {
 		return nil, errors.New("image is required for image source type")
 	}
-	if req.Source.Type == application.SourceTypeGit && req.Source.GitURL == "" {
+	if req.Source.Type == domain.SourceTypeGit && req.Source.GitURL == "" {
 		return nil, errors.New("git URL is required for git source type")
 	}
 
@@ -55,13 +55,13 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 	}
 
 	// Create application entity
-	app := &application.Application{
+	app := &domain.Application{
 		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		ProjectID:   req.ProjectID,
 		Name:        req.Name,
 		Type:        req.Type,
-		Status:      application.ApplicationStatusPending,
+		Status:      domain.ApplicationStatusPending,
 		Source:      req.Source,
 		Config:      req.Config,
 		CreatedAt:   time.Now(),
@@ -76,7 +76,7 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 	}
 
 	// Handle CronJob type specifically
-	if req.Type == application.ApplicationTypeCronJob {
+	if req.Type == domain.ApplicationTypeCronJob {
 		// Set CronJob specific fields from request
 		app.CronSchedule = req.CronSchedule
 		app.CronCommand = req.CronCommand
@@ -93,7 +93,7 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 	}
 
 	// Create deployment event
-	event := &application.ApplicationEvent{
+	event := &domain.ApplicationEvent{
 		ID:            uuid.New().String(),
 		ApplicationID: app.ID,
 		Type:          "deployment.started",
@@ -103,7 +103,7 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 	s.repo.CreateEvent(ctx, event)
 
 	// Update status to deploying
-	app.Status = application.ApplicationStatusDeploying
+	app.Status = domain.ApplicationStatusDeploying
 	s.repo.UpdateApplication(ctx, app)
 
 	// Deploy to Kubernetes
@@ -113,13 +113,13 @@ func (s *Service) CreateApplication(ctx context.Context, workspaceID string, req
 }
 
 // deployApplication handles the actual deployment to Kubernetes
-func (s *Service) deployApplication(ctx context.Context, app *application.Application) {
+func (s *Service) deployApplication(ctx context.Context, app *domain.Application) {
 	var err error
 	defer func() {
 		if err != nil {
-			app.Status = application.ApplicationStatusError
+			app.Status = domain.ApplicationStatusError
 			s.repo.UpdateApplication(ctx, app)
-			event := &application.ApplicationEvent{
+			event := &domain.ApplicationEvent{
 				ID:            uuid.New().String(),
 				ApplicationID: app.ID,
 				Type:          "deployment.failed",
@@ -133,16 +133,16 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 
 	// Deploy based on application type
 	switch app.Type {
-	case application.ApplicationTypeStateless:
+	case domain.ApplicationTypeStateless:
 		err = s.deployStatelessApp(ctx, app)
-	case application.ApplicationTypeStateful:
+	case domain.ApplicationTypeStateful:
 		err = s.deployStatefulApp(ctx, app)
-	case application.ApplicationTypeCronJob:
+	case domain.ApplicationTypeCronJob:
 		// CronJob deployment is handled separately through CreateCronJob
-		app.Status = application.ApplicationStatusRunning
+		app.Status = domain.ApplicationStatusRunning
 		s.repo.UpdateApplication(ctx, app)
 		return
-	case application.ApplicationTypeFunction:
+	case domain.ApplicationTypeFunction:
 		// Function deployment will be implemented later
 		err = errors.New("function type not yet implemented")
 	default:
@@ -154,7 +154,7 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 	}
 
 	// Create service
-	serviceSpec := application.ServiceSpec{
+	serviceSpec := domain.ServiceSpec{
 		Name:       app.Name,
 		Port:       app.Config.Port,
 		TargetPort: app.Config.Port,
@@ -169,7 +169,7 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 
 	// Create ingress if requested
 	if app.Config.NetworkConfig != nil && app.Config.NetworkConfig.CreateIngress {
-		ingressSpec := application.IngressSpec{
+		ingressSpec := domain.IngressSpec{
 			Name:        app.Name,
 			Host:        app.Config.NetworkConfig.CustomDomain,
 			Path:        app.Config.NetworkConfig.IngressPath,
@@ -180,7 +180,7 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 		}
 		if err = s.k8s.CreateIngress(ctx, app.WorkspaceID, app.ProjectID, ingressSpec); err != nil {
 			// Ingress creation failure is not critical
-			event := &application.ApplicationEvent{
+			event := &domain.ApplicationEvent{
 				ID:            uuid.New().String(),
 				ApplicationID: app.ID,
 				Type:          "ingress.failed",
@@ -193,7 +193,7 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 	}
 
 	// Update status to running
-	app.Status = application.ApplicationStatusRunning
+	app.Status = domain.ApplicationStatusRunning
 	s.repo.UpdateApplication(ctx, app)
 
 	// Get endpoints
@@ -202,7 +202,7 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 	s.repo.UpdateApplication(ctx, app)
 
 	// Create success event
-	event := &application.ApplicationEvent{
+	event := &domain.ApplicationEvent{
 		ID:            uuid.New().String(),
 		ApplicationID: app.ID,
 		Type:          "deployment.succeeded",
@@ -212,8 +212,8 @@ func (s *Service) deployApplication(ctx context.Context, app *application.Applic
 	s.repo.CreateEvent(ctx, event)
 }
 
-func (s *Service) deployStatelessApp(ctx context.Context, app *application.Application) error {
-	deploymentSpec := application.DeploymentSpec{
+func (s *Service) deployStatelessApp(ctx context.Context, app *domain.Application) error {
+	deploymentSpec := domain.DeploymentSpec{
 		Name:         app.Name,
 		Replicas:     app.Config.Replicas,
 		Image:        app.Source.Image,
@@ -228,10 +228,10 @@ func (s *Service) deployStatelessApp(ctx context.Context, app *application.Appli
 	return s.k8s.CreateDeployment(ctx, app.WorkspaceID, app.ProjectID, deploymentSpec)
 }
 
-func (s *Service) deployStatefulApp(ctx context.Context, app *application.Application) error {
+func (s *Service) deployStatefulApp(ctx context.Context, app *domain.Application) error {
 	// Create PVC first if storage is configured
 	if app.Config.Storage != nil {
-		pvcSpec := application.PVCSpec{
+		pvcSpec := domain.PVCSpec{
 			Name:         app.Name + "-data",
 			Size:         app.Config.Storage.Size,
 			StorageClass: app.Config.Storage.StorageClass,
@@ -242,7 +242,7 @@ func (s *Service) deployStatefulApp(ctx context.Context, app *application.Applic
 		}
 	}
 
-	statefulSetSpec := application.StatefulSetSpec{
+	statefulSetSpec := domain.StatefulSetSpec{
 		Name:         app.Name,
 		Replicas:     app.Config.Replicas,
 		Image:        app.Source.Image,
@@ -256,7 +256,7 @@ func (s *Service) deployStatefulApp(ctx context.Context, app *application.Applic
 	}
 
 	if app.Config.Storage != nil {
-		statefulSetSpec.VolumeClaimSpec = application.PVCSpec{
+		statefulSetSpec.VolumeClaimSpec = domain.PVCSpec{
 			Name:         app.Name + "-data",
 			Size:         app.Config.Storage.Size,
 			StorageClass: app.Config.Storage.StorageClass,
@@ -268,29 +268,29 @@ func (s *Service) deployStatefulApp(ctx context.Context, app *application.Applic
 }
 
 // GetApplication retrieves an application by ID
-func (s *Service) GetApplication(ctx context.Context, applicationID string) (*application.Application, error) {
+func (s *Service) GetApplication(ctx context.Context, applicationID string) (*domain.Application, error) {
 	return s.repo.GetApplication(ctx, applicationID)
 }
 
 // ListApplications lists all applications in a workspace/project
-func (s *Service) ListApplications(ctx context.Context, workspaceID, projectID string) ([]application.Application, error) {
+func (s *Service) ListApplications(ctx context.Context, workspaceID, projectID string) ([]domain.Application, error) {
 	return s.repo.ListApplications(ctx, workspaceID, projectID)
 }
 
 // UpdateApplication updates an application
-func (s *Service) UpdateApplication(ctx context.Context, applicationID string, req application.UpdateApplicationRequest) (*application.Application, error) {
+func (s *Service) UpdateApplication(ctx context.Context, applicationID string, req domain.UpdateApplicationRequest) (*domain.Application, error) {
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if status allows updates
-	if !app.Status.CanTransition(application.ApplicationStatusUpdating) {
+	if !app.Status.CanTransition(domain.ApplicationStatusUpdating) {
 		return nil, fmt.Errorf("cannot update application in status %s", app.Status)
 	}
 
 	// Update status
-	app.Status = application.ApplicationStatusUpdating
+	app.Status = domain.ApplicationStatusUpdating
 	app.UpdatedAt = time.Now()
 
 	// Apply updates
@@ -318,7 +318,7 @@ func (s *Service) UpdateApplication(ctx context.Context, applicationID string, r
 	}
 
 	// Create update event
-	event := &application.ApplicationEvent{
+	event := &domain.ApplicationEvent{
 		ID:            uuid.New().String(),
 		ApplicationID: app.ID,
 		Type:          "update.started",
@@ -333,13 +333,13 @@ func (s *Service) UpdateApplication(ctx context.Context, applicationID string, r
 	return app, nil
 }
 
-func (s *Service) updateKubernetesResources(ctx context.Context, app *application.Application, req application.UpdateApplicationRequest) {
+func (s *Service) updateKubernetesResources(ctx context.Context, app *domain.Application, req domain.UpdateApplicationRequest) {
 	var err error
 	defer func() {
 		if err != nil {
-			app.Status = application.ApplicationStatusError
+			app.Status = domain.ApplicationStatusError
 		} else {
-			app.Status = application.ApplicationStatusRunning
+			app.Status = domain.ApplicationStatusRunning
 		}
 		s.repo.UpdateApplication(ctx, app)
 
@@ -350,7 +350,7 @@ func (s *Service) updateKubernetesResources(ctx context.Context, app *applicatio
 			message = fmt.Sprintf("Update failed: %v", err)
 		}
 
-		event := &application.ApplicationEvent{
+		event := &domain.ApplicationEvent{
 			ID:            uuid.New().String(),
 			ApplicationID: app.ID,
 			Type:          eventType,
@@ -361,8 +361,8 @@ func (s *Service) updateKubernetesResources(ctx context.Context, app *applicatio
 	}()
 
 	// Update deployment or statefulset
-	if app.Type == application.ApplicationTypeStateless {
-		deploymentSpec := application.DeploymentSpec{
+	if app.Type == domain.ApplicationTypeStateless {
+		deploymentSpec := domain.DeploymentSpec{
 			Name:     app.Name,
 			Replicas: app.Config.Replicas,
 		}
@@ -371,7 +371,7 @@ func (s *Service) updateKubernetesResources(ctx context.Context, app *applicatio
 		}
 		err = s.k8s.UpdateDeployment(ctx, app.WorkspaceID, app.ProjectID, app.Name, deploymentSpec)
 	} else {
-		statefulSetSpec := application.StatefulSetSpec{
+		statefulSetSpec := domain.StatefulSetSpec{
 			Name:     app.Name,
 			Replicas: app.Config.Replicas,
 		}
@@ -383,7 +383,7 @@ func (s *Service) updateKubernetesResources(ctx context.Context, app *applicatio
 
 	// Update ingress if network config changed
 	if req.NetworkConfig != nil && req.NetworkConfig.CreateIngress {
-		ingressSpec := application.IngressSpec{
+		ingressSpec := domain.IngressSpec{
 			Name:        app.Name,
 			Host:        req.NetworkConfig.CustomDomain,
 			Path:        req.NetworkConfig.IngressPath,
@@ -404,16 +404,16 @@ func (s *Service) DeleteApplication(ctx context.Context, applicationID string) e
 	}
 
 	// Check if status allows deletion
-	if !app.Status.CanTransition(application.ApplicationStatusDeleting) {
+	if !app.Status.CanTransition(domain.ApplicationStatusDeleting) {
 		return fmt.Errorf("cannot delete application in status %s", app.Status)
 	}
 
 	// Update status
-	app.Status = application.ApplicationStatusDeleting
+	app.Status = domain.ApplicationStatusDeleting
 	s.repo.UpdateApplication(ctx, app)
 
 	// Create deletion event
-	event := &application.ApplicationEvent{
+	event := &domain.ApplicationEvent{
 		ID:            uuid.New().String(),
 		ApplicationID: app.ID,
 		Type:          "deletion.started",
@@ -423,7 +423,7 @@ func (s *Service) DeleteApplication(ctx context.Context, applicationID string) e
 	s.repo.CreateEvent(ctx, event)
 
 	// Delete Kubernetes resources
-	if app.Type == application.ApplicationTypeStateless {
+	if app.Type == domain.ApplicationTypeStateless {
 		s.k8s.DeleteDeployment(ctx, app.WorkspaceID, app.ProjectID, app.Name)
 	} else {
 		s.k8s.DeleteStatefulSet(ctx, app.WorkspaceID, app.ProjectID, app.Name)
@@ -447,12 +447,12 @@ func (s *Service) StartApplication(ctx context.Context, applicationID string) er
 		return err
 	}
 
-	if app.Status != application.ApplicationStatusStopped {
+	if app.Status != domain.ApplicationStatusStopped {
 		return fmt.Errorf("application is not in stopped state")
 	}
 
 	// Re-deploy the application
-	app.Status = application.ApplicationStatusDeploying
+	app.Status = domain.ApplicationStatusDeploying
 	s.repo.UpdateApplication(ctx, app)
 
 	go s.deployApplication(context.Background(), app)
@@ -467,22 +467,22 @@ func (s *Service) StopApplication(ctx context.Context, applicationID string) err
 		return err
 	}
 
-	if !app.Status.CanTransition(application.ApplicationStatusStopping) {
+	if !app.Status.CanTransition(domain.ApplicationStatusStopping) {
 		return fmt.Errorf("cannot stop application in status %s", app.Status)
 	}
 
-	app.Status = application.ApplicationStatusStopping
+	app.Status = domain.ApplicationStatusStopping
 	s.repo.UpdateApplication(ctx, app)
 
 	// Scale to 0 replicas
-	if app.Type == application.ApplicationTypeStateless {
-		deploymentSpec := application.DeploymentSpec{
+	if app.Type == domain.ApplicationTypeStateless {
+		deploymentSpec := domain.DeploymentSpec{
 			Name:     app.Name,
 			Replicas: 0,
 		}
 		err = s.k8s.UpdateDeployment(ctx, app.WorkspaceID, app.ProjectID, app.Name, deploymentSpec)
 	} else {
-		statefulSetSpec := application.StatefulSetSpec{
+		statefulSetSpec := domain.StatefulSetSpec{
 			Name:     app.Name,
 			Replicas: 0,
 		}
@@ -490,9 +490,9 @@ func (s *Service) StopApplication(ctx context.Context, applicationID string) err
 	}
 
 	if err != nil {
-		app.Status = application.ApplicationStatusError
+		app.Status = domain.ApplicationStatusError
 	} else {
-		app.Status = application.ApplicationStatusStopped
+		app.Status = domain.ApplicationStatusStopped
 	}
 	s.repo.UpdateApplication(ctx, app)
 
@@ -506,7 +506,7 @@ func (s *Service) RestartApplication(ctx context.Context, applicationID string) 
 		return err
 	}
 
-	if app.Status != application.ApplicationStatusRunning {
+	if app.Status != domain.ApplicationStatusRunning {
 		return fmt.Errorf("can only restart running applications")
 	}
 
@@ -524,7 +524,7 @@ func (s *Service) RestartApplication(ctx context.Context, applicationID string) 
 	}
 
 	// Create restart event
-	event := &application.ApplicationEvent{
+	event := &domain.ApplicationEvent{
 		ID:            uuid.New().String(),
 		ApplicationID: app.ID,
 		Type:          "restart.completed",
@@ -548,12 +548,12 @@ func (s *Service) ScaleApplication(ctx context.Context, applicationID string, re
 	}
 
 	// Check constraints for stateful apps
-	if app.Type == application.ApplicationTypeStateful && replicas > 1 {
+	if app.Type == domain.ApplicationTypeStateful && replicas > 1 {
 		return errors.New("stateful applications cannot scale beyond 1 replica")
 	}
 
 	// Update configuration
-	req := application.UpdateApplicationRequest{
+	req := domain.UpdateApplicationRequest{
 		Replicas: &replicas,
 	}
 
@@ -562,7 +562,7 @@ func (s *Service) ScaleApplication(ctx context.Context, applicationID string, re
 }
 
 // ListPods lists all pods for an application
-func (s *Service) ListPods(ctx context.Context, applicationID string) ([]application.Pod, error) {
+func (s *Service) ListPods(ctx context.Context, applicationID string) ([]domain.Pod, error) {
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
@@ -583,13 +583,13 @@ func (s *Service) RestartPod(ctx context.Context, applicationID, podName string)
 }
 
 // GetPodLogs retrieves logs for an application
-func (s *Service) GetPodLogs(ctx context.Context, query application.LogQuery) ([]application.LogEntry, error) {
+func (s *Service) GetPodLogs(ctx context.Context, query domain.LogQuery) ([]domain.LogEntry, error) {
 	app, err := s.repo.GetApplication(ctx, query.ApplicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	opts := application.LogOptions{
+	opts := domain.LogOptions{
 		Since:    query.Since,
 		Until:    query.Until,
 		Limit:    query.Limit,
@@ -601,13 +601,13 @@ func (s *Service) GetPodLogs(ctx context.Context, query application.LogQuery) ([
 }
 
 // StreamPodLogs streams logs for an application
-func (s *Service) StreamPodLogs(ctx context.Context, query application.LogQuery) (io.ReadCloser, error) {
+func (s *Service) StreamPodLogs(ctx context.Context, query domain.LogQuery) (io.ReadCloser, error) {
 	app, err := s.repo.GetApplication(ctx, query.ApplicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	opts := application.LogOptions{
+	opts := domain.LogOptions{
 		Since:    query.Since,
 		Until:    query.Until,
 		Limit:    query.Limit,
@@ -619,7 +619,7 @@ func (s *Service) StreamPodLogs(ctx context.Context, query application.LogQuery)
 }
 
 // GetApplicationMetrics retrieves metrics for an application
-func (s *Service) GetApplicationMetrics(ctx context.Context, applicationID string) (*application.ApplicationMetrics, error) {
+func (s *Service) GetApplicationMetrics(ctx context.Context, applicationID string) (*domain.ApplicationMetrics, error) {
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
@@ -657,11 +657,11 @@ func (s *Service) GetApplicationMetrics(ctx context.Context, applicationID strin
 		avgMemory = totalMemory / float64(len(podMetrics))
 	}
 
-	return &application.ApplicationMetrics{
+	return &domain.ApplicationMetrics{
 		ApplicationID: applicationID,
 		Timestamp:     time.Now(),
 		PodMetrics:    podMetrics,
-		AggregateUsage: application.AggregateResourceUsage{
+		AggregateUsage: domain.AggregateResourceUsage{
 			TotalCPU:      totalCPU,
 			TotalMemory:   totalMemory,
 			AverageCPU:    avgCPU,
@@ -671,13 +671,13 @@ func (s *Service) GetApplicationMetrics(ctx context.Context, applicationID strin
 }
 
 // GetApplicationEvents retrieves events for an application
-func (s *Service) GetApplicationEvents(ctx context.Context, applicationID string, limit int) ([]application.ApplicationEvent, error) {
+func (s *Service) GetApplicationEvents(ctx context.Context, applicationID string, limit int) ([]domain.ApplicationEvent, error) {
 	return s.repo.ListEvents(ctx, applicationID, limit)
 }
 
 // UpdateNetworkConfig updates network configuration for an application
-func (s *Service) UpdateNetworkConfig(ctx context.Context, applicationID string, config application.NetworkConfig) error {
-	req := application.UpdateApplicationRequest{
+func (s *Service) UpdateNetworkConfig(ctx context.Context, applicationID string, config domain.NetworkConfig) error {
+	req := domain.UpdateApplicationRequest{
 		NetworkConfig: &config,
 	}
 	_, err := s.UpdateApplication(ctx, applicationID, req)
@@ -685,7 +685,7 @@ func (s *Service) UpdateNetworkConfig(ctx context.Context, applicationID string,
 }
 
 // GetApplicationEndpoints retrieves endpoints for an application
-func (s *Service) GetApplicationEndpoints(ctx context.Context, applicationID string) ([]application.Endpoint, error) {
+func (s *Service) GetApplicationEndpoints(ctx context.Context, applicationID string) ([]domain.Endpoint, error) {
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
@@ -716,9 +716,9 @@ func (s *Service) MigrateToNode(ctx context.Context, applicationID, targetNodeID
 }
 
 // CreateCronJob creates a new CronJob application
-func (s *Service) CreateCronJob(ctx context.Context, app *application.Application) error {
+func (s *Service) CreateCronJob(ctx context.Context, app *domain.Application) error {
 	// Validate CronJob specific fields
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return errors.New("application type must be cronjob")
 	}
 	if app.CronSchedule == "" {
@@ -729,7 +729,7 @@ func (s *Service) CreateCronJob(ctx context.Context, app *application.Applicatio
 	}
 
 	// Set initial status
-	app.Status = application.ApplicationStatusPending
+	app.Status = domain.ApplicationStatusPending
 	
 	// Create in repository (will handle template app copying)
 	if err := s.repo.Create(ctx, app); err != nil {
@@ -737,7 +737,7 @@ func (s *Service) CreateCronJob(ctx context.Context, app *application.Applicatio
 	}
 
 	// Create CronJob in Kubernetes
-	cronJobSpec := application.CronJobSpec{
+	cronJobSpec := domain.CronJobSpec{
 		Name:              app.Name,
 		Schedule:          app.CronSchedule,
 		Image:             app.Source.Image,
@@ -754,13 +754,13 @@ func (s *Service) CreateCronJob(ctx context.Context, app *application.Applicatio
 
 	if err := s.k8s.CreateCronJob(ctx, app.WorkspaceID, app.ProjectID, cronJobSpec); err != nil {
 		// Update status to error
-		app.Status = application.ApplicationStatusError
+		app.Status = domain.ApplicationStatusError
 		s.repo.UpdateApplication(ctx, app)
 		return fmt.Errorf("failed to create kubernetes cronjob: %w", err)
 	}
 
 	// Update status to running
-	app.Status = application.ApplicationStatusRunning
+	app.Status = domain.ApplicationStatusRunning
 	return s.repo.UpdateApplication(ctx, app)
 }
 
@@ -772,7 +772,7 @@ func (s *Service) UpdateCronJobSchedule(ctx context.Context, applicationID, newS
 		return err
 	}
 
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return errors.New("application is not a cronjob")
 	}
 
@@ -782,7 +782,7 @@ func (s *Service) UpdateCronJobSchedule(ctx context.Context, applicationID, newS
 	}
 
 	// Update CronJob in Kubernetes
-	cronJobSpec := application.CronJobSpec{
+	cronJobSpec := domain.CronJobSpec{
 		Name:              app.Name,
 		Schedule:          newSchedule,
 		Image:             app.Source.Image,
@@ -805,14 +805,14 @@ func (s *Service) UpdateCronJobSchedule(ctx context.Context, applicationID, newS
 }
 
 // TriggerCronJob manually triggers a CronJob
-func (s *Service) TriggerCronJob(ctx context.Context, req *application.TriggerCronJobRequest) (*application.CronJobExecution, error) {
+func (s *Service) TriggerCronJob(ctx context.Context, req *domain.TriggerCronJobRequest) (*domain.CronJobExecution, error) {
 	// Get application
 	app, err := s.repo.GetApplication(ctx, req.ApplicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return nil, errors.New("application is not a cronjob")
 	}
 
@@ -823,12 +823,12 @@ func (s *Service) TriggerCronJob(ctx context.Context, req *application.TriggerCr
 	}
 
 	// Create execution record
-	execution := &application.CronJobExecution{
+	execution := &domain.CronJobExecution{
 		ID:            uuid.New().String(),
 		ApplicationID: req.ApplicationID,
 		JobName:       fmt.Sprintf("%s-manual-%d", app.Name, time.Now().Unix()),
 		StartedAt:     time.Now(),
-		Status:        application.CronJobExecutionStatusRunning,
+		Status:        domain.CronJobExecutionStatusRunning,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -844,14 +844,14 @@ func (s *Service) TriggerCronJob(ctx context.Context, req *application.TriggerCr
 }
 
 // GetCronJobExecutions retrieves executions for a CronJob
-func (s *Service) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]application.CronJobExecution, int, error) {
+func (s *Service) GetCronJobExecutions(ctx context.Context, applicationID string, limit, offset int) ([]domain.CronJobExecution, int, error) {
 	// Verify application exists and is a CronJob
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return nil, 0, errors.New("application is not a cronjob")
 	}
 
@@ -859,14 +859,14 @@ func (s *Service) GetCronJobExecutions(ctx context.Context, applicationID string
 }
 
 // GetCronJobStatus retrieves the status of a CronJob from Kubernetes
-func (s *Service) GetCronJobStatus(ctx context.Context, applicationID string) (*application.CronJobStatus, error) {
+func (s *Service) GetCronJobStatus(ctx context.Context, applicationID string) (*domain.CronJobStatus, error) {
 	// Get application
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeCronJob {
+	if app.Type != domain.ApplicationTypeCronJob {
 		return nil, errors.New("application is not a cronjob")
 	}
 
@@ -874,7 +874,7 @@ func (s *Service) GetCronJobStatus(ctx context.Context, applicationID string) (*
 }
 
 // CreateFunction creates a new serverless function application
-func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req application.CreateFunctionRequest) (*application.Application, error) {
+func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req domain.CreateFunctionRequest) (*domain.Application, error) {
 	// Validate request
 	if req.Name == "" {
 		return nil, errors.New("name is required")
@@ -898,12 +898,12 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req ap
 	}
 
 	// Create the application
-	app := &application.Application{
+	app := &domain.Application{
 		WorkspaceID:         workspaceID,
 		ProjectID:           req.ProjectID,
 		Name:                req.Name,
-		Type:                application.ApplicationTypeFunction,
-		Status:              application.ApplicationStatusPending,
+		Type:                domain.ApplicationTypeFunction,
+		Status:              domain.ApplicationStatusPending,
 		FunctionRuntime:     req.Runtime,
 		FunctionHandler:     req.Handler,
 		FunctionTimeout:     req.Timeout,
@@ -912,12 +912,12 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req ap
 		FunctionTriggerConfig: req.TriggerConfig,
 		FunctionEnvVars:     req.EnvVars,
 		FunctionSecrets:     req.Secrets,
-		Source: application.ApplicationSource{
-			Type: application.SourceTypeImage, // Will be built from source
+		Source: domain.ApplicationSource{
+			Type: domain.SourceTypeImage, // Will be built from source
 		},
-		Config: application.ApplicationConfig{
+		Config: domain.ApplicationConfig{
 			Replicas: 0, // Scale to zero when idle
-			Resources: application.ResourceRequests{
+			Resources: domain.ResourceRequests{
 				CPURequest:    "100m",
 				CPULimit:      "1000m",
 				MemoryRequest: fmt.Sprintf("%dMi", req.Memory),
@@ -932,13 +932,13 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req ap
 	}
 
 	// Create initial version
-	version := &application.FunctionVersion{
+	version := &domain.FunctionVersion{
 		ApplicationID: app.ID,
 		VersionNumber: 1,
 		SourceCode:    req.SourceCode,
 		SourceType:    req.SourceType,
 		SourceURL:     req.SourceURL,
-		BuildStatus:   application.FunctionBuildPending,
+		BuildStatus:   domain.FunctionBuildPending,
 		IsActive:      true,
 	}
 
@@ -954,14 +954,14 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID string, req ap
 }
 
 // DeployFunctionVersion creates and deploys a new version of a function
-func (s *Service) DeployFunctionVersion(ctx context.Context, applicationID string, sourceCode string) (*application.FunctionVersion, error) {
+func (s *Service) DeployFunctionVersion(ctx context.Context, applicationID string, sourceCode string) (*domain.FunctionVersion, error) {
 	// Get application
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return nil, errors.New("application is not a function")
 	}
 
@@ -977,12 +977,12 @@ func (s *Service) DeployFunctionVersion(ctx context.Context, applicationID strin
 	}
 
 	// Create new version
-	version := &application.FunctionVersion{
+	version := &domain.FunctionVersion{
 		ApplicationID: applicationID,
 		VersionNumber: nextVersionNumber,
 		SourceCode:    sourceCode,
-		SourceType:    application.FunctionSourceInline,
-		BuildStatus:   application.FunctionBuildPending,
+		SourceType:    domain.FunctionSourceInline,
+		BuildStatus:   domain.FunctionBuildPending,
 		IsActive:      false, // Not active until successfully built
 	}
 
@@ -1000,9 +1000,9 @@ func (s *Service) DeployFunctionVersion(ctx context.Context, applicationID strin
 }
 
 // buildFunctionVersion handles the asynchronous build process
-func (s *Service) buildFunctionVersion(ctx context.Context, app *application.Application, version *application.FunctionVersion) {
+func (s *Service) buildFunctionVersion(ctx context.Context, app *domain.Application, version *domain.FunctionVersion) {
 	// Update status to building
-	version.BuildStatus = application.FunctionBuildBuilding
+	version.BuildStatus = domain.FunctionBuildBuilding
 	if err := s.repo.UpdateFunctionVersion(ctx, version); err != nil {
 		s.logger.Error("failed to update build status", "error", err)
 		return
@@ -1013,7 +1013,7 @@ func (s *Service) buildFunctionVersion(ctx context.Context, app *application.App
 	imageURI := fmt.Sprintf("registry.local/functions/%s:v%d", app.Name, version.VersionNumber)
 	
 	// Update with build results
-	version.BuildStatus = application.FunctionBuildSuccess
+	version.BuildStatus = domain.FunctionBuildSuccess
 	version.ImageURI = imageURI
 	if err := s.repo.UpdateFunctionVersion(ctx, version); err != nil {
 		s.logger.Error("failed to update build results", "error", err)
@@ -1028,14 +1028,14 @@ func (s *Service) buildFunctionVersion(ctx context.Context, app *application.App
 }
 
 // GetFunctionVersions retrieves all versions of a function
-func (s *Service) GetFunctionVersions(ctx context.Context, applicationID string) ([]application.FunctionVersion, error) {
+func (s *Service) GetFunctionVersions(ctx context.Context, applicationID string) ([]domain.FunctionVersion, error) {
 	// Verify application exists and is a function
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return nil, errors.New("application is not a function")
 	}
 
@@ -1050,7 +1050,7 @@ func (s *Service) SetActiveFunctionVersion(ctx context.Context, applicationID, v
 		return err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return errors.New("application is not a function")
 	}
 
@@ -1064,7 +1064,7 @@ func (s *Service) SetActiveFunctionVersion(ctx context.Context, applicationID, v
 		return errors.New("version does not belong to this application")
 	}
 
-	if version.BuildStatus != application.FunctionBuildSuccess {
+	if version.BuildStatus != domain.FunctionBuildSuccess {
 		return errors.New("can only activate successfully built versions")
 	}
 
@@ -1074,7 +1074,7 @@ func (s *Service) SetActiveFunctionVersion(ctx context.Context, applicationID, v
 	}
 
 	// Deploy the new version to Knative
-	spec := application.KnativeServiceSpec{
+	spec := domain.KnativeServiceSpec{
 		Name:         app.Name,
 		Image:        version.ImageURI,
 		EnvVars:      app.FunctionEnvVars,
@@ -1085,31 +1085,31 @@ func (s *Service) SetActiveFunctionVersion(ctx context.Context, applicationID, v
 	}
 
 	// Update or create Knative service
-	if app.Status == application.ApplicationStatusRunning {
+	if app.Status == domain.ApplicationStatusRunning {
 		return s.k8s.UpdateKnativeService(ctx, app.WorkspaceID, app.ProjectID, app.Name, spec)
 	} else {
 		if err := s.k8s.CreateKnativeService(ctx, app.WorkspaceID, app.ProjectID, spec); err != nil {
 			return err
 		}
 		// Update app status
-		app.Status = application.ApplicationStatusRunning
+		app.Status = domain.ApplicationStatusRunning
 		return s.repo.UpdateApplication(ctx, app)
 	}
 }
 
 // InvokeFunction invokes a function synchronously
-func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req application.InvokeFunctionRequest) (*application.InvokeFunctionResponse, error) {
+func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req domain.InvokeFunctionRequest) (*domain.InvokeFunctionResponse, error) {
 	// Get application
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return nil, errors.New("application is not a function")
 	}
 
-	if app.Status != application.ApplicationStatusRunning {
+	if app.Status != domain.ApplicationStatusRunning {
 		return nil, errors.New("function is not running")
 	}
 
@@ -1126,7 +1126,7 @@ func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req 
 	}
 
 	// Create invocation record
-	invocation := &application.FunctionInvocation{
+	invocation := &domain.FunctionInvocation{
 		ApplicationID:  applicationID,
 		VersionID:      activeVersion.ID,
 		InvocationID:   uuid.New().String(),
@@ -1145,7 +1145,7 @@ func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req 
 
 	// TODO: Actually invoke the function via HTTP
 	// For now, return a mock response
-	response := &application.InvokeFunctionResponse{
+	response := &domain.InvokeFunctionResponse{
 		InvocationID: invocation.InvocationID,
 		Status:       200,
 		Headers:      map[string][]string{"Content-Type": {"application/json"}},
@@ -1170,14 +1170,14 @@ func (s *Service) InvokeFunction(ctx context.Context, applicationID string, req 
 }
 
 // GetFunctionInvocations retrieves invocation history for a function
-func (s *Service) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]application.FunctionInvocation, int, error) {
+func (s *Service) GetFunctionInvocations(ctx context.Context, applicationID string, limit, offset int) ([]domain.FunctionInvocation, int, error) {
 	// Verify application exists and is a function
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return nil, 0, errors.New("application is not a function")
 	}
 
@@ -1185,14 +1185,14 @@ func (s *Service) GetFunctionInvocations(ctx context.Context, applicationID stri
 }
 
 // GetFunctionEvents retrieves pending events for a function
-func (s *Service) GetFunctionEvents(ctx context.Context, applicationID string, limit int) ([]application.FunctionEvent, error) {
+func (s *Service) GetFunctionEvents(ctx context.Context, applicationID string, limit int) ([]domain.FunctionEvent, error) {
 	// Verify application exists and is a function
 	app, err := s.repo.GetApplication(ctx, applicationID)
 	if err != nil {
 		return nil, err
 	}
 
-	if app.Type != application.ApplicationTypeFunction {
+	if app.Type != domain.ApplicationTypeFunction {
 		return nil, errors.New("application is not a function")
 	}
 
@@ -1226,7 +1226,7 @@ func (s *Service) ProcessFunctionEvent(ctx context.Context, eventID string) erro
 
 	// Prepare invocation request
 	eventData, _ := json.Marshal(event.EventData)
-	req := application.InvokeFunctionRequest{
+	req := domain.InvokeFunctionRequest{
 		Method: "POST",
 		Path:   "/event",
 		Headers: map[string][]string{
@@ -1253,7 +1253,7 @@ func (s *Service) ProcessFunctionEvent(ctx context.Context, eventID string) erro
 }
 
 // handleEventError handles errors during event processing
-func (s *Service) handleEventError(ctx context.Context, event *application.FunctionEvent, err error) error {
+func (s *Service) handleEventError(ctx context.Context, event *domain.FunctionEvent, err error) error {
 	event.ErrorMessage = err.Error()
 	event.RetryCount++
 
@@ -1267,7 +1267,7 @@ func (s *Service) handleEventError(ctx context.Context, event *application.Funct
 }
 
 // UpdateCronJobExecutionStatus updates the status of a CronJob execution
-func (s *Service) UpdateCronJobExecutionStatus(ctx context.Context, executionID string, status application.CronJobExecutionStatus) error {
+func (s *Service) UpdateCronJobExecutionStatus(ctx context.Context, executionID string, status domain.CronJobExecutionStatus) error {
 	execution, err := s.repo.GetCronJobExecution(ctx, executionID)
 	if err != nil {
 		return err
@@ -1278,12 +1278,12 @@ func (s *Service) UpdateCronJobExecutionStatus(ctx context.Context, executionID 
 
 	var completedAt *time.Time
 	var exitCode *int
-	if status == application.CronJobExecutionStatusSucceeded || status == application.CronJobExecutionStatusFailed {
+	if status == domain.CronJobExecutionStatusSucceeded || status == domain.CronJobExecutionStatusFailed {
 		now := time.Now()
 		completedAt = &now
 		execution.CompletedAt = completedAt
 		
-		if status == application.CronJobExecutionStatusSucceeded {
+		if status == domain.CronJobExecutionStatusSucceeded {
 			code := 0
 			exitCode = &code
 		} else {

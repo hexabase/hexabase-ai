@@ -1,11 +1,11 @@
-package application
+package service
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -15,26 +15,26 @@ func TestService_CreateCronJob(t *testing.T) {
 	
 	tests := []struct {
 		name          string
-		app           *application.Application
+		app           *domain.Application
 		expectedError error
 		setupMocks    func(*MockRepository, *MockKubernetesRepository)
 	}{
 		{
 			name: "successful cronjob creation",
-			app: &application.Application{
+			app: &domain.Application{
 				WorkspaceID:  "ws-123",
 				ProjectID:    "proj-456",
 				Name:         "daily-backup",
-				Type:         application.ApplicationTypeCronJob,
+				Type:         domain.ApplicationTypeCronJob,
 				CronSchedule: "0 2 * * *",
 				CronCommand:  []string{"/usr/bin/backup.sh"},
 				CronArgs:     []string{"--full", "--compress"},
-				Source: application.ApplicationSource{
-					Type:  application.SourceTypeImage,
+				Source: domain.ApplicationSource{
+					Type:  domain.SourceTypeImage,
 					Image: "backup-tool:latest",
 				},
-				Config: application.ApplicationConfig{
-					Resources: application.ResourceRequests{
+				Config: domain.ApplicationConfig{
+					Resources: domain.ResourceRequests{
 						CPURequest:    "100m",
 						MemoryRequest: "256Mi",
 						CPULimit:      "500m",
@@ -48,16 +48,16 @@ func TestService_CreateCronJob(t *testing.T) {
 			expectedError: nil,
 			setupMocks: func(repo *MockRepository, k8sRepo *MockKubernetesRepository) {
 				// Mock repository create
-				repo.On("Create", ctx, mock.MatchedBy(func(app *application.Application) bool {
-					return app.Name == "daily-backup" && app.Type == application.ApplicationTypeCronJob
+				repo.On("Create", ctx, mock.MatchedBy(func(app *domain.Application) bool {
+					return app.Name == "daily-backup" && app.Type == domain.ApplicationTypeCronJob
 				})).Return(nil).Run(func(args mock.Arguments) {
-					app := args.Get(1).(*application.Application)
+					app := args.Get(1).(*domain.Application)
 					app.ID = "app-789"
-					app.Status = application.ApplicationStatusPending
+					app.Status = domain.ApplicationStatusPending
 				})
 				
 				// Mock Kubernetes CronJob creation
-				k8sRepo.On("CreateCronJob", ctx, "ws-123", "proj-456", mock.MatchedBy(func(spec application.CronJobSpec) bool {
+				k8sRepo.On("CreateCronJob", ctx, "ws-123", "proj-456", mock.MatchedBy(func(spec domain.CronJobSpec) bool {
 					return spec.Name == "daily-backup" &&
 						spec.Schedule == "0 2 * * *" &&
 						spec.Image == "backup-tool:latest" &&
@@ -66,38 +66,38 @@ func TestService_CreateCronJob(t *testing.T) {
 				})).Return(nil)
 				
 				// Mock status update
-				repo.On("UpdateApplication", ctx, mock.MatchedBy(func(app *application.Application) bool {
-					return app.ID == "app-789" && app.Status == application.ApplicationStatusRunning
+				repo.On("UpdateApplication", ctx, mock.MatchedBy(func(app *domain.Application) bool {
+					return app.ID == "app-789" && app.Status == domain.ApplicationStatusRunning
 				})).Return(nil)
 			},
 		},
 		{
 			name: "cronjob with template application",
-			app: &application.Application{
+			app: &domain.Application{
 				WorkspaceID:   "ws-123",
 				ProjectID:     "proj-456",
 				Name:          "scheduled-task",
-				Type:          application.ApplicationTypeCronJob,
+				Type:          domain.ApplicationTypeCronJob,
 				CronSchedule:  "*/5 * * * *",
 				TemplateAppID: "template-123",
 			},
 			expectedError: nil,
 			setupMocks: func(repo *MockRepository, k8sRepo *MockKubernetesRepository) {
 				// Template app will be fetched in repository layer
-				repo.On("Create", ctx, mock.MatchedBy(func(app *application.Application) bool {
+				repo.On("Create", ctx, mock.MatchedBy(func(app *domain.Application) bool {
 					return app.Name == "scheduled-task" && app.TemplateAppID == "template-123"
 				})).Return(nil).Run(func(args mock.Arguments) {
-					app := args.Get(1).(*application.Application)
+					app := args.Get(1).(*domain.Application)
 					app.ID = "app-890"
-					app.Status = application.ApplicationStatusPending
+					app.Status = domain.ApplicationStatusPending
 					// Simulate template app values being copied
-					app.Source.Type = application.SourceTypeImage
+					app.Source.Type = domain.SourceTypeImage
 					app.Source.Image = "template-image:v1"
 					app.CronCommand = []string{"python", "script.py"}
 				})
 				
 				// Mock Kubernetes CronJob creation
-				k8sRepo.On("CreateCronJob", ctx, "ws-123", "proj-456", mock.MatchedBy(func(spec application.CronJobSpec) bool {
+				k8sRepo.On("CreateCronJob", ctx, "ws-123", "proj-456", mock.MatchedBy(func(spec domain.CronJobSpec) bool {
 					return spec.Name == "scheduled-task" &&
 						spec.Schedule == "*/5 * * * *" &&
 						spec.Image == "template-image:v1"
@@ -116,6 +116,7 @@ func TestService_CreateCronJob(t *testing.T) {
 			
 			service := &Service{
 				repo:    mockRepo,
+			k8s:     mockK8sRepo,
 				k8sRepo: mockK8sRepo,
 			}
 			
@@ -153,14 +154,14 @@ func TestService_UpdateCronJobSchedule(t *testing.T) {
 			expectedError: nil,
 			setupMocks: func(repo *MockRepository, k8sRepo *MockKubernetesRepository) {
 				// Mock get application
-				app := &application.Application{
+				app := &domain.Application{
 					ID:           "app-123",
 					WorkspaceID:  "ws-123",
 					ProjectID:    "proj-456",
 					Name:         "daily-backup",
-					Type:         application.ApplicationTypeCronJob,
+					Type:         domain.ApplicationTypeCronJob,
 					CronSchedule: "0 2 * * *",
-					Status:       application.ApplicationStatusRunning,
+					Status:       domain.ApplicationStatusRunning,
 				}
 				repo.On("GetApplication", ctx, "app-123").Return(app, nil)
 				
@@ -169,7 +170,7 @@ func TestService_UpdateCronJobSchedule(t *testing.T) {
 				
 				// Mock update CronJob in Kubernetes
 				k8sRepo.On("UpdateCronJob", ctx, "ws-123", "proj-456", "daily-backup", 
-					mock.MatchedBy(func(spec application.CronJobSpec) bool {
+					mock.MatchedBy(func(spec domain.CronJobSpec) bool {
 						return spec.Schedule == "0 4 * * *"
 					})).Return(nil)
 			},
@@ -183,6 +184,7 @@ func TestService_UpdateCronJobSchedule(t *testing.T) {
 			
 			service := &Service{
 				repo:    mockRepo,
+			k8s:     mockK8sRepo,
 				k8sRepo: mockK8sRepo,
 			}
 			
@@ -218,14 +220,14 @@ func TestService_TriggerCronJob(t *testing.T) {
 			expectedError: nil,
 			setupMocks: func(repo *MockRepository, k8sRepo *MockKubernetesRepository) {
 				// Mock get application
-				app := &application.Application{
+				app := &domain.Application{
 					ID:           "app-123",
 					WorkspaceID:  "ws-123",
 					ProjectID:    "proj-456",
 					Name:         "daily-backup",
-					Type:         application.ApplicationTypeCronJob,
+					Type:         domain.ApplicationTypeCronJob,
 					CronSchedule: "0 2 * * *",
-					Status:       application.ApplicationStatusRunning,
+					Status:       domain.ApplicationStatusRunning,
 				}
 				repo.On("GetApplication", ctx, "app-123").Return(app, nil)
 				
@@ -233,9 +235,9 @@ func TestService_TriggerCronJob(t *testing.T) {
 				k8sRepo.On("TriggerCronJob", ctx, "ws-123", "proj-456", "daily-backup").Return(nil)
 				
 				// Mock create execution record
-				repo.On("CreateCronJobExecution", ctx, mock.MatchedBy(func(exec *application.CronJobExecution) bool {
+				repo.On("CreateCronJobExecution", ctx, mock.MatchedBy(func(exec *domain.CronJobExecution) bool {
 					return exec.ApplicationID == "app-123" &&
-						exec.Status == application.CronJobExecutionStatusRunning
+						exec.Status == domain.CronJobExecutionStatusRunning
 				})).Return(nil)
 			},
 		},
@@ -248,12 +250,13 @@ func TestService_TriggerCronJob(t *testing.T) {
 			
 			service := &Service{
 				repo:    mockRepo,
+			k8s:     mockK8sRepo,
 				k8sRepo: mockK8sRepo,
 			}
 			
 			tt.setupMocks(mockRepo, mockK8sRepo)
 			
-			req := &application.TriggerCronJobRequest{
+			req := &domain.TriggerCronJobRequest{
 				ApplicationID: tt.applicationID,
 			}
 			_, err := service.TriggerCronJob(ctx, req)
@@ -280,7 +283,7 @@ func TestService_GetCronJobExecutions(t *testing.T) {
 		applicationID         string
 		limit                 int
 		offset                int
-		expectedExecutions    []application.CronJobExecution
+		expectedExecutions    []domain.CronJobExecution
 		expectedTotal         int
 		expectedError         error
 		setupMocks           func(*MockRepository)
@@ -290,14 +293,14 @@ func TestService_GetCronJobExecutions(t *testing.T) {
 			applicationID: "app-123",
 			limit:         10,
 			offset:        0,
-			expectedExecutions: []application.CronJobExecution{
+			expectedExecutions: []domain.CronJobExecution{
 				{
 					ID:            "exec-1",
 					ApplicationID: "app-123",
 					JobName:       "daily-backup-1234567890",
 					StartedAt:     now.Add(-1 * time.Hour),
 					CompletedAt:   &now,
-					Status:        application.CronJobExecutionStatusSucceeded,
+					Status:        domain.CronJobExecutionStatusSucceeded,
 					ExitCode:      intPtr(0),
 					Logs:          "Backup completed successfully",
 				},
@@ -306,21 +309,28 @@ func TestService_GetCronJobExecutions(t *testing.T) {
 					ApplicationID: "app-123",
 					JobName:       "daily-backup-1234567891",
 					StartedAt:     now.Add(-2 * time.Hour),
-					Status:        application.CronJobExecutionStatusRunning,
+					Status:        domain.CronJobExecutionStatusRunning,
 				},
 			},
 			expectedTotal: 2,
 			expectedError: nil,
 			setupMocks: func(repo *MockRepository) {
+				// Mock get application
+				app := &domain.Application{
+					ID:   "app-123",
+					Type: domain.ApplicationTypeCronJob,
+				}
+				repo.On("GetApplication", ctx, "app-123").Return(app, nil)
+				
 				repo.On("GetCronJobExecutions", ctx, "app-123", 10, 0).
-					Return([]application.CronJobExecution{
+					Return([]domain.CronJobExecution{
 						{
 							ID:            "exec-1",
 							ApplicationID: "app-123",
 							JobName:       "daily-backup-1234567890",
 							StartedAt:     now.Add(-1 * time.Hour),
 							CompletedAt:   &now,
-							Status:        application.CronJobExecutionStatusSucceeded,
+							Status:        domain.CronJobExecutionStatusSucceeded,
 							ExitCode:      intPtr(0),
 							Logs:          "Backup completed successfully",
 						},
@@ -329,7 +339,7 @@ func TestService_GetCronJobExecutions(t *testing.T) {
 							ApplicationID: "app-123",
 							JobName:       "daily-backup-1234567891",
 							StartedAt:     now.Add(-2 * time.Hour),
-							Status:        application.CronJobExecutionStatusRunning,
+							Status:        domain.CronJobExecutionStatusRunning,
 						},
 					}, 2, nil)
 			},

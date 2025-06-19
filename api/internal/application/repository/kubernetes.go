@@ -1,4 +1,4 @@
-package application
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +25,7 @@ type KubernetesRepository struct {
 }
 
 // NewKubernetesRepository creates a new Kubernetes repository
-func NewKubernetesRepository(clientset kubernetes.Interface, metricsClientset versioned.Interface) application.KubernetesRepository {
+func NewKubernetesRepository(clientset kubernetes.Interface, metricsClientset versioned.Interface) domain.KubernetesRepository {
 	return &KubernetesRepository{
 		clientset:        clientset,
 		metricsClientset: metricsClientset,
@@ -33,7 +33,7 @@ func NewKubernetesRepository(clientset kubernetes.Interface, metricsClientset ve
 }
 
 // CreateDeployment creates a new deployment
-func (r *KubernetesRepository) CreateDeployment(ctx context.Context, workspaceID, projectID string, spec application.DeploymentSpec) error {
+func (r *KubernetesRepository) CreateDeployment(ctx context.Context, workspaceID, projectID string, spec domain.DeploymentSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	deployment := &appsv1.Deployment{
@@ -76,7 +76,7 @@ func (r *KubernetesRepository) CreateDeployment(ctx context.Context, workspaceID
 }
 
 // UpdateDeployment updates an existing deployment
-func (r *KubernetesRepository) UpdateDeployment(ctx context.Context, workspaceID, projectID, name string, spec application.DeploymentSpec) error {
+func (r *KubernetesRepository) UpdateDeployment(ctx context.Context, workspaceID, projectID, name string, spec domain.DeploymentSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	deployment, err := r.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -103,7 +103,7 @@ func (r *KubernetesRepository) DeleteDeployment(ctx context.Context, workspaceID
 }
 
 // GetDeploymentStatus gets the status of a deployment
-func (r *KubernetesRepository) GetDeploymentStatus(ctx context.Context, workspaceID, projectID, name string) (*application.DeploymentStatus, error) {
+func (r *KubernetesRepository) GetDeploymentStatus(ctx context.Context, workspaceID, projectID, name string) (*domain.DeploymentStatus, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	deployment, err := r.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -111,7 +111,7 @@ func (r *KubernetesRepository) GetDeploymentStatus(ctx context.Context, workspac
 		return nil, err
 	}
 
-	status := &application.DeploymentStatus{
+	status := &domain.DeploymentStatus{
 		Replicas:          int(deployment.Status.Replicas),
 		UpdatedReplicas:   int(deployment.Status.UpdatedReplicas),
 		ReadyReplicas:     int(deployment.Status.ReadyReplicas),
@@ -119,7 +119,7 @@ func (r *KubernetesRepository) GetDeploymentStatus(ctx context.Context, workspac
 	}
 
 	for _, cond := range deployment.Status.Conditions {
-		status.Conditions = append(status.Conditions, application.DeploymentCondition{
+		status.Conditions = append(status.Conditions, domain.DeploymentCondition{
 			Type:               string(cond.Type),
 			Status:             string(cond.Status),
 			LastUpdateTime:     cond.LastUpdateTime.Time,
@@ -133,7 +133,7 @@ func (r *KubernetesRepository) GetDeploymentStatus(ctx context.Context, workspac
 }
 
 // CreateStatefulSet creates a new statefulset
-func (r *KubernetesRepository) CreateStatefulSet(ctx context.Context, workspaceID, projectID string, spec application.StatefulSetSpec) error {
+func (r *KubernetesRepository) CreateStatefulSet(ctx context.Context, workspaceID, projectID string, spec domain.StatefulSetSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	statefulSet := &appsv1.StatefulSet{
@@ -199,7 +199,7 @@ func (r *KubernetesRepository) CreateStatefulSet(ctx context.Context, workspaceI
 }
 
 // UpdateStatefulSet updates an existing statefulset
-func (r *KubernetesRepository) UpdateStatefulSet(ctx context.Context, workspaceID, projectID, name string, spec application.StatefulSetSpec) error {
+func (r *KubernetesRepository) UpdateStatefulSet(ctx context.Context, workspaceID, projectID, name string, spec domain.StatefulSetSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	statefulSet, err := r.clientset.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -226,7 +226,7 @@ func (r *KubernetesRepository) DeleteStatefulSet(ctx context.Context, workspaceI
 }
 
 // GetStatefulSetStatus gets the status of a statefulset
-func (r *KubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspaceID, projectID, name string) (*application.StatefulSetStatus, error) {
+func (r *KubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspaceID, projectID, name string) (*domain.StatefulSetStatus, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	statefulSet, err := r.clientset.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -234,7 +234,7 @@ func (r *KubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspa
 		return nil, err
 	}
 
-	status := &application.StatefulSetStatus{
+	status := &domain.StatefulSetStatus{
 		Replicas:        int(statefulSet.Status.Replicas),
 		ReadyReplicas:   int(statefulSet.Status.ReadyReplicas),
 		CurrentReplicas: int(statefulSet.Status.CurrentReplicas),
@@ -242,7 +242,7 @@ func (r *KubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspa
 	}
 
 	for _, cond := range statefulSet.Status.Conditions {
-		status.Conditions = append(status.Conditions, application.StatefulSetCondition{
+		status.Conditions = append(status.Conditions, domain.StatefulSetCondition{
 			Type:               string(cond.Type),
 			Status:             string(cond.Status),
 			LastTransitionTime: cond.LastTransitionTime.Time,
@@ -255,7 +255,7 @@ func (r *KubernetesRepository) GetStatefulSetStatus(ctx context.Context, workspa
 }
 
 // CreateService creates a new service
-func (r *KubernetesRepository) CreateService(ctx context.Context, workspaceID, projectID string, spec application.ServiceSpec) error {
+func (r *KubernetesRepository) CreateService(ctx context.Context, workspaceID, projectID string, spec domain.ServiceSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	service := &corev1.Service{
@@ -285,7 +285,7 @@ func (r *KubernetesRepository) DeleteService(ctx context.Context, workspaceID, p
 }
 
 // GetServiceEndpoints gets the endpoints for a service
-func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspaceID, projectID, name string) ([]application.Endpoint, error) {
+func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspaceID, projectID, name string) ([]domain.Endpoint, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	service, err := r.clientset.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -293,11 +293,11 @@ func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspac
 		return nil, err
 	}
 
-	var endpoints []application.Endpoint
+	var endpoints []domain.Endpoint
 	
 	// For ClusterIP services
 	if service.Spec.Type == corev1.ServiceTypeClusterIP {
-		endpoints = append(endpoints, application.Endpoint{
+		endpoints = append(endpoints, domain.Endpoint{
 			Type: "service",
 			URL:  fmt.Sprintf("%s.%s.svc.cluster.local:%d", service.Name, namespace, service.Spec.Ports[0].Port),
 		})
@@ -307,13 +307,13 @@ func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspac
 	if service.Spec.Type == corev1.ServiceTypeLoadBalancer && len(service.Status.LoadBalancer.Ingress) > 0 {
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			if ingress.IP != "" {
-				endpoints = append(endpoints, application.Endpoint{
+				endpoints = append(endpoints, domain.Endpoint{
 					Type: "loadbalancer",
 					URL:  fmt.Sprintf("http://%s:%d", ingress.IP, service.Spec.Ports[0].Port),
 				})
 			}
 			if ingress.Hostname != "" {
-				endpoints = append(endpoints, application.Endpoint{
+				endpoints = append(endpoints, domain.Endpoint{
 					Type: "loadbalancer",
 					URL:  fmt.Sprintf("http://%s:%d", ingress.Hostname, service.Spec.Ports[0].Port),
 				})
@@ -332,7 +332,7 @@ func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspac
 						if len(ingress.Spec.TLS) > 0 {
 							protocol = "https"
 						}
-						endpoints = append(endpoints, application.Endpoint{
+						endpoints = append(endpoints, domain.Endpoint{
 							Type: "ingress",
 							URL:  fmt.Sprintf("%s://%s%s", protocol, rule.Host, path.Path),
 						})
@@ -346,7 +346,7 @@ func (r *KubernetesRepository) GetServiceEndpoints(ctx context.Context, workspac
 }
 
 // CreateIngress creates a new ingress
-func (r *KubernetesRepository) CreateIngress(ctx context.Context, workspaceID, projectID string, spec application.IngressSpec) error {
+func (r *KubernetesRepository) CreateIngress(ctx context.Context, workspaceID, projectID string, spec domain.IngressSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	pathType := networkingv1.PathTypePrefix
@@ -396,7 +396,7 @@ func (r *KubernetesRepository) CreateIngress(ctx context.Context, workspaceID, p
 }
 
 // UpdateIngress updates an existing ingress
-func (r *KubernetesRepository) UpdateIngress(ctx context.Context, workspaceID, projectID, name string, spec application.IngressSpec) error {
+func (r *KubernetesRepository) UpdateIngress(ctx context.Context, workspaceID, projectID, name string, spec domain.IngressSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	ingress, err := r.clientset.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -425,7 +425,7 @@ func (r *KubernetesRepository) DeleteIngress(ctx context.Context, workspaceID, p
 }
 
 // CreatePVC creates a new persistent volume claim
-func (r *KubernetesRepository) CreatePVC(ctx context.Context, workspaceID, projectID string, spec application.PVCSpec) error {
+func (r *KubernetesRepository) CreatePVC(ctx context.Context, workspaceID, projectID string, spec domain.PVCSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	pvc := &corev1.PersistentVolumeClaim{
@@ -456,7 +456,7 @@ func (r *KubernetesRepository) DeletePVC(ctx context.Context, workspaceID, proje
 }
 
 // ListPods lists pods matching the selector
-func (r *KubernetesRepository) ListPods(ctx context.Context, workspaceID, projectID string, selector map[string]string) ([]application.Pod, error) {
+func (r *KubernetesRepository) ListPods(ctx context.Context, workspaceID, projectID string, selector map[string]string) ([]domain.Pod, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	labelSelector := metav1.FormatLabelSelector(&metav1.LabelSelector{
@@ -470,9 +470,9 @@ func (r *KubernetesRepository) ListPods(ctx context.Context, workspaceID, projec
 		return nil, err
 	}
 
-	var pods []application.Pod
+	var pods []domain.Pod
 	for _, p := range podList.Items {
-		pod := application.Pod{
+		pod := domain.Pod{
 			Name:      p.Name,
 			Status:    string(p.Status.Phase),
 			NodeName:  p.Spec.NodeName,
@@ -496,7 +496,7 @@ func (r *KubernetesRepository) ListPods(ctx context.Context, workspaceID, projec
 }
 
 // GetPodLogs gets logs for a pod
-func (r *KubernetesRepository) GetPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts application.LogOptions) ([]application.LogEntry, error) {
+func (r *KubernetesRepository) GetPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts domain.LogOptions) ([]domain.LogEntry, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	logOpts := &corev1.PodLogOptions{
@@ -522,11 +522,11 @@ func (r *KubernetesRepository) GetPodLogs(ctx context.Context, workspaceID, proj
 
 	// Parse logs into entries
 	// This is a simplified implementation - in production you'd parse the actual log format
-	var entries []application.LogEntry
+	var entries []domain.LogEntry
 	timestamp := time.Now()
 	for _, line := range splitLines(string(logs)) {
 		if line != "" {
-			entries = append(entries, application.LogEntry{
+			entries = append(entries, domain.LogEntry{
 				Timestamp: timestamp,
 				PodName:   podName,
 				Container: container,
@@ -539,7 +539,7 @@ func (r *KubernetesRepository) GetPodLogs(ctx context.Context, workspaceID, proj
 }
 
 // StreamPodLogs streams logs for a pod
-func (r *KubernetesRepository) StreamPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts application.LogOptions) (io.ReadCloser, error) {
+func (r *KubernetesRepository) StreamPodLogs(ctx context.Context, workspaceID, projectID, podName, container string, opts domain.LogOptions) (io.ReadCloser, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	logOpts := &corev1.PodLogOptions{
@@ -564,10 +564,10 @@ func (r *KubernetesRepository) RestartPod(ctx context.Context, workspaceID, proj
 }
 
 // GetPodMetrics gets metrics for pods
-func (r *KubernetesRepository) GetPodMetrics(ctx context.Context, workspaceID, projectID string, podNames []string) ([]application.PodMetrics, error) {
+func (r *KubernetesRepository) GetPodMetrics(ctx context.Context, workspaceID, projectID string, podNames []string) ([]domain.PodMetrics, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
-	var metrics []application.PodMetrics
+	var metrics []domain.PodMetrics
 	for _, podName := range podNames {
 		podMetrics, err := r.metricsClientset.MetricsV1beta1().PodMetricses(namespace).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
@@ -583,7 +583,7 @@ func (r *KubernetesRepository) GetPodMetrics(ctx context.Context, workspaceID, p
 			memoryUsage += float64(memory.Value()) / (1024 * 1024) // Convert to MB
 		}
 
-		metrics = append(metrics, application.PodMetrics{
+		metrics = append(metrics, domain.PodMetrics{
 			PodName:     podName,
 			CPUUsage:    cpuUsage,
 			MemoryUsage: memoryUsage,
@@ -615,7 +615,7 @@ func (r *KubernetesRepository) convertEnvVars(envVars map[string]string) []corev
 	return env
 }
 
-func (r *KubernetesRepository) convertResources(resources application.ResourceRequests) corev1.ResourceRequirements {
+func (r *KubernetesRepository) convertResources(resources domain.ResourceRequests) corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse(resources.CPURequest),
@@ -648,7 +648,7 @@ func splitLines(s string) []string {
 }
 
 // CreateCronJob creates a new Kubernetes CronJob
-func (r *KubernetesRepository) CreateCronJob(ctx context.Context, workspaceID, projectID string, spec application.CronJobSpec) error {
+func (r *KubernetesRepository) CreateCronJob(ctx context.Context, workspaceID, projectID string, spec domain.CronJobSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	// Build CronJob resource
@@ -682,7 +682,7 @@ func (r *KubernetesRepository) CreateCronJob(ctx context.Context, workspaceID, p
 }
 
 // UpdateCronJob updates an existing Kubernetes CronJob
-func (r *KubernetesRepository) UpdateCronJob(ctx context.Context, workspaceID, projectID, name string, spec application.CronJobSpec) error {
+func (r *KubernetesRepository) UpdateCronJob(ctx context.Context, workspaceID, projectID, name string, spec domain.CronJobSpec) error {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	// Get existing CronJob
@@ -720,7 +720,7 @@ func (r *KubernetesRepository) DeleteCronJob(ctx context.Context, workspaceID, p
 }
 
 // GetCronJobStatus retrieves the status of a Kubernetes CronJob
-func (r *KubernetesRepository) GetCronJobStatus(ctx context.Context, workspaceID, projectID, name string) (*application.CronJobStatus, error) {
+func (r *KubernetesRepository) GetCronJobStatus(ctx context.Context, workspaceID, projectID, name string) (*domain.CronJobStatus, error) {
 	namespace := r.getNamespace(workspaceID, projectID)
 	
 	// Get CronJob
@@ -730,11 +730,11 @@ func (r *KubernetesRepository) GetCronJobStatus(ctx context.Context, workspaceID
 	}
 	
 	// Convert to domain status
-	status := &application.CronJobStatus{
+	status := &domain.CronJobStatus{
 		Schedule:           cronJob.Spec.Schedule,
 		LastScheduleTime:   nil,
 		LastSuccessfulTime: nil,
-		Active:             make([]application.ObjectReference, 0),
+		Active:             make([]domain.ObjectReference, 0),
 	}
 	
 	// Set LastScheduleTime if available
@@ -749,7 +749,7 @@ func (r *KubernetesRepository) GetCronJobStatus(ctx context.Context, workspaceID
 	
 	// Convert active job references
 	for _, ref := range cronJob.Status.Active {
-		status.Active = append(status.Active, application.ObjectReference{
+		status.Active = append(status.Active, domain.ObjectReference{
 			Name:      ref.Name,
 			Namespace: ref.Namespace,
 			UID:       string(ref.UID),
@@ -791,7 +791,7 @@ func (r *KubernetesRepository) TriggerCronJob(ctx context.Context, workspaceID, 
 }
 
 // buildCronJobPodSpec builds a PodSpec from CronJobSpec
-func (r *KubernetesRepository) buildCronJobPodSpec(spec application.CronJobSpec) corev1.PodSpec {
+func (r *KubernetesRepository) buildCronJobPodSpec(spec domain.CronJobSpec) corev1.PodSpec {
 	// Convert environment variables
 	envVars := r.convertEnvVars(spec.EnvVars)
 	
@@ -819,7 +819,7 @@ func (r *KubernetesRepository) buildCronJobPodSpec(spec application.CronJobSpec)
 }
 
 // CreateKnativeService creates a new Knative Service
-func (r *KubernetesRepository) CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec application.KnativeServiceSpec) error {
+func (r *KubernetesRepository) CreateKnativeService(ctx context.Context, workspaceID, projectID string, spec domain.KnativeServiceSpec) error {
 	// TODO: Implement Knative Service creation
 	// This requires Knative Serving to be installed and configured
 	// For now, return a not implemented error
@@ -827,7 +827,7 @@ func (r *KubernetesRepository) CreateKnativeService(ctx context.Context, workspa
 }
 
 // UpdateKnativeService updates a Knative Service
-func (r *KubernetesRepository) UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec application.KnativeServiceSpec) error {
+func (r *KubernetesRepository) UpdateKnativeService(ctx context.Context, workspaceID, projectID, name string, spec domain.KnativeServiceSpec) error {
 	// TODO: Implement Knative Service update
 	return fmt.Errorf("Knative Service update not yet implemented")
 }
@@ -839,13 +839,12 @@ func (r *KubernetesRepository) DeleteKnativeService(ctx context.Context, workspa
 }
 
 // GetKnativeServiceStatus gets the status of a Knative Service
-func (r *KubernetesRepository) GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*application.KnativeServiceStatus, error) {
+func (r *KubernetesRepository) GetKnativeServiceStatus(ctx context.Context, workspaceID, projectID, name string) (*domain.KnativeServiceStatus, error) {
 	// TODO: Implement Knative Service status retrieval
 	return nil, fmt.Errorf("Knative Service status retrieval not yet implemented")
 }
 
 // GetKnativeServiceURL gets the URL of a Knative Service
 func (r *KubernetesRepository) GetKnativeServiceURL(ctx context.Context, workspaceID, projectID, name string) (string, error) {
-	// TODO: Implement Knative Service URL retrieval
-	return "", fmt.Errorf("Knative Service URL retrieval not yet implemented")
+	return "", fmt.Errorf("Knative Service operations not implemented yet")
 }

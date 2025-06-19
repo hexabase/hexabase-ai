@@ -1,4 +1,4 @@
-package application
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -24,20 +24,20 @@ func TestCreateApplication(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful stateless application creation", func(t *testing.T) {
-		req := application.CreateApplicationRequest{
+		req := domain.CreateApplicationRequest{
 			Name: "test-app",
-			Type: application.ApplicationTypeStateless,
-			Source: application.ApplicationSource{
-				Type:  application.SourceTypeImage,
+			Type: domain.ApplicationTypeStateless,
+			Source: domain.ApplicationSource{
+				Type:  domain.SourceTypeImage,
 				Image: "nginx:latest",
 			},
-			Config: application.ApplicationConfig{
+			Config: domain.ApplicationConfig{
 				Replicas: 3,
 				Port:     80,
 				EnvVars: map[string]string{
 					"ENV": "production",
 				},
-				Resources: application.ResourceRequests{
+				Resources: domain.ResourceRequests{
 					CPURequest:    "100m",
 					CPULimit:      "500m",
 					MemoryRequest: "128Mi",
@@ -49,21 +49,21 @@ func TestCreateApplication(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetApplicationByName", ctx, "ws-123", "proj-123", "test-app").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		
 		// Async deployment expectations
-		mockK8s.On("CreateDeployment", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+		mockK8s.On("CreateDeployment", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec domain.DeploymentSpec) bool {
 			return spec.Name == "test-app" && spec.Replicas == 3 && spec.Image == "nginx:latest"
 		})).Return(nil).Maybe()
 		
-		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.ServiceSpec) bool {
+		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec domain.ServiceSpec) bool {
 			return spec.Name == "test-app" && spec.Port == 80
 		})).Return(nil).Maybe()
 		
-		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "test-app").Return([]application.Endpoint{}, nil).Maybe()
+		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "test-app").Return([]domain.Endpoint{}, nil).Maybe()
 		
-		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil).Maybe()
 
 		// Execute
 		app, err := service.CreateApplication(ctx, "ws-123", req)
@@ -72,7 +72,7 @@ func TestCreateApplication(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, app)
 		assert.Equal(t, "test-app", app.Name)
-		assert.Equal(t, application.ApplicationTypeStateless, app.Type)
+		assert.Equal(t, domain.ApplicationTypeStateless, app.Type)
 		// Don't check status as it's being modified in a goroutine
 		
 		// Wait a bit for async operations to complete
@@ -83,26 +83,26 @@ func TestCreateApplication(t *testing.T) {
 	})
 
 	t.Run("successful stateful application creation", func(t *testing.T) {
-		req := application.CreateApplicationRequest{
+		req := domain.CreateApplicationRequest{
 			Name: "postgres-db",
-			Type: application.ApplicationTypeStateful,
-			Source: application.ApplicationSource{
-				Type:  application.SourceTypeImage,
+			Type: domain.ApplicationTypeStateful,
+			Source: domain.ApplicationSource{
+				Type:  domain.SourceTypeImage,
 				Image: "postgres:14",
 			},
-			Config: application.ApplicationConfig{
+			Config: domain.ApplicationConfig{
 				Replicas: 1,
 				Port:     5432,
 				EnvVars: map[string]string{
 					"POSTGRES_DB": "mydb",
 				},
-				Resources: application.ResourceRequests{
+				Resources: domain.ResourceRequests{
 					CPURequest:    "250m",
 					CPULimit:      "1000m",
 					MemoryRequest: "512Mi",
 					MemoryLimit:   "2Gi",
 				},
-				Storage: &application.StorageConfig{
+				Storage: &domain.StorageConfig{
 					Size:         "10Gi",
 					StorageClass: "standard",
 					MountPath:    "/var/lib/postgresql/data",
@@ -113,25 +113,25 @@ func TestCreateApplication(t *testing.T) {
 
 		// Mock expectations
 		mockRepo.On("GetApplicationByName", ctx, "ws-123", "proj-123", "postgres-db").Return(nil, errors.New("not found"))
-		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("CreateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		
 		// Async deployment expectations
-		mockK8s.On("CreatePVC", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.PVCSpec) bool {
+		mockK8s.On("CreatePVC", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec domain.PVCSpec) bool {
 			return spec.Name == "postgres-db-data" && spec.Size == "10Gi"
 		})).Return(nil).Maybe()
 		
-		mockK8s.On("CreateStatefulSet", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.StatefulSetSpec) bool {
+		mockK8s.On("CreateStatefulSet", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec domain.StatefulSetSpec) bool {
 			return spec.Name == "postgres-db" && spec.Replicas == 1 && spec.Image == "postgres:14"
 		})).Return(nil).Maybe()
 		
-		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec application.ServiceSpec) bool {
+		mockK8s.On("CreateService", mock.Anything, "ws-123", "proj-123", mock.MatchedBy(func(spec domain.ServiceSpec) bool {
 			return spec.Name == "postgres-db" && spec.Port == 5432
 		})).Return(nil).Maybe()
 		
-		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "postgres-db").Return([]application.Endpoint{}, nil).Maybe()
+		mockK8s.On("GetServiceEndpoints", mock.Anything, "ws-123", "proj-123", "postgres-db").Return([]domain.Endpoint{}, nil).Maybe()
 		
-		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil).Maybe()
 
 		// Execute
 		app, err := service.CreateApplication(ctx, "ws-123", req)
@@ -140,7 +140,7 @@ func TestCreateApplication(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, app)
 		assert.Equal(t, "postgres-db", app.Name)
-		assert.Equal(t, application.ApplicationTypeStateful, app.Type)
+		assert.Equal(t, domain.ApplicationTypeStateful, app.Type)
 		// Don't check status as it's being modified in a goroutine
 		
 		// Wait a bit for async operations to complete
@@ -151,17 +151,17 @@ func TestCreateApplication(t *testing.T) {
 	})
 
 	t.Run("application name already exists", func(t *testing.T) {
-		req := application.CreateApplicationRequest{
+		req := domain.CreateApplicationRequest{
 			Name:      "existing-app",
-			Type:      application.ApplicationTypeStateless,
-			Source: application.ApplicationSource{
-				Type:  application.SourceTypeImage,
+			Type:      domain.ApplicationTypeStateless,
+			Source: domain.ApplicationSource{
+				Type:  domain.SourceTypeImage,
 				Image: "nginx:latest",
 			},
 			ProjectID: "proj-123",
 		}
 
-		existingApp := &application.Application{
+		existingApp := &domain.Application{
 			ID:   "app-existing",
 			Name: "existing-app",
 		}
@@ -178,9 +178,9 @@ func TestCreateApplication(t *testing.T) {
 	})
 
 	t.Run("invalid application type", func(t *testing.T) {
-		req := application.CreateApplicationRequest{
+		req := domain.CreateApplicationRequest{
 			Name:      "invalid-app",
-			Type:      application.ApplicationType("invalid"),
+			Type:      domain.ApplicationType("invalid"),
 			ProjectID: "proj-123",
 		}
 
@@ -194,11 +194,11 @@ func TestCreateApplication(t *testing.T) {
 	})
 
 	t.Run("invalid source type", func(t *testing.T) {
-		req := application.CreateApplicationRequest{
+		req := domain.CreateApplicationRequest{
 			Name: "invalid-source",
-			Type: application.ApplicationTypeStateless,
-			Source: application.ApplicationSource{
-				Type: application.SourceType("invalid"),
+			Type: domain.ApplicationTypeStateless,
+			Source: domain.ApplicationSource{
+				Type: domain.SourceType("invalid"),
 			},
 			ProjectID: "proj-123",
 		}
@@ -221,33 +221,33 @@ func TestUpdateApplication(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful update replicas", func(t *testing.T) {
-		existingApp := &application.Application{
+		existingApp := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
-			Type:        application.ApplicationTypeStateless,
-			Status:      application.ApplicationStatusRunning,
-			Config: application.ApplicationConfig{
+			Type:        domain.ApplicationTypeStateless,
+			Status:      domain.ApplicationStatusRunning,
+			Config: domain.ApplicationConfig{
 				Replicas: 3,
 			},
 		}
 
 		replicas := 5
-		req := application.UpdateApplicationRequest{
+		req := domain.UpdateApplicationRequest{
 			Replicas: &replicas,
 		}
 
 		mockRepo.On("GetApplication", ctx, "app-123").Return(existingApp, nil)
-		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		
 		// Async update expectations
-		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec domain.DeploymentSpec) bool {
 			return spec.Replicas == 5
 		})).Return(nil).Maybe()
-		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
-		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil).Maybe()
+		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil).Maybe()
 
 		// Execute
 		app, err := service.UpdateApplication(ctx, "app-123", req)
@@ -266,7 +266,7 @@ func TestUpdateApplication(t *testing.T) {
 	})
 
 	t.Run("application not found", func(t *testing.T) {
-		req := application.UpdateApplicationRequest{}
+		req := domain.UpdateApplicationRequest{}
 		mockRepo.On("GetApplication", ctx, "app-not-found").Return(nil, errors.New("not found"))
 
 		// Execute
@@ -288,18 +288,18 @@ func TestDeleteApplication(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful deletion of stateless app", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
-			Type:        application.ApplicationTypeStateless,
-			Status:      application.ApplicationStatusStopped,
+			Type:        domain.ApplicationTypeStateless,
+			Status:      domain.ApplicationStatusStopped,
 		}
 
 		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
-		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		mockK8s.On("DeleteDeployment", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
 		mockK8s.On("DeleteService", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
 		mockK8s.On("DeleteIngress", ctx, "ws-123", "proj-123", "test-app").Return(nil).Maybe()
@@ -315,23 +315,23 @@ func TestDeleteApplication(t *testing.T) {
 	})
 
 	t.Run("successful deletion of stateful app", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-456",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "postgres-db",
-			Type:        application.ApplicationTypeStateful,
-			Status:      application.ApplicationStatusStopped,
-			Config: application.ApplicationConfig{
-				Storage: &application.StorageConfig{
+			Type:        domain.ApplicationTypeStateful,
+			Status:      domain.ApplicationStatusStopped,
+			Config: domain.ApplicationConfig{
+				Storage: &domain.StorageConfig{
 					Size: "10Gi",
 				},
 			},
 		}
 
 		mockRepo.On("GetApplication", ctx, "app-456").Return(app, nil)
-		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		mockK8s.On("DeleteStatefulSet", ctx, "ws-123", "proj-123", "postgres-db").Return(nil).Maybe()
 		mockK8s.On("DeleteService", ctx, "ws-123", "proj-123", "postgres-db").Return(nil).Maybe()
 		mockK8s.On("DeletePVC", ctx, "ws-123", "proj-123", "postgres-db-data").Return(nil).Maybe()
@@ -356,14 +356,14 @@ func TestListPods(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful pod listing", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
 		}
 
-		pods := []application.Pod{
+		pods := []domain.Pod{
 			{
 				Name:     "test-app-abc123",
 				Status:   "Running",
@@ -401,20 +401,20 @@ func TestGetPodLogs(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful log retrieval", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
 		}
 
-		query := application.LogQuery{
+		query := domain.LogQuery{
 			ApplicationID: "app-123",
 			PodName:       "test-app-abc123",
 			Limit:         100,
 		}
 
-		logs := []application.LogEntry{
+		logs := []domain.LogEntry{
 			{
 				Timestamp: time.Now(),
 				PodName:   "test-app-abc123",
@@ -429,7 +429,7 @@ func TestGetPodLogs(t *testing.T) {
 
 		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
 		
-		logOpts := application.LogOptions{
+		logOpts := domain.LogOptions{
 			Limit: 100,
 		}
 		mockK8s.On("GetPodLogs", ctx, "ws-123", "proj-123", "test-app-abc123", "", logOpts).Return(logs, nil)
@@ -454,14 +454,14 @@ func TestStreamPodLogs(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful log streaming", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
 		}
 
-		query := application.LogQuery{
+		query := domain.LogQuery{
 			ApplicationID: "app-123",
 			PodName:       "test-app-abc123",
 			Follow:        true,
@@ -471,7 +471,7 @@ func TestStreamPodLogs(t *testing.T) {
 
 		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
 		
-		logOpts := application.LogOptions{
+		logOpts := domain.LogOptions{
 			Follow: true,
 		}
 		mockK8s.On("StreamPodLogs", ctx, "ws-123", "proj-123", "test-app-abc123", "", logOpts).Return(reader, nil)
@@ -495,19 +495,19 @@ func TestGetApplicationMetrics(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful metrics retrieval", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
 		}
 
-		pods := []application.Pod{
+		pods := []domain.Pod{
 			{Name: "test-app-abc123"},
 			{Name: "test-app-def456"},
 		}
 
-		podMetrics := []application.PodMetrics{
+		podMetrics := []domain.PodMetrics{
 			{
 				PodName:     "test-app-abc123",
 				CPUUsage:    0.5,
@@ -553,28 +553,28 @@ func TestScaleApplication(t *testing.T) {
 	service := NewService(mockRepo, mockK8s)
 
 	t.Run("successful scaling", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:          "app-123",
 			WorkspaceID: "ws-123",
 			ProjectID:   "proj-123",
 			Name:        "test-app",
-			Type:        application.ApplicationTypeStateless,
-			Status:      application.ApplicationStatusRunning,
-			Config: application.ApplicationConfig{
+			Type:        domain.ApplicationTypeStateless,
+			Status:      domain.ApplicationStatusRunning,
+			Config: domain.ApplicationConfig{
 				Replicas: 3,
 			},
 		}
 
 		mockRepo.On("GetApplication", ctx, "app-123").Return(app, nil)
-		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*application.Application")).Return(nil)
-		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil)
+		mockRepo.On("UpdateApplication", ctx, mock.AnythingOfType("*domain.Application")).Return(nil)
+		mockRepo.On("CreateEvent", ctx, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil)
 		
 		// Async update expectations
-		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec application.DeploymentSpec) bool {
+		mockK8s.On("UpdateDeployment", mock.Anything, "ws-123", "proj-123", "test-app", mock.MatchedBy(func(spec domain.DeploymentSpec) bool {
 			return spec.Replicas == 5
 		})).Return(nil).Maybe()
-		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*application.Application")).Return(nil).Maybe()
-		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*application.ApplicationEvent")).Return(nil).Maybe()
+		mockRepo.On("UpdateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil).Maybe()
+		mockRepo.On("CreateEvent", mock.Anything, mock.AnythingOfType("*domain.ApplicationEvent")).Return(nil).Maybe()
 
 		// Execute
 		err := service.ScaleApplication(ctx, "app-123", 5)
@@ -599,10 +599,10 @@ func TestScaleApplication(t *testing.T) {
 	})
 
 	t.Run("scaling stateful set not allowed beyond 1", func(t *testing.T) {
-		app := &application.Application{
+		app := &domain.Application{
 			ID:     "app-456",
-			Type:   application.ApplicationTypeStateful,
-			Status: application.ApplicationStatusRunning,
+			Type:   domain.ApplicationTypeStateful,
+			Status: domain.ApplicationStatusRunning,
 		}
 
 		mockRepo.On("GetApplication", ctx, "app-456").Return(app, nil)

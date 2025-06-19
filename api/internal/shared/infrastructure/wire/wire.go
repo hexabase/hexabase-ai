@@ -12,12 +12,39 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+
+	// Application domain - using new package-by-feature structure
+	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
+	applicationHandler "github.com/hexabase/hexabase-ai/api/internal/application/handler"
+	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/application/repository"
+	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/application/service"
+
+	// Auth domain
 	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	authHandler "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
+
+	// Organization domain
+
+	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
+	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
+	orgSvc "github.com/hexabase/hexabase-ai/api/internal/organization/service"
+
+	// Project domain
+	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
+	projectHandler "github.com/hexabase/hexabase-ai/api/internal/project/handler"
+	projectRepo "github.com/hexabase/hexabase-ai/api/internal/project/repository"
+	projectSvc "github.com/hexabase/hexabase-ai/api/internal/project/service"
+
+	// Workspace domain
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
+	workspaceHandler "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
+	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
+	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/workspace/service"
+
+	// Legacy domains that haven't been migrated yet
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/application"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
@@ -25,16 +52,9 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/node"
-	"github.com/hexabase/hexabase-ai/api/internal/helm"
-	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
-	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
-	orgSvc "github.com/hexabase/hexabase-ai/api/internal/organization/service"
-	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
-	projectHandler "github.com/hexabase/hexabase-ai/api/internal/project/handler"
-	projectRepo "github.com/hexabase/hexabase-ai/api/internal/project/repository"
-	projectSvc "github.com/hexabase/hexabase-ai/api/internal/project/service"
+
+	// Legacy repositories that haven't been migrated yet
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
-	applicationRepo "github.com/hexabase/hexabase-ai/api/internal/repository/application"
 	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
@@ -44,8 +64,9 @@ import (
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/repository/node"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
+
+	// Legacy services that haven't been migrated yet
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
-	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/service/application"
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
@@ -53,11 +74,9 @@ import (
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 	nodeSvc "github.com/hexabase/hexabase-ai/api/internal/service/node"
+
+	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
-	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
-	workspaceHandler "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
-	workspaceRepo "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
-	workspaceSvc "github.com/hexabase/hexabase-ai/api/internal/workspace/service"
 	"gorm.io/gorm"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -65,21 +84,85 @@ import (
 	"k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
-var ApplicationSet = wire.NewSet(applicationRepo.NewPostgresRepository, applicationRepo.NewKubernetesRepository, applicationSvc.NewService, handlers.NewApplicationHandler)
-var AuthSet = wire.NewSet(authRepo.NewPostgresRepository, authRepo.NewOAuthRepository, authRepo.NewKeyRepository, authSvc.NewService, authHandler.NewHandler)
+// Updated wire sets for migrated packages
+var ApplicationSet = wire.NewSet(
+	applicationRepo.NewPostgresRepository,
+	applicationRepo.NewKubernetesRepository,
+	applicationSvc.NewService,
+	applicationHandler.NewApplicationHandler,
+)
+
+var AuthSet = wire.NewSet(
+	authRepo.NewPostgresRepository,
+	authRepo.NewOAuthRepository,
+	authRepo.NewKeyRepository,
+	authSvc.NewService,
+	authHandler.NewHandler,
+)
+
+var OrganizationSet = wire.NewSet(
+	orgRepo.NewPostgresRepository,
+	orgRepo.NewAuthRepositoryAdapter,
+	orgRepo.NewBillingRepositoryAdapter,
+	orgSvc.NewService,
+	orgHandler.NewHandler,
+)
+
+var ProjectSet = wire.NewSet(
+	projectRepo.NewPostgresRepository,
+	projectRepo.NewKubernetesRepository,
+	projectSvc.NewService,
+	projectHandler.NewHandler,
+)
+
+var WorkspaceSet = wire.NewSet(
+	workspaceRepo.NewPostgresRepository,
+	workspaceRepo.NewKubernetesRepository,
+	workspaceRepo.NewAuthRepositoryAdapter,
+	workspaceSvc.NewService,
+	workspaceHandler.NewHandler,
+)
+
+// Legacy wire sets for packages that haven't been migrated yet
 var BackupSet = wire.NewSet(
 	backupRepo.NewPostgresRepository, 
 	ProvideBackupProxmoxRepository, 
 	ProvideBackupService,
 	handlers.NewBackupHandler,
 )
-var BillingSet = wire.NewSet(billingRepo.NewPostgresRepository, ProvideStripeRepository, billingSvc.NewService, handlers.NewBillingHandler)
-var MonitoringSet = wire.NewSet(monitoringRepo.NewPostgresRepository, k8sRepo.NewKubernetesRepository, monitoringSvc.NewService, handlers.NewMonitoringHandler)
-var NodeSet = wire.NewSet(nodeRepo.NewPostgresRepository, ProvideNodeRepository, ProvideProxmoxRepository, ProvideProxmoxRepositoryInterface, nodeSvc.NewService, ProvideNodeService, handlers.NewNodeHandler)
-var OrganizationSet = wire.NewSet(orgRepo.NewPostgresRepository, orgRepo.NewAuthRepositoryAdapter, orgRepo.NewBillingRepositoryAdapter, orgSvc.NewService, orgHandler.NewHandler)
-var ProjectSet = wire.NewSet(projectRepo.NewPostgresRepository, projectRepo.NewKubernetesRepository, projectSvc.NewService, projectHandler.NewHandler)
-var WorkspaceSet = wire.NewSet(workspaceRepo.NewPostgresRepository, workspaceRepo.NewKubernetesRepository, workspaceRepo.NewAuthRepositoryAdapter, workspaceSvc.NewService, workspaceHandler.NewHandler)
-var CICDSet = wire.NewSet(cicdRepo.NewPostgresRepository, ProvideCICDProviderFactory, ProvideCICDCredentialManager, cicdSvc.NewService, handlers.NewCICDHandler)
+
+var BillingSet = wire.NewSet(
+	billingRepo.NewPostgresRepository,
+	ProvideStripeRepository,
+	billingSvc.NewService,
+	handlers.NewBillingHandler,
+)
+
+var MonitoringSet = wire.NewSet(
+	monitoringRepo.NewPostgresRepository,
+	k8sRepo.NewKubernetesRepository,
+	monitoringSvc.NewService,
+	handlers.NewMonitoringHandler,
+)
+
+var NodeSet = wire.NewSet(
+	nodeRepo.NewPostgresRepository,
+	ProvideNodeRepository,
+	ProvideProxmoxRepository,
+	ProvideProxmoxRepositoryInterface,
+	nodeSvc.NewService,
+	ProvideNodeService,
+	handlers.NewNodeHandler,
+)
+
+var CICDSet = wire.NewSet(
+	cicdRepo.NewPostgresRepository,
+	ProvideCICDProviderFactory,
+	ProvideCICDCredentialManager,
+	cicdSvc.NewService,
+	handlers.NewCICDHandler,
+)
+
 var FunctionSet = wire.NewSet(
 	ProvideSQLDB,
 	functionRepo.NewPostgresRepository,
@@ -89,24 +172,73 @@ var FunctionSet = wire.NewSet(
 	ProvideFunctionService,
 	handlers.NewFunctionHandler,
 )
+
 var HelmSet = wire.NewSet(helm.NewService)
+
 var AIOpsProxySet = wire.NewSet(
 	ProvideAIOpsProxyHandler,
 )
+
 var AIOpsSet = wire.NewSet(
 	aiopsRepo.NewPostgresRepository,
 	ProvideOllamaService,
 	aiopsSvc.NewService,
 )
-var LogSet = wire.NewSet(ProvideClickHouseConnection, logRepo.NewClickHouseRepository, logSvc.NewLogService)
+
+var LogSet = wire.NewSet(
+	ProvideClickHouseConnection,
+	logRepo.NewClickHouseRepository,
+	logSvc.NewLogService,
+)
+
 var InternalSet = wire.NewSet(ProvideInternalHandler)
 
 type App struct {
-	ApplicationHandler *handlers.ApplicationHandler; AuthHandler *authHandler.Handler; BackupHandler *handlers.BackupHandler; BillingHandler *handlers.BillingHandler; MonitoringHandler *handlers.MonitoringHandler; NodeHandler *handlers.NodeHandler; OrganizationHandler *orgHandler.Handler; ProjectHandler *projectHandler.Handler; WorkspaceHandler *workspaceHandler.Handler; CICDHandler *handlers.CICDHandler; FunctionHandler *handlers.FunctionHandler; AIOpsProxyHandler *handlers.AIOpsProxyHandler; InternalHandler *handlers.InternalHandler
+	ApplicationHandler  *applicationHandler.ApplicationHandler
+	AuthHandler        *authHandler.Handler
+	BackupHandler      *handlers.BackupHandler
+	BillingHandler     *handlers.BillingHandler
+	MonitoringHandler  *handlers.MonitoringHandler
+	NodeHandler        *handlers.NodeHandler
+	OrganizationHandler *orgHandler.Handler
+	ProjectHandler     *projectHandler.Handler
+	WorkspaceHandler   *workspaceHandler.Handler
+	CICDHandler        *handlers.CICDHandler
+	FunctionHandler    *handlers.FunctionHandler
+	AIOpsProxyHandler  *handlers.AIOpsProxyHandler
+	InternalHandler    *handlers.InternalHandler
 }
 
-func NewApp(appH *handlers.ApplicationHandler, authH *authHandler.Handler, backupH *handlers.BackupHandler, billH *handlers.BillingHandler, monH *handlers.MonitoringHandler, nodeH *handlers.NodeHandler, orgH *orgHandler.Handler, projH *projectHandler.Handler, workH *workspaceHandler.Handler, cicdH *handlers.CICDHandler, funcH *handlers.FunctionHandler, aiopsH *handlers.AIOpsProxyHandler, internalHandler *handlers.InternalHandler) *App {
-	return &App{ApplicationHandler: appH, AuthHandler: authH, BackupHandler: backupH, BillingHandler: billH, MonitoringHandler: monH, NodeHandler: nodeH, OrganizationHandler: orgH, ProjectHandler: projH, WorkspaceHandler: workH, CICDHandler: cicdH, FunctionHandler: funcH, AIOpsProxyHandler: aiopsH, InternalHandler: internalHandler}
+func NewApp(
+	appH *applicationHandler.ApplicationHandler,
+	authH *authHandler.Handler,
+	backupH *handlers.BackupHandler,
+	billH *handlers.BillingHandler,
+	monH *handlers.MonitoringHandler,
+	nodeH *handlers.NodeHandler,
+	orgH *orgHandler.Handler,
+	projH *projectHandler.Handler,
+	workH *workspaceHandler.Handler,
+	cicdH *handlers.CICDHandler,
+	funcH *handlers.FunctionHandler,
+	aiopsH *handlers.AIOpsProxyHandler,
+	internalHandler *handlers.InternalHandler,
+) *App {
+	return &App{
+		ApplicationHandler:  appH,
+		AuthHandler:        authH,
+		BackupHandler:      backupH,
+		BillingHandler:     billH,
+		MonitoringHandler:  monH,
+		NodeHandler:        nodeH,
+		OrganizationHandler: orgH,
+		ProjectHandler:     projH,
+		WorkspaceHandler:   workH,
+		CICDHandler:        cicdH,
+		FunctionHandler:    funcH,
+		AIOpsProxyHandler:  aiopsH,
+		InternalHandler:    internalHandler,
+	}
 }
 
 type StripeAPIKey string
@@ -202,7 +334,7 @@ func ProvideBackupProxmoxRepository(cfg *config.Config) backup.ProxmoxRepository
 func ProvideBackupService(
 	repo backup.Repository,
 	proxmoxRepo backup.ProxmoxRepository,
-	appRepo application.Repository,
+	appRepo domain.Repository,
 	workspaceRepo workspaceDomain.Repository,
 	k8sClient kubernetes.Interface,
 	cfg *config.Config,
@@ -233,7 +365,7 @@ func ProvideOllamaService(cfg *config.Config) aiops.LLMService {
 func ProvideInternalHandler(
 	workspaceSvc workspaceDomain.Service,
 	projectSvc projectDomain.Service,
-	applicationSvc application.Service,
+	applicationSvc domain.Service,
 	nodeSvc node.Service,
 	logSvc logs.Service,
 	monitoringSvc monitoring.Service,
