@@ -54,16 +54,20 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+
+	// Function (migrated)
+	functionDomain "github.com/hexabase/hexabase-ai/api/internal/function/domain"
+	functionHandler "github.com/hexabase/hexabase-ai/api/internal/function/handler"
+	functionRepo "github.com/hexabase/hexabase-ai/api/internal/function/repository"
+	functionSvc "github.com/hexabase/hexabase-ai/api/internal/function/service"
 
 	// Legacy repositories that haven't been migrated yet
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
 	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
-	functionRepo "github.com/hexabase/hexabase-ai/api/internal/repository/function"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
@@ -74,7 +78,6 @@ import (
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
-	functionSvc "github.com/hexabase/hexabase-ai/api/internal/service/function"
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 
@@ -170,10 +173,11 @@ var FunctionSet = wire.NewSet(
 	ProvideSQLDB,
 	functionRepo.NewPostgresRepository,
 	ProvideFunctionRepository,
+	functionRepo.NewProviderFactory,
 	ProvideFunctionProviderFactory,
 	functionSvc.NewService,
 	ProvideFunctionService,
-	handlers.NewFunctionHandler,
+	functionHandler.NewHandler,
 )
 
 var HelmSet = wire.NewSet(helm.NewService)
@@ -207,7 +211,7 @@ type App struct {
 	ProjectHandler     *projectHandler.Handler
 	WorkspaceHandler   *workspaceHandler.Handler
 	CICDHandler        *handlers.CICDHandler
-	FunctionHandler    *handlers.FunctionHandler
+	FunctionHandler    *functionHandler.Handler
 	AIOpsProxyHandler  *handlers.AIOpsProxyHandler
 	InternalHandler    *handlers.InternalHandler
 }
@@ -223,7 +227,7 @@ func NewApp(
 	projH *projectHandler.Handler,
 	workH *workspaceHandler.Handler,
 	cicdH *handlers.CICDHandler,
-	funcH *handlers.FunctionHandler,
+	funcH *functionHandler.Handler,
 	aiopsH *handlers.AIOpsProxyHandler,
 	internalHandler *handlers.InternalHandler,
 ) *App {
@@ -280,16 +284,16 @@ func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSec
 func ProvideCICDNamespace() CICDNamespace { return CICDNamespace("hexabase-cicd") }
 func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace CICDNamespace) cicd.ProviderFactory { return cicdRepo.NewProviderFactory(kubeClient, k8sConfig, string(namespace)) }
 func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicd.CredentialManager { return cicdRepo.NewKubernetesCredentialManager(kubeClient, string(namespace)) }
-func ProvideFunctionProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) function.ProviderFactory {
+func ProvideFunctionProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) functionDomain.ProviderFactory {
 	return functionRepo.NewProviderFactory(kubeClient, dynamicClient)
 }
-func ProvideFunctionService(service *functionSvc.Service) function.Service {
+func ProvideFunctionService(service *functionSvc.Service) functionDomain.Service {
 	return service
 }
 func ProvideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
 	return gormDB.DB()
 }
-func ProvideFunctionRepository(repo *functionRepo.PostgresRepository) function.Repository {
+func ProvideFunctionRepository(repo *functionRepo.PostgresRepository) functionDomain.Repository {
 	return repo
 }
 func ProvideClickHouseConnection(cfg *config.Config) (clickhouse.Conn, error) {

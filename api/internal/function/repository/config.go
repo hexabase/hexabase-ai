@@ -1,4 +1,4 @@
-package function
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
 // ConfigRepository implements configuration management for function providers
@@ -23,7 +23,7 @@ func NewConfigRepository(db *sql.DB) *ConfigRepository {
 }
 
 // GetWorkspaceProviderConfig retrieves the provider configuration for a workspace
-func (r *ConfigRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*function.ProviderConfig, error) {
+func (r *ConfigRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*domain.ProviderConfig, error) {
 	query := `
 		SELECT provider_type, config, created_at, updated_at
 		FROM workspace_provider_configs
@@ -49,14 +49,14 @@ func (r *ConfigRepository) GetWorkspaceProviderConfig(ctx context.Context, works
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return &function.ProviderConfig{
-		Type:   function.ProviderType(providerType),
+	return &domain.ProviderConfig{
+		Type:   domain.ProviderType(providerType),
 		Config: config,
 	}, nil
 }
 
 // UpdateWorkspaceProviderConfig updates or inserts the provider configuration for a workspace
-func (r *ConfigRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *function.ProviderConfig) error {
+func (r *ConfigRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *domain.ProviderConfig) error {
 	configJSON, err := json.Marshal(config.Config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
@@ -87,9 +87,9 @@ func (r *ConfigRepository) UpdateWorkspaceProviderConfig(ctx context.Context, wo
 }
 
 // GetDefaultProviderConfig returns the default provider configuration
-func (r *ConfigRepository) GetDefaultProviderConfig() *function.ProviderConfig {
-	return &function.ProviderConfig{
-		Type: function.ProviderTypeFission,
+func (r *ConfigRepository) GetDefaultProviderConfig() *domain.ProviderConfig {
+	return &domain.ProviderConfig{
+		Type: domain.ProviderTypeFission,
 		Config: map[string]interface{}{
 			"endpoint":  "http://controller.fission.svc.cluster.local",
 			"namespace": "fission-function",
@@ -98,20 +98,20 @@ func (r *ConfigRepository) GetDefaultProviderConfig() *function.ProviderConfig {
 }
 
 // ValidateProviderConfig validates a provider configuration
-func (r *ConfigRepository) ValidateProviderConfig(providerType function.ProviderType, config map[string]interface{}) error {
+func (r *ConfigRepository) ValidateProviderConfig(providerType domain.ProviderType, config map[string]interface{}) error {
 	switch providerType {
-	case function.ProviderTypeFission:
+	case domain.ProviderTypeFission:
 		// Fission requires endpoint
 		if _, ok := config["endpoint"].(string); !ok {
 			return fmt.Errorf("fission provider requires 'endpoint' in config")
 		}
 		return nil
 
-	case function.ProviderTypeKnative:
+	case domain.ProviderTypeKnative:
 		// Knative doesn't require additional config beyond k8s client
 		return nil
 
-	case function.ProviderTypeMock:
+	case domain.ProviderTypeMock:
 		// Mock provider doesn't require any config
 		return nil
 
@@ -134,7 +134,7 @@ func (r *ConfigRepository) GetProviderFeatureFlags(ctx context.Context, workspac
 
 	// Return feature flags based on provider type
 	switch config.Type {
-	case function.ProviderTypeFission:
+	case domain.ProviderTypeFission:
 		return map[string]bool{
 			"warm_pool":       true,
 			"fast_cold_start": true,
@@ -143,7 +143,7 @@ func (r *ConfigRepository) GetProviderFeatureFlags(ctx context.Context, workspac
 			"custom_images":   true,
 		}, nil
 
-	case function.ProviderTypeKnative:
+	case domain.ProviderTypeKnative:
 		return map[string]bool{
 			"warm_pool":       false,
 			"fast_cold_start": false,

@@ -1,4 +1,4 @@
-package function
+package service
 
 import (
 	"context"
@@ -6,33 +6,33 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// Service implements the function.Service interface
+// Service implements the domain.Service interface
 type Service struct {
-	repo           function.Repository
-	providerFactory function.ProviderFactory
-	providers      map[string]function.Provider // cache of initialized providers per workspace
+	repo           domain.Repository
+	providerFactory domain.ProviderFactory
+	providers      map[string]domain.Provider // cache of initialized providers per workspace
 	logger         *slog.Logger
 }
 
 // NewService creates a new function service instance
 func NewService(
-	repo function.Repository,
-	providerFactory function.ProviderFactory,
+	repo domain.Repository,
+	providerFactory domain.ProviderFactory,
 	logger *slog.Logger,
 ) *Service {
 	return &Service{
 		repo:            repo,
 		providerFactory: providerFactory,
-		providers:       make(map[string]function.Provider),
+		providers:       make(map[string]domain.Provider),
 		logger:          logger,
 	}
 }
 
 // getProvider returns the provider for a workspace, initializing it if needed
-func (s *Service) getProvider(ctx context.Context, workspaceID string) (function.Provider, error) {
+func (s *Service) getProvider(ctx context.Context, workspaceID string) (domain.Provider, error) {
 	// Check cache first
 	if provider, exists := s.providers[workspaceID]; exists {
 		return provider, nil
@@ -46,8 +46,8 @@ func (s *Service) getProvider(ctx context.Context, workspaceID string) (function
 
 	// Default to Fission if no config exists
 	if config == nil {
-		config = &function.ProviderConfig{
-			Type: function.ProviderTypeFission,
+		config = &domain.ProviderConfig{
+			Type: domain.ProviderTypeFission,
 			Config: map[string]interface{}{
 				"endpoint": "http://controller.fission.svc.cluster.local",
 			},
@@ -66,7 +66,7 @@ func (s *Service) getProvider(ctx context.Context, workspaceID string) (function
 }
 
 // CreateFunction creates a new function
-func (s *Service) CreateFunction(ctx context.Context, workspaceID, projectID string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (s *Service) CreateFunction(ctx context.Context, workspaceID, projectID string, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	s.logger.Info("creating function",
 		"workspaceID", workspaceID,
 		"projectID", projectID,
@@ -97,7 +97,7 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID, projectID str
 	}
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  fn.ID,
@@ -111,7 +111,7 @@ func (s *Service) CreateFunction(ctx context.Context, workspaceID, projectID str
 }
 
 // UpdateFunction updates an existing function
-func (s *Service) UpdateFunction(ctx context.Context, workspaceID, functionID string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (s *Service) UpdateFunction(ctx context.Context, workspaceID, functionID string, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	s.logger.Info("updating function",
 		"workspaceID", workspaceID,
 		"functionID", functionID)
@@ -144,7 +144,7 @@ func (s *Service) UpdateFunction(ctx context.Context, workspaceID, functionID st
 	}
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  functionID,
@@ -186,7 +186,7 @@ func (s *Service) DeleteFunction(ctx context.Context, workspaceID, functionID st
 	}
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  functionID,
@@ -200,17 +200,17 @@ func (s *Service) DeleteFunction(ctx context.Context, workspaceID, functionID st
 }
 
 // GetFunction retrieves a function by ID
-func (s *Service) GetFunction(ctx context.Context, workspaceID, functionID string) (*function.FunctionDef, error) {
+func (s *Service) GetFunction(ctx context.Context, workspaceID, functionID string) (*domain.FunctionDef, error) {
 	return s.repo.GetFunction(ctx, workspaceID, functionID)
 }
 
 // ListFunctions lists all functions in a project
-func (s *Service) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*function.FunctionDef, error) {
+func (s *Service) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*domain.FunctionDef, error) {
 	return s.repo.ListFunctions(ctx, workspaceID, projectID)
 }
 
 // DeployVersion deploys a new version of a function
-func (s *Service) DeployVersion(ctx context.Context, workspaceID, functionID string, version *function.FunctionVersionDef) (*function.FunctionVersionDef, error) {
+func (s *Service) DeployVersion(ctx context.Context, workspaceID, functionID string, version *domain.FunctionVersionDef) (*domain.FunctionVersionDef, error) {
 	s.logger.Info("deploying function version",
 		"workspaceID", workspaceID,
 		"functionID", functionID)
@@ -241,7 +241,7 @@ func (s *Service) DeployVersion(ctx context.Context, workspaceID, functionID str
 	}
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  functionID,
@@ -255,12 +255,12 @@ func (s *Service) DeployVersion(ctx context.Context, workspaceID, functionID str
 }
 
 // GetVersion retrieves a specific version
-func (s *Service) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*function.FunctionVersionDef, error) {
+func (s *Service) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*domain.FunctionVersionDef, error) {
 	return s.repo.GetVersion(ctx, workspaceID, functionID, versionID)
 }
 
 // ListVersions lists all versions of a function
-func (s *Service) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionVersionDef, error) {
+func (s *Service) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*domain.FunctionVersionDef, error) {
 	return s.repo.ListVersions(ctx, workspaceID, functionID)
 }
 
@@ -307,7 +307,7 @@ func (s *Service) SetActiveVersion(ctx context.Context, workspaceID, functionID,
 	}
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  functionID,
@@ -333,7 +333,7 @@ func (s *Service) RollbackVersion(ctx context.Context, workspaceID, functionID s
 	}
 
 	// Find current active and previous version
-	var previousVersion *function.FunctionVersionDef
+	var previousVersion *domain.FunctionVersionDef
 	for i, v := range versions {
 		if v.IsActive {
 			if i > 0 {
@@ -352,7 +352,7 @@ func (s *Service) RollbackVersion(ctx context.Context, workspaceID, functionID s
 }
 
 // CreateTrigger creates a new trigger for a function
-func (s *Service) CreateTrigger(ctx context.Context, workspaceID, functionID string, trigger *function.FunctionTrigger) (*function.FunctionTrigger, error) {
+func (s *Service) CreateTrigger(ctx context.Context, workspaceID, functionID string, trigger *domain.FunctionTrigger) (*domain.FunctionTrigger, error) {
 	s.logger.Info("creating trigger",
 		"workspaceID", workspaceID,
 		"functionID", functionID,
@@ -390,7 +390,7 @@ func (s *Service) CreateTrigger(ctx context.Context, workspaceID, functionID str
 }
 
 // UpdateTrigger updates an existing trigger
-func (s *Service) UpdateTrigger(ctx context.Context, workspaceID, functionID, triggerID string, trigger *function.FunctionTrigger) (*function.FunctionTrigger, error) {
+func (s *Service) UpdateTrigger(ctx context.Context, workspaceID, functionID, triggerID string, trigger *domain.FunctionTrigger) (*domain.FunctionTrigger, error) {
 	// Implementation similar to CreateTrigger but with update logic
 	// TODO: Implement
 	return nil, fmt.Errorf("not implemented")
@@ -403,12 +403,12 @@ func (s *Service) DeleteTrigger(ctx context.Context, workspaceID, functionID, tr
 }
 
 // ListTriggers lists all triggers for a function
-func (s *Service) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionTrigger, error) {
+func (s *Service) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*domain.FunctionTrigger, error) {
 	return s.repo.ListTriggers(ctx, workspaceID, functionID)
 }
 
 // InvokeFunction invokes a function synchronously
-func (s *Service) InvokeFunction(ctx context.Context, workspaceID, functionID string, request *function.InvokeRequest) (*function.InvokeResponse, error) {
+func (s *Service) InvokeFunction(ctx context.Context, workspaceID, functionID string, request *domain.InvokeRequest) (*domain.InvokeResponse, error) {
 	s.logger.Info("invoking function",
 		"workspaceID", workspaceID,
 		"functionID", functionID)
@@ -432,7 +432,7 @@ func (s *Service) InvokeFunction(ctx context.Context, workspaceID, functionID st
 	}
 
 	// Record invocation
-	invocation := &function.InvocationStatus{
+	invocation := &domain.InvocationStatus{
 		InvocationID: response.InvocationID,
 		WorkspaceID:  workspaceID,
 		FunctionID:   functionID,
@@ -445,7 +445,7 @@ func (s *Service) InvokeFunction(ctx context.Context, workspaceID, functionID st
 	_ = s.repo.CreateInvocation(ctx, invocation)
 
 	// Record event
-	event := &function.FunctionAuditEvent{
+	event := &domain.FunctionAuditEvent{
 		ID:          fmt.Sprintf("evt-%d", time.Now().Unix()),
 		WorkspaceID: workspaceID,
 		FunctionID:  functionID,
@@ -463,7 +463,7 @@ func (s *Service) InvokeFunction(ctx context.Context, workspaceID, functionID st
 }
 
 // InvokeFunctionAsync invokes a function asynchronously
-func (s *Service) InvokeFunctionAsync(ctx context.Context, workspaceID, functionID string, request *function.InvokeRequest) (string, error) {
+func (s *Service) InvokeFunctionAsync(ctx context.Context, workspaceID, functionID string, request *domain.InvokeRequest) (string, error) {
 	s.logger.Info("invoking function async",
 		"workspaceID", workspaceID,
 		"functionID", functionID)
@@ -487,7 +487,7 @@ func (s *Service) InvokeFunctionAsync(ctx context.Context, workspaceID, function
 	}
 
 	// Record invocation
-	invocation := &function.InvocationStatus{
+	invocation := &domain.InvocationStatus{
 		InvocationID: invocationID,
 		WorkspaceID:  workspaceID,
 		FunctionID:   functionID,
@@ -500,7 +500,7 @@ func (s *Service) InvokeFunctionAsync(ctx context.Context, workspaceID, function
 }
 
 // GetInvocationStatus gets the status of an async invocation
-func (s *Service) GetInvocationStatus(ctx context.Context, workspaceID, invocationID string) (*function.InvocationStatus, error) {
+func (s *Service) GetInvocationStatus(ctx context.Context, workspaceID, invocationID string) (*domain.InvocationStatus, error) {
 	// Get from repository first
 	invocation, err := s.repo.GetInvocation(ctx, workspaceID, invocationID)
 	if err != nil {
@@ -533,12 +533,12 @@ func (s *Service) GetInvocationStatus(ctx context.Context, workspaceID, invocati
 }
 
 // ListInvocations lists invocation history for a function
-func (s *Service) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.InvocationStatus, error) {
+func (s *Service) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*domain.InvocationStatus, error) {
 	return s.repo.ListInvocations(ctx, workspaceID, functionID, limit)
 }
 
 // GetFunctionLogs retrieves logs for a function
-func (s *Service) GetFunctionLogs(ctx context.Context, workspaceID, functionID string, opts *function.LogOptions) ([]*function.LogEntry, error) {
+func (s *Service) GetFunctionLogs(ctx context.Context, workspaceID, functionID string, opts *domain.LogOptions) ([]*domain.LogEntry, error) {
 	// Get function
 	fn, err := s.repo.GetFunction(ctx, workspaceID, functionID)
 	if err != nil {
@@ -556,7 +556,7 @@ func (s *Service) GetFunctionLogs(ctx context.Context, workspaceID, functionID s
 }
 
 // GetFunctionMetrics retrieves metrics for a function
-func (s *Service) GetFunctionMetrics(ctx context.Context, workspaceID, functionID string, opts *function.MetricOptions) (*function.Metrics, error) {
+func (s *Service) GetFunctionMetrics(ctx context.Context, workspaceID, functionID string, opts *domain.MetricOptions) (*domain.Metrics, error) {
 	// Get function
 	fn, err := s.repo.GetFunction(ctx, workspaceID, functionID)
 	if err != nil {
@@ -574,12 +574,12 @@ func (s *Service) GetFunctionMetrics(ctx context.Context, workspaceID, functionI
 }
 
 // GetFunctionEvents retrieves events for a function
-func (s *Service) GetFunctionEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.FunctionAuditEvent, error) {
+func (s *Service) GetFunctionEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*domain.FunctionAuditEvent, error) {
 	return s.repo.ListEvents(ctx, workspaceID, functionID, limit)
 }
 
 // GetProviderCapabilities returns the capabilities of the workspace's provider
-func (s *Service) GetProviderCapabilities(ctx context.Context, workspaceID string) (*function.Capabilities, error) {
+func (s *Service) GetProviderCapabilities(ctx context.Context, workspaceID string) (*domain.Capabilities, error) {
 	provider, err := s.getProvider(ctx, workspaceID)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package function_test
+package repository_test
 
 import (
 	"context"
@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/fission"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/knative"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/mock"
-	"k8s.io/client-go/kubernetes/fake"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/fission"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/knative"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/mock"
 	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 // BenchmarkProviderComparison compares the performance of different providers
@@ -24,21 +24,21 @@ func BenchmarkProviderComparison(b *testing.B) {
 	kubeClient := fake.NewSimpleClientset()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	
-	providers := map[string]function.Provider{
+	providers := map[string]domain.Provider{
 		"mock":    mock.NewFunctionProvider(),
 		"fission": fission.NewProvider("http://controller.fission", "default"),
 		"knative": knative.NewProvider(kubeClient, dynamicClient, "default"),
 	}
 
 	// Test function spec
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "bench-func",
 		Namespace: "bench-ns",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 		SourceCode: `def handler(context):
 			return {"status": 200, "body": "Hello World"}`,
-		Resources: function.FunctionResourceRequirements{
+		Resources: domain.FunctionResourceRequirements{
 			Memory: "256Mi",
 			CPU:    "100m",
 		},
@@ -56,7 +56,7 @@ func BenchmarkProviderComparison(b *testing.B) {
 	}
 
 	// Benchmark function invocation
-	req := &function.InvokeRequest{
+	req := &domain.InvokeRequest{
 		Method: "GET",
 		Path:   "/",
 		Headers: map[string][]string{
@@ -111,7 +111,7 @@ func BenchmarkProviderComparison(b *testing.B) {
 
 // BenchmarkProviderCapabilities tests the performance of capability checks
 func BenchmarkProviderCapabilities(b *testing.B) {
-	providers := map[string]function.Provider{
+	providers := map[string]domain.Provider{
 		"mock":    mock.NewFunctionProvider(),
 		"fission": fission.NewProvider("http://controller.fission", "default"),
 		"knative": knative.NewProvider(fake.NewSimpleClientset(), dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), "default"),
@@ -135,7 +135,7 @@ func TestProviderColdStartComparison(t *testing.T) {
 	// It measures actual cold start times and compares them
 	
 	providers := map[string]struct {
-		provider    function.Provider
+		provider    domain.Provider
 		expectedMs  int
 		toleranceMs int
 	}{
@@ -166,7 +166,7 @@ func TestProviderResourceEfficiency(t *testing.T) {
 	// deployed on different providers
 	
 	providers := map[string]struct {
-		provider         function.Provider
+		provider         domain.Provider
 		expectedMemoryMB int
 		expectedCPUCores float64
 	}{

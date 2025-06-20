@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
 // FunctionRequest represents a function creation/update request
@@ -16,7 +16,7 @@ type FunctionRequest struct {
 	Handler     string                              `json:"handler"`
 	SourceCode  string                              `json:"source_code"`
 	Environment map[string]string                   `json:"environment,omitempty"`
-	Resources   *function.FunctionResourceRequirements `json:"resources,omitempty"`
+	Resources   *domain.FunctionResourceRequirements `json:"resources,omitempty"`
 	Labels      map[string]string                   `json:"labels,omitempty"`
 	Annotations map[string]string                   `json:"annotations,omitempty"`
 }
@@ -47,7 +47,7 @@ type InvokeRequest struct {
 }
 
 // CreateFunctionGin handles POST /api/v1/workspaces/:wsId/functions
-func (h *FunctionHandler) CreateFunctionGin(c *gin.Context) {
+func (h *Handler) CreateFunctionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	projectID := c.Query("project_id")
 	if projectID == "" {
@@ -61,9 +61,9 @@ func (h *FunctionHandler) CreateFunctionGin(c *gin.Context) {
 		return
 	}
 
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:        req.Name,
-		Runtime:     function.Runtime(req.Runtime),
+		Runtime:     domain.Runtime(req.Runtime),
 		Handler:     req.Handler,
 		SourceCode:  req.SourceCode,
 		Environment: req.Environment,
@@ -83,7 +83,7 @@ func (h *FunctionHandler) CreateFunctionGin(c *gin.Context) {
 }
 
 // ListFunctionsGin handles GET /api/v1/workspaces/:wsId/functions
-func (h *FunctionHandler) ListFunctionsGin(c *gin.Context) {
+func (h *Handler) ListFunctionsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	projectID := c.Query("project_id")
 	if projectID == "" {
@@ -102,7 +102,7 @@ func (h *FunctionHandler) ListFunctionsGin(c *gin.Context) {
 }
 
 // GetFunctionGin handles GET /api/v1/workspaces/:wsId/functions/:functionId
-func (h *FunctionHandler) GetFunctionGin(c *gin.Context) {
+func (h *Handler) GetFunctionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -117,7 +117,7 @@ func (h *FunctionHandler) GetFunctionGin(c *gin.Context) {
 }
 
 // UpdateFunctionGin handles PUT /api/v1/workspaces/:wsId/functions/:functionId
-func (h *FunctionHandler) UpdateFunctionGin(c *gin.Context) {
+func (h *Handler) UpdateFunctionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -127,9 +127,9 @@ func (h *FunctionHandler) UpdateFunctionGin(c *gin.Context) {
 		return
 	}
 
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:        req.Name,
-		Runtime:     function.Runtime(req.Runtime),
+		Runtime:     domain.Runtime(req.Runtime),
 		Handler:     req.Handler,
 		SourceCode:  req.SourceCode,
 		Environment: req.Environment,
@@ -149,7 +149,7 @@ func (h *FunctionHandler) UpdateFunctionGin(c *gin.Context) {
 }
 
 // DeleteFunctionGin handles DELETE /api/v1/workspaces/:wsId/functions/:functionId
-func (h *FunctionHandler) DeleteFunctionGin(c *gin.Context) {
+func (h *Handler) DeleteFunctionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -164,7 +164,7 @@ func (h *FunctionHandler) DeleteFunctionGin(c *gin.Context) {
 }
 
 // DeployVersionGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/versions
-func (h *FunctionHandler) DeployVersionGin(c *gin.Context) {
+func (h *Handler) DeployVersionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -174,7 +174,7 @@ func (h *FunctionHandler) DeployVersionGin(c *gin.Context) {
 		return
 	}
 
-	version := &function.FunctionVersionDef{
+	version := &domain.FunctionVersionDef{
 		ID:         req.ID,
 		Version:    req.Version,
 		SourceCode: req.SourceCode,
@@ -192,7 +192,7 @@ func (h *FunctionHandler) DeployVersionGin(c *gin.Context) {
 }
 
 // ListVersionsGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/versions
-func (h *FunctionHandler) ListVersionsGin(c *gin.Context) {
+func (h *Handler) ListVersionsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -207,7 +207,7 @@ func (h *FunctionHandler) ListVersionsGin(c *gin.Context) {
 }
 
 // GetVersionGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/versions/:versionId
-func (h *FunctionHandler) GetVersionGin(c *gin.Context) {
+func (h *Handler) GetVersionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 	versionID := c.Param("versionId")
@@ -222,8 +222,8 @@ func (h *FunctionHandler) GetVersionGin(c *gin.Context) {
 	c.JSON(http.StatusOK, version)
 }
 
-// SetActiveVersionGin handles PUT /api/v1/workspaces/:wsId/functions/:functionId/versions/:versionId/active
-func (h *FunctionHandler) SetActiveVersionGin(c *gin.Context) {
+// SetActiveVersionGin handles PUT /api/v1/workspaces/:wsId/functions/:functionId/versions/:versionId/activate
+func (h *Handler) SetActiveVersionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 	versionID := c.Param("versionId")
@@ -238,8 +238,8 @@ func (h *FunctionHandler) SetActiveVersionGin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Version activated successfully"})
 }
 
-// RollbackVersionGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/rollback
-func (h *FunctionHandler) RollbackVersionGin(c *gin.Context) {
+// RollbackVersionGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/versions/:versionId/rollback
+func (h *Handler) RollbackVersionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -254,7 +254,7 @@ func (h *FunctionHandler) RollbackVersionGin(c *gin.Context) {
 }
 
 // CreateTriggerGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/triggers
-func (h *FunctionHandler) CreateTriggerGin(c *gin.Context) {
+func (h *Handler) CreateTriggerGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -264,9 +264,9 @@ func (h *FunctionHandler) CreateTriggerGin(c *gin.Context) {
 		return
 	}
 
-	trigger := &function.FunctionTrigger{
+	trigger := &domain.FunctionTrigger{
 		Name:    req.Name,
-		Type:    function.TriggerType(req.Type),
+		Type:    domain.TriggerType(req.Type),
 		Config:  req.Config,
 		Enabled: req.Enabled,
 	}
@@ -282,7 +282,7 @@ func (h *FunctionHandler) CreateTriggerGin(c *gin.Context) {
 }
 
 // ListTriggersGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/triggers
-func (h *FunctionHandler) ListTriggersGin(c *gin.Context) {
+func (h *Handler) ListTriggersGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -297,7 +297,7 @@ func (h *FunctionHandler) ListTriggersGin(c *gin.Context) {
 }
 
 // UpdateTriggerGin handles PUT /api/v1/workspaces/:wsId/functions/:functionId/triggers/:triggerId
-func (h *FunctionHandler) UpdateTriggerGin(c *gin.Context) {
+func (h *Handler) UpdateTriggerGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 	triggerID := c.Param("triggerId")
@@ -308,10 +308,10 @@ func (h *FunctionHandler) UpdateTriggerGin(c *gin.Context) {
 		return
 	}
 
-	trigger := &function.FunctionTrigger{
+	trigger := &domain.FunctionTrigger{
 		ID:      triggerID,
 		Name:    req.Name,
-		Type:    function.TriggerType(req.Type),
+		Type:    domain.TriggerType(req.Type),
 		Config:  req.Config,
 		Enabled: req.Enabled,
 	}
@@ -327,7 +327,7 @@ func (h *FunctionHandler) UpdateTriggerGin(c *gin.Context) {
 }
 
 // DeleteTriggerGin handles DELETE /api/v1/workspaces/:wsId/functions/:functionId/triggers/:triggerId
-func (h *FunctionHandler) DeleteTriggerGin(c *gin.Context) {
+func (h *Handler) DeleteTriggerGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 	triggerID := c.Param("triggerId")
@@ -343,7 +343,7 @@ func (h *FunctionHandler) DeleteTriggerGin(c *gin.Context) {
 }
 
 // InvokeFunctionGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/invoke
-func (h *FunctionHandler) InvokeFunctionGin(c *gin.Context) {
+func (h *Handler) InvokeFunctionGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -353,7 +353,7 @@ func (h *FunctionHandler) InvokeFunctionGin(c *gin.Context) {
 		return
 	}
 
-	invokeReq := &function.InvokeRequest{
+	invokeReq := &domain.InvokeRequest{
 		Method:  req.Method,
 		Path:    req.Path,
 		Headers: req.Headers,
@@ -372,7 +372,7 @@ func (h *FunctionHandler) InvokeFunctionGin(c *gin.Context) {
 }
 
 // InvokeFunctionAsyncGin handles POST /api/v1/workspaces/:wsId/functions/:functionId/invoke-async
-func (h *FunctionHandler) InvokeFunctionAsyncGin(c *gin.Context) {
+func (h *Handler) InvokeFunctionAsyncGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -382,7 +382,7 @@ func (h *FunctionHandler) InvokeFunctionAsyncGin(c *gin.Context) {
 		return
 	}
 
-	invokeReq := &function.InvokeRequest{
+	invokeReq := &domain.InvokeRequest{
 		Method:  req.Method,
 		Path:    req.Path,
 		Headers: req.Headers,
@@ -400,8 +400,8 @@ func (h *FunctionHandler) InvokeFunctionAsyncGin(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"invocation_id": invocationID})
 }
 
-// GetInvocationStatusGin handles GET /api/v1/workspaces/:wsId/functions/invocations/:invocationId
-func (h *FunctionHandler) GetInvocationStatusGin(c *gin.Context) {
+// GetInvocationStatusGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/invocations/:invocationId
+func (h *Handler) GetInvocationStatusGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	invocationID := c.Param("invocationId")
 
@@ -416,7 +416,7 @@ func (h *FunctionHandler) GetInvocationStatusGin(c *gin.Context) {
 }
 
 // ListInvocationsGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/invocations
-func (h *FunctionHandler) ListInvocationsGin(c *gin.Context) {
+func (h *Handler) ListInvocationsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -438,7 +438,7 @@ func (h *FunctionHandler) ListInvocationsGin(c *gin.Context) {
 }
 
 // GetFunctionLogsGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/logs
-func (h *FunctionHandler) GetFunctionLogsGin(c *gin.Context) {
+func (h *Handler) GetFunctionLogsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -454,7 +454,7 @@ func (h *FunctionHandler) GetFunctionLogsGin(c *gin.Context) {
 		}
 	}
 
-	opts := &function.LogOptions{
+	opts := &domain.LogOptions{
 		Since:      since,
 		Until:      until,
 		Limit:      100,
@@ -479,7 +479,7 @@ func (h *FunctionHandler) GetFunctionLogsGin(c *gin.Context) {
 }
 
 // GetFunctionMetricsGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/metrics
-func (h *FunctionHandler) GetFunctionMetricsGin(c *gin.Context) {
+func (h *Handler) GetFunctionMetricsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -497,7 +497,7 @@ func (h *FunctionHandler) GetFunctionMetricsGin(c *gin.Context) {
 		}
 	}
 
-	opts := &function.MetricOptions{
+	opts := &domain.MetricOptions{
 		StartTime:  startTime,
 		EndTime:    endTime,
 		Resolution: c.Query("resolution"),
@@ -515,7 +515,7 @@ func (h *FunctionHandler) GetFunctionMetricsGin(c *gin.Context) {
 }
 
 // GetFunctionEventsGin handles GET /api/v1/workspaces/:wsId/functions/:functionId/events
-func (h *FunctionHandler) GetFunctionEventsGin(c *gin.Context) {
+func (h *Handler) GetFunctionEventsGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	functionID := c.Param("functionId")
 
@@ -536,8 +536,8 @@ func (h *FunctionHandler) GetFunctionEventsGin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"events": events})
 }
 
-// GetProviderCapabilitiesGin handles GET /api/v1/workspaces/:wsId/functions/provider/capabilities
-func (h *FunctionHandler) GetProviderCapabilitiesGin(c *gin.Context) {
+// GetProviderCapabilitiesGin handles GET /api/v1/providers/:provider/capabilities
+func (h *Handler) GetProviderCapabilitiesGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	capabilities, err := h.service.GetProviderCapabilities(c.Request.Context(), workspaceID)
@@ -550,8 +550,8 @@ func (h *FunctionHandler) GetProviderCapabilitiesGin(c *gin.Context) {
 	c.JSON(http.StatusOK, capabilities)
 }
 
-// GetProviderHealthGin handles GET /api/v1/workspaces/:wsId/functions/provider/health
-func (h *FunctionHandler) GetProviderHealthGin(c *gin.Context) {
+// GetProviderHealthGin handles GET /api/v1/providers/:provider/health
+func (h *Handler) GetProviderHealthGin(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 
 	err := h.service.GetProviderHealth(c.Request.Context(), workspaceID)

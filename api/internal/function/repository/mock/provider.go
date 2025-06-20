@@ -6,42 +6,42 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// FunctionProvider implements the function.Provider interface for testing
+// FunctionProvider implements the domain.Provider interface for testing
 type FunctionProvider struct {
-	functions        map[string]*function.FunctionDef
-	versions         map[string][]*function.FunctionVersionDef
-	triggers         map[string][]*function.FunctionTrigger
-	invocations      map[string]*function.InvocationStatus
+	functions        map[string]*domain.FunctionDef
+	versions         map[string][]*domain.FunctionVersionDef
+	triggers         map[string][]*domain.FunctionTrigger
+	invocations      map[string]*domain.InvocationStatus
 	mu               sync.RWMutex
 	failureMode      bool
 	simulatedLatency time.Duration
-	capabilities     *function.Capabilities
+	capabilities     *domain.Capabilities
 	invocationCount  int
 }
 
 // NewFunctionProvider creates a new mock provider instance
 func NewFunctionProvider() *FunctionProvider {
 	return &FunctionProvider{
-		functions:   make(map[string]*function.FunctionDef),
-		versions:    make(map[string][]*function.FunctionVersionDef),
-		triggers:    make(map[string][]*function.FunctionTrigger),
-		invocations: make(map[string]*function.InvocationStatus),
-		capabilities: &function.Capabilities{
+		functions:   make(map[string]*domain.FunctionDef),
+		versions:    make(map[string][]*domain.FunctionVersionDef),
+		triggers:    make(map[string][]*domain.FunctionTrigger),
+		invocations: make(map[string]*domain.InvocationStatus),
+		capabilities: &domain.Capabilities{
 			Name:        "mock",
 			Version:     "1.0.0",
 			Description: "Mock provider for testing",
-			SupportedRuntimes: []function.Runtime{
-				function.RuntimeGo,
-				function.RuntimePython,
-				function.RuntimeNode,
+			SupportedRuntimes: []domain.Runtime{
+				domain.RuntimeGo,
+				domain.RuntimePython,
+				domain.RuntimeNode,
 			},
-			SupportedTriggerTypes: []function.TriggerType{
-				function.TriggerHTTP,
-				function.TriggerSchedule,
-				function.TriggerEvent,
+			SupportedTriggerTypes: []domain.TriggerType{
+				domain.TriggerHTTP,
+				domain.TriggerSchedule,
+				domain.TriggerEvent,
 			},
 			SupportsVersioning:      true,
 			SupportsAsync:           true,
@@ -70,7 +70,7 @@ func (m *FunctionProvider) SetSimulatedLatency(latency time.Duration) {
 }
 
 // CreateFunction creates a new function
-func (m *FunctionProvider) CreateFunction(ctx context.Context, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (m *FunctionProvider) CreateFunction(ctx context.Context, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -79,26 +79,26 @@ func (m *FunctionProvider) CreateFunction(ctx context.Context, spec *function.Fu
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Validate input
 	if spec.Name == "" {
-		return nil, function.NewProviderError(function.ErrCodeInvalidInput, "function name is required")
+		return nil, domain.NewProviderError(domain.ErrCodeInvalidInput, "function name is required")
 	}
 
 	key := fmt.Sprintf("%s/%s", spec.Namespace, spec.Name)
 	if _, exists := m.functions[key]; exists {
-		return nil, function.NewProviderError(function.ErrCodeAlreadyExists, "function already exists")
+		return nil, domain.NewProviderError(domain.ErrCodeAlreadyExists, "function already exists")
 	}
 
 	// Create function
-	fn := &function.FunctionDef{
+	fn := &domain.FunctionDef{
 		Name:        spec.Name,
 		Namespace:   spec.Namespace,
 		Runtime:     spec.Runtime,
 		Handler:     spec.Handler,
-		Status:      function.FunctionDefStatusReady,
+		Status:      domain.FunctionDefStatusReady,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Labels:      spec.Labels,
@@ -108,17 +108,17 @@ func (m *FunctionProvider) CreateFunction(ctx context.Context, spec *function.Fu
 	m.functions[key] = fn
 
 	// Create initial version
-	version := &function.FunctionVersionDef{
+	version := &domain.FunctionVersionDef{
 		ID:           fmt.Sprintf("v%d-%d", 1, time.Now().Unix()),
 		FunctionName: spec.Name,
 		Version:      1,
 		SourceCode:   spec.SourceCode,
 		Image:        spec.Image,
-		BuildStatus:  function.FunctionBuildStatusSuccess,
+		BuildStatus:  domain.FunctionBuildStatusSuccess,
 		CreatedAt:    time.Now(),
 		IsActive:     true,
 	}
-	m.versions[key] = []*function.FunctionVersionDef{version}
+	m.versions[key] = []*domain.FunctionVersionDef{version}
 	fn.ActiveVersion = version.ID
 
 	// Return a copy of the function
@@ -127,7 +127,7 @@ func (m *FunctionProvider) CreateFunction(ctx context.Context, spec *function.Fu
 }
 
 // UpdateFunction updates an existing function
-func (m *FunctionProvider) UpdateFunction(ctx context.Context, name string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (m *FunctionProvider) UpdateFunction(ctx context.Context, name string, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -136,13 +136,13 @@ func (m *FunctionProvider) UpdateFunction(ctx context.Context, name string, spec
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	key := fmt.Sprintf("%s/%s", spec.Namespace, name)
 	fn, exists := m.functions[key]
 	if !exists {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Update function
@@ -171,7 +171,7 @@ func (m *FunctionProvider) DeleteFunction(ctx context.Context, name string) erro
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find and delete function across all namespaces
@@ -186,14 +186,14 @@ func (m *FunctionProvider) DeleteFunction(ctx context.Context, name string) erro
 	}
 
 	if !deleted {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	return nil
 }
 
 // GetFunction retrieves a function by name
-func (m *FunctionProvider) GetFunction(ctx context.Context, name string) (*function.FunctionDef, error) {
+func (m *FunctionProvider) GetFunction(ctx context.Context, name string) (*domain.FunctionDef, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -202,7 +202,7 @@ func (m *FunctionProvider) GetFunction(ctx context.Context, name string) (*funct
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Search for function by name
@@ -212,11 +212,11 @@ func (m *FunctionProvider) GetFunction(ctx context.Context, name string) (*funct
 		}
 	}
 
-	return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+	return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 }
 
 // ListFunctions lists all functions in a namespace
-func (m *FunctionProvider) ListFunctions(ctx context.Context, namespace string) ([]*function.FunctionDef, error) {
+func (m *FunctionProvider) ListFunctions(ctx context.Context, namespace string) ([]*domain.FunctionDef, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -225,10 +225,10 @@ func (m *FunctionProvider) ListFunctions(ctx context.Context, namespace string) 
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
-	var functions []*function.FunctionDef
+	var functions []*domain.FunctionDef
 	for _, fn := range m.functions {
 		if fn.Namespace == namespace || namespace == "" {
 			functions = append(functions, fn)
@@ -239,7 +239,7 @@ func (m *FunctionProvider) ListFunctions(ctx context.Context, namespace string) 
 }
 
 // CreateVersion creates a new version of a function
-func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName string, version *function.FunctionVersionDef) error {
+func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName string, version *domain.FunctionVersionDef) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -248,7 +248,7 @@ func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName strin
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -261,7 +261,7 @@ func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName strin
 	}
 
 	if key == "" {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Add version
@@ -269,7 +269,7 @@ func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName strin
 	version.Version = len(versions) + 1
 	version.ID = fmt.Sprintf("v%d-%d", version.Version, time.Now().Unix())
 	version.CreatedAt = time.Now()
-	version.BuildStatus = function.FunctionBuildStatusSuccess
+	version.BuildStatus = domain.FunctionBuildStatusSuccess
 
 	m.versions[key] = append(versions, version)
 
@@ -277,7 +277,7 @@ func (m *FunctionProvider) CreateVersion(ctx context.Context, functionName strin
 }
 
 // GetVersion retrieves a specific version of a function
-func (m *FunctionProvider) GetVersion(ctx context.Context, functionName, versionID string) (*function.FunctionVersionDef, error) {
+func (m *FunctionProvider) GetVersion(ctx context.Context, functionName, versionID string) (*domain.FunctionVersionDef, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -286,7 +286,7 @@ func (m *FunctionProvider) GetVersion(ctx context.Context, functionName, version
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -299,7 +299,7 @@ func (m *FunctionProvider) GetVersion(ctx context.Context, functionName, version
 	}
 
 	if key == "" {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Find version
@@ -309,11 +309,11 @@ func (m *FunctionProvider) GetVersion(ctx context.Context, functionName, version
 		}
 	}
 
-	return nil, function.NewProviderError(function.ErrCodeNotFound, "version not found")
+	return nil, domain.NewProviderError(domain.ErrCodeNotFound, "version not found")
 }
 
 // ListVersions lists all versions of a function
-func (m *FunctionProvider) ListVersions(ctx context.Context, functionName string) ([]*function.FunctionVersionDef, error) {
+func (m *FunctionProvider) ListVersions(ctx context.Context, functionName string) ([]*domain.FunctionVersionDef, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -322,7 +322,7 @@ func (m *FunctionProvider) ListVersions(ctx context.Context, functionName string
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -335,7 +335,7 @@ func (m *FunctionProvider) ListVersions(ctx context.Context, functionName string
 	}
 
 	if key == "" {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	return m.versions[key], nil
@@ -351,11 +351,11 @@ func (m *FunctionProvider) SetActiveVersion(ctx context.Context, functionName, v
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
-	var fn *function.FunctionDef
+	var fn *domain.FunctionDef
 	var key string
 	for k, f := range m.functions {
 		if f.Name == functionName {
@@ -366,7 +366,7 @@ func (m *FunctionProvider) SetActiveVersion(ctx context.Context, functionName, v
 	}
 
 	if fn == nil {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Verify version exists
@@ -380,7 +380,7 @@ func (m *FunctionProvider) SetActiveVersion(ctx context.Context, functionName, v
 	}
 
 	if !versionExists {
-		return function.NewProviderError(function.ErrCodeNotFound, "version not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "version not found")
 	}
 
 	fn.ActiveVersion = versionID
@@ -390,7 +390,7 @@ func (m *FunctionProvider) SetActiveVersion(ctx context.Context, functionName, v
 }
 
 // CreateTrigger creates a new trigger for a function
-func (m *FunctionProvider) CreateTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (m *FunctionProvider) CreateTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -399,7 +399,7 @@ func (m *FunctionProvider) CreateTrigger(ctx context.Context, functionName strin
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -412,13 +412,13 @@ func (m *FunctionProvider) CreateTrigger(ctx context.Context, functionName strin
 	}
 
 	if key == "" {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Check if trigger already exists
 	for _, t := range m.triggers[key] {
 		if t.Name == trigger.Name {
-			return function.NewProviderError(function.ErrCodeAlreadyExists, "trigger already exists")
+			return domain.NewProviderError(domain.ErrCodeAlreadyExists, "trigger already exists")
 		}
 	}
 
@@ -432,7 +432,7 @@ func (m *FunctionProvider) CreateTrigger(ctx context.Context, functionName strin
 }
 
 // UpdateTrigger updates an existing trigger
-func (m *FunctionProvider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *function.FunctionTrigger) error {
+func (m *FunctionProvider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *domain.FunctionTrigger) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -441,7 +441,7 @@ func (m *FunctionProvider) UpdateTrigger(ctx context.Context, functionName, trig
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -454,7 +454,7 @@ func (m *FunctionProvider) UpdateTrigger(ctx context.Context, functionName, trig
 	}
 
 	if key == "" {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Find and update trigger
@@ -469,7 +469,7 @@ func (m *FunctionProvider) UpdateTrigger(ctx context.Context, functionName, trig
 		}
 	}
 
-	return function.NewProviderError(function.ErrCodeNotFound, "trigger not found")
+	return domain.NewProviderError(domain.ErrCodeNotFound, "trigger not found")
 }
 
 // DeleteTrigger deletes a trigger from a function
@@ -482,7 +482,7 @@ func (m *FunctionProvider) DeleteTrigger(ctx context.Context, functionName, trig
 	}
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -495,7 +495,7 @@ func (m *FunctionProvider) DeleteTrigger(ctx context.Context, functionName, trig
 	}
 
 	if key == "" {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Find and delete trigger
@@ -507,11 +507,11 @@ func (m *FunctionProvider) DeleteTrigger(ctx context.Context, functionName, trig
 		}
 	}
 
-	return function.NewProviderError(function.ErrCodeNotFound, "trigger not found")
+	return domain.NewProviderError(domain.ErrCodeNotFound, "trigger not found")
 }
 
 // ListTriggers lists all triggers for a function
-func (m *FunctionProvider) ListTriggers(ctx context.Context, functionName string) ([]*function.FunctionTrigger, error) {
+func (m *FunctionProvider) ListTriggers(ctx context.Context, functionName string) ([]*domain.FunctionTrigger, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -520,7 +520,7 @@ func (m *FunctionProvider) ListTriggers(ctx context.Context, functionName string
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Find function
@@ -533,14 +533,14 @@ func (m *FunctionProvider) ListTriggers(ctx context.Context, functionName string
 	}
 
 	if key == "" {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	return m.triggers[key], nil
 }
 
 // InvokeFunction invokes a function synchronously
-func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req *function.InvokeRequest) (*function.InvokeResponse, error) {
+func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req *domain.InvokeRequest) (*domain.InvokeResponse, error) {
 	m.mu.Lock()
 	m.invocationCount++
 	invocationID := fmt.Sprintf("inv-%d-%d", m.invocationCount, time.Now().Unix())
@@ -551,7 +551,7 @@ func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req 
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Verify function exists
@@ -566,7 +566,7 @@ func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req 
 	m.mu.RUnlock()
 
 	if !functionExists {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Simulate function execution
@@ -577,7 +577,7 @@ func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req 
 	time.Sleep(executionTime)
 
 	// Create response
-	response := &function.InvokeResponse{
+	response := &domain.InvokeResponse{
 		StatusCode: 200,
 		Headers: map[string][]string{
 			"Content-Type":    {"application/json"},
@@ -594,7 +594,7 @@ func (m *FunctionProvider) InvokeFunction(ctx context.Context, name string, req 
 }
 
 // InvokeFunctionAsync invokes a function asynchronously
-func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string, req *function.InvokeRequest) (string, error) {
+func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string, req *domain.InvokeRequest) (string, error) {
 	m.mu.Lock()
 	m.invocationCount++
 	invocationID := fmt.Sprintf("async-inv-%d-%d", m.invocationCount, time.Now().Unix())
@@ -605,7 +605,7 @@ func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string,
 	}
 
 	if m.failureMode {
-		return "", function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return "", domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Verify function exists
@@ -620,11 +620,11 @@ func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string,
 	m.mu.RUnlock()
 
 	if !functionExists {
-		return "", function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return "", domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Create invocation status
-	status := &function.InvocationStatus{
+	status := &domain.InvocationStatus{
 		InvocationID: invocationID,
 		Status:       "running",
 		StartedAt:    time.Now(),
@@ -644,7 +644,7 @@ func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string,
 		completedAt := time.Now()
 		status.CompletedAt = &completedAt
 		status.Status = "completed"
-		status.Result = &function.InvokeResponse{
+		status.Result = &domain.InvokeResponse{
 			StatusCode:   200,
 			Headers:      map[string][]string{"Content-Type": {"application/json"}},
 			Body:         []byte(`{"message":"Async execution completed"}`),
@@ -657,7 +657,7 @@ func (m *FunctionProvider) InvokeFunctionAsync(ctx context.Context, name string,
 }
 
 // GetInvocationStatus retrieves the status of an async invocation
-func (m *FunctionProvider) GetInvocationStatus(ctx context.Context, invocationID string) (*function.InvocationStatus, error) {
+func (m *FunctionProvider) GetInvocationStatus(ctx context.Context, invocationID string) (*domain.InvocationStatus, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -666,12 +666,12 @@ func (m *FunctionProvider) GetInvocationStatus(ctx context.Context, invocationID
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	status, exists := m.invocations[invocationID]
 	if !exists {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "invocation not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "invocation not found")
 	}
 
 	return status, nil
@@ -687,7 +687,7 @@ func (m *FunctionProvider) GetFunctionURL(ctx context.Context, name string) (str
 	}
 
 	if m.failureMode {
-		return "", function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return "", domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Verify function exists
@@ -700,14 +700,14 @@ func (m *FunctionProvider) GetFunctionURL(ctx context.Context, name string) (str
 	}
 
 	if !functionExists {
-		return "", function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return "", domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	return fmt.Sprintf("http://mock.provider.local/functions/%s", name), nil
 }
 
 // GetFunctionLogs retrieves logs for a function
-func (m *FunctionProvider) GetFunctionLogs(ctx context.Context, name string, opts *function.LogOptions) ([]*function.LogEntry, error) {
+func (m *FunctionProvider) GetFunctionLogs(ctx context.Context, name string, opts *domain.LogOptions) ([]*domain.LogEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -716,7 +716,7 @@ func (m *FunctionProvider) GetFunctionLogs(ctx context.Context, name string, opt
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Verify function exists
@@ -729,11 +729,11 @@ func (m *FunctionProvider) GetFunctionLogs(ctx context.Context, name string, opt
 	}
 
 	if !functionExists {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Generate mock logs
-	logs := []*function.LogEntry{
+	logs := []*domain.LogEntry{
 		{
 			Timestamp: time.Now().Add(-5 * time.Minute),
 			Level:     "info",
@@ -755,7 +755,7 @@ func (m *FunctionProvider) GetFunctionLogs(ctx context.Context, name string, opt
 }
 
 // GetFunctionMetrics retrieves metrics for a function
-func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, opts *function.MetricOptions) (*function.Metrics, error) {
+func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, opts *domain.MetricOptions) (*domain.Metrics, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -764,7 +764,7 @@ func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, 
 	}
 
 	if m.failureMode {
-		return nil, function.NewProviderError(function.ErrCodeInternal, "simulated failure")
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, "simulated failure")
 	}
 
 	// Verify function exists
@@ -777,14 +777,14 @@ func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, 
 	}
 
 	if !functionExists {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Generate mock metrics
-	metrics := &function.Metrics{
+	metrics := &domain.Metrics{
 		Invocations: int64(m.invocationCount),
 		Errors:      0,
-		Duration: function.MetricStats{
+		Duration: domain.MetricStats{
 			Min: 10,
 			Max: 200,
 			Avg: 50,
@@ -793,7 +793,7 @@ func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, 
 			P99: 190,
 		},
 		ColdStarts: 1,
-		Concurrency: function.MetricStats{
+		Concurrency: domain.MetricStats{
 			Min: 0,
 			Max: 5,
 			Avg: 2,
@@ -807,7 +807,7 @@ func (m *FunctionProvider) GetFunctionMetrics(ctx context.Context, name string, 
 }
 
 // GetCapabilities returns the provider's capabilities
-func (m *FunctionProvider) GetCapabilities() *function.Capabilities {
+func (m *FunctionProvider) GetCapabilities() *domain.Capabilities {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.capabilities
@@ -819,7 +819,7 @@ func (m *FunctionProvider) HealthCheck(ctx context.Context) error {
 	defer m.mu.RUnlock()
 
 	if m.failureMode {
-		return function.NewProviderError(function.ErrCodeInternal, "provider unhealthy")
+		return domain.NewProviderError(domain.ErrCodeInternal, "provider unhealthy")
 	}
 
 	return nil

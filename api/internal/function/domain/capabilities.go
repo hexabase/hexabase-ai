@@ -1,4 +1,4 @@
-package function
+package domain
 
 // Capabilities represents the capabilities of a function provider
 type Capabilities struct {

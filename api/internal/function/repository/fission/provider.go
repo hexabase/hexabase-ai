@@ -10,47 +10,47 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// Provider implements the function.Provider interface for Fission
-type Provider struct {
+// FissionProvider implements the domain.Provider interface for Fission
+type FissionProvider struct {
 	endpoint     string
 	httpClient   *http.Client
 	namespace    string
-	capabilities *function.Capabilities
+	capabilities *domain.Capabilities
 }
 
 // NewProvider creates a new Fission provider instance
-func NewProvider(endpoint, namespace string) *Provider {
-	return &Provider{
+func NewProvider(endpoint, namespace string) *FissionProvider {
+	return &FissionProvider{
 		endpoint:  strings.TrimRight(endpoint, "/"),
 		namespace: namespace,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		capabilities: &function.Capabilities{
+		capabilities: &domain.Capabilities{
 			Name:        "fission",
 			Version:     "1.0.0",
 			Description: "Fission lightweight serverless framework with fast cold starts",
-			SupportedRuntimes: []function.Runtime{
-				function.RuntimeGo,
-				function.RuntimePython,
-				function.RuntimePython38,
-				function.RuntimePython39,
-				function.RuntimeNode,
-				function.RuntimeNode14,
-				function.RuntimeNode16,
-				function.RuntimeJava,
-				function.RuntimeDotNet,
-				function.RuntimePHP,
-				function.RuntimeRuby,
+			SupportedRuntimes: []domain.Runtime{
+				domain.RuntimeGo,
+				domain.RuntimePython,
+				domain.RuntimePython38,
+				domain.RuntimePython39,
+				domain.RuntimeNode,
+				domain.RuntimeNode14,
+				domain.RuntimeNode16,
+				domain.RuntimeJava,
+				domain.RuntimeDotNet,
+				domain.RuntimePHP,
+				domain.RuntimeRuby,
 			},
-			SupportedTriggerTypes: []function.TriggerType{
-				function.TriggerHTTP,
-				function.TriggerSchedule,     // Time triggers
-				function.TriggerMessageQueue, // NATS, Kafka
-				function.TriggerEvent,
+			SupportedTriggerTypes: []domain.TriggerType{
+				domain.TriggerHTTP,
+				domain.TriggerSchedule,     // Time triggers
+				domain.TriggerMessageQueue, // NATS, Kafka
+				domain.TriggerEvent,
 			},
 			SupportsVersioning:      true,
 			SupportsAsync:           true,
@@ -193,7 +193,7 @@ type fissionFunctionRef struct {
 }
 
 // CreateFunction creates a new function in Fission
-func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (p *FissionProvider) CreateFunction(ctx context.Context, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	// Create package first
 	pkg := &fissionPackage{
 		Metadata: fissionMetadata{
@@ -228,7 +228,7 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 	// Create package
 	pkgData, err := json.Marshal(pkg)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
 	}
 
 	resp, err := p.doRequest(ctx, "POST", "/v2/packages", bytes.NewReader(pkgData))
@@ -239,7 +239,7 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create package: %s", body))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create package: %s", body))
 	}
 
 	// Create function
@@ -295,7 +295,7 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 
 	fnData, err := json.Marshal(fn)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal function: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal function: %v", err))
 	}
 
 	resp, err = p.doRequest(ctx, "POST", "/v2/functions", bytes.NewReader(fnData))
@@ -310,17 +310,17 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 		body, _ := io.ReadAll(resp.Body)
 		// Clean up package
 		p.doRequest(ctx, "DELETE", fmt.Sprintf("/v2/packages/%s", spec.Name+"-pkg"), nil)
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create function: %s", body))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create function: %s", body))
 	}
 
 	// Return function definition
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		ID:            spec.Name,
 		Name:          spec.Name,
 		Namespace:     p.namespace,
 		Runtime:       spec.Runtime,
 		Handler:       spec.Handler,
-		Status:        function.FunctionDefStatusReady,
+		Status:        domain.FunctionDefStatusReady,
 		ActiveVersion: "v1",
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
@@ -330,7 +330,7 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 }
 
 // UpdateFunction updates an existing function
-func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (p *FissionProvider) UpdateFunction(ctx context.Context, name string, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	// Update package
 	pkg := &fissionPackage{
 		Metadata: fissionMetadata{
@@ -354,7 +354,7 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 
 	pkgData, err := json.Marshal(pkg)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
 	}
 
 	resp, err := p.doRequest(ctx, "PUT", fmt.Sprintf("/v2/packages/%s", name+"-pkg"), bytes.NewReader(pkgData))
@@ -365,7 +365,7 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to update package: %s", body))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to update package: %s", body))
 	}
 
 	// Update function if needed
@@ -405,7 +405,7 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 
 		fnData, err := json.Marshal(fn)
 		if err != nil {
-			return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal function: %v", err))
+			return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal function: %v", err))
 		}
 
 		resp, err = p.doRequest(ctx, "PUT", fmt.Sprintf("/v2/functions/%s", name), bytes.NewReader(fnData))
@@ -415,13 +415,13 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 		defer resp.Body.Close()
 	}
 
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		ID:            name,
 		Name:          name,
 		Namespace:     p.namespace,
 		Runtime:       spec.Runtime,
 		Handler:       spec.Handler,
-		Status:        function.FunctionDefStatusReady,
+		Status:        domain.FunctionDefStatusReady,
 		ActiveVersion: fmt.Sprintf("v%d", time.Now().Unix()),
 		UpdatedAt:     time.Now(),
 		Labels:        spec.Labels,
@@ -430,7 +430,7 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 }
 
 // DeleteFunction deletes a function
-func (p *Provider) DeleteFunction(ctx context.Context, name string) error {
+func (p *FissionProvider) DeleteFunction(ctx context.Context, name string) error {
 	// Delete function first
 	resp, err := p.doRequest(ctx, "DELETE", fmt.Sprintf("/v2/functions/%s", name), nil)
 	if err != nil {
@@ -440,7 +440,7 @@ func (p *Provider) DeleteFunction(ctx context.Context, name string) error {
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		body, _ := io.ReadAll(resp.Body)
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to delete function: %s", body))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to delete function: %s", body))
 	}
 
 	// Delete package
@@ -457,7 +457,7 @@ func (p *Provider) DeleteFunction(ctx context.Context, name string) error {
 }
 
 // GetFunction retrieves a function by name
-func (p *Provider) GetFunction(ctx context.Context, name string) (*function.FunctionDef, error) {
+func (p *FissionProvider) GetFunction(ctx context.Context, name string) (*domain.FunctionDef, error) {
 	resp, err := p.doRequest(ctx, "GET", fmt.Sprintf("/v2/functions/%s", name), nil)
 	if err != nil {
 		return nil, err
@@ -465,24 +465,24 @@ func (p *Provider) GetFunction(ctx context.Context, name string) (*function.Func
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to get function: %s", body))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to get function: %s", body))
 	}
 
 	var fn fissionFunction
 	if err := json.NewDecoder(resp.Body).Decode(&fn); err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to decode function: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to decode function: %v", err))
 	}
 
 	return p.fissionFunctionToDef(&fn), nil
 }
 
 // ListFunctions lists all functions
-func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*function.FunctionDef, error) {
+func (p *FissionProvider) ListFunctions(ctx context.Context, namespace string) ([]*domain.FunctionDef, error) {
 	url := "/v2/functions"
 	if namespace != "" {
 		url += "?namespace=" + namespace
@@ -496,15 +496,15 @@ func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*func
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list functions: %s", body))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list functions: %s", body))
 	}
 
 	var functions []fissionFunction
 	if err := json.NewDecoder(resp.Body).Decode(&functions); err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to decode functions: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to decode functions: %v", err))
 	}
 
-	result := make([]*function.FunctionDef, 0, len(functions))
+	result := make([]*domain.FunctionDef, 0, len(functions))
 	for _, fn := range functions {
 		result = append(result, p.fissionFunctionToDef(&fn))
 	}
@@ -513,7 +513,7 @@ func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*func
 }
 
 // CreateVersion creates a new version by updating the package
-func (p *Provider) CreateVersion(ctx context.Context, functionName string, version *function.FunctionVersionDef) error {
+func (p *FissionProvider) CreateVersion(ctx context.Context, functionName string, version *domain.FunctionVersionDef) error {
 	// In Fission, we update the package to create a new version
 	pkg := &fissionPackage{
 		Metadata: fissionMetadata{
@@ -530,7 +530,7 @@ func (p *Provider) CreateVersion(ctx context.Context, functionName string, versi
 
 	pkgData, err := json.Marshal(pkg)
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal package: %v", err))
 	}
 
 	resp, err := p.doRequest(ctx, "PUT", fmt.Sprintf("/v2/packages/%s", functionName+"-pkg"), bytes.NewReader(pkgData))
@@ -541,14 +541,14 @@ func (p *Provider) CreateVersion(ctx context.Context, functionName string, versi
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to update package: %s", body))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to update package: %s", body))
 	}
 
 	return nil
 }
 
 // GetVersion retrieves a specific version
-func (p *Provider) GetVersion(ctx context.Context, functionName, versionID string) (*function.FunctionVersionDef, error) {
+func (p *FissionProvider) GetVersion(ctx context.Context, functionName, versionID string) (*domain.FunctionVersionDef, error) {
 	// Fission doesn't have explicit versioning, return current package
 	resp, err := p.doRequest(ctx, "GET", fmt.Sprintf("/v2/packages/%s", functionName+"-pkg"), nil)
 	if err != nil {
@@ -557,55 +557,55 @@ func (p *Provider) GetVersion(ctx context.Context, functionName, versionID strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, function.NewProviderError(function.ErrCodeNotFound, "version not found")
+		return nil, domain.NewProviderError(domain.ErrCodeNotFound, "version not found")
 	}
 
 	var pkg fissionPackage
 	if err := json.NewDecoder(resp.Body).Decode(&pkg); err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to decode package: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to decode package: %v", err))
 	}
 
-	return &function.FunctionVersionDef{
+	return &domain.FunctionVersionDef{
 		ID:           versionID,
 		FunctionName: functionName,
 		Version:      1,
 		SourceCode:   string(pkg.Spec.Source.Literal),
-		BuildStatus:  function.FunctionBuildStatusSuccess,
+		BuildStatus:  domain.FunctionBuildStatusSuccess,
 		CreatedAt:    time.Now(),
 		IsActive:     true,
 	}, nil
 }
 
 // ListVersions lists all versions of a function
-func (p *Provider) ListVersions(ctx context.Context, functionName string) ([]*function.FunctionVersionDef, error) {
+func (p *FissionProvider) ListVersions(ctx context.Context, functionName string) ([]*domain.FunctionVersionDef, error) {
 	// Fission doesn't have explicit versioning, return single version
 	version, err := p.GetVersion(ctx, functionName, "v1")
 	if err != nil {
 		return nil, err
 	}
-	return []*function.FunctionVersionDef{version}, nil
+	return []*domain.FunctionVersionDef{version}, nil
 }
 
 // SetActiveVersion sets the active version
-func (p *Provider) SetActiveVersion(ctx context.Context, functionName, versionID string) error {
+func (p *FissionProvider) SetActiveVersion(ctx context.Context, functionName, versionID string) error {
 	// Fission doesn't have explicit versioning
 	return nil
 }
 
 // CreateTrigger creates a trigger for a function
-func (p *Provider) CreateTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (p *FissionProvider) CreateTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	switch trigger.Type {
-	case function.TriggerHTTP:
+	case domain.TriggerHTTP:
 		return p.createHTTPTrigger(ctx, functionName, trigger)
-	case function.TriggerSchedule:
+	case domain.TriggerSchedule:
 		return p.createTimeTrigger(ctx, functionName, trigger)
 	default:
-		return function.NewProviderError(function.ErrCodeNotSupported, fmt.Sprintf("trigger type %s not supported", trigger.Type))
+		return domain.NewProviderError(domain.ErrCodeNotSupported, fmt.Sprintf("trigger type %s not supported", trigger.Type))
 	}
 }
 
 // UpdateTrigger updates a trigger
-func (p *Provider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *function.FunctionTrigger) error {
+func (p *FissionProvider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *domain.FunctionTrigger) error {
 	// Delete and recreate
 	if err := p.DeleteTrigger(ctx, functionName, triggerName); err != nil {
 		return err
@@ -614,7 +614,7 @@ func (p *Provider) UpdateTrigger(ctx context.Context, functionName, triggerName 
 }
 
 // DeleteTrigger deletes a trigger
-func (p *Provider) DeleteTrigger(ctx context.Context, functionName, triggerName string) error {
+func (p *FissionProvider) DeleteTrigger(ctx context.Context, functionName, triggerName string) error {
 	// Try both HTTP and time triggers
 	resp, _ := p.doRequest(ctx, "DELETE", fmt.Sprintf("/v2/triggers/http/%s", triggerName), nil)
 	if resp != nil {
@@ -630,8 +630,8 @@ func (p *Provider) DeleteTrigger(ctx context.Context, functionName, triggerName 
 }
 
 // ListTriggers lists all triggers for a function
-func (p *Provider) ListTriggers(ctx context.Context, functionName string) ([]*function.FunctionTrigger, error) {
-	triggers := []*function.FunctionTrigger{}
+func (p *FissionProvider) ListTriggers(ctx context.Context, functionName string) ([]*domain.FunctionTrigger, error) {
+	triggers := []*domain.FunctionTrigger{}
 
 	// List HTTP triggers
 	resp, err := p.doRequest(ctx, "GET", "/v2/triggers/http", nil)
@@ -669,7 +669,7 @@ func (p *Provider) ListTriggers(ctx context.Context, functionName string) ([]*fu
 }
 
 // InvokeFunction invokes a function synchronously
-func (p *Provider) InvokeFunction(ctx context.Context, name string, req *function.InvokeRequest) (*function.InvokeResponse, error) {
+func (p *FissionProvider) InvokeFunction(ctx context.Context, name string, req *domain.InvokeRequest) (*domain.InvokeResponse, error) {
 	// Get function URL
 	url, err := p.GetFunctionURL(ctx, name)
 	if err != nil {
@@ -679,7 +679,7 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, req.Method, url, bytes.NewReader(req.Body))
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create request: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create request: %v", err))
 	}
 
 	// Set headers
@@ -691,7 +691,7 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 	start := time.Now()
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to invoke function: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to invoke function: %v", err))
 	}
 	defer resp.Body.Close()
 
@@ -700,13 +700,13 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 	// Read response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to read response: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to read response: %v", err))
 	}
 
 	// Check for cold start header
 	coldStart := resp.Header.Get("X-Fission-Cold-Start") == "true"
 
-	return &function.InvokeResponse{
+	return &domain.InvokeResponse{
 		StatusCode:   resp.StatusCode,
 		Headers:      resp.Header,
 		Body:         body,
@@ -717,7 +717,7 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 }
 
 // InvokeFunctionAsync invokes a function asynchronously
-func (p *Provider) InvokeFunctionAsync(ctx context.Context, name string, req *function.InvokeRequest) (string, error) {
+func (p *FissionProvider) InvokeFunctionAsync(ctx context.Context, name string, req *domain.InvokeRequest) (string, error) {
 	// Use NATS for async invocation
 	invocationID := fmt.Sprintf("async-%s-%d", name, time.Now().UnixNano())
 	
@@ -731,9 +731,9 @@ func (p *Provider) InvokeFunctionAsync(ctx context.Context, name string, req *fu
 }
 
 // GetInvocationStatus gets the status of an async invocation
-func (p *Provider) GetInvocationStatus(ctx context.Context, invocationID string) (*function.InvocationStatus, error) {
+func (p *FissionProvider) GetInvocationStatus(ctx context.Context, invocationID string) (*domain.InvocationStatus, error) {
 	// TODO: Implement with NATS or external storage
-	return &function.InvocationStatus{
+	return &domain.InvocationStatus{
 		InvocationID: invocationID,
 		Status:       "completed",
 		StartedAt:    time.Now().Add(-1 * time.Minute),
@@ -742,7 +742,7 @@ func (p *Provider) GetInvocationStatus(ctx context.Context, invocationID string)
 }
 
 // GetFunctionURL returns the URL for a function
-func (p *Provider) GetFunctionURL(ctx context.Context, name string) (string, error) {
+func (p *FissionProvider) GetFunctionURL(ctx context.Context, name string) (string, error) {
 	// Check if HTTP trigger exists
 	triggers, err := p.ListTriggers(ctx, name)
 	if err != nil {
@@ -750,7 +750,7 @@ func (p *Provider) GetFunctionURL(ctx context.Context, name string) (string, err
 	}
 
 	for _, t := range triggers {
-		if t.Type == function.TriggerHTTP {
+		if t.Type == domain.TriggerHTTP {
 			if url, ok := t.Config["url"]; ok {
 				return url, nil
 			}
@@ -762,9 +762,9 @@ func (p *Provider) GetFunctionURL(ctx context.Context, name string) (string, err
 }
 
 // GetFunctionLogs retrieves logs for a function
-func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *function.LogOptions) ([]*function.LogEntry, error) {
+func (p *FissionProvider) GetFunctionLogs(ctx context.Context, name string, opts *domain.LogOptions) ([]*domain.LogEntry, error) {
 	// TODO: Implement log retrieval from Fission
-	return []*function.LogEntry{
+	return []*domain.LogEntry{
 		{
 			Timestamp: time.Now(),
 			Level:     "info",
@@ -774,12 +774,12 @@ func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *funct
 }
 
 // GetFunctionMetrics retrieves metrics for a function
-func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *function.MetricOptions) (*function.Metrics, error) {
+func (p *FissionProvider) GetFunctionMetrics(ctx context.Context, name string, opts *domain.MetricOptions) (*domain.Metrics, error) {
 	// TODO: Implement metrics retrieval
-	return &function.Metrics{
+	return &domain.Metrics{
 		Invocations: 1000,
 		Errors:      10,
-		Duration: function.MetricStats{
+		Duration: domain.MetricStats{
 			Min: 10,
 			Max: 200,
 			Avg: 50,
@@ -788,7 +788,7 @@ func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *fu
 			P99: 190,
 		},
 		ColdStarts: 50,
-		Concurrency: function.MetricStats{
+		Concurrency: domain.MetricStats{
 			Min: 0,
 			Max: 20,
 			Avg: 5,
@@ -800,20 +800,20 @@ func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *fu
 }
 
 // GetCapabilities returns the provider's capabilities
-func (p *Provider) GetCapabilities() *function.Capabilities {
+func (p *FissionProvider) GetCapabilities() *domain.Capabilities {
 	return p.capabilities
 }
 
 // HealthCheck performs a health check
-func (p *Provider) HealthCheck(ctx context.Context) error {
+func (p *FissionProvider) HealthCheck(ctx context.Context) error {
 	resp, err := p.doRequest(ctx, "GET", "/v2/functions", nil)
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("health check failed: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("health check failed: %v", err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return function.NewProviderError(function.ErrCodeInternal, "health check failed")
+		return domain.NewProviderError(domain.ErrCodeInternal, "health check failed")
 	}
 
 	return nil
@@ -821,10 +821,10 @@ func (p *Provider) HealthCheck(ctx context.Context) error {
 
 // Helper methods
 
-func (p *Provider) doRequest(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
+func (p *FissionProvider) doRequest(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, p.endpoint+path, body)
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create request: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create request: %v", err))
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -833,52 +833,52 @@ func (p *Provider) doRequest(ctx context.Context, method, path string, body io.R
 	return p.httpClient.Do(req)
 }
 
-func (p *Provider) getEnvironmentName(runtime function.Runtime) string {
+func (p *FissionProvider) getEnvironmentName(runtime domain.Runtime) string {
 	// Map runtime to Fission environment
 	switch runtime {
-	case function.RuntimeGo:
+	case domain.RuntimeGo:
 		return "go"
-	case function.RuntimePython, function.RuntimePython38, function.RuntimePython39:
+	case domain.RuntimePython, domain.RuntimePython38, domain.RuntimePython39:
 		return "python"
-	case function.RuntimeNode, function.RuntimeNode14, function.RuntimeNode16:
+	case domain.RuntimeNode, domain.RuntimeNode14, domain.RuntimeNode16:
 		return "nodejs"
-	case function.RuntimeJava:
+	case domain.RuntimeJava:
 		return "jvm"
-	case function.RuntimeDotNet:
+	case domain.RuntimeDotNet:
 		return "dotnet"
-	case function.RuntimePHP:
+	case domain.RuntimePHP:
 		return "php"
-	case function.RuntimeRuby:
+	case domain.RuntimeRuby:
 		return "ruby"
 	default:
 		return "binary"
 	}
 }
 
-func (p *Provider) fissionFunctionToDef(fn *fissionFunction) *function.FunctionDef {
+func (p *FissionProvider) fissionFunctionToDef(fn *fissionFunction) *domain.FunctionDef {
 	// Extract runtime from environment name
-	runtime := function.RuntimePython
+	runtime := domain.RuntimePython
 	switch fn.Spec.Environment.Name {
 	case "go":
-		runtime = function.RuntimeGo
+		runtime = domain.RuntimeGo
 	case "nodejs":
-		runtime = function.RuntimeNode
+		runtime = domain.RuntimeNode
 	case "jvm":
-		runtime = function.RuntimeJava
+		runtime = domain.RuntimeJava
 	case "dotnet":
-		runtime = function.RuntimeDotNet
+		runtime = domain.RuntimeDotNet
 	case "php":
-		runtime = function.RuntimePHP
+		runtime = domain.RuntimePHP
 	case "ruby":
-		runtime = function.RuntimeRuby
+		runtime = domain.RuntimeRuby
 	}
 
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		ID:            fn.Metadata.Name,
 		Name:          fn.Metadata.Name,
 		Namespace:     fn.Metadata.Namespace,
 		Runtime:       runtime,
-		Status:        function.FunctionDefStatusReady,
+		Status:        domain.FunctionDefStatusReady,
 		ActiveVersion: "v1",
 		CreatedAt:     time.Now(), // Fission doesn't track this
 		UpdatedAt:     time.Now(),
@@ -887,7 +887,7 @@ func (p *Provider) fissionFunctionToDef(fn *fissionFunction) *function.FunctionD
 	}
 }
 
-func (p *Provider) createHTTPTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (p *FissionProvider) createHTTPTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	method := "GET"
 	if m, ok := trigger.Config["method"]; ok {
 		method = m
@@ -916,7 +916,7 @@ func (p *Provider) createHTTPTrigger(ctx context.Context, functionName string, t
 
 	data, err := json.Marshal(httpTrigger)
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal trigger: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal trigger: %v", err))
 	}
 
 	resp, err := p.doRequest(ctx, "POST", "/v2/triggers/http", bytes.NewReader(data))
@@ -927,16 +927,16 @@ func (p *Provider) createHTTPTrigger(ctx context.Context, functionName string, t
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %s", body))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %s", body))
 	}
 
 	return nil
 }
 
-func (p *Provider) createTimeTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (p *FissionProvider) createTimeTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	cron := trigger.Config["cron"]
 	if cron == "" {
-		return function.NewProviderError(function.ErrCodeInvalidInput, "cron expression required for schedule trigger")
+		return domain.NewProviderError(domain.ErrCodeInvalidInput, "cron expression required for schedule trigger")
 	}
 
 	timeTrigger := &fissionTimeTrigger{
@@ -956,7 +956,7 @@ func (p *Provider) createTimeTrigger(ctx context.Context, functionName string, t
 
 	data, err := json.Marshal(timeTrigger)
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to marshal trigger: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to marshal trigger: %v", err))
 	}
 
 	resp, err := p.doRequest(ctx, "POST", "/v2/triggers/time", bytes.NewReader(data))
@@ -967,17 +967,17 @@ func (p *Provider) createTimeTrigger(ctx context.Context, functionName string, t
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %s", body))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %s", body))
 	}
 
 	return nil
 }
 
-func (p *Provider) fissionHTTPTriggerToDef(t *fissionHTTPTrigger) *function.FunctionTrigger {
-	return &function.FunctionTrigger{
+func (p *FissionProvider) fissionHTTPTriggerToDef(t *fissionHTTPTrigger) *domain.FunctionTrigger {
+	return &domain.FunctionTrigger{
 		ID:           t.Metadata.Name,
 		Name:         t.Metadata.Name,
-		Type:         function.TriggerHTTP,
+		Type:         domain.TriggerHTTP,
 		FunctionName: t.Spec.FunctionReference.Name,
 		Enabled:      true,
 		Config: map[string]string{
@@ -990,11 +990,11 @@ func (p *Provider) fissionHTTPTriggerToDef(t *fissionHTTPTrigger) *function.Func
 	}
 }
 
-func (p *Provider) fissionTimeTriggerToDef(t *fissionTimeTrigger) *function.FunctionTrigger {
-	return &function.FunctionTrigger{
+func (p *FissionProvider) fissionTimeTriggerToDef(t *fissionTimeTrigger) *domain.FunctionTrigger {
+	return &domain.FunctionTrigger{
 		ID:           t.Metadata.Name,
 		Name:         t.Metadata.Name,
-		Type:         function.TriggerSchedule,
+		Type:         domain.TriggerSchedule,
 		FunctionName: t.Spec.FunctionReference.Name,
 		Enabled:      true,
 		Config: map[string]string{
@@ -1005,7 +1005,7 @@ func (p *Provider) fissionTimeTriggerToDef(t *fissionTimeTrigger) *function.Func
 	}
 }
 
-func (p *Provider) deleteAssociatedTriggers(ctx context.Context, functionName string) {
+func (p *FissionProvider) deleteAssociatedTriggers(ctx context.Context, functionName string) {
 	// Delete all triggers associated with the function
 	triggers, err := p.ListTriggers(ctx, functionName)
 	if err != nil {

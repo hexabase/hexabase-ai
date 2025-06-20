@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
 func TestMockProvider_FunctionLifecycle(t *testing.T) {
@@ -16,16 +16,16 @@ func TestMockProvider_FunctionLifecycle(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Create function
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "test-function",
 		Namespace: "test-namespace",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 		SourceCode: "def handler(event, context):\n    return {'statusCode': 200}",
 		Environment: map[string]string{
 			"ENV_VAR": "test",
 		},
-		Resources: function.FunctionResourceRequirements{
+		Resources: domain.FunctionResourceRequirements{
 			Memory: "256Mi",
 			CPU:    "100m",
 		},
@@ -43,7 +43,7 @@ func TestMockProvider_FunctionLifecycle(t *testing.T) {
 	assert.Equal(t, spec.Namespace, fn.Namespace)
 	assert.Equal(t, spec.Runtime, fn.Runtime)
 	assert.Equal(t, spec.Handler, fn.Handler)
-	assert.Equal(t, function.FunctionDefStatusReady, fn.Status)
+	assert.Equal(t, domain.FunctionDefStatusReady, fn.Status)
 	assert.NotEmpty(t, fn.ActiveVersion)
 	assert.NotZero(t, fn.CreatedAt)
 
@@ -61,17 +61,17 @@ func TestMockProvider_FunctionLifecycle(t *testing.T) {
 
 	// Test UpdateFunction
 	time.Sleep(100 * time.Millisecond) // Ensure UpdatedAt will be different
-	updateSpec := &function.FunctionSpec{
+	updateSpec := &domain.FunctionSpec{
 		Name:      spec.Name,
 		Namespace: spec.Namespace,
-		Runtime:   function.RuntimePython38,
+		Runtime:   domain.RuntimePython38,
 		Handler:   "app.handler",
 		SourceCode: "def handler(event, context):\n    return {'statusCode': 201}",
 	}
 
 	updated, err := provider.UpdateFunction(ctx, spec.Name, updateSpec)
 	require.NoError(t, err)
-	assert.Equal(t, function.RuntimePython38, updated.Runtime)
+	assert.Equal(t, domain.RuntimePython38, updated.Runtime)
 	assert.Equal(t, "app.handler", updated.Handler)
 	assert.True(t, updated.UpdatedAt.After(fn.UpdatedAt), 
 		"UpdatedAt should be after CreatedAt: updated=%v, created=%v", 
@@ -84,7 +84,7 @@ func TestMockProvider_FunctionLifecycle(t *testing.T) {
 	// Verify deletion
 	_, err = provider.GetFunction(ctx, spec.Name)
 	assert.Error(t, err)
-	perr, ok := err.(*function.ProviderError)
+	perr, ok := err.(*domain.ProviderError)
 	assert.True(t, ok)
 	assert.True(t, perr.IsNotFound())
 }
@@ -94,10 +94,10 @@ func TestMockProvider_VersionManagement(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Create function first
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       "version-test",
 		Namespace:  "test-namespace",
-		Runtime:    function.RuntimeNode,
+		Runtime:    domain.RuntimeNode,
 		Handler:    "index.handler",
 		SourceCode: "exports.handler = async () => ({ statusCode: 200 });",
 	}
@@ -113,7 +113,7 @@ func TestMockProvider_VersionManagement(t *testing.T) {
 	assert.Equal(t, initialVersion, versions[0].ID)
 
 	// Create new version
-	newVersion := &function.FunctionVersionDef{
+	newVersion := &domain.FunctionVersionDef{
 		FunctionName: spec.Name,
 		SourceCode:   "exports.handler = async () => ({ statusCode: 201 });",
 		Image:        "node:16-alpine",
@@ -150,10 +150,10 @@ func TestMockProvider_TriggerManagement(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Create function first
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       "trigger-test",
 		Namespace:  "test-namespace",
-		Runtime:    function.RuntimeGo,
+		Runtime:    domain.RuntimeGo,
 		Handler:    "main",
 		SourceCode: "package main\n\nfunc main() {}",
 	}
@@ -162,9 +162,9 @@ func TestMockProvider_TriggerManagement(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create HTTP trigger
-	httpTrigger := &function.FunctionTrigger{
+	httpTrigger := &domain.FunctionTrigger{
 		Name:    "http-trigger",
-		Type:    function.TriggerHTTP,
+		Type:    domain.TriggerHTTP,
 		Enabled: true,
 		Config: map[string]string{
 			"path":   "/api/test",
@@ -176,9 +176,9 @@ func TestMockProvider_TriggerManagement(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create schedule trigger
-	scheduleTrigger := &function.FunctionTrigger{
+	scheduleTrigger := &domain.FunctionTrigger{
 		Name:    "schedule-trigger",
-		Type:    function.TriggerSchedule,
+		Type:    domain.TriggerSchedule,
 		Enabled: true,
 		Config: map[string]string{
 			"cron": "0 */5 * * *",
@@ -224,10 +224,10 @@ func TestMockProvider_Invocation(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Create function
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       "invoke-test",
 		Namespace:  "test-namespace",
-		Runtime:    function.RuntimePython,
+		Runtime:    domain.RuntimePython,
 		Handler:    "main.handler",
 		SourceCode: "def handler(event, context):\n    return {'statusCode': 200}",
 	}
@@ -236,7 +236,7 @@ func TestMockProvider_Invocation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test synchronous invocation
-	req := &function.InvokeRequest{
+	req := &domain.InvokeRequest{
 		Method: "POST",
 		Path:   "/test",
 		Headers: map[string][]string{
@@ -286,10 +286,10 @@ func TestMockProvider_LogsAndMetrics(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Create function
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       "logs-test",
 		Namespace:  "test-namespace",
-		Runtime:    function.RuntimeNode,
+		Runtime:    domain.RuntimeNode,
 		Handler:    "index.handler",
 		SourceCode: "exports.handler = async () => ({ statusCode: 200 });",
 	}
@@ -298,7 +298,7 @@ func TestMockProvider_LogsAndMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	// Invoke function to generate some activity
-	req := &function.InvokeRequest{
+	req := &domain.InvokeRequest{
 		Method: "GET",
 		Path:   "/",
 	}
@@ -306,7 +306,7 @@ func TestMockProvider_LogsAndMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get logs
-	logOpts := &function.LogOptions{
+	logOpts := &domain.LogOptions{
 		Limit: 10,
 	}
 	logs, err := provider.GetFunctionLogs(ctx, spec.Name, logOpts)
@@ -315,7 +315,7 @@ func TestMockProvider_LogsAndMetrics(t *testing.T) {
 	assert.Greater(t, len(logs), 0)
 
 	// Get metrics
-	metricOpts := &function.MetricOptions{
+	metricOpts := &domain.MetricOptions{
 		StartTime: time.Now().Add(-1 * time.Hour),
 		EndTime:   time.Now(),
 	}
@@ -331,23 +331,23 @@ func TestMockProvider_ErrorHandling(t *testing.T) {
 	provider := NewFunctionProvider()
 
 	// Test creating function with empty name
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "",
 		Namespace: "test-namespace",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 	}
 
 	_, err := provider.CreateFunction(ctx, spec)
 	assert.Error(t, err)
-	perr, ok := err.(*function.ProviderError)
+	perr, ok := err.(*domain.ProviderError)
 	assert.True(t, ok)
-	assert.Equal(t, function.ErrCodeInvalidInput, perr.Code)
+	assert.Equal(t, domain.ErrCodeInvalidInput, perr.Code)
 
 	// Test getting non-existent function
 	_, err = provider.GetFunction(ctx, "non-existent")
 	assert.Error(t, err)
-	perr, ok = err.(*function.ProviderError)
+	perr, ok = err.(*domain.ProviderError)
 	assert.True(t, ok)
 	assert.True(t, perr.IsNotFound())
 
@@ -358,7 +358,7 @@ func TestMockProvider_ErrorHandling(t *testing.T) {
 
 	_, err = provider.CreateFunction(ctx, spec)
 	assert.Error(t, err)
-	perr, ok = err.(*function.ProviderError)
+	perr, ok = err.(*domain.ProviderError)
 	assert.True(t, ok)
 	assert.True(t, perr.IsAlreadyExists())
 
@@ -405,10 +405,10 @@ func TestMockProvider_SimulatedLatency(t *testing.T) {
 	provider := NewFunctionProvider()
 	provider.SetSimulatedLatency(100 * time.Millisecond)
 
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       "latency-test",
 		Namespace:  "test-namespace",
-		Runtime:    function.RuntimeGo,
+		Runtime:    domain.RuntimeGo,
 		Handler:    "main",
 		SourceCode: "package main\n\nfunc main() {}",
 	}

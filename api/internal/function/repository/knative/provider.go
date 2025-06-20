@@ -14,43 +14,43 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// Provider implements the function.Provider interface for Knative
-type Provider struct {
+// KnativeProvider implements the domain.Provider interface for Knative
+type KnativeProvider struct {
 	kubeClient    kubernetes.Interface
 	dynamicClient dynamic.Interface
 	namespace     string
-	capabilities  *function.Capabilities
+	capabilities  *domain.Capabilities
 }
 
 // NewProvider creates a new Knative provider instance
-func NewProvider(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, namespace string) *Provider {
-	return &Provider{
+func NewProvider(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, namespace string) *KnativeProvider {
+	return &KnativeProvider{
 		kubeClient:    kubeClient,
 		dynamicClient: dynamicClient,
 		namespace:     namespace,
-		capabilities: &function.Capabilities{
+		capabilities: &domain.Capabilities{
 			Name:        "knative",
 			Version:     "1.0.0",
 			Description: "Knative Serving provider for serverless functions",
-			SupportedRuntimes: []function.Runtime{
-				function.RuntimeGo,
-				function.RuntimePython,
-				function.RuntimePython38,
-				function.RuntimePython39,
-				function.RuntimeNode,
-				function.RuntimeNode14,
-				function.RuntimeNode16,
-				function.RuntimeJava,
-				function.RuntimeDotNet,
-				function.RuntimePHP,
-				function.RuntimeRuby,
+			SupportedRuntimes: []domain.Runtime{
+				domain.RuntimeGo,
+				domain.RuntimePython,
+				domain.RuntimePython38,
+				domain.RuntimePython39,
+				domain.RuntimeNode,
+				domain.RuntimeNode14,
+				domain.RuntimeNode16,
+				domain.RuntimeJava,
+				domain.RuntimeDotNet,
+				domain.RuntimePHP,
+				domain.RuntimeRuby,
 			},
-			SupportedTriggerTypes: []function.TriggerType{
-				function.TriggerHTTP,
-				function.TriggerEvent, // Via Knative Eventing
+			SupportedTriggerTypes: []domain.TriggerType{
+				domain.TriggerHTTP,
+				domain.TriggerEvent, // Via Knative Eventing
 			},
 			SupportsVersioning:      true,
 			SupportsAsync:           true,
@@ -79,7 +79,7 @@ var knativeServiceGVR = schema.GroupVersionResource{
 }
 
 // CreateFunction creates a new function using Knative Service
-func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (p *KnativeProvider) CreateFunction(ctx context.Context, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	// Build container image if source code is provided
 	image := spec.Image
 	if image == "" && spec.SourceCode != "" {
@@ -91,7 +91,7 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 	
 	_, err := p.dynamicClient.Resource(knativeServiceGVR).Namespace(spec.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create Knative service: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create Knative service: %v", err))
 	}
 
 	// Wait for service to be ready
@@ -100,12 +100,12 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 	}
 
 	// Return function definition
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		Name:          spec.Name,
 		Namespace:     spec.Namespace,
 		Runtime:       spec.Runtime,
 		Handler:       spec.Handler,
-		Status:        function.FunctionDefStatusReady,
+		Status:        domain.FunctionDefStatusReady,
 		ActiveVersion: "00001", // Knative revision format
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
@@ -115,14 +115,14 @@ func (p *Provider) CreateFunction(ctx context.Context, spec *function.FunctionSp
 }
 
 // UpdateFunction updates an existing function
-func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *function.FunctionSpec) (*function.FunctionDef, error) {
+func (p *KnativeProvider) UpdateFunction(ctx context.Context, name string, spec *domain.FunctionSpec) (*domain.FunctionDef, error) {
 	// Get existing service
 	existing, err := p.dynamicClient.Resource(knativeServiceGVR).Namespace(spec.Namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+			return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 		}
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to get function: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to get function: %v", err))
 	}
 
 	// Update service spec
@@ -136,7 +136,7 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 	
 	_, err = p.dynamicClient.Resource(knativeServiceGVR).Namespace(spec.Namespace).Update(ctx, existing, metav1.UpdateOptions{})
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to update function: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to update function: %v", err))
 	}
 
 	// Wait for update to complete
@@ -150,12 +150,12 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 		return nil, err
 	}
 
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		Name:          name,
 		Namespace:     spec.Namespace,
 		Runtime:       spec.Runtime,
 		Handler:       spec.Handler,
-		Status:        function.FunctionDefStatusReady,
+		Status:        domain.FunctionDefStatusReady,
 		ActiveVersion: latestRevision,
 		UpdatedAt:     time.Now(),
 		Labels:        spec.Labels,
@@ -164,11 +164,11 @@ func (p *Provider) UpdateFunction(ctx context.Context, name string, spec *functi
 }
 
 // DeleteFunction deletes a function
-func (p *Provider) DeleteFunction(ctx context.Context, name string) error {
+func (p *KnativeProvider) DeleteFunction(ctx context.Context, name string) error {
 	// Find the function in any namespace
 	services, err := p.dynamicClient.Resource(knativeServiceGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list services: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list services: %v", err))
 	}
 
 	found := false
@@ -182,24 +182,24 @@ func (p *Provider) DeleteFunction(ctx context.Context, name string) error {
 	}
 
 	if !found {
-		return function.NewProviderError(function.ErrCodeNotFound, "function not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 	}
 
 	// Delete the service
 	err = p.dynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to delete function: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to delete function: %v", err))
 	}
 
 	return nil
 }
 
 // GetFunction retrieves a function by name
-func (p *Provider) GetFunction(ctx context.Context, name string) (*function.FunctionDef, error) {
+func (p *KnativeProvider) GetFunction(ctx context.Context, name string) (*domain.FunctionDef, error) {
 	// Search for the function in all namespaces
 	services, err := p.dynamicClient.Resource(knativeServiceGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list services: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list services: %v", err))
 	}
 
 	for _, item := range services.Items {
@@ -208,11 +208,11 @@ func (p *Provider) GetFunction(ctx context.Context, name string) (*function.Func
 		}
 	}
 
-	return nil, function.NewProviderError(function.ErrCodeNotFound, "function not found")
+	return nil, domain.NewProviderError(domain.ErrCodeNotFound, "function not found")
 }
 
 // ListFunctions lists all functions in a namespace
-func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*function.FunctionDef, error) {
+func (p *KnativeProvider) ListFunctions(ctx context.Context, namespace string) ([]*domain.FunctionDef, error) {
 	var services *unstructured.UnstructuredList
 	var err error
 
@@ -223,10 +223,10 @@ func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*func
 	}
 
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list functions: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list functions: %v", err))
 	}
 
-	functions := make([]*function.FunctionDef, 0, len(services.Items))
+	functions := make([]*domain.FunctionDef, 0, len(services.Items))
 	for _, item := range services.Items {
 		fn, err := p.knativeServiceToFunctionDef(&item)
 		if err != nil {
@@ -239,7 +239,7 @@ func (p *Provider) ListFunctions(ctx context.Context, namespace string) ([]*func
 }
 
 // CreateVersion creates a new version by updating the Knative service
-func (p *Provider) CreateVersion(ctx context.Context, functionName string, version *function.FunctionVersionDef) error {
+func (p *KnativeProvider) CreateVersion(ctx context.Context, functionName string, version *domain.FunctionVersionDef) error {
 	// In Knative, versions are managed as revisions automatically
 	// We need to update the service to create a new revision
 	fn, err := p.GetFunction(ctx, functionName)
@@ -247,7 +247,7 @@ func (p *Provider) CreateVersion(ctx context.Context, functionName string, versi
 		return err
 	}
 
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:       functionName,
 		Namespace:  fn.Namespace,
 		Runtime:    fn.Runtime,
@@ -261,7 +261,7 @@ func (p *Provider) CreateVersion(ctx context.Context, functionName string, versi
 }
 
 // GetVersion retrieves a specific version (revision)
-func (p *Provider) GetVersion(ctx context.Context, functionName, versionID string) (*function.FunctionVersionDef, error) {
+func (p *KnativeProvider) GetVersion(ctx context.Context, functionName, versionID string) (*domain.FunctionVersionDef, error) {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -278,16 +278,16 @@ func (p *Provider) GetVersion(ctx context.Context, functionName, versionID strin
 	revision, err := p.dynamicClient.Resource(revisionGVR).Namespace(fn.Namespace).Get(ctx, versionID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, function.NewProviderError(function.ErrCodeNotFound, "version not found")
+			return nil, domain.NewProviderError(domain.ErrCodeNotFound, "version not found")
 		}
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to get version: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to get version: %v", err))
 	}
 
 	return p.knativeRevisionToVersion(revision, functionName)
 }
 
 // ListVersions lists all versions (revisions) of a function
-func (p *Provider) ListVersions(ctx context.Context, functionName string) ([]*function.FunctionVersionDef, error) {
+func (p *KnativeProvider) ListVersions(ctx context.Context, functionName string) ([]*domain.FunctionVersionDef, error) {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -305,10 +305,10 @@ func (p *Provider) ListVersions(ctx context.Context, functionName string) ([]*fu
 		LabelSelector: fmt.Sprintf("serving.knative.dev/service=%s", functionName),
 	})
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list versions: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list versions: %v", err))
 	}
 
-	versions := make([]*function.FunctionVersionDef, 0, len(revisions.Items))
+	versions := make([]*domain.FunctionVersionDef, 0, len(revisions.Items))
 	for i, item := range revisions.Items {
 		v, err := p.knativeRevisionToVersion(&item, functionName)
 		if err != nil {
@@ -322,7 +322,7 @@ func (p *Provider) ListVersions(ctx context.Context, functionName string) ([]*fu
 }
 
 // SetActiveVersion sets the active version by updating traffic split
-func (p *Provider) SetActiveVersion(ctx context.Context, functionName, versionID string) error {
+func (p *KnativeProvider) SetActiveVersion(ctx context.Context, functionName, versionID string) error {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -332,13 +332,13 @@ func (p *Provider) SetActiveVersion(ctx context.Context, functionName, versionID
 	// Get the service
 	service, err := p.dynamicClient.Resource(knativeServiceGVR).Namespace(fn.Namespace).Get(ctx, functionName, metav1.GetOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to get service: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to get service: %v", err))
 	}
 
 	// Update traffic to point to specific revision
 	spec, found, err := unstructured.NestedMap(service.Object, "spec")
 	if err != nil || !found {
-		return function.NewProviderError(function.ErrCodeInternal, "invalid service spec")
+		return domain.NewProviderError(domain.ErrCodeInternal, "invalid service spec")
 	}
 
 	traffic := []interface{}{
@@ -353,44 +353,44 @@ func (p *Provider) SetActiveVersion(ctx context.Context, functionName, versionID
 
 	_, err = p.dynamicClient.Resource(knativeServiceGVR).Namespace(fn.Namespace).Update(ctx, service, metav1.UpdateOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to update traffic: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to update traffic: %v", err))
 	}
 
 	return nil
 }
 
 // CreateTrigger creates a trigger for the function
-func (p *Provider) CreateTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (p *KnativeProvider) CreateTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	// Knative uses different resources for different trigger types
 	switch trigger.Type {
-	case function.TriggerHTTP:
+	case domain.TriggerHTTP:
 		// HTTP triggers are handled by the Knative Service itself
 		return nil
-	case function.TriggerEvent:
+	case domain.TriggerEvent:
 		// Create Knative Eventing trigger
 		return p.createEventTrigger(ctx, functionName, trigger)
-	case function.TriggerSchedule:
+	case domain.TriggerSchedule:
 		// Knative doesn't have built-in cron, would need to use Knative Eventing + CronJobSource
-		return function.NewProviderError(function.ErrCodeNotSupported, "schedule triggers not supported by Knative provider")
+		return domain.NewProviderError(domain.ErrCodeNotSupported, "schedule triggers not supported by Knative provider")
 	default:
-		return function.NewProviderError(function.ErrCodeInvalidInput, fmt.Sprintf("unsupported trigger type: %s", trigger.Type))
+		return domain.NewProviderError(domain.ErrCodeInvalidInput, fmt.Sprintf("unsupported trigger type: %s", trigger.Type))
 	}
 }
 
 // UpdateTrigger updates a trigger
-func (p *Provider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *function.FunctionTrigger) error {
+func (p *KnativeProvider) UpdateTrigger(ctx context.Context, functionName, triggerName string, trigger *domain.FunctionTrigger) error {
 	switch trigger.Type {
-	case function.TriggerHTTP:
+	case domain.TriggerHTTP:
 		return nil
-	case function.TriggerEvent:
+	case domain.TriggerEvent:
 		return p.updateEventTrigger(ctx, functionName, triggerName, trigger)
 	default:
-		return function.NewProviderError(function.ErrCodeNotSupported, "trigger type not supported")
+		return domain.NewProviderError(domain.ErrCodeNotSupported, "trigger type not supported")
 	}
 }
 
 // DeleteTrigger deletes a trigger
-func (p *Provider) DeleteTrigger(ctx context.Context, functionName, triggerName string) error {
+func (p *KnativeProvider) DeleteTrigger(ctx context.Context, functionName, triggerName string) error {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -406,26 +406,26 @@ func (p *Provider) DeleteTrigger(ctx context.Context, functionName, triggerName 
 
 	err = p.dynamicClient.Resource(triggerGVR).Namespace(fn.Namespace).Delete(ctx, triggerName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to delete trigger: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to delete trigger: %v", err))
 	}
 
 	return nil
 }
 
 // ListTriggers lists all triggers for a function
-func (p *Provider) ListTriggers(ctx context.Context, functionName string) ([]*function.FunctionTrigger, error) {
+func (p *KnativeProvider) ListTriggers(ctx context.Context, functionName string) ([]*domain.FunctionTrigger, error) {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
 		return nil, err
 	}
 
-	triggers := []*function.FunctionTrigger{}
+	triggers := []*domain.FunctionTrigger{}
 
 	// HTTP trigger is always available for Knative Services
-	triggers = append(triggers, &function.FunctionTrigger{
+	triggers = append(triggers, &domain.FunctionTrigger{
 		Name:         "http",
-		Type:         function.TriggerHTTP,
+		Type:         domain.TriggerHTTP,
 		FunctionName: functionName,
 		Enabled:      true,
 		Config: map[string]string{
@@ -458,7 +458,7 @@ func (p *Provider) ListTriggers(ctx context.Context, functionName string) ([]*fu
 }
 
 // InvokeFunction invokes a function synchronously
-func (p *Provider) InvokeFunction(ctx context.Context, name string, req *function.InvokeRequest) (*function.InvokeResponse, error) {
+func (p *KnativeProvider) InvokeFunction(ctx context.Context, name string, req *domain.InvokeRequest) (*domain.InvokeResponse, error) {
 	// Get function to find its URL
 	fn, err := p.GetFunction(ctx, name)
 	if err != nil {
@@ -469,7 +469,7 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 	
 	// TODO: Implement actual HTTP invocation
 	// For now, return a mock response
-	return &function.InvokeResponse{
+	return &domain.InvokeResponse{
 		StatusCode: 200,
 		Headers: map[string][]string{
 			"Content-Type": {"application/json"},
@@ -482,19 +482,19 @@ func (p *Provider) InvokeFunction(ctx context.Context, name string, req *functio
 }
 
 // InvokeFunctionAsync invokes a function asynchronously
-func (p *Provider) InvokeFunctionAsync(ctx context.Context, name string, req *function.InvokeRequest) (string, error) {
+func (p *KnativeProvider) InvokeFunctionAsync(ctx context.Context, name string, req *domain.InvokeRequest) (string, error) {
 	// Knative doesn't have built-in async invocation
 	// We would need to use Knative Eventing or a message queue
-	return "", function.NewProviderError(function.ErrCodeNotSupported, "async invocation not directly supported by Knative")
+	return "", domain.NewProviderError(domain.ErrCodeNotSupported, "async invocation not directly supported by Knative")
 }
 
 // GetInvocationStatus gets the status of an async invocation
-func (p *Provider) GetInvocationStatus(ctx context.Context, invocationID string) (*function.InvocationStatus, error) {
-	return nil, function.NewProviderError(function.ErrCodeNotSupported, "async invocation not supported")
+func (p *KnativeProvider) GetInvocationStatus(ctx context.Context, invocationID string) (*domain.InvocationStatus, error) {
+	return nil, domain.NewProviderError(domain.ErrCodeNotSupported, "async invocation not supported")
 }
 
 // GetFunctionURL returns the URL for a function
-func (p *Provider) GetFunctionURL(ctx context.Context, name string) (string, error) {
+func (p *KnativeProvider) GetFunctionURL(ctx context.Context, name string) (string, error) {
 	fn, err := p.GetFunction(ctx, name)
 	if err != nil {
 		return "", err
@@ -504,7 +504,7 @@ func (p *Provider) GetFunctionURL(ctx context.Context, name string) (string, err
 }
 
 // GetFunctionLogs retrieves logs for a function
-func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *function.LogOptions) ([]*function.LogEntry, error) {
+func (p *KnativeProvider) GetFunctionLogs(ctx context.Context, name string, opts *domain.LogOptions) ([]*domain.LogEntry, error) {
 	// Get function to find namespace and pod selector
 	fn, err := p.GetFunction(ctx, name)
 	if err != nil {
@@ -516,10 +516,10 @@ func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *funct
 		LabelSelector: fmt.Sprintf("serving.knative.dev/service=%s", name),
 	})
 	if err != nil {
-		return nil, function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to list pods: %v", err))
+		return nil, domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to list pods: %v", err))
 	}
 
-	logs := []*function.LogEntry{}
+	logs := []*domain.LogEntry{}
 	for _, pod := range pods.Items {
 		// Get logs from user container
 		logOpts := &corev1.PodLogOptions{
@@ -538,7 +538,7 @@ func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *funct
 
 		// Parse logs (simplified - in production would parse properly)
 		// TODO: Implement proper log parsing
-		logs = append(logs, &function.LogEntry{
+		logs = append(logs, &domain.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Logs from pod %s", pod.Name),
@@ -551,12 +551,12 @@ func (p *Provider) GetFunctionLogs(ctx context.Context, name string, opts *funct
 }
 
 // GetFunctionMetrics retrieves metrics for a function
-func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *function.MetricOptions) (*function.Metrics, error) {
+func (p *KnativeProvider) GetFunctionMetrics(ctx context.Context, name string, opts *domain.MetricOptions) (*domain.Metrics, error) {
 	// TODO: Implement metrics retrieval from Prometheus/monitoring system
-	return &function.Metrics{
+	return &domain.Metrics{
 		Invocations: 100,
 		Errors:      5,
-		Duration: function.MetricStats{
+		Duration: domain.MetricStats{
 			Min: 50,
 			Max: 500,
 			Avg: 150,
@@ -565,7 +565,7 @@ func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *fu
 			P99: 480,
 		},
 		ColdStarts: 10,
-		Concurrency: function.MetricStats{
+		Concurrency: domain.MetricStats{
 			Min: 0,
 			Max: 10,
 			Avg: 3,
@@ -577,29 +577,29 @@ func (p *Provider) GetFunctionMetrics(ctx context.Context, name string, opts *fu
 }
 
 // GetCapabilities returns the provider's capabilities
-func (p *Provider) GetCapabilities() *function.Capabilities {
+func (p *KnativeProvider) GetCapabilities() *domain.Capabilities {
 	return p.capabilities
 }
 
 // HealthCheck performs a health check on the provider
-func (p *Provider) HealthCheck(ctx context.Context) error {
+func (p *KnativeProvider) HealthCheck(ctx context.Context) error {
 	// Check if Knative Serving is installed
 	_, err := p.dynamicClient.Resource(knativeServiceGVR).List(ctx, metav1.ListOptions{Limit: 1})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("Knative Serving not available: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("Knative Serving not available: %v", err))
 	}
 	return nil
 }
 
 // Helper methods
 
-func (p *Provider) buildImage(spec *function.FunctionSpec) string {
+func (p *KnativeProvider) buildImage(spec *domain.FunctionSpec) string {
 	// In production, this would trigger a build process
 	// For now, return a placeholder image
 	return fmt.Sprintf("gcr.io/knative-samples/%s:latest", strings.ToLower(string(spec.Runtime)))
 }
 
-func (p *Provider) buildKnativeService(name, namespace, image string, spec *function.FunctionSpec) *unstructured.Unstructured {
+func (p *KnativeProvider) buildKnativeService(name, namespace, image string, spec *domain.FunctionSpec) *unstructured.Unstructured {
 	service := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "serving.knative.dev/v1",
@@ -644,7 +644,7 @@ func (p *Provider) buildKnativeService(name, namespace, image string, spec *func
 	return service
 }
 
-func (p *Provider) updateKnativeServiceSpec(service *unstructured.Unstructured, image string, spec *function.FunctionSpec) {
+func (p *KnativeProvider) updateKnativeServiceSpec(service *unstructured.Unstructured, image string, spec *domain.FunctionSpec) {
 	// Update container image
 	containers, _, _ := unstructured.NestedSlice(service.Object, "spec", "template", "spec", "containers")
 	if len(containers) > 0 {
@@ -672,7 +672,7 @@ func (p *Provider) updateKnativeServiceSpec(service *unstructured.Unstructured, 
 	}
 }
 
-func (p *Provider) buildEnvVars(env map[string]string) []interface{} {
+func (p *KnativeProvider) buildEnvVars(env map[string]string) []interface{} {
 	envVars := make([]interface{}, 0, len(env))
 	for k, v := range env {
 		envVars = append(envVars, map[string]interface{}{
@@ -683,7 +683,7 @@ func (p *Provider) buildEnvVars(env map[string]string) []interface{} {
 	return envVars
 }
 
-func (p *Provider) waitForServiceReady(ctx context.Context, namespace, name string) error {
+func (p *KnativeProvider) waitForServiceReady(ctx context.Context, namespace, name string) error {
 	// Wait for up to 5 minutes
 	timeout := time.After(5 * time.Minute)
 	ticker := time.NewTicker(2 * time.Second)
@@ -692,7 +692,7 @@ func (p *Provider) waitForServiceReady(ctx context.Context, namespace, name stri
 	for {
 		select {
 		case <-timeout:
-			return function.NewProviderError(function.ErrCodeTimeout, "timeout waiting for service to be ready")
+			return domain.NewProviderError(domain.ErrCodeTimeout, "timeout waiting for service to be ready")
 		case <-ticker.C:
 			service, err := p.dynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
@@ -713,7 +713,7 @@ func (p *Provider) waitForServiceReady(ctx context.Context, namespace, name stri
 	}
 }
 
-func (p *Provider) getLatestRevision(ctx context.Context, namespace, name string) (string, error) {
+func (p *KnativeProvider) getLatestRevision(ctx context.Context, namespace, name string) (string, error) {
 	service, err := p.dynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -721,38 +721,38 @@ func (p *Provider) getLatestRevision(ctx context.Context, namespace, name string
 
 	latestRevision, found, err := unstructured.NestedString(service.Object, "status", "latestCreatedRevisionName")
 	if err != nil || !found {
-		return "", function.NewProviderError(function.ErrCodeInternal, "could not get latest revision")
+		return "", domain.NewProviderError(domain.ErrCodeInternal, "could not get latest revision")
 	}
 
 	return latestRevision, nil
 }
 
-func (p *Provider) knativeServiceToFunctionDef(service *unstructured.Unstructured) (*function.FunctionDef, error) {
+func (p *KnativeProvider) knativeServiceToFunctionDef(service *unstructured.Unstructured) (*domain.FunctionDef, error) {
 	// Extract function details from Knative service
 	name := service.GetName()
 	namespace := service.GetNamespace()
 	
 	// Get runtime from annotation or default
-	runtime := function.RuntimePython
+	runtime := domain.RuntimePython
 	if r, ok := service.GetAnnotations()["function.hexabase.ai/runtime"]; ok {
-		runtime = function.Runtime(r)
+		runtime = domain.Runtime(r)
 	}
 
 	// Get active revision
 	activeRevision, _, _ := unstructured.NestedString(service.Object, "status", "latestReadyRevisionName")
 	
 	// Get status
-	status := function.FunctionDefStatusPending
+	status := domain.FunctionDefStatusPending
 	conditions, _, _ := unstructured.NestedSlice(service.Object, "status", "conditions")
 	for _, c := range conditions {
 		condition := c.(map[string]interface{})
 		if condition["type"] == "Ready" && condition["status"] == "True" {
-			status = function.FunctionDefStatusReady
+			status = domain.FunctionDefStatusReady
 			break
 		}
 	}
 
-	return &function.FunctionDef{
+	return &domain.FunctionDef{
 		Name:          name,
 		Namespace:     namespace,
 		Runtime:       runtime,
@@ -765,7 +765,7 @@ func (p *Provider) knativeServiceToFunctionDef(service *unstructured.Unstructure
 	}, nil
 }
 
-func (p *Provider) knativeRevisionToVersion(revision *unstructured.Unstructured, functionName string) (*function.FunctionVersionDef, error) {
+func (p *KnativeProvider) knativeRevisionToVersion(revision *unstructured.Unstructured, functionName string) (*domain.FunctionVersionDef, error) {
 	name := revision.GetName()
 	
 	// Get image
@@ -777,12 +777,12 @@ func (p *Provider) knativeRevisionToVersion(revision *unstructured.Unstructured,
 	}
 
 	// Get status
-	status := function.FunctionBuildStatusPending
+	status := domain.FunctionBuildStatusPending
 	conditions, _, _ := unstructured.NestedSlice(revision.Object, "status", "conditions")
 	for _, c := range conditions {
 		condition := c.(map[string]interface{})
 		if condition["type"] == "Ready" && condition["status"] == "True" {
-			status = function.FunctionBuildStatusSuccess
+			status = domain.FunctionBuildStatusSuccess
 			break
 		}
 	}
@@ -798,7 +798,7 @@ func (p *Provider) knativeRevisionToVersion(revision *unstructured.Unstructured,
 		}
 	}
 
-	return &function.FunctionVersionDef{
+	return &domain.FunctionVersionDef{
 		ID:           name,
 		FunctionName: functionName,
 		Image:        image,
@@ -808,13 +808,13 @@ func (p *Provider) knativeRevisionToVersion(revision *unstructured.Unstructured,
 	}, nil
 }
 
-func (p *Provider) getFunctionURL(namespace, name string) string {
+func (p *KnativeProvider) getFunctionURL(namespace, name string) string {
 	// Construct Knative service URL
 	// Format: http://{service}.{namespace}.svc.cluster.local
 	return fmt.Sprintf("http://%s.%s.svc.cluster.local", name, namespace)
 }
 
-func (p *Provider) createEventTrigger(ctx context.Context, functionName string, trigger *function.FunctionTrigger) error {
+func (p *KnativeProvider) createEventTrigger(ctx context.Context, functionName string, trigger *domain.FunctionTrigger) error {
 	// Get function to find namespace
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -857,13 +857,13 @@ func (p *Provider) createEventTrigger(ctx context.Context, functionName string, 
 
 	_, err = p.dynamicClient.Resource(triggerGVR).Namespace(fn.Namespace).Create(ctx, knativeTrigger, metav1.CreateOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to create trigger: %v", err))
 	}
 
 	return nil
 }
 
-func (p *Provider) updateEventTrigger(ctx context.Context, functionName, triggerName string, trigger *function.FunctionTrigger) error {
+func (p *KnativeProvider) updateEventTrigger(ctx context.Context, functionName, triggerName string, trigger *domain.FunctionTrigger) error {
 	// Similar to create but with update
 	fn, err := p.GetFunction(ctx, functionName)
 	if err != nil {
@@ -878,7 +878,7 @@ func (p *Provider) updateEventTrigger(ctx context.Context, functionName, trigger
 
 	existing, err := p.dynamicClient.Resource(triggerGVR).Namespace(fn.Namespace).Get(ctx, triggerName, metav1.GetOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeNotFound, "trigger not found")
+		return domain.NewProviderError(domain.ErrCodeNotFound, "trigger not found")
 	}
 
 	// Update filter attributes
@@ -891,13 +891,13 @@ func (p *Provider) updateEventTrigger(ctx context.Context, functionName, trigger
 
 	_, err = p.dynamicClient.Resource(triggerGVR).Namespace(fn.Namespace).Update(ctx, existing, metav1.UpdateOptions{})
 	if err != nil {
-		return function.NewProviderError(function.ErrCodeInternal, fmt.Sprintf("failed to update trigger: %v", err))
+		return domain.NewProviderError(domain.ErrCodeInternal, fmt.Sprintf("failed to update trigger: %v", err))
 	}
 
 	return nil
 }
 
-func (p *Provider) knativeTriggerToFunctionTrigger(trigger *unstructured.Unstructured, functionName string) (*function.FunctionTrigger, error) {
+func (p *KnativeProvider) knativeTriggerToFunctionTrigger(trigger *unstructured.Unstructured, functionName string) (*domain.FunctionTrigger, error) {
 	name := trigger.GetName()
 	
 	// Get filter attributes as config
@@ -907,9 +907,9 @@ func (p *Provider) knativeTriggerToFunctionTrigger(trigger *unstructured.Unstruc
 		config[k] = fmt.Sprintf("%v", v)
 	}
 
-	return &function.FunctionTrigger{
+	return &domain.FunctionTrigger{
 		Name:         name,
-		Type:         function.TriggerEvent,
+		Type:         domain.TriggerEvent,
 		FunctionName: functionName,
 		Enabled:      true,
 		Config:       config,

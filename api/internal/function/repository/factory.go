@@ -1,4 +1,4 @@
-package function
+package repository
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/fission"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/knative"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/function/mock"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/fission"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/knative"
+	"github.com/hexabase/hexabase-ai/api/internal/function/repository/mock"
 )
 
 // ProviderFactory creates function providers based on configuration
@@ -28,9 +28,9 @@ func NewProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.I
 }
 
 // CreateProvider creates a provider instance based on configuration
-func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig function.ProviderConfig) (function.Provider, error) {
+func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig domain.ProviderConfig) (domain.Provider, error) {
 	switch providerConfig.Type {
-	case function.ProviderTypeKnative:
+	case domain.ProviderTypeKnative:
 		// Extract namespace from config or use default
 		namespace := "default"
 		if ns, ok := providerConfig.Config["namespace"].(string); ok {
@@ -38,7 +38,7 @@ func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig fun
 		}
 		return knative.NewProvider(f.kubeClient, f.dynamicClient, namespace), nil
 		
-	case function.ProviderTypeFission:
+	case domain.ProviderTypeFission:
 		// Extract required config for Fission
 		endpoint, ok := providerConfig.Config["endpoint"].(string)
 		if !ok {
@@ -50,7 +50,7 @@ func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig fun
 		}
 		return fission.NewProvider(endpoint, namespace), nil
 		
-	case function.ProviderTypeMock:
+	case domain.ProviderTypeMock:
 		// Mock provider for testing
 		return mock.NewFunctionProvider(), nil
 		
@@ -60,34 +60,34 @@ func (f *ProviderFactory) CreateProvider(ctx context.Context, providerConfig fun
 }
 
 // GetAvailableProviders returns the list of available provider types
-func (f *ProviderFactory) GetAvailableProviders() []function.ProviderType {
-	return []function.ProviderType{
-		function.ProviderTypeKnative,
-		function.ProviderTypeFission,
-		function.ProviderTypeMock, // For testing
+func (f *ProviderFactory) GetAvailableProviders() []domain.ProviderType {
+	return []domain.ProviderType{
+		domain.ProviderTypeKnative,
+		domain.ProviderTypeFission,
+		domain.ProviderTypeMock, // For testing
 	}
 }
 
 // GetSupportedProviders returns the list of supported provider types
-func (f *ProviderFactory) GetSupportedProviders() []function.ProviderType {
+func (f *ProviderFactory) GetSupportedProviders() []domain.ProviderType {
 	return f.GetAvailableProviders()
 }
 
 // ValidateProviderConfig validates the configuration for a specific provider type
-func (f *ProviderFactory) ValidateProviderConfig(providerType function.ProviderType, config map[string]interface{}) error {
+func (f *ProviderFactory) ValidateProviderConfig(providerType domain.ProviderType, config map[string]interface{}) error {
 	switch providerType {
-	case function.ProviderTypeKnative:
+	case domain.ProviderTypeKnative:
 		// Knative doesn't require additional config beyond k8s client
 		return nil
 		
-	case function.ProviderTypeFission:
+	case domain.ProviderTypeFission:
 		// Fission requires endpoint configuration
 		if _, ok := config["endpoint"]; !ok {
 			return fmt.Errorf("fission provider requires 'endpoint' in config")
 		}
 		return nil
 		
-	case function.ProviderTypeMock:
+	case domain.ProviderTypeMock:
 		// Mock provider doesn't require any config
 		return nil
 		
@@ -98,26 +98,26 @@ func (f *ProviderFactory) ValidateProviderConfig(providerType function.ProviderT
 
 // GetProviderCapabilities returns the capabilities for a specific provider type
 // without instantiating the provider
-func (f *ProviderFactory) GetProviderCapabilities(providerType function.ProviderType) (*function.Capabilities, error) {
+func (f *ProviderFactory) GetProviderCapabilities(providerType domain.ProviderType) (*domain.Capabilities, error) {
 	switch providerType {
-	case function.ProviderTypeKnative:
-		return &function.Capabilities{
+	case domain.ProviderTypeKnative:
+		return &domain.Capabilities{
 			Name:        "knative",
 			Version:     "1.0.0",
 			Description: "Knative-based serverless platform",
 			SupportsVersioning: true,
-			SupportedRuntimes: []function.Runtime{
-				function.RuntimeGo,
-				function.RuntimePython,
-				function.RuntimeNode,
-				function.RuntimeJava,
-				function.RuntimeDotNet,
-				function.RuntimePHP,
-				function.RuntimeRuby,
+			SupportedRuntimes: []domain.Runtime{
+				domain.RuntimeGo,
+				domain.RuntimePython,
+				domain.RuntimeNode,
+				domain.RuntimeJava,
+				domain.RuntimeDotNet,
+				domain.RuntimePHP,
+				domain.RuntimeRuby,
 			},
-			SupportedTriggerTypes: []function.TriggerType{
-				function.TriggerHTTP,
-				function.TriggerEvent, // Via Knative Eventing
+			SupportedTriggerTypes: []domain.TriggerType{
+				domain.TriggerHTTP,
+				domain.TriggerEvent, // Via Knative Eventing
 			},
 			SupportsAsync:           true,
 			SupportsLogs:            false,
@@ -133,26 +133,26 @@ func (f *ProviderFactory) GetProviderCapabilities(providerType function.Provider
 			SupportsHTTPS:          true,
 		}, nil
 		
-	case function.ProviderTypeFission:
-		return &function.Capabilities{
+	case domain.ProviderTypeFission:
+		return &domain.Capabilities{
 			Name:        "fission",
 			Version:     "1.0.0", 
 			Description: "Fission lightweight serverless platform",
 			SupportsVersioning: true,
-			SupportedRuntimes: []function.Runtime{
-				function.RuntimeGo,
-				function.RuntimePython,
-				function.RuntimeNode,
-				function.RuntimeJava,
-				function.RuntimeDotNet,
-				function.RuntimePHP,
-				function.RuntimeRuby,
+			SupportedRuntimes: []domain.Runtime{
+				domain.RuntimeGo,
+				domain.RuntimePython,
+				domain.RuntimeNode,
+				domain.RuntimeJava,
+				domain.RuntimeDotNet,
+				domain.RuntimePHP,
+				domain.RuntimeRuby,
 			},
-			SupportedTriggerTypes: []function.TriggerType{
-				function.TriggerHTTP,
-				function.TriggerSchedule, // Fission has time triggers
-				function.TriggerEvent,    // Via message queue triggers
-				function.TriggerMessageQueue,
+			SupportedTriggerTypes: []domain.TriggerType{
+				domain.TriggerHTTP,
+				domain.TriggerSchedule, // Fission has time triggers
+				domain.TriggerEvent,    // Via message queue triggers
+				domain.TriggerMessageQueue,
 			},
 			SupportsAsync:           true,
 			SupportsLogs:            true,
@@ -169,7 +169,7 @@ func (f *ProviderFactory) GetProviderCapabilities(providerType function.Provider
 			SupportsWarmPool:       true,
 		}, nil
 		
-	case function.ProviderTypeMock:
+	case domain.ProviderTypeMock:
 		mockProvider := mock.NewFunctionProvider()
 		return mockProvider.GetCapabilities(), nil
 		

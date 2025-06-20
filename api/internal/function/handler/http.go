@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
@@ -7,26 +7,26 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
 	"github.com/gorilla/mux"
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// FunctionHandler handles HTTP requests for function management
-type FunctionHandler struct {
-	service function.Service
+// Handler handles HTTP requests for function management
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewFunctionHandler creates a new function handler
-func NewFunctionHandler(service function.Service, logger *slog.Logger) *FunctionHandler {
-	return &FunctionHandler{
+// NewHandler creates a new function handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // ListFunctions handles GET /workspaces/{workspaceID}/projects/{projectID}/functions
-func (h *FunctionHandler) ListFunctions(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListFunctions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	projectID := vars["projectID"]
@@ -43,12 +43,12 @@ func (h *FunctionHandler) ListFunctions(w http.ResponseWriter, r *http.Request) 
 }
 
 // CreateFunction handles POST /workspaces/{workspaceID}/projects/{projectID}/functions
-func (h *FunctionHandler) CreateFunction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateFunction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	projectID := vars["projectID"]
 
-	var spec function.FunctionSpec
+	var spec domain.FunctionSpec
 	if err := json.NewDecoder(r.Body).Decode(&spec); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -67,7 +67,7 @@ func (h *FunctionHandler) CreateFunction(w http.ResponseWriter, r *http.Request)
 }
 
 // GetFunction handles GET /workspaces/{workspaceID}/functions/{functionID}
-func (h *FunctionHandler) GetFunction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetFunction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -84,12 +84,12 @@ func (h *FunctionHandler) GetFunction(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateFunction handles PUT /workspaces/{workspaceID}/functions/{functionID}
-func (h *FunctionHandler) UpdateFunction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateFunction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
 
-	var spec function.FunctionSpec
+	var spec domain.FunctionSpec
 	if err := json.NewDecoder(r.Body).Decode(&spec); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -107,7 +107,7 @@ func (h *FunctionHandler) UpdateFunction(w http.ResponseWriter, r *http.Request)
 }
 
 // DeleteFunction handles DELETE /workspaces/{workspaceID}/functions/{functionID}
-func (h *FunctionHandler) DeleteFunction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteFunction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -122,7 +122,7 @@ func (h *FunctionHandler) DeleteFunction(w http.ResponseWriter, r *http.Request)
 }
 
 // ListVersions handles GET /workspaces/{workspaceID}/functions/{functionID}/versions
-func (h *FunctionHandler) ListVersions(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -139,12 +139,12 @@ func (h *FunctionHandler) ListVersions(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeployVersion handles POST /workspaces/{workspaceID}/functions/{functionID}/versions
-func (h *FunctionHandler) DeployVersion(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeployVersion(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
 
-	var version function.FunctionVersionDef
+	var version domain.FunctionVersionDef
 	if err := json.NewDecoder(r.Body).Decode(&version); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -163,7 +163,7 @@ func (h *FunctionHandler) DeployVersion(w http.ResponseWriter, r *http.Request) 
 }
 
 // SetActiveVersion handles PUT /workspaces/{workspaceID}/functions/{functionID}/versions/{versionID}/activate
-func (h *FunctionHandler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -179,7 +179,7 @@ func (h *FunctionHandler) SetActiveVersion(w http.ResponseWriter, r *http.Reques
 }
 
 // ListTriggers handles GET /workspaces/{workspaceID}/functions/{functionID}/triggers
-func (h *FunctionHandler) ListTriggers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListTriggers(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -196,12 +196,12 @@ func (h *FunctionHandler) ListTriggers(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateTrigger handles POST /workspaces/{workspaceID}/functions/{functionID}/triggers
-func (h *FunctionHandler) CreateTrigger(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
 
-	var trigger function.FunctionTrigger
+	var trigger domain.FunctionTrigger
 	if err := json.NewDecoder(r.Body).Decode(&trigger); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -220,7 +220,7 @@ func (h *FunctionHandler) CreateTrigger(w http.ResponseWriter, r *http.Request) 
 }
 
 // InvokeFunction handles POST /workspaces/{workspaceID}/functions/{functionID}/invoke
-func (h *FunctionHandler) InvokeFunction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) InvokeFunction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
@@ -228,12 +228,12 @@ func (h *FunctionHandler) InvokeFunction(w http.ResponseWriter, r *http.Request)
 	// Check if async
 	async := r.URL.Query().Get("async") == "true"
 
-	var request function.InvokeRequest
+	var request domain.InvokeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		// Allow empty body
-		request = function.InvokeRequest{
-			Method: r.Method,
-			Path:   r.URL.Path,
+		request = domain.InvokeRequest{
+			Method:  r.Method,
+			Path:    r.URL.Path,
 			Headers: r.Header,
 		}
 	}
@@ -269,7 +269,7 @@ func (h *FunctionHandler) InvokeFunction(w http.ResponseWriter, r *http.Request)
 }
 
 // GetInvocationStatus handles GET /workspaces/{workspaceID}/invocations/{invocationID}
-func (h *FunctionHandler) GetInvocationStatus(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetInvocationStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	invocationID := vars["invocationID"]
@@ -286,12 +286,12 @@ func (h *FunctionHandler) GetInvocationStatus(w http.ResponseWriter, r *http.Req
 }
 
 // GetFunctionLogs handles GET /workspaces/{workspaceID}/functions/{functionID}/logs
-func (h *FunctionHandler) GetFunctionLogs(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetFunctionLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
 
-	opts := &function.LogOptions{
+	opts := &domain.LogOptions{
 		Follow: r.URL.Query().Get("follow") == "true",
 		Limit:  100,
 	}
@@ -314,14 +314,14 @@ func (h *FunctionHandler) GetFunctionLogs(w http.ResponseWriter, r *http.Request
 }
 
 // GetFunctionMetrics handles GET /workspaces/{workspaceID}/functions/{functionID}/metrics
-func (h *FunctionHandler) GetFunctionMetrics(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetFunctionMetrics(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 	functionID := vars["functionID"]
 
 	// Default to last hour
 	now := time.Now()
-	opts := &function.MetricOptions{
+	opts := &domain.MetricOptions{
 		StartTime:  now.Add(-1 * time.Hour),
 		EndTime:    now,
 		Resolution: "5m",
@@ -343,7 +343,7 @@ func (h *FunctionHandler) GetFunctionMetrics(w http.ResponseWriter, r *http.Requ
 }
 
 // GetProviderCapabilities handles GET /workspaces/{workspaceID}/functions/capabilities
-func (h *FunctionHandler) GetProviderCapabilities(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetProviderCapabilities(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workspaceID := vars["workspaceID"]
 

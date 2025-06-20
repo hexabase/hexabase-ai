@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
 func TestFissionProvider_Capabilities(t *testing.T) {
@@ -17,10 +17,10 @@ func TestFissionProvider_Capabilities(t *testing.T) {
 
 	assert.Equal(t, "fission", caps.Name)
 	assert.True(t, caps.SupportsVersioning)
-	assert.Contains(t, caps.SupportedRuntimes, function.RuntimePython)
-	assert.Contains(t, caps.SupportedRuntimes, function.RuntimeNode)
-	assert.Contains(t, caps.SupportedTriggerTypes, function.TriggerHTTP)
-	assert.Contains(t, caps.SupportedTriggerTypes, function.TriggerSchedule)
+	assert.Contains(t, caps.SupportedRuntimes, domain.RuntimePython)
+	assert.Contains(t, caps.SupportedRuntimes, domain.RuntimeNode)
+	assert.Contains(t, caps.SupportedTriggerTypes, domain.TriggerHTTP)
+	assert.Contains(t, caps.SupportedTriggerTypes, domain.TriggerSchedule)
 	assert.True(t, caps.SupportsWarmPool)
 	assert.Equal(t, 100, caps.TypicalColdStartMs)
 }
@@ -28,20 +28,20 @@ func TestFissionProvider_Capabilities(t *testing.T) {
 func TestFissionProvider_CreateFunction(t *testing.T) {
 	tests := []struct {
 		name    string
-		spec    *function.FunctionSpec
+		spec    *domain.FunctionSpec
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid python function",
-			spec: &function.FunctionSpec{
+			spec: &domain.FunctionSpec{
 				Name:      "test-func",
 				Namespace: "test-ns",
-				Runtime:   function.RuntimePython,
+				Runtime:   domain.RuntimePython,
 				Handler:   "main.handler",
 				SourceCode: `def handler(context):
 					return {"status": 200, "body": "Hello from Python"}`,
-				Resources: function.FunctionResourceRequirements{
+				Resources: domain.FunctionResourceRequirements{
 					Memory: "256Mi",
 					CPU:    "100m",
 				},
@@ -50,10 +50,10 @@ func TestFissionProvider_CreateFunction(t *testing.T) {
 		},
 		{
 			name: "valid node function",
-			spec: &function.FunctionSpec{
+			spec: &domain.FunctionSpec{
 				Name:      "test-node-func",
 				Namespace: "test-ns",
-				Runtime:   function.RuntimeNode,
+				Runtime:   domain.RuntimeNode,
 				Handler:   "index.handler",
 				SourceCode: `module.exports.handler = async (context) => {
 					return { status: 200, body: "Hello from Node.js" };
@@ -63,9 +63,9 @@ func TestFissionProvider_CreateFunction(t *testing.T) {
 		},
 		{
 			name: "missing name",
-			spec: &function.FunctionSpec{
+			spec: &domain.FunctionSpec{
 				Namespace: "test-ns",
-				Runtime:   function.RuntimePython,
+				Runtime:   domain.RuntimePython,
 				Handler:   "main.handler",
 			},
 			wantErr: true,
@@ -73,7 +73,7 @@ func TestFissionProvider_CreateFunction(t *testing.T) {
 		},
 		{
 			name: "unsupported runtime",
-			spec: &function.FunctionSpec{
+			spec: &domain.FunctionSpec{
 				Name:      "test-func",
 				Namespace: "test-ns",
 				Runtime:   "unsupported",
@@ -111,9 +111,9 @@ func TestFissionProvider_TriggerManagement(t *testing.T) {
 	ctx := context.Background()
 
 	// Test HTTP trigger creation
-	httpTrigger := &function.FunctionTrigger{
+	httpTrigger := &domain.FunctionTrigger{
 		Name:         "http-trigger",
-		Type:         function.TriggerHTTP,
+		Type:         domain.TriggerHTTP,
 		FunctionName: "test-func",
 		Enabled:      true,
 		Config: map[string]string{
@@ -128,9 +128,9 @@ func TestFissionProvider_TriggerManagement(t *testing.T) {
 	_ = err // In real tests, we would assert based on mock responses
 
 	// Test schedule trigger creation
-	scheduleTrigger := &function.FunctionTrigger{
+	scheduleTrigger := &domain.FunctionTrigger{
 		Name:         "schedule-trigger",
-		Type:         function.TriggerSchedule,
+		Type:         domain.TriggerSchedule,
 		FunctionName: "test-func",
 		Enabled:      true,
 		Config: map[string]string{
@@ -146,7 +146,7 @@ func TestFissionProvider_InvokeFunction(t *testing.T) {
 	provider := NewProvider("http://controller.fission", "default")
 	ctx := context.Background()
 
-	req := &function.InvokeRequest{
+	req := &domain.InvokeRequest{
 		Method: "POST",
 		Path:   "/",
 		Headers: map[string][]string{
@@ -166,7 +166,7 @@ func TestFissionProvider_VersionManagement(t *testing.T) {
 	provider := NewProvider("http://controller.fission", "default")
 	ctx := context.Background()
 
-	version := &function.FunctionVersionDef{
+	version := &domain.FunctionVersionDef{
 		ID:         "v1",
 		Version:    1,
 		SourceCode: `def handler(context): return {"status": 200}`,
@@ -191,7 +191,7 @@ func TestFissionProvider_Monitoring(t *testing.T) {
 	ctx := context.Background()
 
 	// Test log retrieval
-	logOpts := &function.LogOptions{
+	logOpts := &domain.LogOptions{
 		Limit:  100,
 		Follow: false,
 	}
@@ -201,7 +201,7 @@ func TestFissionProvider_Monitoring(t *testing.T) {
 	_ = err
 
 	// Test metrics retrieval
-	metricOpts := &function.MetricOptions{
+	metricOpts := &domain.MetricOptions{
 		StartTime:  time.Now().Add(-1 * time.Hour),
 		EndTime:    time.Now(),
 		Resolution: "1m",
@@ -220,17 +220,17 @@ func TestFissionProvider_ErrorHandling(t *testing.T) {
 	// Test function not found
 	_, err := provider.GetFunction(ctx, "non-existent-func")
 	if err != nil {
-		provErr, ok := err.(*function.ProviderError)
+		provErr, ok := err.(*domain.ProviderError)
 		if ok {
 			assert.True(t, provErr.IsNotFound())
 		}
 	}
 
 	// Test already exists error
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "existing-func",
 		Namespace: "test-ns",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 	}
 
@@ -241,7 +241,7 @@ func TestFissionProvider_ErrorHandling(t *testing.T) {
 	// Second creation should fail with already exists (in mock)
 	_, err = provider.CreateFunction(ctx, spec)
 	if err != nil {
-		provErr, ok := err.(*function.ProviderError)
+		provErr, ok := err.(*domain.ProviderError)
 		if ok {
 			assert.True(t, provErr.IsAlreadyExists())
 		}
@@ -252,10 +252,10 @@ func TestFissionProvider_WarmPoolConfiguration(t *testing.T) {
 	provider := NewProvider("http://controller.fission", "default")
 	
 	// Test that provider properly configures warm pools
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "warm-pool-func",
 		Namespace: "test-ns",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 		Environment: map[string]string{
 			"POOL_SIZE": "3", // Request 3 warm instances
@@ -275,10 +275,10 @@ func BenchmarkFissionProvider_CreateFunction(b *testing.B) {
 	provider := NewProvider("http://controller.fission", "default")
 	ctx := context.Background()
 	
-	spec := &function.FunctionSpec{
+	spec := &domain.FunctionSpec{
 		Name:      "bench-func",
 		Namespace: "bench-ns",
-		Runtime:   function.RuntimePython,
+		Runtime:   domain.RuntimePython,
 		Handler:   "main.handler",
 		SourceCode: `def handler(context): return {"status": 200}`,
 	}
@@ -294,7 +294,7 @@ func BenchmarkFissionProvider_InvokeFunction(b *testing.B) {
 	provider := NewProvider("http://controller.fission", "default")
 	ctx := context.Background()
 	
-	req := &function.InvokeRequest{
+	req := &domain.InvokeRequest{
 		Method: "GET",
 		Path:   "/",
 	}

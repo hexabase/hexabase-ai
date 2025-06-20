@@ -1,4 +1,4 @@
-package function
+package repository
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
-	
-	"github.com/hexabase/hexabase-ai/api/internal/domain/function"
+
+	"github.com/hexabase/hexabase-ai/api/internal/function/domain"
 )
 
-// PostgresRepository implements the function.Repository interface using PostgreSQL
+// PostgresRepository implements the domain.Repository interface using PostgreSQL
 type PostgresRepository struct {
 	db     *sql.DB
 	config *ConfigRepository
@@ -26,7 +26,7 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 }
 
 // CreateFunction creates a new function record
-func (r *PostgresRepository) CreateFunction(ctx context.Context, fn *function.FunctionDef) error {
+func (r *PostgresRepository) CreateFunction(ctx context.Context, fn *domain.FunctionDef) error {
 	query := `
 		INSERT INTO functions (
 			id, workspace_id, project_id, name, namespace, runtime, 
@@ -55,7 +55,7 @@ func (r *PostgresRepository) CreateFunction(ctx context.Context, fn *function.Fu
 }
 
 // UpdateFunction updates an existing function
-func (r *PostgresRepository) UpdateFunction(ctx context.Context, fn *function.FunctionDef) error {
+func (r *PostgresRepository) UpdateFunction(ctx context.Context, fn *domain.FunctionDef) error {
 	query := `
 		UPDATE functions SET
 			name = $3, namespace = $4, runtime = $5, handler = $6,
@@ -111,7 +111,7 @@ func (r *PostgresRepository) DeleteFunction(ctx context.Context, workspaceID, fu
 }
 
 // GetFunction retrieves a function by ID
-func (r *PostgresRepository) GetFunction(ctx context.Context, workspaceID, functionID string) (*function.FunctionDef, error) {
+func (r *PostgresRepository) GetFunction(ctx context.Context, workspaceID, functionID string) (*domain.FunctionDef, error) {
 	query := `
 		SELECT id, workspace_id, project_id, name, namespace, runtime,
 		       handler, description, status, active_version,
@@ -120,7 +120,7 @@ func (r *PostgresRepository) GetFunction(ctx context.Context, workspaceID, funct
 		WHERE workspace_id = $1 AND id = $2
 	`
 
-	var fn function.FunctionDef
+	var fn domain.FunctionDef
 	var runtime, status string
 	var labelsJSON, annotationsJSON []byte
 
@@ -138,8 +138,8 @@ func (r *PostgresRepository) GetFunction(ctx context.Context, workspaceID, funct
 		return nil, fmt.Errorf("failed to get function: %w", err)
 	}
 
-	fn.Runtime = function.Runtime(runtime)
-	fn.Status = function.FunctionDefStatus(status)
+	fn.Runtime = domain.Runtime(runtime)
+	fn.Status = domain.FunctionDefStatus(status)
 	json.Unmarshal(labelsJSON, &fn.Labels)
 	json.Unmarshal(annotationsJSON, &fn.Annotations)
 
@@ -147,7 +147,7 @@ func (r *PostgresRepository) GetFunction(ctx context.Context, workspaceID, funct
 }
 
 // ListFunctions lists all functions in a project
-func (r *PostgresRepository) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*function.FunctionDef, error) {
+func (r *PostgresRepository) ListFunctions(ctx context.Context, workspaceID, projectID string) ([]*domain.FunctionDef, error) {
 	query := `
 		SELECT id, workspace_id, project_id, name, namespace, runtime,
 		       handler, description, status, active_version,
@@ -163,9 +163,9 @@ func (r *PostgresRepository) ListFunctions(ctx context.Context, workspaceID, pro
 	}
 	defer rows.Close()
 
-	var functions []*function.FunctionDef
+	var functions []*domain.FunctionDef
 	for rows.Next() {
-		var fn function.FunctionDef
+		var fn domain.FunctionDef
 		var runtime, status string
 		var labelsJSON, annotationsJSON []byte
 
@@ -179,8 +179,8 @@ func (r *PostgresRepository) ListFunctions(ctx context.Context, workspaceID, pro
 			return nil, fmt.Errorf("failed to scan function: %w", err)
 		}
 
-		fn.Runtime = function.Runtime(runtime)
-		fn.Status = function.FunctionDefStatus(status)
+		fn.Runtime = domain.Runtime(runtime)
+		fn.Status = domain.FunctionDefStatus(status)
 		json.Unmarshal(labelsJSON, &fn.Labels)
 		json.Unmarshal(annotationsJSON, &fn.Annotations)
 
@@ -191,7 +191,7 @@ func (r *PostgresRepository) ListFunctions(ctx context.Context, workspaceID, pro
 }
 
 // CreateVersion creates a new version record
-func (r *PostgresRepository) CreateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
+func (r *PostgresRepository) CreateVersion(ctx context.Context, version *domain.FunctionVersionDef) error {
 	query := `
 		INSERT INTO function_versions (
 			id, workspace_id, function_id, function_name, version,
@@ -215,7 +215,7 @@ func (r *PostgresRepository) CreateVersion(ctx context.Context, version *functio
 }
 
 // UpdateVersion updates a version record
-func (r *PostgresRepository) UpdateVersion(ctx context.Context, version *function.FunctionVersionDef) error {
+func (r *PostgresRepository) UpdateVersion(ctx context.Context, version *domain.FunctionVersionDef) error {
 	query := `
 		UPDATE function_versions SET
 			build_status = $4, build_log = $5, is_active = $6
@@ -244,7 +244,7 @@ func (r *PostgresRepository) UpdateVersion(ctx context.Context, version *functio
 }
 
 // GetVersion retrieves a specific version
-func (r *PostgresRepository) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*function.FunctionVersionDef, error) {
+func (r *PostgresRepository) GetVersion(ctx context.Context, workspaceID, functionID, versionID string) (*domain.FunctionVersionDef, error) {
 	query := `
 		SELECT id, workspace_id, function_id, function_name, version,
 		       runtime, handler, image, source_code, build_status,
@@ -253,7 +253,7 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, workspaceID, functi
 		WHERE workspace_id = $1 AND function_id = $2 AND id = $3
 	`
 
-	var v function.FunctionVersionDef
+	var v domain.FunctionVersionDef
 	var runtime, buildStatus string
 
 	var handler string
@@ -270,13 +270,13 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, workspaceID, functi
 		return nil, fmt.Errorf("failed to get version: %w", err)
 	}
 
-	v.BuildStatus = function.FunctionBuildStatus(buildStatus)
+	v.BuildStatus = domain.FunctionBuildStatus(buildStatus)
 
 	return &v, nil
 }
 
 // ListVersions lists all versions of a function
-func (r *PostgresRepository) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionVersionDef, error) {
+func (r *PostgresRepository) ListVersions(ctx context.Context, workspaceID, functionID string) ([]*domain.FunctionVersionDef, error) {
 	query := `
 		SELECT id, workspace_id, function_id, function_name, version,
 		       runtime, handler, image, source_code, build_status,
@@ -292,9 +292,9 @@ func (r *PostgresRepository) ListVersions(ctx context.Context, workspaceID, func
 	}
 	defer rows.Close()
 
-	var versions []*function.FunctionVersionDef
+	var versions []*domain.FunctionVersionDef
 	for rows.Next() {
-		var v function.FunctionVersionDef
+		var v domain.FunctionVersionDef
 		var runtime, buildStatus string
 
 		var handler string
@@ -307,7 +307,7 @@ func (r *PostgresRepository) ListVersions(ctx context.Context, workspaceID, func
 			return nil, fmt.Errorf("failed to scan version: %w", err)
 		}
 
-		v.BuildStatus = function.FunctionBuildStatus(buildStatus)
+		v.BuildStatus = domain.FunctionBuildStatus(buildStatus)
 
 		versions = append(versions, &v)
 	}
@@ -316,7 +316,7 @@ func (r *PostgresRepository) ListVersions(ctx context.Context, workspaceID, func
 }
 
 // CreateTrigger creates a new trigger record
-func (r *PostgresRepository) CreateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
+func (r *PostgresRepository) CreateTrigger(ctx context.Context, trigger *domain.FunctionTrigger) error {
 	query := `
 		INSERT INTO function_triggers (
 			id, workspace_id, function_id, name, type,
@@ -340,7 +340,7 @@ func (r *PostgresRepository) CreateTrigger(ctx context.Context, trigger *functio
 }
 
 // UpdateTrigger updates a trigger record
-func (r *PostgresRepository) UpdateTrigger(ctx context.Context, trigger *function.FunctionTrigger) error {
+func (r *PostgresRepository) UpdateTrigger(ctx context.Context, trigger *domain.FunctionTrigger) error {
 	query := `
 		UPDATE function_triggers SET
 			name = $4, type = $5, enabled = $6, config = $7, updated_at = $8
@@ -393,7 +393,7 @@ func (r *PostgresRepository) DeleteTrigger(ctx context.Context, workspaceID, fun
 }
 
 // ListTriggers lists all triggers for a function
-func (r *PostgresRepository) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*function.FunctionTrigger, error) {
+func (r *PostgresRepository) ListTriggers(ctx context.Context, workspaceID, functionID string) ([]*domain.FunctionTrigger, error) {
 	query := `
 		SELECT id, workspace_id, function_id, name, type,
 		       function_name, enabled, config, created_at, updated_at
@@ -408,9 +408,9 @@ func (r *PostgresRepository) ListTriggers(ctx context.Context, workspaceID, func
 	}
 	defer rows.Close()
 
-	var triggers []*function.FunctionTrigger
+	var triggers []*domain.FunctionTrigger
 	for rows.Next() {
-		var t function.FunctionTrigger
+		var t domain.FunctionTrigger
 		var triggerType string
 		var configJSON []byte
 
@@ -422,7 +422,7 @@ func (r *PostgresRepository) ListTriggers(ctx context.Context, workspaceID, func
 			return nil, fmt.Errorf("failed to scan trigger: %w", err)
 		}
 
-		t.Type = function.TriggerType(triggerType)
+		t.Type = domain.TriggerType(triggerType)
 		json.Unmarshal(configJSON, &t.Config)
 
 		triggers = append(triggers, &t)
@@ -432,7 +432,7 @@ func (r *PostgresRepository) ListTriggers(ctx context.Context, workspaceID, func
 }
 
 // CreateInvocation creates a new invocation record
-func (r *PostgresRepository) CreateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
+func (r *PostgresRepository) CreateInvocation(ctx context.Context, invocation *domain.InvocationStatus) error {
 	query := `
 		INSERT INTO function_invocations (
 			invocation_id, workspace_id, function_id, status,
@@ -456,7 +456,7 @@ func (r *PostgresRepository) CreateInvocation(ctx context.Context, invocation *f
 }
 
 // UpdateInvocation updates an invocation record
-func (r *PostgresRepository) UpdateInvocation(ctx context.Context, invocation *function.InvocationStatus) error {
+func (r *PostgresRepository) UpdateInvocation(ctx context.Context, invocation *domain.InvocationStatus) error {
 	query := `
 		UPDATE function_invocations SET
 			status = $3, completed_at = $4, result = $5, error = $6
@@ -487,7 +487,7 @@ func (r *PostgresRepository) UpdateInvocation(ctx context.Context, invocation *f
 }
 
 // GetInvocation retrieves an invocation by ID
-func (r *PostgresRepository) GetInvocation(ctx context.Context, workspaceID, invocationID string) (*function.InvocationStatus, error) {
+func (r *PostgresRepository) GetInvocation(ctx context.Context, workspaceID, invocationID string) (*domain.InvocationStatus, error) {
 	query := `
 		SELECT invocation_id, workspace_id, function_id, status,
 		       started_at, completed_at, result, error
@@ -495,7 +495,7 @@ func (r *PostgresRepository) GetInvocation(ctx context.Context, workspaceID, inv
 		WHERE workspace_id = $1 AND invocation_id = $2
 	`
 
-	var inv function.InvocationStatus
+	var inv domain.InvocationStatus
 	var resultJSON []byte
 	var errorStr sql.NullString
 
@@ -520,7 +520,7 @@ func (r *PostgresRepository) GetInvocation(ctx context.Context, workspaceID, inv
 }
 
 // ListInvocations lists invocations for a function
-func (r *PostgresRepository) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.InvocationStatus, error) {
+func (r *PostgresRepository) ListInvocations(ctx context.Context, workspaceID, functionID string, limit int) ([]*domain.InvocationStatus, error) {
 	query := `
 		SELECT invocation_id, workspace_id, function_id, status,
 		       started_at, completed_at, result, error
@@ -536,9 +536,9 @@ func (r *PostgresRepository) ListInvocations(ctx context.Context, workspaceID, f
 	}
 	defer rows.Close()
 
-	var invocations []*function.InvocationStatus
+	var invocations []*domain.InvocationStatus
 	for rows.Next() {
-		var inv function.InvocationStatus
+		var inv domain.InvocationStatus
 		var resultJSON []byte
 		var errorStr sql.NullString
 
@@ -562,7 +562,7 @@ func (r *PostgresRepository) ListInvocations(ctx context.Context, workspaceID, f
 }
 
 // CreateEvent creates a new audit event
-func (r *PostgresRepository) CreateEvent(ctx context.Context, event *function.FunctionAuditEvent) error {
+func (r *PostgresRepository) CreateEvent(ctx context.Context, event *domain.FunctionAuditEvent) error {
 	query := `
 		INSERT INTO function_events (
 			id, workspace_id, function_id, type, description,
@@ -585,7 +585,7 @@ func (r *PostgresRepository) CreateEvent(ctx context.Context, event *function.Fu
 }
 
 // ListEvents lists audit events for a function
-func (r *PostgresRepository) ListEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*function.FunctionAuditEvent, error) {
+func (r *PostgresRepository) ListEvents(ctx context.Context, workspaceID, functionID string, limit int) ([]*domain.FunctionAuditEvent, error) {
 	query := `
 		SELECT id, workspace_id, function_id, type, description,
 		       user_id, metadata, created_at
@@ -601,9 +601,9 @@ func (r *PostgresRepository) ListEvents(ctx context.Context, workspaceID, functi
 	}
 	defer rows.Close()
 
-	var events []*function.FunctionAuditEvent
+	var events []*domain.FunctionAuditEvent
 	for rows.Next() {
-		var e function.FunctionAuditEvent
+		var e domain.FunctionAuditEvent
 		var metadataJSON []byte
 
 		var userID string
@@ -624,11 +624,11 @@ func (r *PostgresRepository) ListEvents(ctx context.Context, workspaceID, functi
 }
 
 // GetWorkspaceProviderConfig retrieves the provider configuration for a workspace
-func (r *PostgresRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*function.ProviderConfig, error) {
+func (r *PostgresRepository) GetWorkspaceProviderConfig(ctx context.Context, workspaceID string) (*domain.ProviderConfig, error) {
 	return r.config.GetWorkspaceProviderConfig(ctx, workspaceID)
 }
 
 // UpdateWorkspaceProviderConfig updates the provider configuration for a workspace
-func (r *PostgresRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *function.ProviderConfig) error {
+func (r *PostgresRepository) UpdateWorkspaceProviderConfig(ctx context.Context, workspaceID string, config *domain.ProviderConfig) error {
 	return r.config.UpdateWorkspaceProviderConfig(ctx, workspaceID, config)
 }
