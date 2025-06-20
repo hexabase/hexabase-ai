@@ -12,7 +12,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
-	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/api/handlers"
 
 	// Application domain - using new package-by-feature structure
 	"github.com/hexabase/hexabase-ai/api/internal/application/domain"

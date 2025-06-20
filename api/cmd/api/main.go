@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/api/routes"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/api/routes"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/infrastructure/wire"

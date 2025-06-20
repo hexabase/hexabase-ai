@@ -9,17 +9,12 @@ package wire
 import (
 	"context"
 	"database/sql"
-	"log/slog"
-	"net/http"
-	"time"
-
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	domain7 "github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	handler12 "github.com/hexabase/hexabase-ai/api/internal/aiops/handler"
 	repository12 "github.com/hexabase/hexabase-ai/api/internal/aiops/repository"
 	service12 "github.com/hexabase/hexabase-ai/api/internal/aiops/service"
-	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
 	domain11 "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/application/handler"
 	"github.com/hexabase/hexabase-ai/api/internal/application/repository"
@@ -64,6 +59,7 @@ import (
 	handler9 "github.com/hexabase/hexabase-ai/api/internal/project/handler"
 	repository10 "github.com/hexabase/hexabase-ai/api/internal/project/repository"
 	service9 "github.com/hexabase/hexabase-ai/api/internal/project/service"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/repository"
 	domain9 "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
@@ -75,6 +71,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
+	"log/slog"
+	"net/http"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -164,11 +163,11 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	v2, err := ProvideClickHouseConn(cfg)
+	conn, err := ProvideClickHouseConn(cfg)
 	if err != nil {
 		return nil, err
 	}
-	repository26 := repository13.NewClickHouseRepository(v2, logger)
+	repository26 := repository13.NewClickHouseRepository(conn, logger)
 	service26 := service13.NewLogService(repository26, logger)
 	internalHandler := ProvideInternalHandler(service22, service21, domainService, service19, service26, service18, service25, service17, service15, logger)
 	app := NewApp(applicationHandler, handlerHandler, handler13, handler14, handler15, handler16, handler17, handler18, handler19, handler20, handler21, handler22, ginHandler, aiOpsProxyHandler, internalHandler, service26)
