@@ -13,7 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -43,12 +43,12 @@ type MockLogService struct {
 	mock.Mock
 }
 
-func (m *MockLogService) QueryLogs(ctx context.Context, query logs.LogQuery) ([]logs.LogEntry, error) {
+func (m *MockLogService) QueryLogs(ctx interface{}, query logsDomain.LogQuery) ([]logsDomain.LogEntry, error) {
 	args := m.Called(ctx, query)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	if args.Get(0) != nil {
+		return args.Get(0).([]logsDomain.LogEntry), args.Error(1)
 	}
-	return args.Get(0).([]logs.LogEntry), args.Error(1)
+	return nil, args.Error(1)
 }
 
 func TestInternalHandler_GetNodes(t *testing.T) {
@@ -138,7 +138,7 @@ func TestInternalHandler_QueryLogs(t *testing.T) {
 
 		workspaceID := "ws-12345"
 		now := time.Now()
-		query := logs.LogQuery{
+		query := logsDomain.LogQuery{
 			WorkspaceID: workspaceID,
 			SearchTerm:  "error",
 			StartTime:   now.Add(-1 * time.Hour),
@@ -146,7 +146,7 @@ func TestInternalHandler_QueryLogs(t *testing.T) {
 			Limit:       100,
 		}
 		
-		expectedLogs := []logs.LogEntry{
+		expectedLogs := []logsDomain.LogEntry{
 			{Timestamp: now, Level: "error", Message: "Something went wrong"},
 		}
 
@@ -168,7 +168,7 @@ func TestInternalHandler_QueryLogs(t *testing.T) {
 		// Assert
 		assert.Equal(t, http.StatusOK, rr.Code)
 
-		var responseBody []logs.LogEntry
+		var responseBody []logsDomain.LogEntry
 		err := json.Unmarshal(rr.Body.Bytes(), &responseBody)
 		assert.NoError(t, err)
 		assert.Len(t, responseBody, 1)

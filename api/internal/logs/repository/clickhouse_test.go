@@ -1,10 +1,10 @@
-package logs
+package repository
 
 import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	"github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ import (
 func TestClickHouseRepository_QueryLogs(t *testing.T) {
 	t.Run("compilation test - verify types are correct", func(t *testing.T) {
 		// This test verifies that the LogQuery struct and its fields match the expected types
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-123",
 			SearchTerm:  "error", 
 			StartTime:   time.Now().Add(-1 * time.Hour),
@@ -33,7 +33,7 @@ func TestClickHouseRepository_QueryLogs(t *testing.T) {
 
 	t.Run("log entry structure test", func(t *testing.T) {
 		// Verify LogEntry structure matches expected fields
-		entry := logs.LogEntry{
+		entry := domain.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "INFO",
 			Message:   "Test message",
@@ -59,12 +59,12 @@ func TestClickHouseRepository_QueryLogs(t *testing.T) {
 func TestLogQueryValidation(t *testing.T) {
 	testCases := []struct {
 		name        string
-		query       logs.LogQuery
+		query       domain.LogQuery
 		expectValid bool
 	}{
 		{
 			name: "valid query with all fields",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-123",
 				SearchTerm:  "error",
 				StartTime:   time.Now().Add(-1 * time.Hour),
@@ -76,14 +76,14 @@ func TestLogQueryValidation(t *testing.T) {
 		},
 		{
 			name: "valid query with minimal fields",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-456",
 			},
 			expectValid: true,
 		},
 		{
 			name: "invalid query - missing workspace ID",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				SearchTerm: "error",
 				Limit:      100,
 			},
@@ -91,7 +91,7 @@ func TestLogQueryValidation(t *testing.T) {
 		},
 		{
 			name: "valid query with zero limit (no limit)",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-789",
 				Limit:       0,
 			},
@@ -112,13 +112,13 @@ func TestLogQueryValidation(t *testing.T) {
 func TestSQLGeneration(t *testing.T) {
 	testCases := []struct {
 		name        string
-		query       logs.LogQuery
+		query       domain.LogQuery
 		expectedSQL string
 		argCount    int
 	}{
 		{
 			name: "query with all filters",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-123",
 				SearchTerm:  "error",
 				StartTime:   time.Now().Add(-1 * time.Hour),
@@ -131,7 +131,7 @@ func TestSQLGeneration(t *testing.T) {
 		},
 		{
 			name: "query without filters",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-456",
 				Limit:       50,
 			},
@@ -140,7 +140,7 @@ func TestSQLGeneration(t *testing.T) {
 		},
 		{
 			name: "query with search term only",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-789",
 				SearchTerm:  "database",
 				Limit:       20,
@@ -150,7 +150,7 @@ func TestSQLGeneration(t *testing.T) {
 		},
 		{
 			name: "query with time range",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-111",
 				StartTime:   time.Now().Add(-24 * time.Hour),
 				EndTime:     time.Now().Add(-12 * time.Hour),
@@ -161,7 +161,7 @@ func TestSQLGeneration(t *testing.T) {
 		},
 		{
 			name: "query by level",
-			query: logs.LogQuery{
+			query: domain.LogQuery{
 				WorkspaceID: "ws-222",
 				Level:       "WARN",
 				Limit:       10,

@@ -1,23 +1,23 @@
-package logs
+package service
 
 import (
 	"context"
 	"log/slog"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	"github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 )
 
 type service struct {
-	repo   logs.Repository
+	repo   domain.Repository
 	logger *slog.Logger
 }
 
-func NewLogService(repo logs.Repository, logger *slog.Logger) logs.Service {
+func NewLogService(repo domain.Repository, logger *slog.Logger) domain.Service {
 	return &service{repo: repo, logger: logger}
 }
 
-func (s *service) QueryLogs(ctx context.Context, query logs.LogQuery) ([]logs.LogEntry, error) {
+func (s *service) QueryLogs(ctx context.Context, query domain.LogQuery) ([]domain.LogEntry, error) {
 	log := s.logger.With("workspace_id", query.WorkspaceID, "search_term", query.SearchTerm)
 	log.Info("executing log query")
 	

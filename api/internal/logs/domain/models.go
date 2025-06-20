@@ -1,5 +1,5 @@
-// Package logs defines the domain models and interfaces for logging.
-package logs
+// Package domain defines the domain models and interfaces for logging.
+package domain
 
 import "time"
 

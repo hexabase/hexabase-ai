@@ -10,7 +10,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
@@ -23,7 +23,7 @@ type InternalHandler struct {
 	projectSvc      projectDomain.Service
 	applicationSvc  applicationDomain.Service
 	nodeSvc         nodeDomain.Service
-	logSvc          logs.Service
+	logSvc          logsDomain.Service
 	monitoringSvc   monitoringDomain.Service
 	aiopsSvc        aiops.Service
 	cicdSvc         cicd.Service
@@ -37,7 +37,7 @@ func NewInternalHandler(
 	projectSvc projectDomain.Service,
 	applicationSvc applicationDomain.Service,
 	nodeSvc nodeDomain.Service,
-	logSvc logs.Service,
+	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,
@@ -102,7 +102,7 @@ func (h *InternalHandler) ScaleDeployment(c *gin.Context) {
 
 // QueryLogs is the handler for POST /internal/v1/logs/query
 func (h *InternalHandler) QueryLogs(c *gin.Context) {
-	var query logs.LogQuery
+	var query logsDomain.LogQuery
 	if err := c.ShouldBindJSON(&query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid query payload: " + err.Error()})
 		return

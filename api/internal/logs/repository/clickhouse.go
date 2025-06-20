@@ -1,22 +1,30 @@
-package logs
+package repository
 
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	"github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 )
 
+// ClickHouseRepository implements the logs.Repository interface using ClickHouse.
 type ClickHouseRepository struct {
-	conn clickhouse.Conn
+	conn   clickhouse.Conn
+	logger *slog.Logger
 }
 
-func NewClickHouseRepository(conn clickhouse.Conn) logs.Repository {
-	return &ClickHouseRepository{conn: conn}
+// NewClickHouseRepository creates a new ClickHouse repository.
+func NewClickHouseRepository(conn clickhouse.Conn, logger *slog.Logger) domain.Repository {
+	return &ClickHouseRepository{
+		conn:   conn,
+		logger: logger,
+	}
 }
 
-func (r *ClickHouseRepository) QueryLogs(ctx context.Context, query logs.LogQuery) ([]logs.LogEntry, error) {
+// QueryLogs executes a log query using ClickHouse.
+func (r *ClickHouseRepository) QueryLogs(ctx context.Context, query domain.LogQuery) ([]domain.LogEntry, error) {
 	var args []interface{}
 	
 	// Start with a base query
@@ -54,9 +62,9 @@ func (r *ClickHouseRepository) QueryLogs(ctx context.Context, query logs.LogQuer
 	}
 	defer rows.Close()
 
-	var results []logs.LogEntry
+	var results []domain.LogEntry
 	for rows.Next() {
-		var entry logs.LogEntry
+		var entry domain.LogEntry
 		// Details are complex to scan directly, this needs a proper implementation
 		// For now, we will skip scanning 'details'
 		var details string // placeholder

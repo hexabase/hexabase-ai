@@ -60,7 +60,11 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+
+	// Logs (migrated)
+	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
+	logsRepo "github.com/hexabase/hexabase-ai/api/internal/logs/repository"
+	logsSvc "github.com/hexabase/hexabase-ai/api/internal/logs/service"
 
 	// Function (migrated)
 	functionDomain "github.com/hexabase/hexabase-ai/api/internal/function/domain"
@@ -74,7 +78,6 @@ import (
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
-	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	// Legacy services that haven't been migrated yet
@@ -82,7 +85,6 @@ import (
 	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
-	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -196,9 +198,9 @@ var AIOpsSet = wire.NewSet(
 )
 
 var LogSet = wire.NewSet(
-	ProvideClickHouseConnection,
-	logRepo.NewClickHouseRepository,
-	logSvc.NewLogService,
+	ProvideClickHouseConn,
+	logsRepo.NewClickHouseRepository,
+	logsSvc.NewLogService,
 )
 
 var InternalSet = wire.NewSet(ProvideInternalHandler)
@@ -217,6 +219,7 @@ type App struct {
 	FunctionHandler    *functionHandler.Handler
 	AIOpsProxyHandler  *handlers.AIOpsProxyHandler
 	InternalHandler    *handlers.InternalHandler
+	LogSvc             logsDomain.Service
 }
 
 func NewApp(
@@ -233,6 +236,7 @@ func NewApp(
 	funcH *functionHandler.Handler,
 	aiopsH *handlers.AIOpsProxyHandler,
 	internalHandler *handlers.InternalHandler,
+	logSvc logsDomain.Service,
 ) *App {
 	return &App{
 		ApplicationHandler:  appH,
@@ -248,6 +252,7 @@ func NewApp(
 		FunctionHandler:    funcH,
 		AIOpsProxyHandler:  aiopsH,
 		InternalHandler:    internalHandler,
+		LogSvc:             logSvc,
 	}
 }
 
@@ -299,7 +304,7 @@ func ProvideSQLDB(gormDB *gorm.DB) (*sql.DB, error) {
 func ProvideFunctionRepository(repo *functionRepo.PostgresRepository) functionDomain.Repository {
 	return repo
 }
-func ProvideClickHouseConnection(cfg *config.Config) (clickhouse.Conn, error) {
+func ProvideClickHouseConn(cfg *config.Config) (clickhouse.Conn, error) {
 	// This should be expanded with full config options (user, pass, etc.)
 	conn, err := clickhouse.Open(&clickhouse.Options{
 		Addr: []string{cfg.ClickHouse.Address},
@@ -377,7 +382,7 @@ func ProvideInternalHandler(
 	projectSvc projectDomain.Service,
 	applicationSvc domain.Service,
 	nodeSvc nodeDomain.Service,
-	logSvc logs.Service,
+	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,

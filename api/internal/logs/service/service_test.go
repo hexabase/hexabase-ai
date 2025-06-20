@@ -1,4 +1,4 @@
-package logs
+package service
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
+	"github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,10 +17,10 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) QueryLogs(ctx context.Context, query logs.LogQuery) ([]logs.LogEntry, error) {
+func (m *mockRepository) QueryLogs(ctx context.Context, query domain.LogQuery) ([]domain.LogEntry, error) {
 	args := m.Called(ctx, query)
 	if args.Get(0) != nil {
-		return args.Get(0).([]logs.LogEntry), args.Error(1)
+		return args.Get(0).([]domain.LogEntry), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -33,11 +33,11 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-123",
 		}
 
-		expectedLogs := []logs.LogEntry{
+		expectedLogs := []domain.LogEntry{
 			{
 				Timestamp: time.Now(),
 				Level:     "info",
@@ -53,7 +53,7 @@ func TestService_QueryLogs(t *testing.T) {
 		}
 
 		// Service will add defaults: limit=100, time range = last hour
-		mockRepo.On("QueryLogs", ctx, mock.MatchedBy(func(q logs.LogQuery) bool {
+		mockRepo.On("QueryLogs", ctx, mock.MatchedBy(func(q domain.LogQuery) bool {
 			return q.WorkspaceID == "ws-123" && 
 				   q.Limit == 100 && 
 				   !q.StartTime.IsZero() &&
@@ -77,7 +77,7 @@ func TestService_QueryLogs(t *testing.T) {
 		now := time.Now()
 		startTime := now.Add(-24 * time.Hour)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-456",
 			SearchTerm:  "error",
 			Level:       "error",
@@ -86,7 +86,7 @@ func TestService_QueryLogs(t *testing.T) {
 			Limit:       50,
 		}
 
-		expectedLogs := []logs.LogEntry{
+		expectedLogs := []domain.LogEntry{
 			{
 				Timestamp: now.Add(-10 * time.Minute),
 				Level:     "error",
@@ -111,15 +111,15 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			// Missing WorkspaceID
 			SearchTerm: "test",
 		}
 
 		// Note: The current implementation doesn't validate empty workspace ID
 		// It will pass through to the repository
-		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("logs.LogQuery")).
-			Return([]logs.LogEntry{}, nil)
+		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("domain.LogQuery")).
+			Return([]domain.LogEntry{}, nil)
 
 		results, err := svc.QueryLogs(ctx, query)
 		assert.NoError(t, err)
@@ -133,7 +133,7 @@ func TestService_QueryLogs(t *testing.T) {
 		
 		now := time.Now()
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-789",
 			StartTime:   now,
 			EndTime:     now.Add(-1 * time.Hour), // End before start
@@ -141,8 +141,8 @@ func TestService_QueryLogs(t *testing.T) {
 
 		// Note: The current implementation doesn't validate time range
 		// It will use the EndTime and set StartTime to EndTime - 1 hour
-		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("logs.LogQuery")).
-			Return([]logs.LogEntry{}, nil)
+		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("domain.LogQuery")).
+			Return([]domain.LogEntry{}, nil)
 
 		results, err := svc.QueryLogs(ctx, query)
 		assert.NoError(t, err)
@@ -154,11 +154,11 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-error",
 		}
 
-		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("logs.LogQuery")).
+		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("domain.LogQuery")).
 			Return(nil, errors.New("database connection failed"))
 
 		results, err := svc.QueryLogs(ctx, query)
@@ -174,13 +174,13 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-empty",
 			SearchTerm:  "nonexistent",
 		}
 
-		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("logs.LogQuery")).
-			Return([]logs.LogEntry{}, nil)
+		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("domain.LogQuery")).
+			Return([]domain.LogEntry{}, nil)
 
 		results, err := svc.QueryLogs(ctx, query)
 		assert.NoError(t, err)
@@ -194,11 +194,11 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-metadata",
 		}
 
-		expectedLogs := []logs.LogEntry{
+		expectedLogs := []domain.LogEntry{
 			{
 				Timestamp: time.Now(),
 				Level:     "info",
@@ -214,7 +214,7 @@ func TestService_QueryLogs(t *testing.T) {
 			},
 		}
 
-		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("logs.LogQuery")).
+		mockRepo.On("QueryLogs", ctx, mock.AnythingOfType("domain.LogQuery")).
 			Return(expectedLogs, nil)
 
 		results, err := svc.QueryLogs(ctx, query)
@@ -235,15 +235,15 @@ func TestService_QueryLogs(t *testing.T) {
 		logger := slog.Default()
 		svc := NewLogService(mockRepo, logger)
 		
-		query := logs.LogQuery{
+		query := domain.LogQuery{
 			WorkspaceID: "ws-limit",
 			Limit:       10000, // Very high limit
 		}
 
 		// Service should cap the limit to a reasonable value (e.g., 1000)
-		mockRepo.On("QueryLogs", ctx, mock.MatchedBy(func(q logs.LogQuery) bool {
+		mockRepo.On("QueryLogs", ctx, mock.MatchedBy(func(q domain.LogQuery) bool {
 			return q.WorkspaceID == "ws-limit" && q.Limit <= 1000
-		})).Return([]logs.LogEntry{}, nil)
+		})).Return([]domain.LogEntry{}, nil)
 
 		results, err := svc.QueryLogs(ctx, query)
 		assert.NoError(t, err)
