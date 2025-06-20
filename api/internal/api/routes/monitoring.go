@@ -2,11 +2,11 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/api/handlers"
+	monitoringHandler "github.com/hexabase/hexabase-ai/api/internal/monitoring/handler"
 )
 
 // RegisterMonitoringRoutes registers all monitoring-related routes
-func RegisterMonitoringRoutes(router *gin.RouterGroup, handler *handlers.MonitoringHandler, authMiddleware gin.HandlerFunc) {
+func RegisterMonitoringRoutes(router *gin.RouterGroup, handler *monitoringHandler.Handler, authMiddleware gin.HandlerFunc) {
 	// Workspace monitoring endpoints
 	workspaces := router.Group("/workspaces/:workspace_id")
 	workspaces.Use(authMiddleware)

@@ -49,13 +49,18 @@ import (
 	nodeRepo "github.com/hexabase/hexabase-ai/api/internal/node/repository"
 	nodeService "github.com/hexabase/hexabase-ai/api/internal/node/service"
 
+	// Monitoring domain (migrated)
+	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
+	monitoringHandler "github.com/hexabase/hexabase-ai/api/internal/monitoring/handler"
+	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/monitoring/repository"
+	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/monitoring/service"
+
 	// Legacy domains that haven't been migrated yet
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
 
 	// Function (migrated)
 	functionDomain "github.com/hexabase/hexabase-ai/api/internal/function/domain"
@@ -70,7 +75,6 @@ import (
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	logRepo "github.com/hexabase/hexabase-ai/api/internal/repository/logs"
-	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/repository/monitoring"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	// Legacy services that haven't been migrated yet
@@ -79,7 +83,6 @@ import (
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 	logSvc "github.com/hexabase/hexabase-ai/api/internal/service/logs"
-	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/service/monitoring"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -148,7 +151,7 @@ var MonitoringSet = wire.NewSet(
 	monitoringRepo.NewPostgresRepository,
 	k8sRepo.NewKubernetesRepository,
 	monitoringSvc.NewService,
-	handlers.NewMonitoringHandler,
+	monitoringHandler.NewHandler,
 )
 
 var NodeSet = wire.NewSet(
@@ -205,7 +208,7 @@ type App struct {
 	AuthHandler        *authHandler.Handler
 	BackupHandler      *handlers.BackupHandler
 	BillingHandler     *handlers.BillingHandler
-	MonitoringHandler  *handlers.MonitoringHandler
+	MonitoringHandler  *monitoringHandler.Handler
 	NodeHandler        *nodeHandler.Handler
 	OrganizationHandler *orgHandler.Handler
 	ProjectHandler     *projectHandler.Handler
@@ -221,7 +224,7 @@ func NewApp(
 	authH *authHandler.Handler,
 	backupH *handlers.BackupHandler,
 	billH *handlers.BillingHandler,
-	monH *handlers.MonitoringHandler,
+	monH *monitoringHandler.Handler,
 	nodeH *nodeHandler.Handler,
 	orgH *orgHandler.Handler,
 	projH *projectHandler.Handler,
@@ -375,7 +378,7 @@ func ProvideInternalHandler(
 	applicationSvc domain.Service,
 	nodeSvc nodeDomain.Service,
 	logSvc logs.Service,
-	monitoringSvc monitoring.Service,
+	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,
 	backupSvc backup.Service,

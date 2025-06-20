@@ -10,7 +10,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
 
@@ -239,39 +239,39 @@ func (m *MockMonitoringService) CollectMetrics(ctx context.Context, workspaceID 
 	return args.Error(0)
 }
 
-func (m *MockMonitoringService) GetWorkspaceMetrics(ctx context.Context, workspaceID string, opts monitoring.QueryOptions) (*monitoring.WorkspaceMetrics, error) {
+func (m *MockMonitoringService) GetWorkspaceMetrics(ctx context.Context, workspaceID string, opts monitoringDomain.QueryOptions) (*monitoringDomain.WorkspaceMetrics, error) {
 	args := m.Called(ctx, workspaceID, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*monitoring.WorkspaceMetrics), args.Error(1)
+	return args.Get(0).(*monitoringDomain.WorkspaceMetrics), args.Error(1)
 }
 
-func (m *MockMonitoringService) GetClusterHealth(ctx context.Context, workspaceID string) (*monitoring.ClusterHealth, error) {
+func (m *MockMonitoringService) GetClusterHealth(ctx context.Context, workspaceID string) (*monitoringDomain.ClusterHealth, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*monitoring.ClusterHealth), args.Error(1)
+	return args.Get(0).(*monitoringDomain.ClusterHealth), args.Error(1)
 }
 
-func (m *MockMonitoringService) GetResourceUsage(ctx context.Context, workspaceID string) (*monitoring.ResourceUsage, error) {
+func (m *MockMonitoringService) GetResourceUsage(ctx context.Context, workspaceID string) (*monitoringDomain.ResourceUsage, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*monitoring.ResourceUsage), args.Error(1)
+	return args.Get(0).(*monitoringDomain.ResourceUsage), args.Error(1)
 }
 
-func (m *MockMonitoringService) GetAlerts(ctx context.Context, workspaceID, severity string) ([]*monitoring.Alert, error) {
+func (m *MockMonitoringService) GetAlerts(ctx context.Context, workspaceID, severity string) ([]*monitoringDomain.Alert, error) {
 	args := m.Called(ctx, workspaceID, severity)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*monitoring.Alert), args.Error(1)
+	return args.Get(0).([]*monitoringDomain.Alert), args.Error(1)
 }
 
-func (m *MockMonitoringService) CreateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (m *MockMonitoringService) CreateAlert(ctx context.Context, alert *monitoringDomain.Alert) error {
 	args := m.Called(ctx, alert)
 	return args.Error(0)
 }

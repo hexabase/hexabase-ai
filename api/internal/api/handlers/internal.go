@@ -11,7 +11,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/logs"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
@@ -24,7 +24,7 @@ type InternalHandler struct {
 	applicationSvc  applicationDomain.Service
 	nodeSvc         nodeDomain.Service
 	logSvc          logs.Service
-	monitoringSvc   monitoring.Service
+	monitoringSvc   monitoringDomain.Service
 	aiopsSvc        aiops.Service
 	cicdSvc         cicd.Service
 	backupSvc       backup.Service
@@ -38,7 +38,7 @@ func NewInternalHandler(
 	applicationSvc applicationDomain.Service,
 	nodeSvc nodeDomain.Service,
 	logSvc logs.Service,
-	monitoringSvc monitoring.Service,
+	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,
 	backupSvc backup.Service,
@@ -162,13 +162,13 @@ func (h *InternalHandler) GetWorkspaceOverview(c *gin.Context) {
 	}
 
 	// Get monitoring metrics
-	queryOpts := monitoring.QueryOptions{
+	queryOpts := monitoringDomain.QueryOptions{
 		Period: "24h",
 	}
 	metrics, err := h.monitoringSvc.GetWorkspaceMetrics(c.Request.Context(), workspaceID, queryOpts)
 	if err != nil {
 		h.logger.Error("failed to get metrics", "workspace_id", workspaceID, "error", err)
-		metrics = &monitoring.WorkspaceMetrics{}
+		metrics = &monitoringDomain.WorkspaceMetrics{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

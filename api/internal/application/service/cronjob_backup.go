@@ -3,14 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
+	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 )
 
 // Update to use project.Service instead of direct repository
@@ -18,7 +20,9 @@ type ExtendedService struct {
 	*Service
 	projectService    projectDomain.Service  // Change from Repository to Service
 	backupService     backup.Service
-	monitoringService monitoring.Service
+	monitoringService monitoringDomain.Service
+	workspaceService  workspaceDomain.Service
+	logger            *slog.Logger
 }
 
 // CreateApplicationWithBackupPolicy creates a CronJob application with an associated backup policy

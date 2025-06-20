@@ -1,4 +1,4 @@
-package monitoring
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -34,7 +34,7 @@ func TestPostgresRepository_CreateAlert(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("successful alert creation", func(t *testing.T) {
-		alert := &monitoring.Alert{
+		alert := &domain.Alert{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-123",
 			Type:        "cpu",
@@ -112,7 +112,7 @@ func TestPostgresRepository_GetAlerts(t *testing.T) {
 	t.Run("list workspace alerts with filter", func(t *testing.T) {
 		workspaceID := "ws-456"
 		now := time.Now()
-		filter := monitoring.AlertFilter{
+		filter := domain.AlertFilter{
 			Severity: "warning",
 			Status:   "active",
 			Limit:    10,
@@ -142,7 +142,7 @@ func TestPostgresRepository_UpdateAlert(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("update alert status", func(t *testing.T) {
-		alert := &monitoring.Alert{
+		alert := &domain.Alert{
 			ID:          uuid.New().String(),
 			WorkspaceID: "ws-789",
 			Type:        "cpu",
@@ -207,7 +207,7 @@ func TestPostgresRepository_SaveMetrics(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("save multiple metrics", func(t *testing.T) {
-		metrics := []*monitoring.MetricDataPoint{
+		metrics := []*domain.MetricDataPoint{
 			{
 				ID:          uuid.New().String(),
 				WorkspaceID: "ws-111",
@@ -289,10 +289,10 @@ func TestPostgresRepository_SaveHealthCheck(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("save cluster health", func(t *testing.T) {
-		health := &monitoring.ClusterHealth{
+		health := &domain.ClusterHealth{
 			WorkspaceID: "ws-333",
 			Healthy:     true,
-			Components: map[string]monitoring.ComponentHealth{
+			Components: map[string]domain.ComponentHealth{
 				"api-server": {
 					Name:   "api-server",
 					Status: "healthy",

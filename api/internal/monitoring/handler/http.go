@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
@@ -6,25 +6,25 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 )
 
-// MonitoringHandler handles monitoring-related HTTP requests
-type MonitoringHandler struct {
-	service monitoring.Service
+// Handler handles monitoring-related HTTP requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewMonitoringHandler creates a new monitoring handler
-func NewMonitoringHandler(service monitoring.Service, logger *slog.Logger) *MonitoringHandler {
-	return &MonitoringHandler{
+// NewHandler creates a new monitoring handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // GetMetrics handles GET /api/v1/workspaces/:workspace_id/metrics
-func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
+func (h *Handler) GetMetrics(c *gin.Context) {
 	workspaceID := c.Param("workspace_id")
 	period := c.DefaultQuery("period", "1h")
 
@@ -36,7 +36,7 @@ func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
 	}
 
 	// Create query options
-	opts := monitoring.QueryOptions{
+	opts := domain.QueryOptions{
 		Period: period,
 	}
 
@@ -54,7 +54,7 @@ func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
 }
 
 // GetClusterHealth handles GET /api/v1/workspaces/:workspace_id/health
-func (h *MonitoringHandler) GetClusterHealth(c *gin.Context) {
+func (h *Handler) GetClusterHealth(c *gin.Context) {
 	workspaceID := c.Param("workspace_id")
 
 	health, err := h.service.GetClusterHealth(c.Request.Context(), workspaceID)
@@ -70,7 +70,7 @@ func (h *MonitoringHandler) GetClusterHealth(c *gin.Context) {
 }
 
 // GetResourceUsage handles GET /api/v1/workspaces/:workspace_id/resources
-func (h *MonitoringHandler) GetResourceUsage(c *gin.Context) {
+func (h *Handler) GetResourceUsage(c *gin.Context) {
 	workspaceID := c.Param("workspace_id")
 
 	usage, err := h.service.GetResourceUsage(c.Request.Context(), workspaceID)
@@ -86,7 +86,7 @@ func (h *MonitoringHandler) GetResourceUsage(c *gin.Context) {
 }
 
 // GetAlerts handles GET /api/v1/workspaces/:workspace_id/alerts
-func (h *MonitoringHandler) GetAlerts(c *gin.Context) {
+func (h *Handler) GetAlerts(c *gin.Context) {
 	workspaceID := c.Param("workspace_id")
 	severity := c.Query("severity")
 
@@ -106,7 +106,7 @@ func (h *MonitoringHandler) GetAlerts(c *gin.Context) {
 }
 
 // CreateAlert handles POST /api/v1/workspaces/:workspace_id/alerts
-func (h *MonitoringHandler) CreateAlert(c *gin.Context) {
+func (h *Handler) CreateAlert(c *gin.Context) {
 	workspaceID := c.Param("workspace_id")
 
 	var req struct {
@@ -124,7 +124,7 @@ func (h *MonitoringHandler) CreateAlert(c *gin.Context) {
 		return
 	}
 
-	alert := &monitoring.Alert{
+	alert := &domain.Alert{
 		WorkspaceID: workspaceID,
 		Type:        req.Type,
 		Severity:    req.Severity,
@@ -147,7 +147,7 @@ func (h *MonitoringHandler) CreateAlert(c *gin.Context) {
 }
 
 // AcknowledgeAlert handles PUT /api/v1/alerts/:alert_id/acknowledge
-func (h *MonitoringHandler) AcknowledgeAlert(c *gin.Context) {
+func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 	alertID := c.Param("alert_id")
 	userID := c.GetString("user_id")
 
@@ -163,7 +163,7 @@ func (h *MonitoringHandler) AcknowledgeAlert(c *gin.Context) {
 }
 
 // ResolveAlert handles PUT /api/v1/alerts/:alert_id/resolve
-func (h *MonitoringHandler) ResolveAlert(c *gin.Context) {
+func (h *Handler) ResolveAlert(c *gin.Context) {
 	alertID := c.Param("alert_id")
 
 	if err := h.service.ResolveAlert(c.Request.Context(), alertID); err != nil {
@@ -178,7 +178,7 @@ func (h *MonitoringHandler) ResolveAlert(c *gin.Context) {
 }
 
 // GetWorkspaceOverview handles GET /api/v1/organizations/:org_id/monitoring/overview
-func (h *MonitoringHandler) GetWorkspaceOverview(c *gin.Context) {
+func (h *Handler) GetWorkspaceOverview(c *gin.Context) {
 	orgID := c.Param("org_id")
 	limitStr := c.DefaultQuery("limit", "10")
 	limit, _ := strconv.Atoi(limitStr)

@@ -1,4 +1,4 @@
-package monitoring
+package domain
 
 import (
 	"context"

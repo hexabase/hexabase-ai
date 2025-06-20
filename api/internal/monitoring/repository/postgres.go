@@ -1,4 +1,4 @@
-package monitoring
+package repository
 
 import (
 	"context"
@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	"gorm.io/gorm"
 )
 
-// postgresRepository implements monitoring.Repository using PostgreSQL
+// postgresRepository implements the domain.Repository interface
 type postgresRepository struct {
 	db *gorm.DB
 }
 
 // NewPostgresRepository creates a new PostgreSQL monitoring repository
-func NewPostgresRepository(db *gorm.DB) monitoring.Repository {
-	return &postgresRepository{db: db}
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
+	return &postgresRepository{
+		db: db,
+	}
 }
 
 // Database models
@@ -58,7 +60,7 @@ type healthCheckRecord struct {
 }
 
 // SaveMetrics saves multiple metric data points
-func (r *postgresRepository) SaveMetrics(ctx context.Context, metrics []*monitoring.MetricDataPoint) error {
+func (r *postgresRepository) SaveMetrics(ctx context.Context, metrics []*domain.MetricDataPoint) error {
 	if len(metrics) == 0 {
 		return nil
 	}
@@ -81,7 +83,7 @@ func (r *postgresRepository) SaveMetrics(ctx context.Context, metrics []*monitor
 }
 
 // GetMetrics retrieves metrics for a workspace within a time range
-func (r *postgresRepository) GetMetrics(ctx context.Context, workspaceID string, metricName string, start, end time.Time) ([]*monitoring.MetricDataPoint, error) {
+func (r *postgresRepository) GetMetrics(ctx context.Context, workspaceID string, metricName string, start, end time.Time) ([]*domain.MetricDataPoint, error) {
 	var records []metricRecord
 
 	err := r.db.WithContext(ctx).
@@ -94,14 +96,14 @@ func (r *postgresRepository) GetMetrics(ctx context.Context, workspaceID string,
 		return nil, fmt.Errorf("failed to query metrics: %w", err)
 	}
 
-	metrics := make([]*monitoring.MetricDataPoint, len(records))
+	metrics := make([]*domain.MetricDataPoint, len(records))
 	for i, rec := range records {
 		var labels map[string]string
 		if rec.Labels != "" {
 			json.Unmarshal([]byte(rec.Labels), &labels)
 		}
 
-		metrics[i] = &monitoring.MetricDataPoint{
+		metrics[i] = &domain.MetricDataPoint{
 			ID:          rec.ID,
 			WorkspaceID: rec.WorkspaceID,
 			MetricName:  rec.MetricName,
@@ -115,8 +117,8 @@ func (r *postgresRepository) GetMetrics(ctx context.Context, workspaceID string,
 }
 
 // GetLatestMetrics retrieves the most recent metrics for given metric names
-func (r *postgresRepository) GetLatestMetrics(ctx context.Context, workspaceID string, metricNames []string) (map[string]*monitoring.MetricDataPoint, error) {
-	result := make(map[string]*monitoring.MetricDataPoint)
+func (r *postgresRepository) GetLatestMetrics(ctx context.Context, workspaceID string, metricNames []string) (map[string]*domain.MetricDataPoint, error) {
+	result := make(map[string]*domain.MetricDataPoint)
 
 	for _, metricName := range metricNames {
 		var record metricRecord
@@ -135,7 +137,7 @@ func (r *postgresRepository) GetLatestMetrics(ctx context.Context, workspaceID s
 				json.Unmarshal([]byte(record.Labels), &labels)
 			}
 
-			result[metricName] = &monitoring.MetricDataPoint{
+			result[metricName] = &domain.MetricDataPoint{
 				ID:          record.ID,
 				WorkspaceID: record.WorkspaceID,
 				MetricName:  record.MetricName,
@@ -157,7 +159,7 @@ func (r *postgresRepository) DeleteOldMetrics(ctx context.Context, before time.T
 }
 
 // CreateAlert creates a new alert
-func (r *postgresRepository) CreateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (r *postgresRepository) CreateAlert(ctx context.Context, alert *domain.Alert) error {
 	record := alertRecord{
 		ID:          alert.ID,
 		WorkspaceID: alert.WorkspaceID,
@@ -177,7 +179,7 @@ func (r *postgresRepository) CreateAlert(ctx context.Context, alert *monitoring.
 }
 
 // GetAlert retrieves a single alert by ID
-func (r *postgresRepository) GetAlert(ctx context.Context, alertID string) (*monitoring.Alert, error) {
+func (r *postgresRepository) GetAlert(ctx context.Context, alertID string) (*domain.Alert, error) {
 	var record alertRecord
 	err := r.db.WithContext(ctx).Where("id = ?", alertID).First(&record).Error
 	if err != nil {
@@ -188,7 +190,7 @@ func (r *postgresRepository) GetAlert(ctx context.Context, alertID string) (*mon
 }
 
 // GetAlerts retrieves alerts based on filter criteria
-func (r *postgresRepository) GetAlerts(ctx context.Context, workspaceID string, filter monitoring.AlertFilter) ([]*monitoring.Alert, error) {
+func (r *postgresRepository) GetAlerts(ctx context.Context, workspaceID string, filter domain.AlertFilter) ([]*domain.Alert, error) {
 	query := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID)
 
 	if filter.Severity != "" {
@@ -217,7 +219,7 @@ func (r *postgresRepository) GetAlerts(ctx context.Context, workspaceID string, 
 		return nil, err
 	}
 
-	alerts := make([]*monitoring.Alert, len(records))
+	alerts := make([]*domain.Alert, len(records))
 	for i, rec := range records {
 		alerts[i] = r.recordToAlert(&rec)
 	}
@@ -226,7 +228,7 @@ func (r *postgresRepository) GetAlerts(ctx context.Context, workspaceID string, 
 }
 
 // UpdateAlert updates an existing alert
-func (r *postgresRepository) UpdateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (r *postgresRepository) UpdateAlert(ctx context.Context, alert *domain.Alert) error {
 	record := alertRecord{
 		ID:          alert.ID,
 		WorkspaceID: alert.WorkspaceID,
@@ -252,7 +254,7 @@ func (r *postgresRepository) DeleteAlert(ctx context.Context, alertID string) er
 }
 
 // SaveHealthCheck saves or updates a health check result
-func (r *postgresRepository) SaveHealthCheck(ctx context.Context, health *monitoring.ClusterHealth) error {
+func (r *postgresRepository) SaveHealthCheck(ctx context.Context, health *domain.ClusterHealth) error {
 	componentsJSON, err := json.Marshal(health.Components)
 	if err != nil {
 		return fmt.Errorf("failed to marshal components: %w", err)
@@ -275,7 +277,7 @@ func (r *postgresRepository) SaveHealthCheck(ctx context.Context, health *monito
 }
 
 // GetLatestHealthCheck retrieves the most recent health check for a workspace
-func (r *postgresRepository) GetLatestHealthCheck(ctx context.Context, workspaceID string) (*monitoring.ClusterHealth, error) {
+func (r *postgresRepository) GetLatestHealthCheck(ctx context.Context, workspaceID string) (*domain.ClusterHealth, error) {
 	var record healthCheckRecord
 	err := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
@@ -286,12 +288,12 @@ func (r *postgresRepository) GetLatestHealthCheck(ctx context.Context, workspace
 		return nil, err
 	}
 
-	var components map[string]monitoring.ComponentHealth
+	var components map[string]domain.ComponentHealth
 	if err := json.Unmarshal([]byte(record.Components), &components); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal components: %w", err)
 	}
 
-	return &monitoring.ClusterHealth{
+	return &domain.ClusterHealth{
 		WorkspaceID: record.WorkspaceID,
 		Healthy:     record.Healthy,
 		Components:  components,
@@ -300,8 +302,8 @@ func (r *postgresRepository) GetLatestHealthCheck(ctx context.Context, workspace
 }
 
 // Helper method to convert record to domain model
-func (r *postgresRepository) recordToAlert(rec *alertRecord) *monitoring.Alert {
-	return &monitoring.Alert{
+func (r *postgresRepository) recordToAlert(rec *alertRecord) *domain.Alert {
+	return &domain.Alert{
 		ID:          rec.ID,
 		WorkspaceID: rec.WorkspaceID,
 		Type:        rec.Type,

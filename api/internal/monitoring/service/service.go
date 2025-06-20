@@ -1,4 +1,4 @@
-package monitoring
+package service
 
 import (
 	"context"
@@ -7,18 +7,18 @@ import (
 	"time"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 )
 
-// service implements the monitoring.Service interface
+// service implements the domain.Service interface
 type service struct {
-	repo      monitoring.Repository
+	repo      domain.Repository
 	k8sRepo   kubernetes.Repository
 	logger    *slog.Logger
 }
 
 // NewService creates a new monitoring service
-func NewService(repo monitoring.Repository, k8sRepo kubernetes.Repository, logger *slog.Logger) monitoring.Service {
+func NewService(repo domain.Repository, k8sRepo kubernetes.Repository, logger *slog.Logger) domain.Service {
 	return &service{
 		repo:    repo,
 		k8sRepo: k8sRepo,
@@ -27,7 +27,7 @@ func NewService(repo monitoring.Repository, k8sRepo kubernetes.Repository, logge
 }
 
 // GetWorkspaceMetrics retrieves aggregated metrics for a workspace
-func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, opts monitoring.QueryOptions) (*monitoring.WorkspaceMetrics, error) {
+func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, opts domain.QueryOptions) (*domain.WorkspaceMetrics, error) {
 	// Parse period and calculate time range
 	start, end := s.calculateTimeRange(opts)
 
@@ -51,7 +51,7 @@ func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, o
 	}
 
 	// Aggregate metrics
-	result := &monitoring.WorkspaceMetrics{
+	result := &domain.WorkspaceMetrics{
 		WorkspaceID: workspaceID,
 		Period:      opts.Period,
 		CPUUsage:    s.aggregateResourceMetrics(cpuMetrics, "cores"),
@@ -64,7 +64,7 @@ func (s *service) GetWorkspaceMetrics(ctx context.Context, workspaceID string, o
 }
 
 // GetClusterHealth checks and returns the health status of a vCluster
-func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*monitoring.ClusterHealth, error) {
+func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*domain.ClusterHealth, error) {
 	// Get namespace for the workspace (assuming workspace_id maps to namespace)
 	// namespace := fmt.Sprintf("vcluster-%s", workspaceID)
 
@@ -76,15 +76,15 @@ func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*mo
 	}
 
 	// Convert to domain model
-	health := &monitoring.ClusterHealth{
+	health := &domain.ClusterHealth{
 		WorkspaceID: workspaceID,
 		Healthy:     true,
-		Components:  make(map[string]monitoring.ComponentHealth),
+		Components:  make(map[string]domain.ComponentHealth),
 		LastChecked: time.Now(),
 	}
 
 	for name, status := range componentStatus {
-		compHealth := monitoring.ComponentHealth{
+		compHealth := domain.ComponentHealth{
 			Name:    name,
 			Status:  "healthy",
 			Message: status.Message,
@@ -107,7 +107,7 @@ func (s *service) GetClusterHealth(ctx context.Context, workspaceID string) (*mo
 }
 
 // GetResourceUsage returns current resource usage for a workspace
-func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*monitoring.ResourceUsage, error) {
+func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*domain.ResourceUsage, error) {
 	namespace := fmt.Sprintf("vcluster-%s", workspaceID)
 
 	// Get resource quota
@@ -131,8 +131,8 @@ func (s *service) GetResourceUsage(ctx context.Context, workspaceID string) (*mo
 }
 
 // GetAlerts retrieves alerts for a workspace
-func (s *service) GetAlerts(ctx context.Context, workspaceID string, severity string) ([]*monitoring.Alert, error) {
-	filter := monitoring.AlertFilter{
+func (s *service) GetAlerts(ctx context.Context, workspaceID string, severity string) ([]*domain.Alert, error) {
+	filter := domain.AlertFilter{
 		Severity: severity,
 		Status:   "active",
 		Limit:    100,
@@ -147,7 +147,7 @@ func (s *service) GetAlerts(ctx context.Context, workspaceID string, severity st
 }
 
 // CreateAlert creates a new monitoring alert
-func (s *service) CreateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (s *service) CreateAlert(ctx context.Context, alert *domain.Alert) error {
 	alert.ID = generateID()
 	alert.CreatedAt = time.Now()
 	alert.Status = "active"
@@ -225,7 +225,7 @@ func (s *service) CollectMetrics(ctx context.Context, workspaceID string) error 
 
 // Helper methods
 
-func (s *service) calculateTimeRange(opts monitoring.QueryOptions) (time.Time, time.Time) {
+func (s *service) calculateTimeRange(opts domain.QueryOptions) (time.Time, time.Time) {
 	if !opts.StartTime.IsZero() && !opts.EndTime.IsZero() {
 		return opts.StartTime, opts.EndTime
 	}
@@ -251,9 +251,9 @@ func (s *service) calculateTimeRange(opts monitoring.QueryOptions) (time.Time, t
 	return start, end
 }
 
-func (s *service) aggregateResourceMetrics(metrics []*monitoring.MetricDataPoint, unit string) *monitoring.ResourceMetric {
+func (s *service) aggregateResourceMetrics(metrics []*domain.MetricDataPoint, unit string) *domain.ResourceMetric {
 	if len(metrics) == 0 {
-		return &monitoring.ResourceMetric{Unit: unit}
+		return &domain.ResourceMetric{Unit: unit}
 	}
 
 	var sum, peak float64
@@ -267,7 +267,7 @@ func (s *service) aggregateResourceMetrics(metrics []*monitoring.MetricDataPoint
 		}
 	}
 
-	return &monitoring.ResourceMetric{
+	return &domain.ResourceMetric{
 		Current:  history[len(history)-1],
 		Average:  sum / float64(len(metrics)),
 		Peak:     peak,
@@ -276,9 +276,9 @@ func (s *service) aggregateResourceMetrics(metrics []*monitoring.MetricDataPoint
 	}
 }
 
-func (s *service) aggregateCountMetrics(metrics []*monitoring.MetricDataPoint) *monitoring.CountMetric {
+func (s *service) aggregateCountMetrics(metrics []*domain.MetricDataPoint) *domain.CountMetric {
 	if len(metrics) == 0 {
-		return &monitoring.CountMetric{}
+		return &domain.CountMetric{}
 	}
 
 	var sum float64
@@ -294,7 +294,7 @@ func (s *service) aggregateCountMetrics(metrics []*monitoring.MetricDataPoint) *
 		}
 	}
 
-	return &monitoring.CountMetric{
+	return &domain.CountMetric{
 		Current: history[len(history)-1],
 		Average: sum / float64(len(metrics)),
 		Peak:    peak,
@@ -302,7 +302,7 @@ func (s *service) aggregateCountMetrics(metrics []*monitoring.MetricDataPoint) *
 	}
 }
 
-func (s *service) extractTimestamps(metrics []*monitoring.MetricDataPoint) []time.Time {
+func (s *service) extractTimestamps(metrics []*domain.MetricDataPoint) []time.Time {
 	timestamps := make([]time.Time, len(metrics))
 	for i, m := range metrics {
 		timestamps[i] = m.Timestamp
@@ -310,28 +310,28 @@ func (s *service) extractTimestamps(metrics []*monitoring.MetricDataPoint) []tim
 	return timestamps
 }
 
-func (s *service) calculateResourceUsage(quota *kubernetes.ResourceQuota, podMetrics *kubernetes.PodMetricsList) *monitoring.ResourceUsage {
+func (s *service) calculateResourceUsage(quota *kubernetes.ResourceQuota, podMetrics *kubernetes.PodMetricsList) *domain.ResourceUsage {
 	// Implementation would calculate actual usage from pod metrics
 	// This is a simplified version
-	return &monitoring.ResourceUsage{
-		CPU: monitoring.ResourceUsageDetail{
+	return &domain.ResourceUsage{
+		CPU: domain.ResourceUsageDetail{
 			Used:      0.5,
 			Limit:     2.0,
 			Requested: 1.0,
 			Unit:      "cores",
 		},
-		Memory: monitoring.ResourceUsageDetail{
+		Memory: domain.ResourceUsageDetail{
 			Used:      2.5,
 			Limit:     8.0,
 			Requested: 4.0,
 			Unit:      "GB",
 		},
-		Storage: monitoring.ResourceUsageDetail{
+		Storage: domain.ResourceUsageDetail{
 			Used:  10.0,
 			Limit: 100.0,
 			Unit:  "GB",
 		},
-		Pods: monitoring.ResourceUsageDetail{
+		Pods: domain.ResourceUsageDetail{
 			Used:  float64(len(podMetrics.Items)),
 			Limit: 50,
 			Unit:  "pods",
@@ -339,8 +339,8 @@ func (s *service) calculateResourceUsage(quota *kubernetes.ResourceQuota, podMet
 	}
 }
 
-func (s *service) convertToDataPoints(workspaceID string, podMetrics *kubernetes.PodMetricsList) []*monitoring.MetricDataPoint {
-	var dataPoints []*monitoring.MetricDataPoint
+func (s *service) convertToDataPoints(workspaceID string, podMetrics *kubernetes.PodMetricsList) []*domain.MetricDataPoint {
+	var dataPoints []*domain.MetricDataPoint
 	timestamp := time.Now()
 
 	// Aggregate CPU usage
@@ -351,7 +351,7 @@ func (s *service) convertToDataPoints(workspaceID string, podMetrics *kubernetes
 		totalCPU += 0.1 // placeholder
 	}
 
-	dataPoints = append(dataPoints, &monitoring.MetricDataPoint{
+	dataPoints = append(dataPoints, &domain.MetricDataPoint{
 		ID:          generateID(),
 		WorkspaceID: workspaceID,
 		MetricName:  "cpu_usage",

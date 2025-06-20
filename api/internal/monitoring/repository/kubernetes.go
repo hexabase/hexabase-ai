@@ -1,7 +1,8 @@
-package monitoring
+package repository
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
 	v1 "k8s.io/api/core/v1"
@@ -203,4 +204,18 @@ func (r *kubernetesRepository) CheckComponentHealth(ctx context.Context) (map[st
 	}
 
 	return components, nil
+}
+
+// kubernetesMetricsCollector collects metrics from Kubernetes API
+type kubernetesMetricsCollector struct {
+	k8sRepo kubernetes.Repository
+	logger  *slog.Logger
+}
+
+// NewKubernetesMetricsCollector creates a new Kubernetes metrics collector
+func NewKubernetesMetricsCollector(k8sRepo kubernetes.Repository, logger *slog.Logger) *kubernetesMetricsCollector {
+	return &kubernetesMetricsCollector{
+		k8sRepo: k8sRepo,
+		logger:  logger,
+	}
 }

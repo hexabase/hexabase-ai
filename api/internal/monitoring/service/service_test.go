@@ -1,4 +1,4 @@
-package monitoring
+package service
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/monitoring"
+	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,23 +19,23 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) SaveMetrics(ctx context.Context, metrics []*monitoring.MetricDataPoint) error {
+func (m *mockRepository) SaveMetrics(ctx context.Context, metrics []*domain.MetricDataPoint) error {
 	args := m.Called(ctx, metrics)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetMetrics(ctx context.Context, workspaceID string, metricName string, start, end time.Time) ([]*monitoring.MetricDataPoint, error) {
+func (m *mockRepository) GetMetrics(ctx context.Context, workspaceID string, metricName string, start, end time.Time) ([]*domain.MetricDataPoint, error) {
 	args := m.Called(ctx, workspaceID, metricName, start, end)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*monitoring.MetricDataPoint), args.Error(1)
+		return args.Get(0).([]*domain.MetricDataPoint), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetLatestMetrics(ctx context.Context, workspaceID string, metricNames []string) (map[string]*monitoring.MetricDataPoint, error) {
+func (m *mockRepository) GetLatestMetrics(ctx context.Context, workspaceID string, metricNames []string) (map[string]*domain.MetricDataPoint, error) {
 	args := m.Called(ctx, workspaceID, metricNames)
 	if args.Get(0) != nil {
-		return args.Get(0).(map[string]*monitoring.MetricDataPoint), args.Error(1)
+		return args.Get(0).(map[string]*domain.MetricDataPoint), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -45,28 +45,28 @@ func (m *mockRepository) DeleteOldMetrics(ctx context.Context, before time.Time)
 	return args.Error(0)
 }
 
-func (m *mockRepository) CreateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (m *mockRepository) CreateAlert(ctx context.Context, alert *domain.Alert) error {
 	args := m.Called(ctx, alert)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetAlert(ctx context.Context, alertID string) (*monitoring.Alert, error) {
+func (m *mockRepository) GetAlert(ctx context.Context, alertID string) (*domain.Alert, error) {
 	args := m.Called(ctx, alertID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*monitoring.Alert), args.Error(1)
+		return args.Get(0).(*domain.Alert), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetAlerts(ctx context.Context, workspaceID string, filter monitoring.AlertFilter) ([]*monitoring.Alert, error) {
+func (m *mockRepository) GetAlerts(ctx context.Context, workspaceID string, filter domain.AlertFilter) ([]*domain.Alert, error) {
 	args := m.Called(ctx, workspaceID, filter)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*monitoring.Alert), args.Error(1)
+		return args.Get(0).([]*domain.Alert), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdateAlert(ctx context.Context, alert *monitoring.Alert) error {
+func (m *mockRepository) UpdateAlert(ctx context.Context, alert *domain.Alert) error {
 	args := m.Called(ctx, alert)
 	return args.Error(0)
 }
@@ -76,15 +76,15 @@ func (m *mockRepository) DeleteAlert(ctx context.Context, alertID string) error 
 	return args.Error(0)
 }
 
-func (m *mockRepository) SaveHealthCheck(ctx context.Context, health *monitoring.ClusterHealth) error {
+func (m *mockRepository) SaveHealthCheck(ctx context.Context, health *domain.ClusterHealth) error {
 	args := m.Called(ctx, health)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetLatestHealthCheck(ctx context.Context, workspaceID string) (*monitoring.ClusterHealth, error) {
+func (m *mockRepository) GetLatestHealthCheck(ctx context.Context, workspaceID string) (*domain.ClusterHealth, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*monitoring.ClusterHealth), args.Error(1)
+		return args.Get(0).(*domain.ClusterHealth), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -109,7 +109,6 @@ func (m *mockK8sRepository) GetNamespaceResourceQuota(ctx context.Context, names
 	}
 	return nil, args.Error(1)
 }
-
 
 func (m *mockK8sRepository) GetPodMetrics(ctx context.Context, namespace string) (*kubernetes.PodMetricsList, error) {
 	args := m.Called(ctx, namespace)
@@ -144,12 +143,12 @@ func TestService_GetWorkspaceMetrics(t *testing.T) {
 
 	t.Run("successful metrics retrieval", func(t *testing.T) {
 		workspaceID := "ws-123"
-		opts := monitoring.QueryOptions{
+		opts := domain.QueryOptions{
 			Period: "1h",
 		}
 
 		// Mock CPU metrics
-		cpuMetrics := []*monitoring.MetricDataPoint{
+		cpuMetrics := []*domain.MetricDataPoint{
 			{
 				ID:          uuid.New().String(),
 				WorkspaceID: workspaceID,
@@ -167,7 +166,7 @@ func TestService_GetWorkspaceMetrics(t *testing.T) {
 		}
 
 		// Mock memory metrics
-		memoryMetrics := []*monitoring.MetricDataPoint{
+		memoryMetrics := []*domain.MetricDataPoint{
 			{
 				ID:          uuid.New().String(),
 				WorkspaceID: workspaceID,
@@ -185,7 +184,7 @@ func TestService_GetWorkspaceMetrics(t *testing.T) {
 		}
 
 		// Mock pod count metrics
-		podMetrics := []*monitoring.MetricDataPoint{
+		podMetrics := []*domain.MetricDataPoint{
 			{
 				ID:          uuid.New().String(),
 				WorkspaceID: workspaceID,
@@ -215,7 +214,7 @@ func TestService_GetWorkspaceMetrics(t *testing.T) {
 
 	t.Run("repository error", func(t *testing.T) {
 		workspaceID := "ws-error"
-		opts := monitoring.QueryOptions{Period: "1h"}
+		opts := domain.QueryOptions{Period: "1h"}
 
 		mockRepo.On("GetMetrics", ctx, workspaceID, "cpu_usage", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time")).
 			Return(nil, errors.New("database error"))
@@ -257,7 +256,7 @@ func TestService_GetClusterHealth(t *testing.T) {
 		}
 
 		mockK8sRepo.On("CheckComponentHealth", ctx).Return(componentStatus, nil)
-		mockRepo.On("SaveHealthCheck", ctx, mock.AnythingOfType("*monitoring.ClusterHealth")).Return(nil)
+		mockRepo.On("SaveHealthCheck", ctx, mock.AnythingOfType("*domain.ClusterHealth")).Return(nil)
 
 		health, err := svc.GetClusterHealth(ctx, workspaceID)
 		assert.NoError(t, err)
@@ -286,7 +285,7 @@ func TestService_GetClusterHealth(t *testing.T) {
 		}
 
 		mockK8sRepo.On("CheckComponentHealth", ctx).Return(componentStatus, nil)
-		mockRepo.On("SaveHealthCheck", ctx, mock.AnythingOfType("*monitoring.ClusterHealth")).Return(nil)
+		mockRepo.On("SaveHealthCheck", ctx, mock.AnythingOfType("*domain.ClusterHealth")).Return(nil)
 
 		health, err := svc.GetClusterHealth(ctx, workspaceID)
 		assert.NoError(t, err)
@@ -353,7 +352,7 @@ func TestService_GetAlerts(t *testing.T) {
 		workspaceID := "ws-alerts"
 		severity := "warning"
 
-		expectedAlerts := []*monitoring.Alert{
+		expectedAlerts := []*domain.Alert{
 			{
 				ID:          "alert-1",
 				WorkspaceID: workspaceID,
@@ -372,7 +371,7 @@ func TestService_GetAlerts(t *testing.T) {
 			},
 		}
 
-		expectedFilter := monitoring.AlertFilter{
+		expectedFilter := domain.AlertFilter{
 			Severity: severity,
 			Status:   "active",
 			Limit:    100,
@@ -396,7 +395,7 @@ func TestService_CreateAlert(t *testing.T) {
 	svc := NewService(mockRepo, mockK8sRepo, slog.Default())
 
 	t.Run("create custom alert", func(t *testing.T) {
-		alert := &monitoring.Alert{
+		alert := &domain.Alert{
 			WorkspaceID: "ws-create",
 			Type:        "custom",
 			Severity:    "warning",
@@ -405,14 +404,14 @@ func TestService_CreateAlert(t *testing.T) {
 			Threshold:   100.0,
 		}
 
-		mockRepo.On("CreateAlert", ctx, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+		mockRepo.On("CreateAlert", ctx, mock.AnythingOfType("*domain.Alert")).Return(nil)
 
 		err := svc.CreateAlert(ctx, alert)
 		assert.NoError(t, err)
 
 		// Verify ID was generated
 		createCall := mockRepo.Calls[0]
-		createdAlert := createCall.Arguments[1].(*monitoring.Alert)
+		createdAlert := createCall.Arguments[1].(*domain.Alert)
 		assert.NotEmpty(t, createdAlert.ID)
 		assert.Equal(t, "active", createdAlert.Status)
 		assert.False(t, createdAlert.CreatedAt.IsZero())
@@ -432,21 +431,21 @@ func TestService_AcknowledgeAlert(t *testing.T) {
 		alertID := "alert-ack"
 		userID := "user-123"
 
-		existingAlert := &monitoring.Alert{
+		existingAlert := &domain.Alert{
 			ID:          alertID,
 			WorkspaceID: "ws-ack",
 			Status:      "active",
 		}
 
 		mockRepo.On("GetAlert", ctx, alertID).Return(existingAlert, nil)
-		mockRepo.On("UpdateAlert", ctx, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+		mockRepo.On("UpdateAlert", ctx, mock.AnythingOfType("*domain.Alert")).Return(nil)
 
 		err := svc.AcknowledgeAlert(ctx, alertID, userID)
 		assert.NoError(t, err)
 
 		// Verify status was updated
 		updateCall := mockRepo.Calls[1]
-		updatedAlert := updateCall.Arguments[1].(*monitoring.Alert)
+		updatedAlert := updateCall.Arguments[1].(*domain.Alert)
 		assert.Equal(t, "acknowledged", updatedAlert.Status)
 
 		mockRepo.AssertExpectations(t)
@@ -476,21 +475,21 @@ func TestService_ResolveAlert(t *testing.T) {
 	t.Run("resolve alert", func(t *testing.T) {
 		alertID := "alert-resolve"
 
-		existingAlert := &monitoring.Alert{
+		existingAlert := &domain.Alert{
 			ID:          alertID,
 			WorkspaceID: "ws-resolve",
 			Status:      "active",
 		}
 
 		mockRepo.On("GetAlert", ctx, alertID).Return(existingAlert, nil)
-		mockRepo.On("UpdateAlert", ctx, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+		mockRepo.On("UpdateAlert", ctx, mock.AnythingOfType("*domain.Alert")).Return(nil)
 
 		err := svc.ResolveAlert(ctx, alertID)
 		assert.NoError(t, err)
 
 		// Verify status and timestamp were updated
 		updateCall := mockRepo.Calls[1]
-		updatedAlert := updateCall.Arguments[1].(*monitoring.Alert)
+		updatedAlert := updateCall.Arguments[1].(*domain.Alert)
 		assert.Equal(t, "resolved", updatedAlert.Status)
 		assert.NotNil(t, updatedAlert.ResolvedAt)
 
@@ -518,14 +517,14 @@ func TestService_CollectMetrics(t *testing.T) {
 		}
 
 		mockK8sRepo.On("GetPodMetrics", ctx, namespace).Return(podMetrics, nil)
-		mockRepo.On("SaveMetrics", ctx, mock.AnythingOfType("[]*monitoring.MetricDataPoint")).Return(nil)
+		mockRepo.On("SaveMetrics", ctx, mock.AnythingOfType("[]*domain.MetricDataPoint")).Return(nil)
 
 		err := svc.CollectMetrics(ctx, workspaceID)
 		assert.NoError(t, err)
 
 		// Verify metrics were saved
 		saveCall := mockRepo.Calls[0]
-		dataPoints := saveCall.Arguments[1].([]*monitoring.MetricDataPoint)
+		dataPoints := saveCall.Arguments[1].([]*domain.MetricDataPoint)
 		assert.NotEmpty(t, dataPoints)
 
 		mockK8sRepo.AssertExpectations(t)
