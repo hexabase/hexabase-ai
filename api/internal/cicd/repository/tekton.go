@@ -1,4 +1,4 @@
-package cicd
+package repository
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	knativeapis "knative.dev/pkg/apis"
+
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 )
 
 // TektonProvider implements the CI/CD provider interface for Tekton
@@ -25,7 +26,7 @@ type TektonProvider struct {
 }
 
 // NewTektonProvider creates a new Tekton provider
-func NewTektonProvider(kubeClient kubernetes.Interface, tektonClient tektonclient.Interface, namespace string) cicd.Provider {
+func NewTektonProvider(kubeClient kubernetes.Interface, tektonClient tektonclient.Interface, namespace string) domain.Provider {
 	return &TektonProvider{
 		kubeClient:   kubeClient,
 		tektonClient: tektonClient,
@@ -52,7 +53,7 @@ func (p *TektonProvider) IsHealthy() bool {
 }
 
 // RunPipeline starts a new pipeline run
-func (p *TektonProvider) RunPipeline(ctx context.Context, config *cicd.PipelineConfig) (*cicd.PipelineRun, error) {
+func (p *TektonProvider) RunPipeline(ctx context.Context, config *domain.PipelineConfig) (*domain.PipelineRun, error) {
 	// Generate unique run ID
 	runID := uuid.New().String()
 	pipelineRunName := fmt.Sprintf("%s-%s", config.Name, runID[:8])
@@ -87,7 +88,7 @@ func (p *TektonProvider) RunPipeline(ctx context.Context, config *cicd.PipelineC
 }
 
 // GetStatus retrieves the current status of a pipeline run
-func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*cicd.PipelineRun, error) {
+func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*domain.PipelineRun, error) {
 	// List PipelineRuns with label selector
 	runs, err := p.tektonClient.TektonV1().PipelineRuns(p.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("hexabase.ai/run-id=%s", runID),
@@ -132,7 +133,7 @@ func (p *TektonProvider) CancelPipeline(ctx context.Context, workspaceID, runID 
 }
 
 // GetLogs retrieves logs for a specific stage/task
-func (p *TektonProvider) GetLogs(ctx context.Context, runID string, stage string) ([]cicd.LogEntry, error) {
+func (p *TektonProvider) GetLogs(ctx context.Context, runID string, stage string) ([]domain.LogEntry, error) {
 	// Find the PipelineRun
 	runs, err := p.tektonClient.TektonV1().PipelineRuns(p.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("hexabase.ai/run-id=%s", runID),
@@ -196,7 +197,7 @@ func (p *TektonProvider) StreamLogs(ctx context.Context, runID string, stage str
 }
 
 // ListPipelines lists pipeline runs for a workspace/project
-func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*cicd.PipelineRun, error) {
+func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*domain.PipelineRun, error) {
 	limit := 50 // Default limit
 	labelSelector := fmt.Sprintf("hexabase.ai/workspace-id=%s", workspaceID)
 	if projectID != "" {
@@ -211,7 +212,7 @@ func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, project
 		return nil, fmt.Errorf("failed to list pipeline runs: %w", err)
 	}
 
-	result := make([]*cicd.PipelineRun, len(runs.Items))
+	result := make([]*domain.PipelineRun, len(runs.Items))
 	for i, run := range runs.Items {
 		runID := run.Labels["hexabase.ai/run-id"]
 		result[i] = p.convertToPipelineRun(&run, runID)
@@ -244,7 +245,7 @@ func (p *TektonProvider) DeletePipeline(ctx context.Context, workspaceID, runID 
 }
 
 // ValidateConfig validates a pipeline configuration
-func (p *TektonProvider) ValidateConfig(ctx context.Context, config *cicd.PipelineConfig) error {
+func (p *TektonProvider) ValidateConfig(ctx context.Context, config *domain.PipelineConfig) error {
 	// Validate required fields
 	if config.Name == "" {
 		return fmt.Errorf("pipeline name is required")
@@ -275,18 +276,18 @@ func (p *TektonProvider) ValidateConfig(ctx context.Context, config *cicd.Pipeli
 }
 
 // GetTemplates returns available pipeline templates
-func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemplate, error) {
+func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*domain.PipelineTemplate, error) {
 	// Return built-in Tekton templates
-	return []*cicd.PipelineTemplate{
+	return []*domain.PipelineTemplate{
 		{
 			ID:          "docker-build-push",
 			Name:        "Docker Build & Push",
 			Description: "Build a Docker image and push to registry",
 			Provider:    "tekton",
-			Stages: []cicd.StageTemplate{
+			Stages: []domain.StageTemplate{
 				{
 					Name: "clone",
-					Tasks: []cicd.TaskTemplate{
+					Tasks: []domain.TaskTemplate{
 						{
 							Name: "git-clone",
 							Type: "git-clone",
@@ -300,7 +301,7 @@ func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemp
 				{
 					Name:      "build",
 					DependsOn: []string{"clone"},
-					Tasks: []cicd.TaskTemplate{
+					Tasks: []domain.TaskTemplate{
 						{
 							Name: "docker-build",
 							Type: "docker-build",
@@ -313,7 +314,7 @@ func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemp
 					},
 				},
 			},
-			Parameters: []cicd.ParameterDefinition{
+			Parameters: []domain.ParameterDefinition{
 				{Name: "git-url", Type: "string", Required: true},
 				{Name: "git-branch", Type: "string", Default: "main"},
 				{Name: "dockerfile-path", Type: "string", Default: "Dockerfile"},
@@ -328,10 +329,10 @@ func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemp
 			Name:        "Kubernetes Deploy",
 			Description: "Deploy application to Kubernetes",
 			Provider:    "tekton",
-			Stages: []cicd.StageTemplate{
+			Stages: []domain.StageTemplate{
 				{
 					Name: "deploy",
-					Tasks: []cicd.TaskTemplate{
+					Tasks: []domain.TaskTemplate{
 						{
 							Name: "kubectl-apply",
 							Type: "kubectl-apply",
@@ -343,7 +344,7 @@ func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemp
 					},
 				},
 			},
-			Parameters: []cicd.ParameterDefinition{
+			Parameters: []domain.ParameterDefinition{
 				{Name: "manifest-path", Type: "string", Required: true},
 				{Name: "target-namespace", Type: "string", Required: true},
 			},
@@ -354,7 +355,7 @@ func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemp
 }
 
 // CreateFromTemplate creates a pipeline config from a template
-func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*cicd.PipelineConfig, error) {
+func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*domain.PipelineConfig, error) {
 	templates, err := p.GetTemplates(ctx)
 	if err != nil {
 		return nil, err
@@ -363,7 +364,7 @@ func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID stri
 	for _, tmpl := range templates {
 		if tmpl.ID == templateID {
 			// Create config from template
-			config := &cicd.PipelineConfig{
+			config := &domain.PipelineConfig{
 				Name:     fmt.Sprintf("%s-%d", tmpl.Name, time.Now().Unix()),
 				Metadata: params,
 			}
@@ -386,7 +387,7 @@ func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID stri
 
 // Helper methods
 
-func (p *TektonProvider) createPipelineSpec(config cicd.PipelineConfig) *tektonv1.PipelineSpec {
+func (p *TektonProvider) createPipelineSpec(config domain.PipelineConfig) *tektonv1.PipelineSpec {
 	// Create pipeline spec based on config
 	// This is a simplified implementation
 	spec := &tektonv1.PipelineSpec{
@@ -459,7 +460,7 @@ func (p *TektonProvider) createPipelineSpec(config cicd.PipelineConfig) *tektonv
 	return spec
 }
 
-func (p *TektonProvider) createBuildTask(buildConfig *cicd.BuildConfig) tektonv1.PipelineTask {
+func (p *TektonProvider) createBuildTask(buildConfig *domain.BuildConfig) tektonv1.PipelineTask {
 	task := tektonv1.PipelineTask{
 		Name: "build",
 		RunAfter: []string{"clone"},
@@ -472,7 +473,7 @@ func (p *TektonProvider) createBuildTask(buildConfig *cicd.BuildConfig) tektonv1
 	}
 
 	switch buildConfig.Type {
-	case cicd.BuildTypeDocker:
+	case domain.BuildTypeDocker:
 		task.TaskSpec = &tektonv1.EmbeddedTask{
 			TaskSpec: tektonv1.TaskSpec{
 				Workspaces: []tektonv1.WorkspaceDeclaration{
@@ -498,7 +499,7 @@ func (p *TektonProvider) createBuildTask(buildConfig *cicd.BuildConfig) tektonv1
 	return task
 }
 
-func (p *TektonProvider) createDeployTask(deployConfig *cicd.DeployConfig) tektonv1.PipelineTask {
+func (p *TektonProvider) createDeployTask(deployConfig *domain.DeployConfig) tektonv1.PipelineTask {
 	task := tektonv1.PipelineTask{
 		Name: "deploy",
 		RunAfter: []string{"build"},
@@ -538,7 +539,7 @@ func (p *TektonProvider) createDeployTask(deployConfig *cicd.DeployConfig) tekto
 	return task
 }
 
-func (p *TektonProvider) createParams(config cicd.PipelineConfig) []tektonv1.Param {
+func (p *TektonProvider) createParams(config domain.PipelineConfig) []tektonv1.Param {
 	params := []tektonv1.Param{
 		{
 			Name: "git-url",
@@ -570,7 +571,7 @@ func (p *TektonProvider) createParams(config cicd.PipelineConfig) []tektonv1.Par
 	return params
 }
 
-func (p *TektonProvider) createWorkspaces(config cicd.PipelineConfig) []tektonv1.WorkspaceBinding {
+func (p *TektonProvider) createWorkspaces(config domain.PipelineConfig) []tektonv1.WorkspaceBinding {
 	return []tektonv1.WorkspaceBinding{
 		{
 			Name: "source",
@@ -603,8 +604,8 @@ func (p *TektonProvider) parseDuration(duration string) time.Duration {
 	return d
 }
 
-func (p *TektonProvider) convertToPipelineRun(tektonRun *tektonv1.PipelineRun, runID string) *cicd.PipelineRun {
-	run := &cicd.PipelineRun{
+func (p *TektonProvider) convertToPipelineRun(tektonRun *tektonv1.PipelineRun, runID string) *domain.PipelineRun {
+	run := &domain.PipelineRun{
 		ID:          runID,
 		WorkspaceID: tektonRun.Labels["hexabase.ai/workspace-id"],
 		ProjectID:   tektonRun.Labels["hexabase.ai/project-id"],
@@ -634,34 +635,34 @@ func (p *TektonProvider) getSucceededCondition(run *tektonv1.PipelineRun) *knati
 	return nil
 }
 
-func (p *TektonProvider) convertStatus(condition *knativeapis.Condition) cicd.PipelineStatus {
+func (p *TektonProvider) convertStatus(condition *knativeapis.Condition) domain.PipelineStatus {
 	if condition == nil {
-		return cicd.PipelineStatusPending
+		return domain.PipelineStatusPending
 	}
 
 	switch condition.Status {
 	case corev1.ConditionTrue:
-		return cicd.PipelineStatusSucceeded
+		return domain.PipelineStatusSucceeded
 	case corev1.ConditionFalse:
 		if condition.Reason == "PipelineRunCancelled" {
-			return cicd.PipelineStatusCancelled
+			return domain.PipelineStatusCancelled
 		}
-		return cicd.PipelineStatusFailed
+		return domain.PipelineStatusFailed
 	default:
-		return cicd.PipelineStatusRunning
+		return domain.PipelineStatusRunning
 	}
 }
 
-func (p *TektonProvider) convertStages(tektonRun *tektonv1.PipelineRun) []cicd.StageStatus {
-	stages := []cicd.StageStatus{}
+func (p *TektonProvider) convertStages(tektonRun *tektonv1.PipelineRun) []domain.StageStatus {
+	stages := []domain.StageStatus{}
 	
 	// Convert TaskRuns to stages
 	for _, taskRun := range tektonRun.Status.PipelineRunStatusFields.ChildReferences {
-		stage := cicd.StageStatus{
+		stage := domain.StageStatus{
 			Name:      taskRun.Name,
-			Status:    cicd.PipelineStatusRunning, // Simplified
+			Status:    domain.PipelineStatusRunning, // Simplified
 			StartedAt: time.Now(),
-			Tasks:     []cicd.TaskStatus{},
+			Tasks:     []domain.TaskStatus{},
 		}
 		
 		stages = append(stages, stage)
@@ -676,13 +677,13 @@ func (p *TektonProvider) getTaskPodName(tektonRun *tektonv1.PipelineRun, stage, 
 	return fmt.Sprintf("%s-%s-pod", tektonRun.Name, task)
 }
 
-func (p *TektonProvider) parseLogStream(reader io.Reader, stage, task string) ([]cicd.LogEntry, error) {
+func (p *TektonProvider) parseLogStream(reader io.Reader, stage, task string) ([]domain.LogEntry, error) {
 	// Parse log stream into entries
 	// This is a simplified implementation
-	entries := []cicd.LogEntry{}
+	entries := []domain.LogEntry{}
 	
 	// Read logs and create entries
-	entries = append(entries, cicd.LogEntry{
+	entries = append(entries, domain.LogEntry{
 		Timestamp: time.Now(),
 		Stage:     stage,
 		Task:      task,

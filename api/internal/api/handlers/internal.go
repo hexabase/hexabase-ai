@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
+	cicdDomain "github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
@@ -26,7 +26,7 @@ type InternalHandler struct {
 	logSvc          logsDomain.Service
 	monitoringSvc   monitoringDomain.Service
 	aiopsSvc        aiops.Service
-	cicdSvc         cicd.Service
+	CICDService     cicdDomain.Service
 	backupSvc       backupDomain.Service
 	logger          *slog.Logger
 }
@@ -40,7 +40,7 @@ func NewInternalHandler(
 	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
-	cicdSvc cicd.Service,
+	CICDService cicdDomain.Service,
 	backupSvc backupDomain.Service,
 	logger *slog.Logger,
 ) *InternalHandler {
@@ -52,7 +52,7 @@ func NewInternalHandler(
 		logSvc:          logSvc,
 		monitoringSvc:   monitoringSvc,
 		aiopsSvc:        aiopsSvc,
-		cicdSvc:         cicdSvc,
+		CICDService:     CICDService,
 		backupSvc:       backupSvc,
 		logger:          logger,
 	}
@@ -193,7 +193,7 @@ func (h *InternalHandler) GetApplicationDetails(c *gin.Context) {
 	}
 
 	// Get deployment status - TODO: Implement deployment listing
-	// deployments, err := h.cicdSvc.ListDeployments(c.Request.Context(), appID, 10)
+	// deployments, err := h.CICDService.ListDeployments(c.Request.Context(), appID, 10)
 	// if err != nil {
 	// 	h.logger.Error("failed to get deployments", "app_id", appID, "error", err)
 	// 	deployments = []cicd.Deployment{}

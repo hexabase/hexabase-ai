@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	"github.com/stretchr/testify/assert"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
@@ -13,7 +14,6 @@ import (
 	"knative.dev/pkg/apis"
 
 	"github.com/hexabase/hexabase-ai/api/internal/cicd/tekton"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 )
 
 func TestTektonProvider_RunPipeline(t *testing.T) {
@@ -26,7 +26,7 @@ func TestTektonProvider_RunPipeline(t *testing.T) {
 
 		projectID := "my-awesome-project"
 		namespace := "workspace-ns-123" // This would be derived from the projectID in a real scenario
-		runOptions := cicd.RunOptions{
+		runOptions := domain.RunOptions{
 			RepositoryURL: "https://github.com/hexabase/hexabase-app.git",
 			Branch:        "feature/new-ui",
 			AppName:       "my-app",

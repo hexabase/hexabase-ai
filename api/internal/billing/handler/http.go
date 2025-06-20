@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"io"
@@ -6,28 +6,29 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
+	
 )
 
-// BillingHandler handles billing-related HTTP requests
-type BillingHandler struct {
-	service billing.Service
+// Handler handles billing-related HTTP requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewBillingHandler creates a new billing handler
-func NewBillingHandler(service billing.Service, logger *slog.Logger) *BillingHandler {
-	return &BillingHandler{
+// NewHandler creates a new billing handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreateSubscription handles subscription creation
-func (h *BillingHandler) CreateSubscription(c *gin.Context) {
+func (h *Handler) CreateSubscription(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var req billing.CreateSubscriptionRequest
+	var req domain.CreateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -44,7 +45,7 @@ func (h *BillingHandler) CreateSubscription(c *gin.Context) {
 }
 
 // GetSubscription handles getting organization subscription
-func (h *BillingHandler) GetSubscription(c *gin.Context) {
+func (h *Handler) GetSubscription(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	sub, err := h.service.GetOrganizationSubscription(c.Request.Context(), orgID)
@@ -58,10 +59,10 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 }
 
 // UpdateSubscription handles subscription updates
-func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
+func (h *Handler) UpdateSubscription(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var req billing.UpdateSubscriptionRequest
+	var req domain.UpdateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -86,10 +87,10 @@ func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
 }
 
 // CancelSubscription handles subscription cancellation
-func (h *BillingHandler) CancelSubscription(c *gin.Context) {
+func (h *Handler) CancelSubscription(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var req billing.CancelSubscriptionRequest
+	var req domain.CancelSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		req.Immediate = false // Default to cancel at period end
 	}
@@ -113,7 +114,7 @@ func (h *BillingHandler) CancelSubscription(c *gin.Context) {
 }
 
 // ListPlans handles listing available plans
-func (h *BillingHandler) ListPlans(c *gin.Context) {
+func (h *Handler) ListPlans(c *gin.Context) {
 	plans, err := h.service.ListPlans(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to list plans", "error", err)
@@ -128,7 +129,7 @@ func (h *BillingHandler) ListPlans(c *gin.Context) {
 }
 
 // ComparePlans handles plan comparison
-func (h *BillingHandler) ComparePlans(c *gin.Context) {
+func (h *Handler) ComparePlans(c *gin.Context) {
 	currentPlanID := c.Query("current")
 	targetPlanID := c.Query("target")
 
@@ -148,10 +149,10 @@ func (h *BillingHandler) ComparePlans(c *gin.Context) {
 }
 
 // AddPaymentMethod handles adding a payment method
-func (h *BillingHandler) AddPaymentMethod(c *gin.Context) {
+func (h *Handler) AddPaymentMethod(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var req billing.AddPaymentMethodRequest
+	var req domain.AddPaymentMethodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -168,7 +169,7 @@ func (h *BillingHandler) AddPaymentMethod(c *gin.Context) {
 }
 
 // ListPaymentMethods handles listing payment methods
-func (h *BillingHandler) ListPaymentMethods(c *gin.Context) {
+func (h *Handler) ListPaymentMethods(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	methods, err := h.service.ListPaymentMethods(c.Request.Context(), orgID)
@@ -185,7 +186,7 @@ func (h *BillingHandler) ListPaymentMethods(c *gin.Context) {
 }
 
 // SetDefaultPaymentMethod handles setting default payment method
-func (h *BillingHandler) SetDefaultPaymentMethod(c *gin.Context) {
+func (h *Handler) SetDefaultPaymentMethod(c *gin.Context) {
 	methodID := c.Param("methodId")
 
 	err := h.service.SetDefaultPaymentMethod(c.Request.Context(), methodID)
@@ -199,7 +200,7 @@ func (h *BillingHandler) SetDefaultPaymentMethod(c *gin.Context) {
 }
 
 // RemovePaymentMethod handles removing a payment method
-func (h *BillingHandler) RemovePaymentMethod(c *gin.Context) {
+func (h *Handler) RemovePaymentMethod(c *gin.Context) {
 	methodID := c.Param("methodId")
 
 	err := h.service.RemovePaymentMethod(c.Request.Context(), methodID)
@@ -213,10 +214,10 @@ func (h *BillingHandler) RemovePaymentMethod(c *gin.Context) {
 }
 
 // ListInvoices handles listing invoices
-func (h *BillingHandler) ListInvoices(c *gin.Context) {
+func (h *Handler) ListInvoices(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var filter billing.InvoiceFilter
+	var filter domain.InvoiceFilter
 	// Parse query parameters for filtering
 
 	invoices, total, err := h.service.ListInvoices(c.Request.Context(), orgID, filter)
@@ -233,7 +234,7 @@ func (h *BillingHandler) ListInvoices(c *gin.Context) {
 }
 
 // GetInvoice handles getting a specific invoice
-func (h *BillingHandler) GetInvoice(c *gin.Context) {
+func (h *Handler) GetInvoice(c *gin.Context) {
 	invoiceID := c.Param("invoiceId")
 
 	invoice, err := h.service.GetInvoice(c.Request.Context(), invoiceID)
@@ -247,7 +248,7 @@ func (h *BillingHandler) GetInvoice(c *gin.Context) {
 }
 
 // DownloadInvoice handles downloading invoice as PDF
-func (h *BillingHandler) DownloadInvoice(c *gin.Context) {
+func (h *Handler) DownloadInvoice(c *gin.Context) {
 	invoiceID := c.Param("invoiceId")
 
 	pdfData, filename, err := h.service.DownloadInvoice(c.Request.Context(), invoiceID)
@@ -263,7 +264,7 @@ func (h *BillingHandler) DownloadInvoice(c *gin.Context) {
 }
 
 // GetUpcomingInvoice handles getting upcoming invoice preview
-func (h *BillingHandler) GetUpcomingInvoice(c *gin.Context) {
+func (h *Handler) GetUpcomingInvoice(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	invoice, err := h.service.GetUpcomingInvoice(c.Request.Context(), orgID)
@@ -277,7 +278,7 @@ func (h *BillingHandler) GetUpcomingInvoice(c *gin.Context) {
 }
 
 // GetCurrentUsage handles getting current usage
-func (h *BillingHandler) GetCurrentUsage(c *gin.Context) {
+func (h *Handler) GetCurrentUsage(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	usage, err := h.service.GetCurrentUsage(c.Request.Context(), orgID)
@@ -291,7 +292,7 @@ func (h *BillingHandler) GetCurrentUsage(c *gin.Context) {
 }
 
 // GetBillingOverview handles getting billing overview
-func (h *BillingHandler) GetBillingOverview(c *gin.Context) {
+func (h *Handler) GetBillingOverview(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	overview, err := h.service.GetBillingOverview(c.Request.Context(), orgID)
@@ -305,7 +306,7 @@ func (h *BillingHandler) GetBillingOverview(c *gin.Context) {
 }
 
 // GetBillingSettings handles getting billing settings
-func (h *BillingHandler) GetBillingSettings(c *gin.Context) {
+func (h *Handler) GetBillingSettings(c *gin.Context) {
 	orgID := c.Param("orgId")
 
 	settings, err := h.service.GetBillingSettings(c.Request.Context(), orgID)
@@ -319,10 +320,10 @@ func (h *BillingHandler) GetBillingSettings(c *gin.Context) {
 }
 
 // UpdateBillingSettings handles updating billing settings
-func (h *BillingHandler) UpdateBillingSettings(c *gin.Context) {
+func (h *Handler) UpdateBillingSettings(c *gin.Context) {
 	orgID := c.Param("orgId")
 
-	var settings billing.BillingSettings
+	var settings domain.BillingSettings
 	if err := c.ShouldBindJSON(&settings); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
 		return
@@ -339,7 +340,7 @@ func (h *BillingHandler) UpdateBillingSettings(c *gin.Context) {
 }
 
 // HandleStripeWebhook handles Stripe webhook events
-func (h *BillingHandler) HandleStripeWebhook(c *gin.Context) {
+func (h *Handler) HandleStripeWebhook(c *gin.Context) {
 	// Read body
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {

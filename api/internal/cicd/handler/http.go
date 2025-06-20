@@ -1,34 +1,35 @@
-package handlers
+package handler
 
 import (
 	"io"
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	"log/slog"
+
+	"github.com/gin-gonic/gin"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 )
 
-// CICDHandler handles CI/CD related requests
-type CICDHandler struct {
-	service cicd.Service
+// Handler handles CI/CD related requests
+type Handler struct {
+	service domain.Service
 	logger  *slog.Logger
 }
 
-// NewCICDHandler creates a new CI/CD handler
-func NewCICDHandler(service cicd.Service, logger *slog.Logger) *CICDHandler {
-	return &CICDHandler{
+// NewHandler creates a new CI/CD handler
+func NewHandler(service domain.Service, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreatePipeline handles POST /api/v1/workspaces/{workspaceId}/pipelines
-func (h *CICDHandler) CreatePipeline(c *gin.Context) {
+func (h *Handler) CreatePipeline(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
-	var config cicd.PipelineConfig
+	var config domain.PipelineConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
 		h.logger.Error("failed to decode request", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -54,7 +55,7 @@ func (h *CICDHandler) CreatePipeline(c *gin.Context) {
 }
 
 // GetPipeline handles GET /api/v1/pipelines/{pipelineId}
-func (h *CICDHandler) GetPipeline(c *gin.Context) {
+func (h *Handler) GetPipeline(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 
 	run, err := h.service.GetPipeline(c.Request.Context(), pipelineID)
@@ -68,7 +69,7 @@ func (h *CICDHandler) GetPipeline(c *gin.Context) {
 }
 
 // ListPipelines handles GET /api/v1/workspaces/{workspaceId}/pipelines
-func (h *CICDHandler) ListPipelines(c *gin.Context) {
+func (h *Handler) ListPipelines(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 	projectID := c.Query("projectId")
 	
@@ -91,7 +92,7 @@ func (h *CICDHandler) ListPipelines(c *gin.Context) {
 }
 
 // CancelPipeline handles POST /api/v1/pipelines/{pipelineId}/cancel
-func (h *CICDHandler) CancelPipeline(c *gin.Context) {
+func (h *Handler) CancelPipeline(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 
 	if err := h.service.CancelPipeline(c.Request.Context(), pipelineID); err != nil {
@@ -104,7 +105,7 @@ func (h *CICDHandler) CancelPipeline(c *gin.Context) {
 }
 
 // DeletePipeline handles DELETE /api/v1/pipelines/{pipelineId}
-func (h *CICDHandler) DeletePipeline(c *gin.Context) {
+func (h *Handler) DeletePipeline(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 
 	if err := h.service.DeletePipeline(c.Request.Context(), pipelineID); err != nil {
@@ -117,7 +118,7 @@ func (h *CICDHandler) DeletePipeline(c *gin.Context) {
 }
 
 // RetryPipeline handles POST /api/v1/pipelines/{pipelineId}/retry
-func (h *CICDHandler) RetryPipeline(c *gin.Context) {
+func (h *Handler) RetryPipeline(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 
 	run, err := h.service.RetryPipeline(c.Request.Context(), pipelineID)
@@ -131,7 +132,7 @@ func (h *CICDHandler) RetryPipeline(c *gin.Context) {
 }
 
 // GetPipelineLogs handles GET /api/v1/pipelines/{pipelineId}/logs
-func (h *CICDHandler) GetPipelineLogs(c *gin.Context) {
+func (h *Handler) GetPipelineLogs(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 	stage := c.Query("stage")
 	task := c.Query("task")
@@ -147,7 +148,7 @@ func (h *CICDHandler) GetPipelineLogs(c *gin.Context) {
 }
 
 // StreamPipelineLogs handles GET /api/v1/pipelines/{pipelineId}/logs/stream
-func (h *CICDHandler) StreamPipelineLogs(c *gin.Context) {
+func (h *Handler) StreamPipelineLogs(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 	stage := c.Query("stage")
 	task := c.Query("task")
@@ -181,7 +182,7 @@ func (h *CICDHandler) StreamPipelineLogs(c *gin.Context) {
 }
 
 // ListTemplates handles GET /api/v1/pipelines/templates
-func (h *CICDHandler) ListTemplates(c *gin.Context) {
+func (h *Handler) ListTemplates(c *gin.Context) {
 	provider := c.Query("provider")
 
 	templates, err := h.service.ListTemplates(c.Request.Context(), provider)
@@ -195,7 +196,7 @@ func (h *CICDHandler) ListTemplates(c *gin.Context) {
 }
 
 // GetTemplate handles GET /api/v1/pipelines/templates/{templateId}
-func (h *CICDHandler) GetTemplate(c *gin.Context) {
+func (h *Handler) GetTemplate(c *gin.Context) {
 	templateID := c.Param("templateId")
 
 	template, err := h.service.GetTemplate(c.Request.Context(), templateID)
@@ -209,7 +210,7 @@ func (h *CICDHandler) GetTemplate(c *gin.Context) {
 }
 
 // CreatePipelineFromTemplate handles POST /api/v1/workspaces/{workspaceId}/pipelines/from-template
-func (h *CICDHandler) CreatePipelineFromTemplate(c *gin.Context) {
+func (h *Handler) CreatePipelineFromTemplate(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
 	var req struct {
@@ -233,12 +234,12 @@ func (h *CICDHandler) CreatePipelineFromTemplate(c *gin.Context) {
 }
 
 // CreateGitCredential handles POST /api/v1/workspaces/{workspaceId}/credentials/git
-func (h *CICDHandler) CreateGitCredential(c *gin.Context) {
+func (h *Handler) CreateGitCredential(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
 	var req struct {
 		Name       string               `json:"name"`
-		Credential cicd.GitCredential   `json:"credential"`
+		Credential domain.GitCredential   `json:"credential"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Error("failed to decode request", "error", err)
@@ -256,12 +257,12 @@ func (h *CICDHandler) CreateGitCredential(c *gin.Context) {
 }
 
 // CreateRegistryCredential handles POST /api/v1/workspaces/{workspaceId}/credentials/registry
-func (h *CICDHandler) CreateRegistryCredential(c *gin.Context) {
+func (h *Handler) CreateRegistryCredential(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
 	var req struct {
 		Name       string                    `json:"name"`
-		Credential cicd.RegistryCredential   `json:"credential"`
+		Credential domain.RegistryCredential   `json:"credential"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Error("failed to decode request", "error", err)
@@ -279,7 +280,7 @@ func (h *CICDHandler) CreateRegistryCredential(c *gin.Context) {
 }
 
 // ListCredentials handles GET /api/v1/workspaces/{workspaceId}/credentials
-func (h *CICDHandler) ListCredentials(c *gin.Context) {
+func (h *Handler) ListCredentials(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
 	credentials, err := h.service.ListCredentials(c.Request.Context(), workspaceID)
@@ -293,7 +294,7 @@ func (h *CICDHandler) ListCredentials(c *gin.Context) {
 }
 
 // DeleteCredential handles DELETE /api/v1/workspaces/{workspaceId}/credentials/{credentialName}
-func (h *CICDHandler) DeleteCredential(c *gin.Context) {
+func (h *Handler) DeleteCredential(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 	credentialName := c.Param("credentialName")
 
@@ -307,7 +308,7 @@ func (h *CICDHandler) DeleteCredential(c *gin.Context) {
 }
 
 // ListProviders handles GET /api/v1/providers
-func (h *CICDHandler) ListProviders(c *gin.Context) {
+func (h *Handler) ListProviders(c *gin.Context) {
 	providers, err := h.service.ListProviders(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to list providers", "error", err)
@@ -319,7 +320,7 @@ func (h *CICDHandler) ListProviders(c *gin.Context) {
 }
 
 // GetProviderConfig handles GET /api/v1/workspaces/{workspaceId}/provider-config
-func (h *CICDHandler) GetProviderConfig(c *gin.Context) {
+func (h *Handler) GetProviderConfig(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
 	config, err := h.service.GetProviderConfig(c.Request.Context(), workspaceID)
@@ -333,10 +334,10 @@ func (h *CICDHandler) GetProviderConfig(c *gin.Context) {
 }
 
 // SetProviderConfig handles PUT /api/v1/workspaces/{workspaceId}/provider-config
-func (h *CICDHandler) SetProviderConfig(c *gin.Context) {
+func (h *Handler) SetProviderConfig(c *gin.Context) {
 	workspaceID := c.Param("workspaceId")
 
-	var config cicd.ProviderConfig
+	var config domain.ProviderConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
 		h.logger.Error("failed to decode request", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})

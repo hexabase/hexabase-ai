@@ -1,4 +1,4 @@
-package cicd
+package repository
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -21,7 +21,7 @@ type KubernetesCredentialManager struct {
 }
 
 // NewKubernetesCredentialManager creates a new Kubernetes credential manager
-func NewKubernetesCredentialManager(kubeClient kubernetes.Interface, namespace string) cicd.CredentialManager {
+func NewKubernetesCredentialManager(kubeClient kubernetes.Interface, namespace string) domain.CredentialManager {
 	return &KubernetesCredentialManager{
 		kubeClient: kubeClient,
 		namespace:  namespace,
@@ -29,7 +29,7 @@ func NewKubernetesCredentialManager(kubeClient kubernetes.Interface, namespace s
 }
 
 // StoreGitCredential stores Git credentials as a Kubernetes secret
-func (m *KubernetesCredentialManager) StoreGitCredential(workspaceID string, cred *cicd.GitCredential) (*cicd.CredentialInfo, error) {
+func (m *KubernetesCredentialManager) StoreGitCredential(workspaceID string, cred *domain.GitCredential) (*domain.CredentialInfo, error) {
 	credentialID := uuid.New().String()
 	secretName := m.formatSecretName(workspaceID, "git", credentialID)
 	
@@ -91,7 +91,7 @@ func (m *KubernetesCredentialManager) StoreGitCredential(workspaceID string, cre
 		return nil, fmt.Errorf("failed to store git credential: %w", err)
 	}
 	
-	return &cicd.CredentialInfo{
+	return &domain.CredentialInfo{
 		ID:          credentialID,
 		WorkspaceID: workspaceID,
 		Name:        secretName,
@@ -102,7 +102,7 @@ func (m *KubernetesCredentialManager) StoreGitCredential(workspaceID string, cre
 }
 
 // GetGitCredential retrieves Git credentials from Kubernetes secret
-func (m *KubernetesCredentialManager) GetGitCredential(workspaceID, credentialID string) (*cicd.GitCredential, error) {
+func (m *KubernetesCredentialManager) GetGitCredential(workspaceID, credentialID string) (*domain.GitCredential, error) {
 	secretName := m.formatSecretName(workspaceID, "git", credentialID)
 	
 	ctx := context.Background()
@@ -111,7 +111,7 @@ func (m *KubernetesCredentialManager) GetGitCredential(workspaceID, credentialID
 		return nil, fmt.Errorf("failed to get git credential: %w", err)
 	}
 	
-	cred := &cicd.GitCredential{}
+	cred := &domain.GitCredential{}
 	
 	if secret.Type == corev1.SecretTypeSSHAuth {
 		cred.Type = "ssh-key"
@@ -126,7 +126,7 @@ func (m *KubernetesCredentialManager) GetGitCredential(workspaceID, credentialID
 }
 
 // StoreRegistryCredential stores container registry credentials
-func (m *KubernetesCredentialManager) StoreRegistryCredential(workspaceID string, cred *cicd.RegistryCredential) (*cicd.CredentialInfo, error) {
+func (m *KubernetesCredentialManager) StoreRegistryCredential(workspaceID string, cred *domain.RegistryCredential) (*domain.CredentialInfo, error) {
 	credentialID := uuid.New().String()
 	secretName := m.formatSecretName(workspaceID, "registry", credentialID)
 	
@@ -176,7 +176,7 @@ func (m *KubernetesCredentialManager) StoreRegistryCredential(workspaceID string
 		return nil, fmt.Errorf("failed to store registry credential: %w", err)
 	}
 	
-	return &cicd.CredentialInfo{
+	return &domain.CredentialInfo{
 		ID:          credentialID,
 		WorkspaceID: workspaceID,
 		Name:        secretName,
@@ -187,7 +187,7 @@ func (m *KubernetesCredentialManager) StoreRegistryCredential(workspaceID string
 }
 
 // GetRegistryCredential retrieves registry credentials from Kubernetes secret
-func (m *KubernetesCredentialManager) GetRegistryCredential(workspaceID, credentialID string) (*cicd.RegistryCredential, error) {
+func (m *KubernetesCredentialManager) GetRegistryCredential(workspaceID, credentialID string) (*domain.RegistryCredential, error) {
 	secretName := m.formatSecretName(workspaceID, "registry", credentialID)
 	
 	ctx := context.Background()
@@ -210,7 +210,7 @@ func (m *KubernetesCredentialManager) GetRegistryCredential(workspaceID, credent
 	
 	// Find the first registry in the config
 	for registry, auth := range dockerConfig["auths"] {
-		return &cicd.RegistryCredential{
+		return &domain.RegistryCredential{
 			Registry: registry,
 			Username: auth["username"],
 			Password: auth["password"],
@@ -222,7 +222,7 @@ func (m *KubernetesCredentialManager) GetRegistryCredential(workspaceID, credent
 }
 
 // ListCredentials lists available credentials for a workspace
-func (m *KubernetesCredentialManager) ListCredentials(workspaceID string) ([]*cicd.CredentialInfo, error) {
+func (m *KubernetesCredentialManager) ListCredentials(workspaceID string) ([]*domain.CredentialInfo, error) {
 	ctx := context.Background()
 	
 	// List secrets with workspace label
@@ -233,7 +233,7 @@ func (m *KubernetesCredentialManager) ListCredentials(workspaceID string) ([]*ci
 		return nil, fmt.Errorf("failed to list credentials: %w", err)
 	}
 	
-	credentials := []*cicd.CredentialInfo{}
+	credentials := []*domain.CredentialInfo{}
 	for _, secret := range secrets.Items {
 		credType := secret.Labels["hexabase.ai/credential-type"]
 		credID := secret.Labels["hexabase.ai/credential-id"]
@@ -241,7 +241,7 @@ func (m *KubernetesCredentialManager) ListCredentials(workspaceID string) ([]*ci
 		if credType != "" && credID != "" {
 			createdAt, _ := time.Parse(time.RFC3339, secret.Annotations["hexabase.ai/created-at"])
 			
-			credentials = append(credentials, &cicd.CredentialInfo{
+			credentials = append(credentials, &domain.CredentialInfo{
 				ID:          credID,
 				WorkspaceID: workspaceID,
 				Name:        secret.Name,

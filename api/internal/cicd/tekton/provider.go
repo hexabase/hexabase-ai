@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
-	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +21,7 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-// TektonProvider implements the cicd.Provider interface using Tekton.
+// TektonProvider implements the domain.Provider interface using Tekton.
 type TektonProvider struct {
 	tektonClient  tektonclient.Interface
 	kubeClient    kubernetes.Interface
@@ -37,8 +37,6 @@ func NewTektonProvider(tektonClient tektonclient.Interface, kubeClient kubernete
 		dynamicClient: dynamicClient,
 	}
 }
-
-
 
 // GetResource retrieves a specific resource from Kubernetes.
 func (p *TektonProvider) GetResource(ctx context.Context, projectID string, namespace string, groupVersionResource schema.GroupVersionResource, name string) (*unstructured.Unstructured, error) {
@@ -65,14 +63,13 @@ func (p *TektonProvider) DeleteResource(ctx context.Context, projectID string, n
 	return p.dynamicClient.Resource(groupVersionResource).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-
 // CreateFromTemplate creates a pipeline from a template.
-func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*cicd.PipelineConfig, error) {
+func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*domain.PipelineConfig, error) {
 	// TODO: Implement template-based pipeline creation
 	// For now, return a basic pipeline config
-	return &cicd.PipelineConfig{
+	return &domain.PipelineConfig{
 		Name: fmt.Sprintf("Pipeline from template %s", templateID),
-		GitRepo: cicd.GitConfig{
+		GitRepo: domain.GitConfig{
 			URL:    "https://github.com/example/repo.git",
 			Branch: "main",
 		},
@@ -81,7 +78,7 @@ func (p *TektonProvider) CreateFromTemplate(ctx context.Context, templateID stri
 }
 
 // ValidateConfig validates the pipeline configuration.
-func (p *TektonProvider) ValidateConfig(ctx context.Context, config *cicd.PipelineConfig) error {
+func (p *TektonProvider) ValidateConfig(ctx context.Context, config *domain.PipelineConfig) error {
 	if config.Name == "" {
 		return fmt.Errorf("pipeline name is required")
 	}
@@ -92,27 +89,27 @@ func (p *TektonProvider) ValidateConfig(ctx context.Context, config *cicd.Pipeli
 }
 
 // RunPipeline runs a pipeline with the given configuration.
-func (p *TektonProvider) RunPipeline(ctx context.Context, config *cicd.PipelineConfig) (*cicd.PipelineRun, error) {
+func (p *TektonProvider) RunPipeline(ctx context.Context, config *domain.PipelineConfig) (*domain.PipelineRun, error) {
 	namespace := "default" // TODO: derive from project/workspace
 	runName := fmt.Sprintf("%s-run-%s", config.Name, strings.ToLower(uuid.New().String()[:8]))
 
 	// Build pipeline parameters
-	params := []v1.Param{
-		{Name: "repo-url", Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: config.GitRepo.URL}},
-		{Name: "revision", Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: config.GitRepo.Branch}},
-		{Name: "app-name", Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: config.Name}},
+	params := []pipelinev1.Param{
+		{Name: "repo-url", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: config.GitRepo.URL}},
+		{Name: "revision", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: config.GitRepo.Branch}},
+		{Name: "app-name", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: config.Name}},
 	}
 
 	// Add image ref if registry config is provided
 	if config.RegistryConfig != nil {
 		imageRef := fmt.Sprintf("%s/%s/%s:latest", config.RegistryConfig.URL, config.RegistryConfig.Namespace, config.Name)
-		params = append(params, v1.Param{
+		params = append(params, pipelinev1.Param{
 			Name:  "image-ref",
-			Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: imageRef},
+			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: imageRef},
 		})
 	}
 
-	pipelineRun := &v1.PipelineRun{
+	pipelineRun := &pipelinev1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      runName,
 			Namespace: namespace,
@@ -123,8 +120,8 @@ func (p *TektonProvider) RunPipeline(ctx context.Context, config *cicd.PipelineC
 				"hexabase.ai/app-name":         config.Name,
 			},
 		},
-		Spec: v1.PipelineRunSpec{
-			PipelineRef: &v1.PipelineRef{Name: "build-and-push-pipeline"},
+		Spec: pipelinev1.PipelineRunSpec{
+			PipelineRef: &pipelinev1.PipelineRef{Name: "build-and-push-pipeline"},
 			Params:      params,
 		},
 	}
@@ -134,19 +131,19 @@ func (p *TektonProvider) RunPipeline(ctx context.Context, config *cicd.PipelineC
 		return nil, fmt.Errorf("failed to create Tekton PipelineRun: %w", err)
 	}
 
-	return &cicd.PipelineRun{
+	return &domain.PipelineRun{
 		ID:          createdPR.Name,
 		WorkspaceID: config.WorkspaceID,
 		ProjectID:   config.ProjectID,
 		Name:        config.Name,
-		Status:      cicd.PipelineStatusPending,
+		Status:      domain.PipelineStatusPending,
 		StartedAt:   time.Now(),
 		Metadata:    config.Metadata,
 	}, nil
 }
 
 // GetStatus gets the status of a pipeline run.
-func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*cicd.PipelineRun, error) {
+func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*domain.PipelineRun, error) {
 	// For now, use default namespace
 	namespace := "default"
 	
@@ -155,16 +152,16 @@ func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID strin
 		return nil, fmt.Errorf("failed to get pipeline run: %w", err)
 	}
 	
-	status := cicd.PipelineStatusPending
+	status := domain.PipelineStatusPending
 	if pr.Status.GetCondition(apis.ConditionSucceeded).IsTrue() {
-		status = cicd.PipelineStatusSucceeded
+		status = domain.PipelineStatusSucceeded
 	} else if pr.Status.GetCondition(apis.ConditionSucceeded).IsFalse() {
-		status = cicd.PipelineStatusFailed
+		status = domain.PipelineStatusFailed
 	} else if pr.Status.GetCondition(apis.ConditionSucceeded).IsUnknown() {
-		status = cicd.PipelineStatusRunning
+		status = domain.PipelineStatusRunning
 	}
 	
-	run := &cicd.PipelineRun{
+	run := &domain.PipelineRun{
 		ID:          runID,
 		WorkspaceID: workspaceID,
 		Name:        pr.Name,
@@ -180,7 +177,7 @@ func (p *TektonProvider) GetStatus(ctx context.Context, workspaceID, runID strin
 }
 
 // ListPipelines lists all pipeline runs for a project.
-func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*cicd.PipelineRun, error) {
+func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*domain.PipelineRun, error) {
 	// For now, use default namespace
 	namespace := "default"
 	
@@ -189,18 +186,18 @@ func (p *TektonProvider) ListPipelines(ctx context.Context, workspaceID, project
 		return nil, fmt.Errorf("failed to list pipeline runs: %w", err)
 	}
 	
-	var runs []*cicd.PipelineRun
+	var runs []*domain.PipelineRun
 	for _, pr := range prs.Items {
-		status := cicd.PipelineStatusPending
+		status := domain.PipelineStatusPending
 		if pr.Status.GetCondition(apis.ConditionSucceeded).IsTrue() {
-			status = cicd.PipelineStatusSucceeded
+			status = domain.PipelineStatusSucceeded
 		} else if pr.Status.GetCondition(apis.ConditionSucceeded).IsFalse() {
-			status = cicd.PipelineStatusFailed
+			status = domain.PipelineStatusFailed
 		} else if pr.Status.GetCondition(apis.ConditionSucceeded).IsUnknown() {
-			status = cicd.PipelineStatusRunning
+			status = domain.PipelineStatusRunning
 		}
 		
-		run := &cicd.PipelineRun{
+		run := &domain.PipelineRun{
 			ID:          pr.Name,
 			WorkspaceID: workspaceID,
 			ProjectID:   projectID,
@@ -227,9 +224,9 @@ func (p *TektonProvider) DeletePipeline(ctx context.Context, workspaceID, runID 
 }
 
 // GetLogs gets the logs for a pipeline run.
-func (p *TektonProvider) GetLogs(ctx context.Context, workspaceID, runID string) ([]cicd.LogEntry, error) {
+func (p *TektonProvider) GetLogs(ctx context.Context, workspaceID, runID string) ([]domain.LogEntry, error) {
 	// TODO: Implement proper log retrieval
-	return []cicd.LogEntry{}, nil
+	return []domain.LogEntry{}, nil
 }
 
 // StreamLogs streams the logs for a pipeline run.
@@ -267,9 +264,9 @@ func (p *TektonProvider) StreamLogs(ctx context.Context, workspaceID, runID stri
 }
 
 // GetTemplates gets available pipeline templates.
-func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemplate, error) {
+func (p *TektonProvider) GetTemplates(ctx context.Context) ([]*domain.PipelineTemplate, error) {
 	// TODO: Implement template listing
-	return []*cicd.PipelineTemplate{}, nil
+	return []*domain.PipelineTemplate{}, nil
 }
 
 // GetName returns the provider name.

@@ -1,11 +1,11 @@
-package billing
+package repository
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 	"gorm.io/gorm"
 )
 
@@ -14,19 +14,19 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL billing repository
-func NewPostgresRepository(db *gorm.DB) billing.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &postgresRepository{db: db}
 }
 
-func (r *postgresRepository) CreateSubscription(ctx context.Context, subscription *billing.Subscription) error {
+func (r *postgresRepository) CreateSubscription(ctx context.Context, subscription *domain.Subscription) error {
 	if err := r.db.WithContext(ctx).Create(subscription).Error; err != nil {
 		return fmt.Errorf("failed to create subscription: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetSubscription(ctx context.Context, subscriptionID string) (*billing.Subscription, error) {
-	var subscription billing.Subscription
+func (r *postgresRepository) GetSubscription(ctx context.Context, subscriptionID string) (*domain.Subscription, error) {
+	var subscription domain.Subscription
 	if err := r.db.WithContext(ctx).Where("id = ?", subscriptionID).First(&subscription).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("subscription not found")
@@ -36,8 +36,8 @@ func (r *postgresRepository) GetSubscription(ctx context.Context, subscriptionID
 	return &subscription, nil
 }
 
-func (r *postgresRepository) GetOrganizationSubscription(ctx context.Context, orgID string) (*billing.Subscription, error) {
-	var subscription billing.Subscription
+func (r *postgresRepository) GetOrganizationSubscription(ctx context.Context, orgID string) (*domain.Subscription, error) {
+	var subscription domain.Subscription
 	if err := r.db.WithContext(ctx).
 		Where("organization_id = ? AND status IN ?", orgID, []string{"active", "trialing", "cancel_at_period_end"}).
 		First(&subscription).Error; err != nil {
@@ -49,17 +49,17 @@ func (r *postgresRepository) GetOrganizationSubscription(ctx context.Context, or
 	return &subscription, nil
 }
 
-func (r *postgresRepository) UpdateSubscription(ctx context.Context, subscription *billing.Subscription) error {
+func (r *postgresRepository) UpdateSubscription(ctx context.Context, subscription *domain.Subscription) error {
 	if err := r.db.WithContext(ctx).Save(subscription).Error; err != nil {
 		return fmt.Errorf("failed to update subscription: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) ListSubscriptions(ctx context.Context, filter billing.SubscriptionFilter) ([]*billing.Subscription, error) {
-	var subscriptions []*billing.Subscription
+func (r *postgresRepository) ListSubscriptions(ctx context.Context, filter domain.SubscriptionFilter) ([]*domain.Subscription, error) {
+	var subscriptions []*domain.Subscription
 
-	query := r.db.WithContext(ctx).Model(&billing.Subscription{})
+	query := r.db.WithContext(ctx).Model(&domain.Subscription{})
 
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
@@ -82,8 +82,8 @@ func (r *postgresRepository) ListSubscriptions(ctx context.Context, filter billi
 	return subscriptions, nil
 }
 
-func (r *postgresRepository) GetPlan(ctx context.Context, planID string) (*billing.Plan, error) {
-	var plan billing.Plan
+func (r *postgresRepository) GetPlan(ctx context.Context, planID string) (*domain.Plan, error) {
+	var plan domain.Plan
 	if err := r.db.WithContext(ctx).Where("id = ?", planID).First(&plan).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("plan not found")
@@ -93,10 +93,10 @@ func (r *postgresRepository) GetPlan(ctx context.Context, planID string) (*billi
 	return &plan, nil
 }
 
-func (r *postgresRepository) ListPlans(ctx context.Context, activeOnly bool) ([]*billing.Plan, error) {
-	var plans []*billing.Plan
+func (r *postgresRepository) ListPlans(ctx context.Context, activeOnly bool) ([]*domain.Plan, error) {
+	var plans []*domain.Plan
 
-	query := r.db.WithContext(ctx).Model(&billing.Plan{})
+	query := r.db.WithContext(ctx).Model(&domain.Plan{})
 
 	if activeOnly {
 		query = query.Where("active = ?", true)
@@ -109,29 +109,29 @@ func (r *postgresRepository) ListPlans(ctx context.Context, activeOnly bool) ([]
 	return plans, nil
 }
 
-func (r *postgresRepository) CreatePlan(ctx context.Context, plan *billing.Plan) error {
+func (r *postgresRepository) CreatePlan(ctx context.Context, plan *domain.Plan) error {
 	if err := r.db.WithContext(ctx).Create(plan).Error; err != nil {
 		return fmt.Errorf("failed to create plan: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) UpdatePlan(ctx context.Context, plan *billing.Plan) error {
+func (r *postgresRepository) UpdatePlan(ctx context.Context, plan *domain.Plan) error {
 	if err := r.db.WithContext(ctx).Save(plan).Error; err != nil {
 		return fmt.Errorf("failed to update plan: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) CreatePaymentMethod(ctx context.Context, method *billing.PaymentMethod) error {
+func (r *postgresRepository) CreatePaymentMethod(ctx context.Context, method *domain.PaymentMethod) error {
 	if err := r.db.WithContext(ctx).Create(method).Error; err != nil {
 		return fmt.Errorf("failed to create payment method: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetPaymentMethod(ctx context.Context, methodID string) (*billing.PaymentMethod, error) {
-	var method billing.PaymentMethod
+func (r *postgresRepository) GetPaymentMethod(ctx context.Context, methodID string) (*domain.PaymentMethod, error) {
+	var method domain.PaymentMethod
 	if err := r.db.WithContext(ctx).Where("id = ?", methodID).First(&method).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("payment method not found")
@@ -141,8 +141,8 @@ func (r *postgresRepository) GetPaymentMethod(ctx context.Context, methodID stri
 	return &method, nil
 }
 
-func (r *postgresRepository) ListPaymentMethods(ctx context.Context, orgID string) ([]*billing.PaymentMethod, error) {
-	var methods []*billing.PaymentMethod
+func (r *postgresRepository) ListPaymentMethods(ctx context.Context, orgID string) ([]*domain.PaymentMethod, error) {
+	var methods []*domain.PaymentMethod
 	if err := r.db.WithContext(ctx).
 		Where("organization_id = ?", orgID).
 		Order("is_default DESC, created_at DESC").
@@ -152,7 +152,7 @@ func (r *postgresRepository) ListPaymentMethods(ctx context.Context, orgID strin
 	return methods, nil
 }
 
-func (r *postgresRepository) UpdatePaymentMethod(ctx context.Context, method *billing.PaymentMethod) error {
+func (r *postgresRepository) UpdatePaymentMethod(ctx context.Context, method *domain.PaymentMethod) error {
 	if err := r.db.WithContext(ctx).Save(method).Error; err != nil {
 		return fmt.Errorf("failed to update payment method: %w", err)
 	}
@@ -160,7 +160,7 @@ func (r *postgresRepository) UpdatePaymentMethod(ctx context.Context, method *bi
 }
 
 func (r *postgresRepository) DeletePaymentMethod(ctx context.Context, methodID string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", methodID).Delete(&billing.PaymentMethod{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", methodID).Delete(&domain.PaymentMethod{}).Error; err != nil {
 		return fmt.Errorf("failed to delete payment method: %w", err)
 	}
 	return nil
@@ -171,7 +171,7 @@ func (r *postgresRepository) SetDefaultPaymentMethod(ctx context.Context, orgID,
 	tx := r.db.WithContext(ctx).Begin()
 
 	// Unset current default
-	if err := tx.Model(&billing.PaymentMethod{}).
+	if err := tx.Model(&domain.PaymentMethod{}).
 		Where("organization_id = ? AND is_default = ?", orgID, true).
 		Update("is_default", false).Error; err != nil {
 		tx.Rollback()
@@ -179,7 +179,7 @@ func (r *postgresRepository) SetDefaultPaymentMethod(ctx context.Context, orgID,
 	}
 
 	// Set new default
-	if err := tx.Model(&billing.PaymentMethod{}).
+	if err := tx.Model(&domain.PaymentMethod{}).
 		Where("id = ?", methodID).
 		Update("is_default", true).Error; err != nil {
 		tx.Rollback()
@@ -189,15 +189,15 @@ func (r *postgresRepository) SetDefaultPaymentMethod(ctx context.Context, orgID,
 	return tx.Commit().Error
 }
 
-func (r *postgresRepository) CreateInvoice(ctx context.Context, invoice *billing.Invoice) error {
+func (r *postgresRepository) CreateInvoice(ctx context.Context, invoice *domain.Invoice) error {
 	if err := r.db.WithContext(ctx).Create(invoice).Error; err != nil {
 		return fmt.Errorf("failed to create invoice: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetInvoice(ctx context.Context, invoiceID string) (*billing.Invoice, error) {
-	var invoice billing.Invoice
+func (r *postgresRepository) GetInvoice(ctx context.Context, invoiceID string) (*domain.Invoice, error) {
+	var invoice domain.Invoice
 	if err := r.db.WithContext(ctx).Where("id = ?", invoiceID).First(&invoice).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("invoice not found")
@@ -207,11 +207,11 @@ func (r *postgresRepository) GetInvoice(ctx context.Context, invoiceID string) (
 	return &invoice, nil
 }
 
-func (r *postgresRepository) ListInvoices(ctx context.Context, filter billing.InvoiceFilter) ([]*billing.Invoice, int, error) {
-	var invoices []*billing.Invoice
+func (r *postgresRepository) ListInvoices(ctx context.Context, filter domain.InvoiceFilter) ([]*domain.Invoice, int, error) {
+	var invoices []*domain.Invoice
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&billing.Invoice{})
+	query := r.db.WithContext(ctx).Model(&domain.Invoice{})
 
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
@@ -243,15 +243,15 @@ func (r *postgresRepository) ListInvoices(ctx context.Context, filter billing.In
 	return invoices, int(total), nil
 }
 
-func (r *postgresRepository) UpdateInvoice(ctx context.Context, invoice *billing.Invoice) error {
+func (r *postgresRepository) UpdateInvoice(ctx context.Context, invoice *domain.Invoice) error {
 	if err := r.db.WithContext(ctx).Save(invoice).Error; err != nil {
 		return fmt.Errorf("failed to update invoice: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetInvoiceLineItems(ctx context.Context, invoiceID string) ([]*billing.LineItem, error) {
-	var items []*billing.LineItem
+func (r *postgresRepository) GetInvoiceLineItems(ctx context.Context, invoiceID string) ([]*domain.LineItem, error) {
+	var items []*domain.LineItem
 	if err := r.db.WithContext(ctx).
 		Where("invoice_id = ?", invoiceID).
 		Order("created_at ASC").
@@ -261,24 +261,24 @@ func (r *postgresRepository) GetInvoiceLineItems(ctx context.Context, invoiceID 
 	return items, nil
 }
 
-func (r *postgresRepository) CreateUsageRecord(ctx context.Context, record *billing.UsageRecord) error {
+func (r *postgresRepository) CreateUsageRecord(ctx context.Context, record *domain.UsageRecord) error {
 	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
 		return fmt.Errorf("failed to create usage record: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) BatchCreateUsageRecords(ctx context.Context, records []*billing.UsageRecord) error {
+func (r *postgresRepository) BatchCreateUsageRecords(ctx context.Context, records []*domain.UsageRecord) error {
 	if err := r.db.WithContext(ctx).CreateInBatches(records, 100).Error; err != nil {
 		return fmt.Errorf("failed to batch create usage records: %w", err)
 	}
 	return nil
 }
 
-func (r *postgresRepository) GetUsageRecords(ctx context.Context, filter billing.UsageFilter) ([]*billing.UsageRecord, error) {
-	var records []*billing.UsageRecord
+func (r *postgresRepository) GetUsageRecords(ctx context.Context, filter domain.UsageFilter) ([]*domain.UsageRecord, error) {
+	var records []*domain.UsageRecord
 
-	query := r.db.WithContext(ctx).Model(&billing.UsageRecord{})
+	query := r.db.WithContext(ctx).Model(&domain.UsageRecord{})
 
 	if filter.ResourceType != "" {
 		query = query.Where("resource_type = ?", filter.ResourceType)
@@ -322,8 +322,8 @@ func (r *postgresRepository) SummarizeUsage(ctx context.Context, orgID string, s
 	return usage, nil
 }
 
-func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) (*billing.Organization, error) {
-	var org billing.Organization
+func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) (*domain.Organization, error) {
+	var org domain.Organization
 	if err := r.db.WithContext(ctx).
 		Table("organizations").
 		Where("id = ?", orgID).
@@ -336,14 +336,14 @@ func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) 
 	return &org, nil
 }
 
-func (r *postgresRepository) GetBillingSettings(ctx context.Context, orgID string) (*billing.BillingSettings, error) {
-	var settings billing.BillingSettings
+func (r *postgresRepository) GetBillingSettings(ctx context.Context, orgID string) (*domain.BillingSettings, error) {
+	var settings domain.BillingSettings
 	if err := r.db.WithContext(ctx).
 		Where("organization_id = ?", orgID).
 		First(&settings).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// Return default settings
-			return &billing.BillingSettings{
+			return &domain.BillingSettings{
 				OrganizationID:       orgID,
 				BillingEmail:         "",
 				InvoicePrefix:        "",
@@ -359,9 +359,9 @@ func (r *postgresRepository) GetBillingSettings(ctx context.Context, orgID strin
 	return &settings, nil
 }
 
-func (r *postgresRepository) UpdateBillingSettings(ctx context.Context, settings *billing.BillingSettings) error {
+func (r *postgresRepository) UpdateBillingSettings(ctx context.Context, settings *domain.BillingSettings) error {
 	// Check if settings exist
-	var existing billing.BillingSettings
+	var existing domain.BillingSettings
 	err := r.db.WithContext(ctx).
 		Where("organization_id = ?", settings.OrganizationID).
 		First(&existing).Error

@@ -1,4 +1,4 @@
-package cicd
+package service
 
 import (
 	"context"
@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
 )
 
 // Mock implementations
@@ -20,20 +21,20 @@ type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) CreatePipeline(ctx context.Context, pipeline *cicd.Pipeline) error {
+func (m *MockRepository) CreatePipeline(ctx context.Context, pipeline *domain.Pipeline) error {
 	args := m.Called(ctx, pipeline)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetPipeline(ctx context.Context, id string) (*cicd.Pipeline, error) {
+func (m *MockRepository) GetPipeline(ctx context.Context, id string) (*domain.Pipeline, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.Pipeline), args.Error(1)
+	return args.Get(0).(*domain.Pipeline), args.Error(1)
 }
 
-func (m *MockRepository) UpdatePipeline(ctx context.Context, pipeline *cicd.Pipeline) error {
+func (m *MockRepository) UpdatePipeline(ctx context.Context, pipeline *domain.Pipeline) error {
 	args := m.Called(ctx, pipeline)
 	return args.Error(0)
 }
@@ -43,67 +44,67 @@ func (m *MockRepository) DeletePipeline(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListPipelines(ctx context.Context, workspaceID, projectID string, limit, offset int) ([]*cicd.Pipeline, error) {
+func (m *MockRepository) ListPipelines(ctx context.Context, workspaceID, projectID string, limit, offset int) ([]*domain.Pipeline, error) {
 	args := m.Called(ctx, workspaceID, projectID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.Pipeline), args.Error(1)
+	return args.Get(0).([]*domain.Pipeline), args.Error(1)
 }
 
-func (m *MockRepository) CreatePipelineRun(ctx context.Context, run *cicd.PipelineRunRecord) error {
+func (m *MockRepository) CreatePipelineRun(ctx context.Context, run *domain.PipelineRunRecord) error {
 	args := m.Called(ctx, run)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetPipelineRun(ctx context.Context, id string) (*cicd.PipelineRunRecord, error) {
+func (m *MockRepository) GetPipelineRun(ctx context.Context, id string) (*domain.PipelineRunRecord, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.PipelineRunRecord), args.Error(1)
+	return args.Get(0).(*domain.PipelineRunRecord), args.Error(1)
 }
 
-func (m *MockRepository) UpdatePipelineRun(ctx context.Context, run *cicd.PipelineRunRecord) error {
+func (m *MockRepository) UpdatePipelineRun(ctx context.Context, run *domain.PipelineRunRecord) error {
 	args := m.Called(ctx, run)
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListTemplates(ctx context.Context, provider string) ([]*cicd.PipelineTemplate, error) {
+func (m *MockRepository) ListTemplates(ctx context.Context, provider string) ([]*domain.PipelineTemplate, error) {
 	args := m.Called(ctx, provider)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.PipelineTemplate), args.Error(1)
+	return args.Get(0).([]*domain.PipelineTemplate), args.Error(1)
 }
 
-func (m *MockRepository) GetTemplate(ctx context.Context, id string) (*cicd.PipelineTemplate, error) {
+func (m *MockRepository) GetTemplate(ctx context.Context, id string) (*domain.PipelineTemplate, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.PipelineTemplate), args.Error(1)
+	return args.Get(0).(*domain.PipelineTemplate), args.Error(1)
 }
 
-func (m *MockRepository) GetProviderConfig(ctx context.Context, workspaceID string) (*cicd.WorkspaceProviderConfig, error) {
+func (m *MockRepository) GetProviderConfig(ctx context.Context, workspaceID string) (*domain.WorkspaceProviderConfig, error) {
 	args := m.Called(ctx, workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.WorkspaceProviderConfig), args.Error(1)
+	return args.Get(0).(*domain.WorkspaceProviderConfig), args.Error(1)
 }
 
-func (m *MockRepository) SetProviderConfig(ctx context.Context, config *cicd.WorkspaceProviderConfig) error {
+func (m *MockRepository) SetProviderConfig(ctx context.Context, config *domain.WorkspaceProviderConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
-func (m *MockRepository) CreateTemplate(ctx context.Context, template *cicd.PipelineTemplate) error {
+func (m *MockRepository) CreateTemplate(ctx context.Context, template *domain.PipelineTemplate) error {
 	args := m.Called(ctx, template)
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateTemplate(ctx context.Context, template *cicd.PipelineTemplate) error {
+func (m *MockRepository) UpdateTemplate(ctx context.Context, template *domain.PipelineTemplate) error {
 	args := m.Called(ctx, template)
 	return args.Error(0)
 }
@@ -113,20 +114,20 @@ func (m *MockRepository) DeleteTemplate(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetPipelineByRunID(ctx context.Context, runID string) (*cicd.Pipeline, error) {
+func (m *MockRepository) GetPipelineByRunID(ctx context.Context, runID string) (*domain.Pipeline, error) {
 	args := m.Called(ctx, runID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.Pipeline), args.Error(1)
+	return args.Get(0).(*domain.Pipeline), args.Error(1)
 }
 
-func (m *MockRepository) ListPipelineRuns(ctx context.Context, workspaceID string, limit, offset int) ([]*cicd.PipelineRunRecord, error) {
+func (m *MockRepository) ListPipelineRuns(ctx context.Context, workspaceID string, limit, offset int) ([]*domain.PipelineRunRecord, error) {
 	args := m.Called(ctx, workspaceID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.PipelineRunRecord), args.Error(1)
+	return args.Get(0).([]*domain.PipelineRunRecord), args.Error(1)
 }
 
 type MockProvider struct {
@@ -138,20 +139,20 @@ func (m *MockProvider) GetName() string {
 	return args.String(0)
 }
 
-func (m *MockProvider) RunPipeline(ctx context.Context, config *cicd.PipelineConfig) (*cicd.PipelineRun, error) {
+func (m *MockProvider) RunPipeline(ctx context.Context, config *domain.PipelineConfig) (*domain.PipelineRun, error) {
 	args := m.Called(ctx, config)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.PipelineRun), args.Error(1)
+	return args.Get(0).(*domain.PipelineRun), args.Error(1)
 }
 
-func (m *MockProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*cicd.PipelineRun, error) {
+func (m *MockProvider) GetStatus(ctx context.Context, workspaceID, runID string) (*domain.PipelineRun, error) {
 	args := m.Called(ctx, workspaceID, runID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.PipelineRun), args.Error(1)
+	return args.Get(0).(*domain.PipelineRun), args.Error(1)
 }
 
 func (m *MockProvider) CancelPipeline(ctx context.Context, workspaceID, runID string) error {
@@ -164,12 +165,12 @@ func (m *MockProvider) DeletePipeline(ctx context.Context, workspaceID, runID st
 	return args.Error(0)
 }
 
-func (m *MockProvider) GetLogs(ctx context.Context, runID, stage string) ([]cicd.LogEntry, error) {
+func (m *MockProvider) GetLogs(ctx context.Context, runID, stage string) ([]domain.LogEntry, error) {
 	args := m.Called(ctx, runID, stage)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]cicd.LogEntry), args.Error(1)
+	return args.Get(0).([]domain.LogEntry), args.Error(1)
 }
 
 func (m *MockProvider) StreamLogs(ctx context.Context, runID, stage string) (io.ReadCloser, error) {
@@ -180,17 +181,17 @@ func (m *MockProvider) StreamLogs(ctx context.Context, runID, stage string) (io.
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
-func (m *MockProvider) ValidateConfig(ctx context.Context, config *cicd.PipelineConfig) error {
+func (m *MockProvider) ValidateConfig(ctx context.Context, config *domain.PipelineConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
-func (m *MockProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*cicd.PipelineRun, error) {
+func (m *MockProvider) ListPipelines(ctx context.Context, workspaceID, projectID string) ([]*domain.PipelineRun, error) {
 	args := m.Called(ctx, workspaceID, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.PipelineRun), args.Error(1)
+	return args.Get(0).([]*domain.PipelineRun), args.Error(1)
 }
 
 func (m *MockProvider) GetVersion() string {
@@ -203,32 +204,32 @@ func (m *MockProvider) IsHealthy() bool {
 	return args.Bool(0)
 }
 
-func (m *MockProvider) GetTemplates(ctx context.Context) ([]*cicd.PipelineTemplate, error) {
+func (m *MockProvider) GetTemplates(ctx context.Context) ([]*domain.PipelineTemplate, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.PipelineTemplate), args.Error(1)
+	return args.Get(0).([]*domain.PipelineTemplate), args.Error(1)
 }
 
-func (m *MockProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*cicd.PipelineConfig, error) {
+func (m *MockProvider) CreateFromTemplate(ctx context.Context, templateID string, params map[string]any) (*domain.PipelineConfig, error) {
 	args := m.Called(ctx, templateID, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.PipelineConfig), args.Error(1)
+	return args.Get(0).(*domain.PipelineConfig), args.Error(1)
 }
 
 type MockProviderFactory struct {
 	mock.Mock
 }
 
-func (m *MockProviderFactory) CreateProvider(providerType string, config *cicd.ProviderConfig) (cicd.Provider, error) {
+func (m *MockProviderFactory) CreateProvider(providerType string, config *domain.ProviderConfig) (domain.Provider, error) {
 	args := m.Called(providerType, config)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(cicd.Provider), args.Error(1)
+	return args.Get(0).(domain.Provider), args.Error(1)
 }
 
 func (m *MockProviderFactory) ListProviders() []string {
@@ -240,20 +241,20 @@ type MockCredentialManager struct {
 	mock.Mock
 }
 
-func (m *MockCredentialManager) StoreGitCredential(workspaceID string, cred *cicd.GitCredential) (*cicd.CredentialInfo, error) {
+func (m *MockCredentialManager) StoreGitCredential(workspaceID string, cred *domain.GitCredential) (*domain.CredentialInfo, error) {
 	args := m.Called(workspaceID, cred)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.CredentialInfo), args.Error(1)
+	return args.Get(0).(*domain.CredentialInfo), args.Error(1)
 }
 
-func (m *MockCredentialManager) StoreRegistryCredential(workspaceID string, cred *cicd.RegistryCredential) (*cicd.CredentialInfo, error) {
+func (m *MockCredentialManager) StoreRegistryCredential(workspaceID string, cred *domain.RegistryCredential) (*domain.CredentialInfo, error) {
 	args := m.Called(workspaceID, cred)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.CredentialInfo), args.Error(1)
+	return args.Get(0).(*domain.CredentialInfo), args.Error(1)
 }
 
 func (m *MockCredentialManager) CreateKubernetesSecret(workspaceID, secretName string, data map[string][]byte) error {
@@ -276,28 +277,28 @@ func (m *MockCredentialManager) DeleteCredential(workspaceID, name string) error
 	return args.Error(0)
 }
 
-func (m *MockCredentialManager) ListCredentials(workspaceID string) ([]*cicd.CredentialInfo, error) {
+func (m *MockCredentialManager) ListCredentials(workspaceID string) ([]*domain.CredentialInfo, error) {
 	args := m.Called(workspaceID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*cicd.CredentialInfo), args.Error(1)
+	return args.Get(0).([]*domain.CredentialInfo), args.Error(1)
 }
 
-func (m *MockCredentialManager) GetGitCredential(workspaceID, name string) (*cicd.GitCredential, error) {
+func (m *MockCredentialManager) GetGitCredential(workspaceID, name string) (*domain.GitCredential, error) {
 	args := m.Called(workspaceID, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.GitCredential), args.Error(1)
+	return args.Get(0).(*domain.GitCredential), args.Error(1)
 }
 
-func (m *MockCredentialManager) GetRegistryCredential(workspaceID, name string) (*cicd.RegistryCredential, error) {
+func (m *MockCredentialManager) GetRegistryCredential(workspaceID, name string) (*domain.RegistryCredential, error) {
 	args := m.Called(workspaceID, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*cicd.RegistryCredential), args.Error(1)
+	return args.Get(0).(*domain.RegistryCredential), args.Error(1)
 }
 
 func (m *MockCredentialManager) GetKubernetesSecret(workspaceID, secretName string) (map[string][]byte, error) {
@@ -320,16 +321,16 @@ func createTestService() (*Service, *MockRepository, *MockProviderFactory, *Mock
 	return service, repo, factory, credManager
 }
 
-func createTestPipelineConfig() cicd.PipelineConfig {
-	return cicd.PipelineConfig{
+func createTestPipelineConfig() domain.PipelineConfig {
+	return domain.PipelineConfig{
 		Name:      "test-pipeline",
 		ProjectID: "project-123",
-		GitRepo: cicd.GitConfig{
+		GitRepo: domain.GitConfig{
 			URL:    "https://github.com/test/repo.git",
 			Branch: "main",
 		},
-		BuildConfig: &cicd.BuildConfig{
-			Type:           cicd.BuildTypeDocker,
+		BuildConfig: &domain.BuildConfig{
+			Type:           domain.BuildTypeDocker,
 			DockerfilePath: "Dockerfile",
 			BuildContext:   ".",
 		},
@@ -348,20 +349,20 @@ func TestCreatePipeline(t *testing.T) {
 
 		mockProvider := &MockProvider{}
 		mockProvider.On("GetName").Return("tekton")
-		mockProvider.On("ValidateConfig", ctx, mock.AnythingOfType("*cicd.PipelineConfig")).Return(nil)
+		mockProvider.On("ValidateConfig", ctx, mock.AnythingOfType("*domain.PipelineConfig")).Return(nil)
 		
 		runID := uuid.New().String()
-		expectedRun := &cicd.PipelineRun{
+		expectedRun := &domain.PipelineRun{
 			ID:        runID,
-			Status:    cicd.PipelineStatusRunning,
+			Status:    domain.PipelineStatusRunning,
 			StartedAt: time.Now(),
 		}
-		mockProvider.On("RunPipeline", ctx, mock.AnythingOfType("*cicd.PipelineConfig")).Return(expectedRun, nil)
+		mockProvider.On("RunPipeline", ctx, mock.AnythingOfType("*domain.PipelineConfig")).Return(expectedRun, nil)
 
-		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*cicd.ProviderConfig")).Return(mockProvider, nil)
+		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*domain.ProviderConfig")).Return(mockProvider, nil)
 		
-		repo.On("CreatePipeline", ctx, mock.AnythingOfType("*cicd.Pipeline")).Return(nil)
-		repo.On("CreatePipelineRun", ctx, mock.AnythingOfType("*cicd.PipelineRunRecord")).Return(nil)
+		repo.On("CreatePipeline", ctx, mock.AnythingOfType("*domain.Pipeline")).Return(nil)
+		repo.On("CreatePipelineRun", ctx, mock.AnythingOfType("*domain.PipelineRunRecord")).Return(nil)
 		repo.On("GetProviderConfig", ctx, workspaceID).Return(nil, errors.New("not found"))
 
 		// Act
@@ -371,7 +372,7 @@ func TestCreatePipeline(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, run)
 		assert.Equal(t, runID, run.ID)
-		assert.Equal(t, cicd.PipelineStatusRunning, run.Status)
+		assert.Equal(t, domain.PipelineStatusRunning, run.Status)
 
 		repo.AssertExpectations(t)
 		factory.AssertExpectations(t)
@@ -386,9 +387,9 @@ func TestCreatePipeline(t *testing.T) {
 
 		mockProvider := &MockProvider{}
 		mockProvider.On("GetName").Return("tekton")
-		mockProvider.On("ValidateConfig", ctx, mock.AnythingOfType("*cicd.PipelineConfig")).Return(errors.New("invalid config"))
+		mockProvider.On("ValidateConfig", ctx, mock.AnythingOfType("*domain.PipelineConfig")).Return(errors.New("invalid config"))
 
-		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*cicd.ProviderConfig")).Return(mockProvider, nil)
+		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*domain.ProviderConfig")).Return(mockProvider, nil)
 		repo.On("GetProviderConfig", ctx, workspaceID).Return(nil, errors.New("not found"))
 
 		// Act
@@ -406,7 +407,7 @@ func TestCreatePipeline(t *testing.T) {
 		workspaceID := "workspace-123"
 		config := createTestPipelineConfig()
 
-		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*cicd.ProviderConfig")).Return(nil, errors.New("provider error"))
+		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*domain.ProviderConfig")).Return(nil, errors.New("provider error"))
 		repo.On("GetProviderConfig", ctx, workspaceID).Return(nil, errors.New("not found"))
 
 		// Act
@@ -427,22 +428,22 @@ func TestGetPipeline(t *testing.T) {
 		runID := "run-123"
 		workspaceID := "workspace-123"
 
-		runRecord := &cicd.PipelineRunRecord{
+		runRecord := &domain.PipelineRunRecord{
 			ID:         pipelineID,
 			PipelineID: "config-123",
 			RunID:      runID,
 			Status:     "running",
 		}
 
-		pipeline := &cicd.Pipeline{
+		pipeline := &domain.Pipeline{
 			ID:          "config-123",
 			WorkspaceID: workspaceID,
 			Provider:    "tekton",
 		}
 
-		expectedRun := &cicd.PipelineRun{
+		expectedRun := &domain.PipelineRun{
 			ID:     runID,
-			Status: cicd.PipelineStatusSucceeded,
+			Status: domain.PipelineStatusSucceeded,
 		}
 
 		mockProvider := &MockProvider{}
@@ -451,7 +452,7 @@ func TestGetPipeline(t *testing.T) {
 		repo.On("GetPipelineRun", ctx, pipelineID).Return(runRecord, nil)
 		repo.On("GetPipeline", ctx, "config-123").Return(pipeline, nil)
 		repo.On("GetProviderConfig", ctx, workspaceID).Return(nil, errors.New("not found"))
-		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*cicd.ProviderConfig")).Return(mockProvider, nil)
+		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*domain.ProviderConfig")).Return(mockProvider, nil)
 
 		// Act
 		run, err := service.GetPipeline(ctx, pipelineID)
@@ -460,7 +461,7 @@ func TestGetPipeline(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, run)
 		assert.Equal(t, runID, run.ID)
-		assert.Equal(t, cicd.PipelineStatusSucceeded, run.Status)
+		assert.Equal(t, domain.PipelineStatusSucceeded, run.Status)
 	})
 
 	t.Run("pipeline not found", func(t *testing.T) {
@@ -488,14 +489,14 @@ func TestCancelPipeline(t *testing.T) {
 		runID := "run-123"
 		workspaceID := "workspace-123"
 
-		runRecord := &cicd.PipelineRunRecord{
+		runRecord := &domain.PipelineRunRecord{
 			ID:         pipelineID,
 			PipelineID: "config-123",
 			RunID:      runID,
 			Status:     "running",
 		}
 
-		pipeline := &cicd.Pipeline{
+		pipeline := &domain.Pipeline{
 			ID:          "config-123",
 			WorkspaceID: workspaceID,
 			Provider:    "tekton",
@@ -507,8 +508,8 @@ func TestCancelPipeline(t *testing.T) {
 		repo.On("GetPipelineRun", ctx, pipelineID).Return(runRecord, nil)
 		repo.On("GetPipeline", ctx, "config-123").Return(pipeline, nil)
 		repo.On("GetProviderConfig", ctx, workspaceID).Return(nil, errors.New("not found"))
-		repo.On("UpdatePipelineRun", ctx, mock.AnythingOfType("*cicd.PipelineRunRecord")).Return(nil)
-		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*cicd.ProviderConfig")).Return(mockProvider, nil)
+		repo.On("UpdatePipelineRun", ctx, mock.AnythingOfType("*domain.PipelineRunRecord")).Return(nil)
+		factory.On("CreateProvider", "tekton", mock.AnythingOfType("*domain.ProviderConfig")).Return(mockProvider, nil)
 
 		// Act
 		err := service.CancelPipeline(ctx, pipelineID)
@@ -548,12 +549,12 @@ func TestCredentialManagement(t *testing.T) {
 		ctx := context.Background()
 		workspaceID := "workspace-123"
 		name := "github-ssh"
-		credential := cicd.GitCredential{
+		credential := domain.GitCredential{
 			Type:   "ssh",
 			SSHKey: "-----BEGIN RSA PRIVATE KEY-----",
 		}
 
-		expectedInfo := &cicd.CredentialInfo{
+		expectedInfo := &domain.CredentialInfo{
 			Name:      name,
 			Type:      "git-ssh",
 			CreatedAt: time.Now(),
@@ -573,13 +574,13 @@ func TestCredentialManagement(t *testing.T) {
 		ctx := context.Background()
 		workspaceID := "workspace-123"
 		name := "dockerhub"
-		credential := cicd.RegistryCredential{
+		credential := domain.RegistryCredential{
 			Registry: "docker.io",
 			Username: "user",
 			Password: "pass",
 		}
 
-		expectedInfo := &cicd.CredentialInfo{
+		expectedInfo := &domain.CredentialInfo{
 			Name:      name,
 			Type:      "registry",
 			CreatedAt: time.Now(),
@@ -599,7 +600,7 @@ func TestCredentialManagement(t *testing.T) {
 		ctx := context.Background()
 		workspaceID := "workspace-123"
 
-		expectedCreds := []*cicd.CredentialInfo{
+		expectedCreds := []*domain.CredentialInfo{
 			{
 				Name:      "github-ssh",
 				Type:      "git-ssh",

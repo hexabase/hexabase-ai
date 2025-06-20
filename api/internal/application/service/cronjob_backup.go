@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
@@ -19,7 +19,7 @@ import (
 type ExtendedService struct {
 	*Service
 	projectService    projectDomain.Service  // Change from Repository to Service
-	backupService     backup.Service
+	backupService     backupDomain.Service
 	monitoringService monitoringDomain.Service
 	workspaceService  workspaceDomain.Service
 	logger            *slog.Logger
@@ -30,7 +30,7 @@ func (s *ExtendedService) CreateApplicationWithBackupPolicy(
 	ctx context.Context,
 	workspaceID string,
 	req *domain.CreateApplicationRequest,
-	backupPolicyReq *backup.CreateBackupPolicyRequest,
+	backupPolicyReq *backupDomain.CreateBackupPolicyRequest,
 ) (*domain.Application, error) {
 	// Validate CronJob type
 	if req.Type != domain.ApplicationTypeCronJob {
@@ -134,9 +134,9 @@ func (s *ExtendedService) TriggerCronJob(ctx context.Context,
 	// Check if backup is enabled
 	if app.Metadata != nil && app.Metadata["backup_enabled"] == "true" {
 		// Trigger backup through the backup service
-		backupReq := backup.TriggerBackupRequest{
+		backupReq := backupDomain.TriggerBackupRequest{
 			ApplicationID: app.ID,
-			BackupType:    backup.BackupTypeFull,
+			BackupType:    backupDomain.BackupTypeFull,
 			Metadata: map[string]interface{}{
 				"triggered_by":        "cronjob",
 				"cronjob_name":        app.Name,

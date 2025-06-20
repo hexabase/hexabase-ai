@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	billingDomain "github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	billingDomain "github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/organization/domain"
 )
 

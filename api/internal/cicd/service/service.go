@@ -1,4 +1,4 @@
-package cicd
+package service
 
 import (
 	"context"
@@ -9,36 +9,36 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 )
 
 // Service implements the CI/CD service interface
 type Service struct {
-	repo              cicd.Repository
-	providerFactory   cicd.ProviderFactory
-	credentialManager cicd.CredentialManager
-	providers         map[string]cicd.Provider
+	repo              domain.Repository
+	providerFactory   domain.ProviderFactory
+	credentialManager domain.CredentialManager
+	providers         map[string]domain.Provider
 	logger            *slog.Logger
 }
 
 // NewService creates a new CI/CD service
 func NewService(
-	repo cicd.Repository,
-	providerFactory cicd.ProviderFactory,
-	credentialManager cicd.CredentialManager,
+	repo domain.Repository,
+	providerFactory domain.ProviderFactory,
+	credentialManager domain.CredentialManager,
 	logger *slog.Logger,
-) cicd.Service {
+) domain.Service {
 	return &Service{
 		repo:              repo,
 		providerFactory:   providerFactory,
 		credentialManager: credentialManager,
-		providers:         make(map[string]cicd.Provider),
+		providers:         make(map[string]domain.Provider),
 		logger:            logger,
 	}
 }
 
 // CreatePipeline creates a new pipeline
-func (s *Service) CreatePipeline(ctx context.Context, workspaceID string, config cicd.PipelineConfig) (*cicd.PipelineRun, error) {
+func (s *Service) CreatePipeline(ctx context.Context, workspaceID string, config domain.PipelineConfig) (*domain.PipelineRun, error) {
 	// Set workspace ID
 	config.WorkspaceID = workspaceID
 
@@ -60,7 +60,7 @@ func (s *Service) CreatePipeline(ctx context.Context, workspaceID string, config
 	}
 
 	// Create pipeline record
-	pipeline := &cicd.Pipeline{
+	pipeline := &domain.Pipeline{
 		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		ProjectID:   config.ProjectID,
@@ -83,7 +83,7 @@ func (s *Service) CreatePipeline(ctx context.Context, workspaceID string, config
 	}
 
 	// Create run record
-	runRecord := &cicd.PipelineRunRecord{
+	runRecord := &domain.PipelineRunRecord{
 		ID:         uuid.New().String(),
 		PipelineID: pipeline.ID,
 		RunID:      run.ID,
@@ -100,7 +100,7 @@ func (s *Service) CreatePipeline(ctx context.Context, workspaceID string, config
 }
 
 // GetPipeline retrieves a pipeline by ID
-func (s *Service) GetPipeline(ctx context.Context, pipelineID string) (*cicd.PipelineRun, error) {
+func (s *Service) GetPipeline(ctx context.Context, pipelineID string) (*domain.PipelineRun, error) {
 	// Get pipeline run record
 	runRecord, err := s.repo.GetPipelineRun(ctx, pipelineID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (s *Service) GetPipeline(ctx context.Context, pipelineID string) (*cicd.Pip
 }
 
 // ListPipelines lists pipelines for a workspace/project
-func (s *Service) ListPipelines(ctx context.Context, workspaceID, projectID string, limit int) ([]*cicd.PipelineRun, error) {
+func (s *Service) ListPipelines(ctx context.Context, workspaceID, projectID string, limit int) ([]*domain.PipelineRun, error) {
 	// Get provider
 	provider, err := s.getProviderForWorkspace(ctx, workspaceID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *Service) CancelPipeline(ctx context.Context, pipelineID string) error {
 	}
 
 	// Update run record
-	runRecord.Status = string(cicd.PipelineStatusCancelled)
+	runRecord.Status = string(domain.PipelineStatusCancelled)
 	now := time.Now()
 	runRecord.FinishedAt = &now
 	
@@ -198,7 +198,7 @@ func (s *Service) DeletePipeline(ctx context.Context, pipelineID string) error {
 }
 
 // RetryPipeline retries a failed pipeline
-func (s *Service) RetryPipeline(ctx context.Context, pipelineID string) (*cicd.PipelineRun, error) {
+func (s *Service) RetryPipeline(ctx context.Context, pipelineID string) (*domain.PipelineRun, error) {
 	// Get pipeline run record
 	runRecord, err := s.repo.GetPipelineRun(ctx, pipelineID)
 	if err != nil {
@@ -212,7 +212,7 @@ func (s *Service) RetryPipeline(ctx context.Context, pipelineID string) (*cicd.P
 	}
 
 	// Deserialize config
-	var config cicd.PipelineConfig
+	var config domain.PipelineConfig
 	if err := json.Unmarshal([]byte(pipeline.Config), &config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize config: %w", err)
 	}
@@ -222,7 +222,7 @@ func (s *Service) RetryPipeline(ctx context.Context, pipelineID string) (*cicd.P
 }
 
 // GetPipelineLogs retrieves logs for a pipeline
-func (s *Service) GetPipelineLogs(ctx context.Context, pipelineID string, stage, task string) ([]cicd.LogEntry, error) {
+func (s *Service) GetPipelineLogs(ctx context.Context, pipelineID string, stage, task string) ([]domain.LogEntry, error) {
 	// Get pipeline run record
 	runRecord, err := s.repo.GetPipelineRun(ctx, pipelineID)
 	if err != nil {
@@ -270,7 +270,7 @@ func (s *Service) StreamPipelineLogs(ctx context.Context, pipelineID string, sta
 }
 
 // ListTemplates lists available pipeline templates
-func (s *Service) ListTemplates(ctx context.Context, provider string) ([]*cicd.PipelineTemplate, error) {
+func (s *Service) ListTemplates(ctx context.Context, provider string) ([]*domain.PipelineTemplate, error) {
 	// List from repository
 	templates, err := s.repo.ListTemplates(ctx, provider)
 	if err != nil {
@@ -292,12 +292,12 @@ func (s *Service) ListTemplates(ctx context.Context, provider string) ([]*cicd.P
 }
 
 // GetTemplate retrieves a template by ID
-func (s *Service) GetTemplate(ctx context.Context, templateID string) (*cicd.PipelineTemplate, error) {
+func (s *Service) GetTemplate(ctx context.Context, templateID string) (*domain.PipelineTemplate, error) {
 	return s.repo.GetTemplate(ctx, templateID)
 }
 
 // CreatePipelineFromTemplate creates a pipeline from a template
-func (s *Service) CreatePipelineFromTemplate(ctx context.Context, workspaceID, templateID string, params map[string]any) (*cicd.PipelineRun, error) {
+func (s *Service) CreatePipelineFromTemplate(ctx context.Context, workspaceID, templateID string, params map[string]any) (*domain.PipelineRun, error) {
 	// Get template
 	template, err := s.repo.GetTemplate(ctx, templateID)
 	if err != nil {
@@ -321,7 +321,7 @@ func (s *Service) CreatePipelineFromTemplate(ctx context.Context, workspaceID, t
 }
 
 // CreateGitCredential stores Git credentials
-func (s *Service) CreateGitCredential(ctx context.Context, workspaceID, name string, credential cicd.GitCredential) error {
+func (s *Service) CreateGitCredential(ctx context.Context, workspaceID, name string, credential domain.GitCredential) error {
 	// Store in Kubernetes
 	credInfo, err := s.credentialManager.StoreGitCredential(workspaceID, &credential)
 	if err != nil {
@@ -335,7 +335,7 @@ func (s *Service) CreateGitCredential(ctx context.Context, workspaceID, name str
 }
 
 // CreateRegistryCredential stores container registry credentials
-func (s *Service) CreateRegistryCredential(ctx context.Context, workspaceID, name string, credential cicd.RegistryCredential) error {
+func (s *Service) CreateRegistryCredential(ctx context.Context, workspaceID, name string, credential domain.RegistryCredential) error {
 	// Store in Kubernetes
 	credInfo, err := s.credentialManager.StoreRegistryCredential(workspaceID, &credential)
 	if err != nil {
@@ -349,14 +349,14 @@ func (s *Service) CreateRegistryCredential(ctx context.Context, workspaceID, nam
 }
 
 // ListCredentials lists available credentials
-func (s *Service) ListCredentials(ctx context.Context, workspaceID string) ([]cicd.CredentialInfo, error) {
+func (s *Service) ListCredentials(ctx context.Context, workspaceID string) ([]domain.CredentialInfo, error) {
 	creds, err := s.credentialManager.ListCredentials(workspaceID)
 	if err != nil {
 		return nil, err
 	}
 	
 	// Convert []*CredentialInfo to []CredentialInfo
-	result := make([]cicd.CredentialInfo, len(creds))
+	result := make([]domain.CredentialInfo, len(creds))
 	for i, cred := range creds {
 		result[i] = *cred
 	}
@@ -369,12 +369,12 @@ func (s *Service) DeleteCredential(ctx context.Context, workspaceID, name string
 }
 
 // ListProviders lists available CI/CD providers
-func (s *Service) ListProviders(ctx context.Context) ([]cicd.ProviderInfo, error) {
+func (s *Service) ListProviders(ctx context.Context) ([]domain.ProviderInfo, error) {
 	providers := s.providerFactory.ListProviders()
 	
-	infos := make([]cicd.ProviderInfo, len(providers))
+	infos := make([]domain.ProviderInfo, len(providers))
 	for i, name := range providers {
-		infos[i] = cicd.ProviderInfo{
+		infos[i] = domain.ProviderInfo{
 			Name:        name,
 			DisplayName: s.getProviderDisplayName(name),
 			Description: s.getProviderDescription(name),
@@ -387,14 +387,14 @@ func (s *Service) ListProviders(ctx context.Context) ([]cicd.ProviderInfo, error
 }
 
 // GetProviderConfig retrieves provider configuration for a workspace
-func (s *Service) GetProviderConfig(ctx context.Context, workspaceID string) (*cicd.ProviderConfig, error) {
+func (s *Service) GetProviderConfig(ctx context.Context, workspaceID string) (*domain.ProviderConfig, error) {
 	config, err := s.repo.GetProviderConfig(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("provider config not found: %w", err)
 	}
 
 	// Deserialize config
-	var providerConfig cicd.ProviderConfig
+	var providerConfig domain.ProviderConfig
 	if err := json.Unmarshal([]byte(config.Config), &providerConfig); err != nil {
 		return nil, fmt.Errorf("failed to deserialize config: %w", err)
 	}
@@ -403,7 +403,7 @@ func (s *Service) GetProviderConfig(ctx context.Context, workspaceID string) (*c
 }
 
 // SetProviderConfig sets provider configuration for a workspace
-func (s *Service) SetProviderConfig(ctx context.Context, workspaceID string, config cicd.ProviderConfig) error {
+func (s *Service) SetProviderConfig(ctx context.Context, workspaceID string, config domain.ProviderConfig) error {
 	// Validate provider type
 	if !s.isValidProvider(config.Type) {
 		return fmt.Errorf("invalid provider type: %s", config.Type)
@@ -416,7 +416,7 @@ func (s *Service) SetProviderConfig(ctx context.Context, workspaceID string, con
 	}
 
 	// Save to database
-	workspaceConfig := &cicd.WorkspaceProviderConfig{
+	workspaceConfig := &domain.WorkspaceProviderConfig{
 		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		Provider:    config.Type,
@@ -431,12 +431,12 @@ func (s *Service) SetProviderConfig(ctx context.Context, workspaceID string, con
 
 // Helper methods
 
-func (s *Service) getProviderForWorkspace(ctx context.Context, workspaceID string) (cicd.Provider, error) {
+func (s *Service) getProviderForWorkspace(ctx context.Context, workspaceID string) (domain.Provider, error) {
 	// Get provider config
 	config, err := s.GetProviderConfig(ctx, workspaceID)
 	if err != nil {
 		// Default to Tekton if no config
-		config = &cicd.ProviderConfig{
+		config = &domain.ProviderConfig{
 			Type:     "tekton",
 			Settings: map[string]any{},
 		}
@@ -445,14 +445,14 @@ func (s *Service) getProviderForWorkspace(ctx context.Context, workspaceID strin
 	return s.getProvider(ctx, config.Type)
 }
 
-func (s *Service) getProvider(ctx context.Context, providerType string) (cicd.Provider, error) {
+func (s *Service) getProvider(ctx context.Context, providerType string) (domain.Provider, error) {
 	// Check cache
 	if provider, ok := s.providers[providerType]; ok {
 		return provider, nil
 	}
 
 	// Create provider
-	provider, err := s.providerFactory.CreateProvider(providerType, &cicd.ProviderConfig{
+	provider, err := s.providerFactory.CreateProvider(providerType, &domain.ProviderConfig{
 		Type:     providerType,
 		Settings: map[string]any{},
 	})

@@ -25,11 +25,6 @@ import (
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
 
-	// Backup domain (migrated)
-
-	backupRepo "github.com/hexabase/hexabase-ai/api/internal/backup/repository"
-	backupSvc "github.com/hexabase/hexabase-ai/api/internal/backup/service"
-
 	// Organization domain
 	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
@@ -60,9 +55,20 @@ import (
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/monitoring/service"
 
 	// Legacy domains that haven't been migrated yet
+
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+
+	// Backup (migrated)
+	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
+	backupHandler "github.com/hexabase/hexabase-ai/api/internal/backup/handler"
+	backupRepo "github.com/hexabase/hexabase-ai/api/internal/backup/repository"
+	backupSvc "github.com/hexabase/hexabase-ai/api/internal/backup/service"
+
+	// Billing (migrated)
+	billingDomain "github.com/hexabase/hexabase-ai/api/internal/billing/domain"
+	billingHandler "github.com/hexabase/hexabase-ai/api/internal/billing/handler"
+	billingRepo "github.com/hexabase/hexabase-ai/api/internal/billing/repository"
+	billingSvc "github.com/hexabase/hexabase-ai/api/internal/billing/service"
 
 	// Logs (migrated)
 	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
@@ -76,16 +82,16 @@ import (
 	functionSvc "github.com/hexabase/hexabase-ai/api/internal/function/service"
 
 	// Legacy repositories that haven't been migrated yet
+	cicdDomain "github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
+	cicdHandler "github.com/hexabase/hexabase-ai/api/internal/cicd/handler"
+	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/cicd/repository"
+	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/cicd/service"
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
-	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
-	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	// Legacy services that haven't been migrated yet
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
-	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
-	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -148,7 +154,7 @@ var BillingSet = wire.NewSet(
 	billingRepo.NewPostgresRepository,
 	ProvideStripeRepository,
 	billingSvc.NewService,
-	handlers.NewBillingHandler,
+	billingHandler.NewHandler,
 )
 
 var MonitoringSet = wire.NewSet(
@@ -173,7 +179,7 @@ var CICDSet = wire.NewSet(
 	ProvideCICDProviderFactory,
 	ProvideCICDCredentialManager,
 	cicdSvc.NewService,
-	handlers.NewCICDHandler,
+	cicdHandler.NewHandler,
 )
 
 var FunctionSet = wire.NewSet(
@@ -211,13 +217,13 @@ type App struct {
 	ApplicationHandler  *applicationHandler.ApplicationHandler
 	AuthHandler        *authHandler.Handler
 	BackupHandler      *backupHandler.Handler
-	BillingHandler     *handlers.BillingHandler
+	BillingHandler     *billingHandler.Handler
+	CICDHandler        *cicdHandler.Handler
 	MonitoringHandler  *monitoringHandler.Handler
 	NodeHandler        *nodeHandler.Handler
 	OrganizationHandler *orgHandler.Handler
 	ProjectHandler     *projectHandler.Handler
 	WorkspaceHandler   *workspaceHandler.Handler
-	CICDHandler        *handlers.CICDHandler
 	FunctionHandler    *functionHandler.Handler
 	AIOpsProxyHandler  *handlers.AIOpsProxyHandler
 	InternalHandler    *handlers.InternalHandler
@@ -228,13 +234,13 @@ func NewApp(
 	appH *applicationHandler.ApplicationHandler,
 	authH *authHandler.Handler,
 	backupH *backupHandler.Handler,
-	billH *handlers.BillingHandler,
+	billH *billingHandler.Handler,
+	cicdH *cicdHandler.Handler,
 	monH *monitoringHandler.Handler,
 	nodeH *nodeHandler.Handler,
 	orgH *orgHandler.Handler,
 	projH *projectHandler.Handler,
 	workH *workspaceHandler.Handler,
-	cicdH *handlers.CICDHandler,
 	funcH *functionHandler.Handler,
 	aiopsH *handlers.AIOpsProxyHandler,
 	internalHandler *handlers.InternalHandler,
@@ -245,12 +251,12 @@ func NewApp(
 		AuthHandler:        authH,
 		BackupHandler:      backupH,
 		BillingHandler:     billH,
+		CICDHandler:        cicdH,
 		MonitoringHandler:  monH,
 		NodeHandler:        nodeH,
 		OrganizationHandler: orgH,
 		ProjectHandler:     projH,
 		WorkspaceHandler:   workH,
-		CICDHandler:        cicdH,
 		FunctionHandler:    funcH,
 		AIOpsProxyHandler:  aiopsH,
 		InternalHandler:    internalHandler,
@@ -290,10 +296,10 @@ func ProvideAIOpsServiceURL(cfg *config.Config) (AIOpsServiceURL, error) {
 	}
 	return AIOpsServiceURL("http://ai-ops-service.ai-ops.svc.cluster.local:8000"), nil 
 }
-func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSecret) billing.StripeRepository { return billingRepo.NewStripeRepository(string(apiKey), string(webhookSecret)) }
+func ProvideStripeRepository(apiKey StripeAPIKey, webhookSecret StripeWebhookSecret) billingDomain.StripeRepository { return billingRepo.NewStripeRepository(string(apiKey), string(webhookSecret)) }
 func ProvideCICDNamespace() CICDNamespace { return CICDNamespace("hexabase-cicd") }
-func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace CICDNamespace) cicd.ProviderFactory { return cicdRepo.NewProviderFactory(kubeClient, k8sConfig, string(namespace)) }
-func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicd.CredentialManager { return cicdRepo.NewKubernetesCredentialManager(kubeClient, string(namespace)) }
+func ProvideCICDProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace CICDNamespace) cicdDomain.ProviderFactory { return cicdRepo.NewProviderFactory(kubeClient, k8sConfig, string(namespace)) }
+func ProvideCICDCredentialManager(kubeClient kubernetes.Interface, namespace CICDNamespace) cicdDomain.CredentialManager { return cicdRepo.NewKubernetesCredentialManager(kubeClient, string(namespace)) }
 func ProvideFunctionProviderFactory(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) functionDomain.ProviderFactory {
 	return functionRepo.NewProviderFactory(kubeClient, dynamicClient)
 }
@@ -349,10 +355,7 @@ func ProvideBackupProxmoxRepository(cfg *config.Config) backupDomain.ProxmoxRepo
 }
 
 func ProvideBackupEncryptionKey(cfg *config.Config) string {
-	// TODO: Get encryption key from config
-	if cfg.Backup.EncryptionKey != "" {
-		return cfg.Backup.EncryptionKey
-	}
+	// TODO: Get encryption key from config - cfg.Backup not yet implemented
 	return "your-backup-encryption-key"
 }
 
@@ -382,7 +385,7 @@ func ProvideInternalHandler(
 	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
-	cicdSvc cicd.Service,
+	cicdSvc cicdDomain.Service,
 	backupSvc backupDomain.Service,
 	logger *slog.Logger,
 ) *handlers.InternalHandler {

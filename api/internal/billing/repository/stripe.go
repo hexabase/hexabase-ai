@@ -1,4 +1,4 @@
-package billing
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 	"github.com/stripe/stripe-go/v74"
 	"github.com/stripe/stripe-go/v74/customer"
 	"github.com/stripe/stripe-go/v74/invoice"
@@ -21,7 +21,7 @@ type stripeRepository struct {
 }
 
 // NewStripeRepository creates a new Stripe billing repository
-func NewStripeRepository(apiKey, webhookSecret string) billing.StripeRepository {
+func NewStripeRepository(apiKey, webhookSecret string) domain.StripeRepository {
 	stripe.Key = apiKey
 	return &stripeRepository{
 		apiKey:        apiKey,
@@ -29,7 +29,7 @@ func NewStripeRepository(apiKey, webhookSecret string) billing.StripeRepository 
 	}
 }
 
-func (r *stripeRepository) CreateCustomer(ctx context.Context, org *billing.Organization) (string, error) {
+func (r *stripeRepository) CreateCustomer(ctx context.Context, org *domain.Organization) (string, error) {
 	params := &stripe.CustomerParams{
 		Name:  stripe.String(org.DisplayName),
 		Email: stripe.String(org.BillingEmail),
@@ -44,7 +44,7 @@ func (r *stripeRepository) CreateCustomer(ctx context.Context, org *billing.Orga
 	return cust.ID, nil
 }
 
-func (r *stripeRepository) UpdateCustomer(ctx context.Context, customerID string, org *billing.Organization) error {
+func (r *stripeRepository) UpdateCustomer(ctx context.Context, customerID string, org *domain.Organization) error {
 	params := &stripe.CustomerParams{
 		Name:  stripe.String(org.DisplayName),
 		Email: stripe.String(org.BillingEmail),
@@ -67,7 +67,7 @@ func (r *stripeRepository) DeleteCustomer(ctx context.Context, customerID string
 	return nil
 }
 
-func (r *stripeRepository) CreateStripeSubscription(ctx context.Context, customerID, priceID string) (*billing.StripeSubscription, error) {
+func (r *stripeRepository) CreateStripeSubscription(ctx context.Context, customerID, priceID string) (*domain.StripeSubscription, error) {
 	params := &stripe.SubscriptionParams{
 		Customer: stripe.String(customerID),
 		Items: []*stripe.SubscriptionItemsParams{
@@ -173,7 +173,7 @@ func (r *stripeRepository) SetDefaultPaymentMethod(ctx context.Context, customer
 	return nil
 }
 
-func (r *stripeRepository) CreateInvoice(ctx context.Context, customerID string) (*billing.StripeInvoice, error) {
+func (r *stripeRepository) CreateInvoice(ctx context.Context, customerID string) (*domain.StripeInvoice, error) {
 	params := &stripe.InvoiceParams{
 		Customer: stripe.String(customerID),
 	}
@@ -213,7 +213,7 @@ func (r *stripeRepository) VoidInvoice(ctx context.Context, invoiceID string) er
 	return nil
 }
 
-func (r *stripeRepository) ConstructWebhookEvent(payload []byte, signature string) (*billing.StripeEvent, error) {
+func (r *stripeRepository) ConstructWebhookEvent(payload []byte, signature string) (*domain.StripeEvent, error) {
 	event, err := webhook.ConstructEvent(payload, signature, r.webhookSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct webhook event: %w", err)
@@ -225,7 +225,7 @@ func (r *stripeRepository) ConstructWebhookEvent(payload []byte, signature strin
 		return nil, fmt.Errorf("failed to unmarshal event data: %w", err)
 	}
 
-	return &billing.StripeEvent{
+	return &domain.StripeEvent{
 		ID:   event.ID,
 		Type: string(event.Type),
 		Data: data,
@@ -234,14 +234,14 @@ func (r *stripeRepository) ConstructWebhookEvent(payload []byte, signature strin
 
 // Helper functions
 
-func (r *stripeRepository) convertStripeSubscription(sub *stripe.Subscription) *billing.StripeSubscription {
-	stripeSub := &billing.StripeSubscription{
+func (r *stripeRepository) convertStripeSubscription(sub *stripe.Subscription) *domain.StripeSubscription {
+	stripeSub := &domain.StripeSubscription{
 		ID:                 sub.ID,
 		CustomerID:         sub.Customer.ID,
 		Status:             string(sub.Status),
 		CurrentPeriodStart: time.Unix(sub.CurrentPeriodStart, 0),
 		CurrentPeriodEnd:   time.Unix(sub.CurrentPeriodEnd, 0),
-		Items:              []billing.StripeSubscriptionItem{},
+		Items:              []domain.StripeSubscriptionItem{},
 	}
 
 	if sub.CancelAt > 0 {
@@ -250,7 +250,7 @@ func (r *stripeRepository) convertStripeSubscription(sub *stripe.Subscription) *
 	}
 
 	for _, item := range sub.Items.Data {
-		stripeSub.Items = append(stripeSub.Items, billing.StripeSubscriptionItem{
+		stripeSub.Items = append(stripeSub.Items, domain.StripeSubscriptionItem{
 			ID:       item.ID,
 			PriceID:  item.Price.ID,
 			Quantity: item.Quantity,
@@ -260,8 +260,8 @@ func (r *stripeRepository) convertStripeSubscription(sub *stripe.Subscription) *
 	return stripeSub
 }
 
-func (r *stripeRepository) convertStripeInvoice(inv *stripe.Invoice) *billing.StripeInvoice {
-	stripeInv := &billing.StripeInvoice{
+func (r *stripeRepository) convertStripeInvoice(inv *stripe.Invoice) *domain.StripeInvoice {
+	stripeInv := &domain.StripeInvoice{
 		ID:          inv.ID,
 		Number:      inv.Number,
 		CustomerID:  inv.Customer.ID,
@@ -271,11 +271,11 @@ func (r *stripeRepository) convertStripeInvoice(inv *stripe.Invoice) *billing.St
 		PeriodStart: time.Unix(inv.PeriodStart, 0),
 		PeriodEnd:   time.Unix(inv.PeriodEnd, 0),
 		DueDate:     time.Unix(inv.DueDate, 0),
-		Lines:       []billing.StripeLineItem{},
+		Lines:       []domain.StripeLineItem{},
 	}
 
 	for _, line := range inv.Lines.Data {
-		stripeInv.Lines = append(stripeInv.Lines, billing.StripeLineItem{
+		stripeInv.Lines = append(stripeInv.Lines, domain.StripeLineItem{
 			Description: line.Description,
 			Amount:      line.Amount,
 			Quantity:    line.Quantity,

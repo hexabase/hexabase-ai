@@ -1,4 +1,4 @@
-package billing
+package service
 
 import (
 	"context"
@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 )
 
 type service struct {
-	repo       billing.Repository
-	stripeRepo billing.StripeRepository
+	repo       domain.Repository
+	stripeRepo domain.StripeRepository
 	logger     *slog.Logger
 }
 
 // NewService creates a new billing service
 func NewService(
-	repo billing.Repository,
-	stripeRepo billing.StripeRepository,
+	repo domain.Repository,
+	stripeRepo domain.StripeRepository,
 	logger *slog.Logger,
-) billing.Service {
+) domain.Service {
 	return &service{
 		repo:       repo,
 		stripeRepo: stripeRepo,
@@ -29,7 +29,7 @@ func NewService(
 	}
 }
 
-func (s *service) CreateSubscription(ctx context.Context, orgID string, req *billing.CreateSubscriptionRequest) (*billing.Subscription, error) {
+func (s *service) CreateSubscription(ctx context.Context, orgID string, req *domain.CreateSubscriptionRequest) (*domain.Subscription, error) {
 	// Get organization
 	org, err := s.repo.GetOrganization(ctx, orgID)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s *service) CreateSubscription(ctx context.Context, orgID string, req *bil
 	}
 
 	// Create subscription record
-	sub := &billing.Subscription{
+	sub := &domain.Subscription{
 		ID:                uuid.New().String(),
 		OrganizationID:    orgID,
 		PlanID:            req.PlanID,
@@ -69,7 +69,7 @@ func (s *service) CreateSubscription(ctx context.Context, orgID string, req *bil
 	return sub, nil
 }
 
-func (s *service) GetSubscription(ctx context.Context, subscriptionID string) (*billing.Subscription, error) {
+func (s *service) GetSubscription(ctx context.Context, subscriptionID string) (*domain.Subscription, error) {
 	sub, err := s.repo.GetSubscription(ctx, subscriptionID)
 	if err != nil {
 		return nil, fmt.Errorf("subscription not found: %w", err)
@@ -86,7 +86,7 @@ func (s *service) GetSubscription(ctx context.Context, subscriptionID string) (*
 	return sub, nil
 }
 
-func (s *service) GetOrganizationSubscription(ctx context.Context, orgID string) (*billing.Subscription, error) {
+func (s *service) GetOrganizationSubscription(ctx context.Context, orgID string) (*domain.Subscription, error) {
 	sub, err := s.repo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("subscription not found: %w", err)
@@ -103,7 +103,7 @@ func (s *service) GetOrganizationSubscription(ctx context.Context, orgID string)
 	return sub, nil
 }
 
-func (s *service) UpdateSubscription(ctx context.Context, subscriptionID string, req *billing.UpdateSubscriptionRequest) (*billing.Subscription, error) {
+func (s *service) UpdateSubscription(ctx context.Context, subscriptionID string, req *domain.UpdateSubscriptionRequest) (*domain.Subscription, error) {
 	sub, err := s.repo.GetSubscription(ctx, subscriptionID)
 	if err != nil {
 		return nil, fmt.Errorf("subscription not found: %w", err)
@@ -138,7 +138,7 @@ func (s *service) UpdateSubscription(ctx context.Context, subscriptionID string,
 	return sub, nil
 }
 
-func (s *service) CancelSubscription(ctx context.Context, subscriptionID string, req *billing.CancelSubscriptionRequest) error {
+func (s *service) CancelSubscription(ctx context.Context, subscriptionID string, req *domain.CancelSubscriptionRequest) error {
 	sub, err := s.repo.GetSubscription(ctx, subscriptionID)
 	if err != nil {
 		return fmt.Errorf("subscription not found: %w", err)
@@ -168,7 +168,7 @@ func (s *service) CancelSubscription(ctx context.Context, subscriptionID string,
 	return nil
 }
 
-func (s *service) ReactivateSubscription(ctx context.Context, subscriptionID string) (*billing.Subscription, error) {
+func (s *service) ReactivateSubscription(ctx context.Context, subscriptionID string) (*domain.Subscription, error) {
 	sub, err := s.repo.GetSubscription(ctx, subscriptionID)
 	if err != nil {
 		return nil, fmt.Errorf("subscription not found: %w", err)
@@ -199,15 +199,15 @@ func (s *service) ReactivateSubscription(ctx context.Context, subscriptionID str
 	return sub, nil
 }
 
-func (s *service) GetPlan(ctx context.Context, planID string) (*billing.Plan, error) {
+func (s *service) GetPlan(ctx context.Context, planID string) (*domain.Plan, error) {
 	return s.repo.GetPlan(ctx, planID)
 }
 
-func (s *service) ListPlans(ctx context.Context) ([]*billing.Plan, error) {
+func (s *service) ListPlans(ctx context.Context) ([]*domain.Plan, error) {
 	return s.repo.ListPlans(ctx, true)
 }
 
-func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID string) (*billing.PlanComparison, error) {
+func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID string) (*domain.PlanComparison, error) {
 	currentPlan, err := s.repo.GetPlan(ctx, currentPlanID)
 	if err != nil {
 		return nil, fmt.Errorf("current plan not found: %w", err)
@@ -218,10 +218,10 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		return nil, fmt.Errorf("target plan not found: %w", err)
 	}
 
-	comparison := &billing.PlanComparison{
+	comparison := &domain.PlanComparison{
 		CurrentPlan: currentPlan,
 		TargetPlan:  targetPlan,
-		Changes:     make(map[string]billing.ComparisonItem),
+		Changes:     make(map[string]domain.ComparisonItem),
 		IsUpgrade:   targetPlan.Price > currentPlan.Price,
 		PriceDiff:   targetPlan.Price - currentPlan.Price,
 	}
@@ -229,7 +229,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 	// Compare limits
 	if currentPlan.Limits != nil && targetPlan.Limits != nil {
 		// Compare workspaces
-		comparison.Changes["workspaces"] = billing.ComparisonItem{
+		comparison.Changes["workspaces"] = domain.ComparisonItem{
 			Feature: "workspaces",
 			Current: currentPlan.Limits.Workspaces,
 			Target:  targetPlan.Limits.Workspaces,
@@ -237,7 +237,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare projects
-		comparison.Changes["projects"] = billing.ComparisonItem{
+		comparison.Changes["projects"] = domain.ComparisonItem{
 			Feature: "projects",
 			Current: currentPlan.Limits.Projects,
 			Target:  targetPlan.Limits.Projects,
@@ -245,7 +245,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare users
-		comparison.Changes["users"] = billing.ComparisonItem{
+		comparison.Changes["users"] = domain.ComparisonItem{
 			Feature: "users",
 			Current: currentPlan.Limits.Users,
 			Target:  targetPlan.Limits.Users,
@@ -253,7 +253,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare CPU cores
-		comparison.Changes["cpu_cores"] = billing.ComparisonItem{
+		comparison.Changes["cpu_cores"] = domain.ComparisonItem{
 			Feature: "cpu_cores",
 			Current: currentPlan.Limits.CPUCores,
 			Target:  targetPlan.Limits.CPUCores,
@@ -261,7 +261,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare memory
-		comparison.Changes["memory_gb"] = billing.ComparisonItem{
+		comparison.Changes["memory_gb"] = domain.ComparisonItem{
 			Feature: "memory_gb",
 			Current: currentPlan.Limits.MemoryGB,
 			Target:  targetPlan.Limits.MemoryGB,
@@ -269,7 +269,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare storage
-		comparison.Changes["storage_gb"] = billing.ComparisonItem{
+		comparison.Changes["storage_gb"] = domain.ComparisonItem{
 			Feature: "storage_gb",
 			Current: currentPlan.Limits.StorageGB,
 			Target:  targetPlan.Limits.StorageGB,
@@ -277,7 +277,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare bandwidth
-		comparison.Changes["bandwidth_gb"] = billing.ComparisonItem{
+		comparison.Changes["bandwidth_gb"] = domain.ComparisonItem{
 			Feature: "bandwidth_gb",
 			Current: currentPlan.Limits.BandwidthGB,
 			Target:  targetPlan.Limits.BandwidthGB,
@@ -285,7 +285,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 		}
 
 		// Compare support level
-		comparison.Changes["support_level"] = billing.ComparisonItem{
+		comparison.Changes["support_level"] = domain.ComparisonItem{
 			Feature: "support_level",
 			Current: currentPlan.Limits.SupportLevel,
 			Target:  targetPlan.Limits.SupportLevel,
@@ -296,7 +296,7 @@ func (s *service) ComparePlans(ctx context.Context, currentPlanID, targetPlanID 
 	return comparison, nil
 }
 
-func (s *service) AddPaymentMethod(ctx context.Context, orgID string, req *billing.AddPaymentMethodRequest) (*billing.PaymentMethod, error) {
+func (s *service) AddPaymentMethod(ctx context.Context, orgID string, req *domain.AddPaymentMethodRequest) (*domain.PaymentMethod, error) {
 	// Get organization
 	org, err := s.repo.GetOrganization(ctx, orgID)
 	if err != nil {
@@ -309,7 +309,7 @@ func (s *service) AddPaymentMethod(ctx context.Context, orgID string, req *billi
 	}
 
 	// Create payment method record
-	method := &billing.PaymentMethod{
+	method := &domain.PaymentMethod{
 		ID:                 uuid.New().String(),
 		OrganizationID:     orgID,
 		StripePaymentMethodID: req.PaymentMethodID,
@@ -336,11 +336,11 @@ func (s *service) AddPaymentMethod(ctx context.Context, orgID string, req *billi
 	return method, nil
 }
 
-func (s *service) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*billing.PaymentMethod, error) {
+func (s *service) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*domain.PaymentMethod, error) {
 	return s.repo.GetPaymentMethod(ctx, paymentMethodID)
 }
 
-func (s *service) ListPaymentMethods(ctx context.Context, orgID string) ([]*billing.PaymentMethod, error) {
+func (s *service) ListPaymentMethods(ctx context.Context, orgID string) ([]*domain.PaymentMethod, error) {
 	return s.repo.ListPaymentMethods(ctx, orgID)
 }
 
@@ -401,7 +401,7 @@ func (s *service) RemovePaymentMethod(ctx context.Context, paymentMethodID strin
 	return nil
 }
 
-func (s *service) GetInvoice(ctx context.Context, invoiceID string) (*billing.Invoice, error) {
+func (s *service) GetInvoice(ctx context.Context, invoiceID string) (*domain.Invoice, error) {
 	invoice, err := s.repo.GetInvoice(ctx, invoiceID)
 	if err != nil {
 		return nil, fmt.Errorf("invoice not found: %w", err)
@@ -418,18 +418,18 @@ func (s *service) GetInvoice(ctx context.Context, invoiceID string) (*billing.In
 	return invoice, nil
 }
 
-func (s *service) ListInvoices(ctx context.Context, orgID string, filter billing.InvoiceFilter) ([]*billing.Invoice, int, error) {
+func (s *service) ListInvoices(ctx context.Context, orgID string, filter domain.InvoiceFilter) ([]*domain.Invoice, int, error) {
 	return s.repo.ListInvoices(ctx, filter)
 }
 
-func (s *service) GetUpcomingInvoice(ctx context.Context, orgID string) (*billing.Invoice, error) {
+func (s *service) GetUpcomingInvoice(ctx context.Context, orgID string) (*domain.Invoice, error) {
 	sub, err := s.repo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("no active subscription found: %w", err)
 	}
 
 	// Calculate upcoming invoice
-	upcoming := &billing.Invoice{
+	upcoming := &domain.Invoice{
 		ID:             "upcoming",
 		OrganizationID: orgID,
 		SubscriptionID: sub.ID,
@@ -478,7 +478,7 @@ func (s *service) DownloadInvoice(ctx context.Context, invoiceID string) ([]byte
 	return pdfContent, filename, nil
 }
 
-func (s *service) RecordUsage(ctx context.Context, usage *billing.UsageRecord) error {
+func (s *service) RecordUsage(ctx context.Context, usage *domain.UsageRecord) error {
 	usage.ID = uuid.New().String()
 	usage.RecordedAt = time.Now()
 
@@ -489,7 +489,7 @@ func (s *service) RecordUsage(ctx context.Context, usage *billing.UsageRecord) e
 	return nil
 }
 
-func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.CurrentUsage, error) {
+func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*domain.CurrentUsage, error) {
 	// Get current subscription
 	sub, err := s.repo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
@@ -508,19 +508,19 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 		return nil, fmt.Errorf("failed to get usage: %w", err)
 	}
 
-	currentUsage := &billing.CurrentUsage{
+	currentUsage := &domain.CurrentUsage{
 		OrganizationID: orgID,
 		PeriodStart:    sub.CurrentPeriodStart,
 		PeriodEnd:      sub.CurrentPeriodEnd,
 		Usage:          usage,
-		ResourceUsage:  make(map[string]billing.Usage),
+		ResourceUsage:  make(map[string]domain.Usage),
 	}
 
 	// Calculate usage based on plan limits
 	if plan.Limits != nil {
 		// CPU usage
 		if cpuUsed, ok := usage["cpu_cores"]; ok {
-			currentUsage.ResourceUsage["cpu_cores"] = billing.Usage{
+			currentUsage.ResourceUsage["cpu_cores"] = domain.Usage{
 				Used:  cpuUsed,
 				Limit: float64(plan.Limits.CPUCores),
 				Unit:  "cores",
@@ -529,7 +529,7 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 
 		// Memory usage
 		if memUsed, ok := usage["memory_gb"]; ok {
-			currentUsage.ResourceUsage["memory_gb"] = billing.Usage{
+			currentUsage.ResourceUsage["memory_gb"] = domain.Usage{
 				Used:  memUsed,
 				Limit: float64(plan.Limits.MemoryGB),
 				Unit:  "GB",
@@ -538,7 +538,7 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 
 		// Storage usage
 		if storageUsed, ok := usage["storage_gb"]; ok {
-			currentUsage.ResourceUsage["storage_gb"] = billing.Usage{
+			currentUsage.ResourceUsage["storage_gb"] = domain.Usage{
 				Used:  storageUsed,
 				Limit: float64(plan.Limits.StorageGB),
 				Unit:  "GB",
@@ -547,7 +547,7 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 
 		// Workspace usage
 		if wsUsed, ok := usage["workspaces"]; ok {
-			currentUsage.ResourceUsage["workspaces"] = billing.Usage{
+			currentUsage.ResourceUsage["workspaces"] = domain.Usage{
 				Used:  wsUsed,
 				Limit: float64(plan.Limits.Workspaces),
 				Unit:  "count",
@@ -558,11 +558,11 @@ func (s *service) GetCurrentUsage(ctx context.Context, orgID string) (*billing.C
 	return currentUsage, nil
 }
 
-func (s *service) GetUsageHistory(ctx context.Context, orgID string, filter billing.UsageFilter) ([]*billing.UsageRecord, error) {
+func (s *service) GetUsageHistory(ctx context.Context, orgID string, filter domain.UsageFilter) ([]*domain.UsageRecord, error) {
 	return s.repo.GetUsageRecords(ctx, filter)
 }
 
-func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.OverageReport, error) {
+func (s *service) CalculateOverage(ctx context.Context, orgID string) (*domain.OverageReport, error) {
 	// Get current subscription
 	sub, err := s.repo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
@@ -581,11 +581,11 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 		return nil, fmt.Errorf("failed to get usage: %w", err)
 	}
 
-	report := &billing.OverageReport{
+	report := &domain.OverageReport{
 		OrganizationID: orgID,
 		PeriodStart:    sub.CurrentPeriodStart,
 		PeriodEnd:      sub.CurrentPeriodEnd,
-		Overages:       make(map[string]*billing.OverageDetail),
+		Overages:       make(map[string]*domain.OverageDetail),
 		TotalCost:      0,
 	}
 
@@ -599,7 +599,7 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 				rate := plan.UsageRates["cpu_cores"]
 				cost := overage * rate
 
-				report.Overages["cpu_cores"] = &billing.OverageDetail{
+				report.Overages["cpu_cores"] = &domain.OverageDetail{
 					ResourceType: "cpu_cores",
 					Used:         cpuUsed,
 					Limit:        limit,
@@ -619,7 +619,7 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 				rate := plan.UsageRates["memory_gb"]
 				cost := overage * rate
 
-				report.Overages["memory_gb"] = &billing.OverageDetail{
+				report.Overages["memory_gb"] = &domain.OverageDetail{
 					ResourceType: "memory_gb",
 					Used:         memUsed,
 					Limit:        limit,
@@ -639,7 +639,7 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 				rate := plan.UsageRates["storage_gb"]
 				cost := overage * rate
 
-				report.Overages["storage_gb"] = &billing.OverageDetail{
+				report.Overages["storage_gb"] = &domain.OverageDetail{
 					ResourceType: "storage_gb",
 					Used:         storageUsed,
 					Limit:        limit,
@@ -655,7 +655,7 @@ func (s *service) CalculateOverage(ctx context.Context, orgID string) (*billing.
 	return report, nil
 }
 
-func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billing.BillingOverview, error) {
+func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*domain.BillingOverview, error) {
 	// Get subscription
 	sub, err := s.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
@@ -675,7 +675,7 @@ func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billin
 	}
 
 	// Get recent invoices
-	invoices, _, err := s.ListInvoices(ctx, orgID, billing.InvoiceFilter{
+	invoices, _, err := s.ListInvoices(ctx, orgID, domain.InvoiceFilter{
 		Status:   "paid",
 		PageSize: 5,
 	})
@@ -689,7 +689,7 @@ func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billin
 		s.logger.Warn("failed to get payment methods", "error", err)
 	}
 
-	overview := &billing.BillingOverview{
+	overview := &domain.BillingOverview{
 		Subscription:    sub,
 		CurrentUsage:    currentUsage,
 		UpcomingInvoice: upcomingInvoice,
@@ -700,11 +700,11 @@ func (s *service) GetBillingOverview(ctx context.Context, orgID string) (*billin
 	return overview, nil
 }
 
-func (s *service) GetBillingSettings(ctx context.Context, orgID string) (*billing.BillingSettings, error) {
+func (s *service) GetBillingSettings(ctx context.Context, orgID string) (*domain.BillingSettings, error) {
 	return s.repo.GetBillingSettings(ctx, orgID)
 }
 
-func (s *service) UpdateBillingSettings(ctx context.Context, orgID string, settings *billing.BillingSettings) error {
+func (s *service) UpdateBillingSettings(ctx context.Context, orgID string, settings *domain.BillingSettings) error {
 	settings.OrganizationID = orgID
 	settings.UpdatedAt = time.Now()
 
@@ -843,7 +843,7 @@ func (s *service) ValidatePlanChange(ctx context.Context, orgID, newPlanID strin
 	return nil
 }
 
-func (s *service) CheckUsageLimits(ctx context.Context, orgID string) (*billing.LimitCheckResult, error) {
+func (s *service) CheckUsageLimits(ctx context.Context, orgID string) (*domain.LimitCheckResult, error) {
 	// Get current subscription
 	sub, err := s.repo.GetOrganizationSubscription(ctx, orgID)
 	if err != nil {
@@ -862,9 +862,9 @@ func (s *service) CheckUsageLimits(ctx context.Context, orgID string) (*billing.
 		return nil, fmt.Errorf("failed to get usage: %w", err)
 	}
 
-	result := &billing.LimitCheckResult{
+	result := &domain.LimitCheckResult{
 		WithinLimits: true,
-		Violations:   []*billing.LimitViolation{},
+		Violations:   []*domain.LimitViolation{},
 		Usage:        usage,
 		Limits:       make(map[string]float64),
 	}
@@ -915,7 +915,7 @@ func getChangeTypeString(current, target string) string {
 }
 
 // checkLimit checks if a resource usage exceeds its limit
-func checkLimit(result *billing.LimitCheckResult, resource string, used, limit float64) {
+func checkLimit(result *domain.LimitCheckResult, resource string, used, limit float64) {
 	result.Limits[resource] = limit
 	
 	if limit <= 0 {
@@ -926,7 +926,7 @@ func checkLimit(result *billing.LimitCheckResult, resource string, used, limit f
 	
 	if used > limit {
 		result.WithinLimits = false
-		result.Violations = append(result.Violations, &billing.LimitViolation{
+		result.Violations = append(result.Violations, &domain.LimitViolation{
 			ResourceType: resource,
 			Current:      used,
 			Limit:        limit,
@@ -935,7 +935,7 @@ func checkLimit(result *billing.LimitCheckResult, resource string, used, limit f
 		})
 	} else if percentage > 80 {
 		// Warning for high usage
-		result.Violations = append(result.Violations, &billing.LimitViolation{
+		result.Violations = append(result.Violations, &domain.LimitViolation{
 			ResourceType: resource,
 			Current:      used,
 			Limit:        limit,

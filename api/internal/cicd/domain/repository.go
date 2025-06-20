@@ -1,4 +1,4 @@
-package cicd
+package domain
 
 import (
 	"context"

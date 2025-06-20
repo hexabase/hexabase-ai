@@ -1,4 +1,4 @@
-package cicd
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	"gorm.io/gorm"
 )
 
@@ -16,18 +16,18 @@ type PostgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL repository
-func NewPostgresRepository(db *gorm.DB) cicd.Repository {
+func NewPostgresRepository(db *gorm.DB) domain.Repository {
 	return &PostgresRepository{db: db}
 }
 
 // CreatePipeline creates a new pipeline
-func (r *PostgresRepository) CreatePipeline(ctx context.Context, pipeline *cicd.Pipeline) error {
+func (r *PostgresRepository) CreatePipeline(ctx context.Context, pipeline *domain.Pipeline) error {
 	return r.db.WithContext(ctx).Create(pipeline).Error
 }
 
 // GetPipeline retrieves a pipeline by ID
-func (r *PostgresRepository) GetPipeline(ctx context.Context, id string) (*cicd.Pipeline, error) {
-	var pipeline cicd.Pipeline
+func (r *PostgresRepository) GetPipeline(ctx context.Context, id string) (*domain.Pipeline, error) {
+	var pipeline domain.Pipeline
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&pipeline).Error
 	if err != nil {
 		return nil, err
@@ -36,8 +36,8 @@ func (r *PostgresRepository) GetPipeline(ctx context.Context, id string) (*cicd.
 }
 
 // GetPipelineByRunID retrieves a pipeline by run ID
-func (r *PostgresRepository) GetPipelineByRunID(ctx context.Context, runID string) (*cicd.Pipeline, error) {
-	var run cicd.PipelineRunRecord
+func (r *PostgresRepository) GetPipelineByRunID(ctx context.Context, runID string) (*domain.Pipeline, error) {
+	var run domain.PipelineRunRecord
 	err := r.db.WithContext(ctx).Where("run_id = ?", runID).First(&run).Error
 	if err != nil {
 		return nil, err
@@ -47,8 +47,8 @@ func (r *PostgresRepository) GetPipelineByRunID(ctx context.Context, runID strin
 }
 
 // ListPipelines lists pipelines for a workspace/project
-func (r *PostgresRepository) ListPipelines(ctx context.Context, workspaceID, projectID string, limit, offset int) ([]*cicd.Pipeline, error) {
-	var pipelines []*cicd.Pipeline
+func (r *PostgresRepository) ListPipelines(ctx context.Context, workspaceID, projectID string, limit, offset int) ([]*domain.Pipeline, error) {
+	var pipelines []*domain.Pipeline
 	
 	query := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID)
 	if projectID != "" {
@@ -64,29 +64,29 @@ func (r *PostgresRepository) ListPipelines(ctx context.Context, workspaceID, pro
 }
 
 // UpdatePipeline updates a pipeline
-func (r *PostgresRepository) UpdatePipeline(ctx context.Context, pipeline *cicd.Pipeline) error {
+func (r *PostgresRepository) UpdatePipeline(ctx context.Context, pipeline *domain.Pipeline) error {
 	return r.db.WithContext(ctx).Save(pipeline).Error
 }
 
 // DeletePipeline deletes a pipeline
 func (r *PostgresRepository) DeletePipeline(ctx context.Context, id string) error {
 	// Delete associated runs first
-	if err := r.db.WithContext(ctx).Where("pipeline_id = ?", id).Delete(&cicd.PipelineRunRecord{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("pipeline_id = ?", id).Delete(&domain.PipelineRunRecord{}).Error; err != nil {
 		return err
 	}
 	
 	// Delete the pipeline
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&cicd.Pipeline{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&domain.Pipeline{}).Error
 }
 
 // CreatePipelineRun creates a new pipeline run record
-func (r *PostgresRepository) CreatePipelineRun(ctx context.Context, run *cicd.PipelineRunRecord) error {
+func (r *PostgresRepository) CreatePipelineRun(ctx context.Context, run *domain.PipelineRunRecord) error {
 	return r.db.WithContext(ctx).Create(run).Error
 }
 
 // GetPipelineRun retrieves a pipeline run by ID
-func (r *PostgresRepository) GetPipelineRun(ctx context.Context, runID string) (*cicd.PipelineRunRecord, error) {
-	var run cicd.PipelineRunRecord
+func (r *PostgresRepository) GetPipelineRun(ctx context.Context, runID string) (*domain.PipelineRunRecord, error) {
+	var run domain.PipelineRunRecord
 	// First try to find by ID (which is what the handler passes)
 	err := r.db.WithContext(ctx).Where("id = ?", runID).First(&run).Error
 	if err != nil {
@@ -100,13 +100,13 @@ func (r *PostgresRepository) GetPipelineRun(ctx context.Context, runID string) (
 }
 
 // UpdatePipelineRun updates a pipeline run
-func (r *PostgresRepository) UpdatePipelineRun(ctx context.Context, run *cicd.PipelineRunRecord) error {
+func (r *PostgresRepository) UpdatePipelineRun(ctx context.Context, run *domain.PipelineRunRecord) error {
 	return r.db.WithContext(ctx).Save(run).Error
 }
 
 // ListPipelineRuns lists runs for a pipeline
-func (r *PostgresRepository) ListPipelineRuns(ctx context.Context, pipelineID string, limit, offset int) ([]*cicd.PipelineRunRecord, error) {
-	var runs []*cicd.PipelineRunRecord
+func (r *PostgresRepository) ListPipelineRuns(ctx context.Context, pipelineID string, limit, offset int) ([]*domain.PipelineRunRecord, error) {
+	var runs []*domain.PipelineRunRecord
 	
 	err := r.db.WithContext(ctx).
 		Where("pipeline_id = ?", pipelineID).
@@ -123,7 +123,7 @@ func (r *PostgresRepository) ListPipelineRuns(ctx context.Context, pipelineID st
 }
 
 // CreateTemplate creates a new pipeline template
-func (r *PostgresRepository) CreateTemplate(ctx context.Context, template *cicd.PipelineTemplate) error {
+func (r *PostgresRepository) CreateTemplate(ctx context.Context, template *domain.PipelineTemplate) error {
 	// Serialize stages and parameters to JSON
 	stagesJSON, err := json.Marshal(template.Stages)
 	if err != nil {
@@ -151,7 +151,7 @@ func (r *PostgresRepository) CreateTemplate(ctx context.Context, template *cicd.
 }
 
 // GetTemplate retrieves a template by ID
-func (r *PostgresRepository) GetTemplate(ctx context.Context, id string) (*cicd.PipelineTemplate, error) {
+func (r *PostgresRepository) GetTemplate(ctx context.Context, id string) (*domain.PipelineTemplate, error) {
 	var record PipelineTemplateRecord
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&record).Error
 	if err != nil {
@@ -159,17 +159,17 @@ func (r *PostgresRepository) GetTemplate(ctx context.Context, id string) (*cicd.
 	}
 	
 	// Deserialize stages and parameters
-	var stages []cicd.StageTemplate
+	var stages []domain.StageTemplate
 	if err := json.Unmarshal([]byte(record.Stages), &stages); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal stages: %w", err)
 	}
 	
-	var parameters []cicd.ParameterDefinition
+	var parameters []domain.ParameterDefinition
 	if err := json.Unmarshal([]byte(record.Parameters), &parameters); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
 	}
 	
-	template := &cicd.PipelineTemplate{
+	template := &domain.PipelineTemplate{
 		ID:          record.ID,
 		Name:        record.Name,
 		Description: record.Description,
@@ -184,7 +184,7 @@ func (r *PostgresRepository) GetTemplate(ctx context.Context, id string) (*cicd.
 }
 
 // ListTemplates lists templates for a provider
-func (r *PostgresRepository) ListTemplates(ctx context.Context, provider string) ([]*cicd.PipelineTemplate, error) {
+func (r *PostgresRepository) ListTemplates(ctx context.Context, provider string) ([]*domain.PipelineTemplate, error) {
 	var records []PipelineTemplateRecord
 	
 	query := r.db.WithContext(ctx)
@@ -197,20 +197,20 @@ func (r *PostgresRepository) ListTemplates(ctx context.Context, provider string)
 		return nil, err
 	}
 	
-	templates := make([]*cicd.PipelineTemplate, len(records))
+	templates := make([]*domain.PipelineTemplate, len(records))
 	for i, record := range records {
 		// Deserialize stages and parameters
-		var stages []cicd.StageTemplate
+		var stages []domain.StageTemplate
 		if err := json.Unmarshal([]byte(record.Stages), &stages); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal stages: %w", err)
 		}
 		
-		var parameters []cicd.ParameterDefinition
+		var parameters []domain.ParameterDefinition
 		if err := json.Unmarshal([]byte(record.Parameters), &parameters); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal parameters: %w", err)
 		}
 		
-		templates[i] = &cicd.PipelineTemplate{
+		templates[i] = &domain.PipelineTemplate{
 			ID:          record.ID,
 			Name:        record.Name,
 			Description: record.Description,
@@ -226,7 +226,7 @@ func (r *PostgresRepository) ListTemplates(ctx context.Context, provider string)
 }
 
 // UpdateTemplate updates a template
-func (r *PostgresRepository) UpdateTemplate(ctx context.Context, template *cicd.PipelineTemplate) error {
+func (r *PostgresRepository) UpdateTemplate(ctx context.Context, template *domain.PipelineTemplate) error {
 	// Serialize stages and parameters to JSON
 	stagesJSON, err := json.Marshal(template.Stages)
 	if err != nil {
@@ -258,8 +258,8 @@ func (r *PostgresRepository) DeleteTemplate(ctx context.Context, id string) erro
 }
 
 // GetProviderConfig retrieves provider configuration for a workspace
-func (r *PostgresRepository) GetProviderConfig(ctx context.Context, workspaceID string) (*cicd.WorkspaceProviderConfig, error) {
-	var config cicd.WorkspaceProviderConfig
+func (r *PostgresRepository) GetProviderConfig(ctx context.Context, workspaceID string) (*domain.WorkspaceProviderConfig, error) {
+	var config domain.WorkspaceProviderConfig
 	err := r.db.WithContext(ctx).Where("workspace_id = ? AND is_active = ?", workspaceID, true).First(&config).Error
 	if err != nil {
 		return nil, err
@@ -268,10 +268,10 @@ func (r *PostgresRepository) GetProviderConfig(ctx context.Context, workspaceID 
 }
 
 // SetProviderConfig sets provider configuration for a workspace
-func (r *PostgresRepository) SetProviderConfig(ctx context.Context, config *cicd.WorkspaceProviderConfig) error {
+func (r *PostgresRepository) SetProviderConfig(ctx context.Context, config *domain.WorkspaceProviderConfig) error {
 	// Deactivate existing configs
 	if err := r.db.WithContext(ctx).
-		Model(&cicd.WorkspaceProviderConfig{}).
+		Model(&domain.WorkspaceProviderConfig{}).
 		Where("workspace_id = ?", config.WorkspaceID).
 		Update("is_active", false).Error; err != nil {
 		return err

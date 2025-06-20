@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/hexabase/hexabase-ai/api/internal/application/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	projectDomain "github.com/hexabase/hexabase-ai/api/internal/project/domain"
 )
@@ -287,7 +287,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 	tests := []struct {
 		name              string
 		req               *domain.CreateApplicationRequest
-		backupPolicyReq   *backup.CreateBackupPolicyRequest
+		backupPolicyReq   *backupDomain.CreateBackupPolicyRequest
 		setupMocks        func(*MockApplicationRepository, *MockKubernetesRepository, *MockBackupService)
 		wantErr           bool
 		errMessage        string
@@ -310,12 +310,12 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				CronSchedule: "0 2 * * *",
 				CronCommand:  []string{"/bin/backup.sh"},
 			},
-			backupPolicyReq: &backup.CreateBackupPolicyRequest{
+			backupPolicyReq: &backupDomain.CreateBackupPolicyRequest{
 				StorageID:          "storage-123",
 				Enabled:            true,
 				Schedule:           "0 3 * * *", // Daily at 3 AM (after backup job)
 				RetentionDays:      30,
-				BackupType:         backup.BackupTypeFull,
+				BackupType:         backupDomain.BackupTypeFull,
 				IncludeVolumes:     true,
 				IncludeDatabase:    true,
 				IncludeConfig:      true,
@@ -333,11 +333,11 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 				// Create backup policy
-				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
+				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backupDomain.CreateBackupPolicyRequest) bool {
 					return req.StorageID == "storage-123" &&
 						   req.Schedule == "0 3 * * *" &&
 						   req.RetentionDays == 30
-				})).Return(&backup.BackupPolicy{
+				})).Return(&backupDomain.BackupPolicy{
 					ID:            "policy-123",
 					ApplicationID: "app-123",
 					StorageID:     "storage-123",
@@ -358,7 +358,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				CronSchedule: "0 2 * * *",
 				CronCommand:  []string{"/bin/backup.sh"},
 			},
-			backupPolicyReq: &backup.CreateBackupPolicyRequest{
+			backupPolicyReq: &backupDomain.CreateBackupPolicyRequest{
 				StorageID:     "storage-123",
 				Schedule:      "0 1 * * *", // Daily at 1 AM (before cronjob)
 				RetentionDays: 30,
@@ -382,7 +382,7 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				CronSchedule: "0 2 * * *",
 				CronCommand:  []string{"/bin/backup.sh"},
 			},
-			backupPolicyReq: &backup.CreateBackupPolicyRequest{
+			backupPolicyReq: &backupDomain.CreateBackupPolicyRequest{
 				StorageID:      "storage-123",
 				Schedule:       "0 4 * * *",
 				RetentionDays:  30,
@@ -396,9 +396,9 @@ func TestService_CreateCronJobWithBackupPolicy(t *testing.T) {
 				appRepo.On("CreateApplication", mock.Anything, mock.AnythingOfType("*domain.Application")).Return(nil)
 				k8sRepo.On("CreateCronJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				
-				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backup.CreateBackupPolicyRequest) bool {
+				backupSvc.On("CreateBackupPolicy", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(req backupDomain.CreateBackupPolicyRequest) bool {
 					return req.PreBackupHook != "" && req.PostBackupHook != ""
-				})).Return(&backup.BackupPolicy{
+				})).Return(&backupDomain.BackupPolicy{
 					ID:             "policy-123",
 					PreBackupHook:  "kubectl exec -n {namespace} {pod} -- /scripts/pre-backup.sh",
 					PostBackupHook: "kubectl exec -n {namespace} {pod} -- /scripts/post-backup.sh",
@@ -505,13 +505,13 @@ func TestService_TriggerCronJobWithBackup(t *testing.T) {
 				k8sRepo.On("TriggerCronJob", mock.Anything, mock.Anything, mock.Anything, "backup-cronjob").Return(nil)
 
 				// Create backup execution linked to cronjob execution
-				backupSvc.On("TriggerManualBackup", mock.Anything, mock.Anything, mock.MatchedBy(func(req backup.TriggerBackupRequest) bool {
+				backupSvc.On("TriggerManualBackup", mock.Anything, mock.Anything, mock.MatchedBy(func(req backupDomain.TriggerBackupRequest) bool {
 					return req.ApplicationID == "app-123" &&
-						   req.BackupType == backup.BackupTypeFull
-				})).Return(&backup.BackupExecution{
+						   req.BackupType == backupDomain.BackupTypeFull
+				})).Return(&backupDomain.BackupExecution{
 					ID:                 "be-123",
 					
-					Status:             backup.BackupExecutionStatusRunning,
+					Status:             backupDomain.BackupExecutionStatusRunning,
 				}, nil)
 
 				// Store cronjob execution

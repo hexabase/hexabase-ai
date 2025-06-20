@@ -1,17 +1,17 @@
-package cicd
+package repository
 
 import (
 	"fmt"
 
+	"github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/cicd/tekton"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-// ProviderFactory implements the provider factory interface
+// ProviderFactory implements the domain.ProviderFactory interface
 type ProviderFactory struct {
 	kubeClient kubernetes.Interface
 	k8sConfig  *rest.Config
@@ -19,7 +19,7 @@ type ProviderFactory struct {
 }
 
 // NewProviderFactory creates a new provider factory
-func NewProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace string) cicd.ProviderFactory {
+func NewProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config, namespace string) domain.ProviderFactory {
 	return &ProviderFactory{
 		kubeClient: kubeClient,
 		k8sConfig:  k8sConfig,
@@ -28,7 +28,7 @@ func NewProviderFactory(kubeClient kubernetes.Interface, k8sConfig *rest.Config,
 }
 
 // CreateProvider creates a provider instance with the given configuration
-func (f *ProviderFactory) CreateProvider(providerType string, config *cicd.ProviderConfig) (cicd.Provider, error) {
+func (f *ProviderFactory) CreateProvider(providerType string, config *domain.ProviderConfig) (domain.Provider, error) {
 	switch providerType {
 	case "tekton":
 		return f.createTektonProvider(config)
@@ -51,7 +51,7 @@ func (f *ProviderFactory) ListProviders() []string {
 }
 
 // createTektonProvider creates a Tekton provider instance
-func (f *ProviderFactory) createTektonProvider(config *cicd.ProviderConfig) (cicd.Provider, error) {
+func (f *ProviderFactory) createTektonProvider(config *domain.ProviderConfig) (domain.Provider, error) {
 	// Create Tekton client
 	tektonClient, err := tektonclient.NewForConfig(f.k8sConfig)
 	if err != nil {

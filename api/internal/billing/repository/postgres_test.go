@@ -1,4 +1,4 @@
-package billing
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -34,7 +34,7 @@ func TestPostgresRepository_CreateSubscription(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("successful subscription creation", func(t *testing.T) {
-		sub := &billing.Subscription{
+		sub := &domain.Subscription{
 			ID:             uuid.New().String(),
 			OrganizationID: "org-123",
 			PlanID:         "plan-premium",
@@ -134,7 +134,7 @@ func TestPostgresRepository_UpdateSubscription(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("update subscription status", func(t *testing.T) {
-		sub := &billing.Subscription{
+		sub := &domain.Subscription{
 			ID:             uuid.New().String(),
 			OrganizationID: "org-789",
 			PlanID:         "plan-enterprise",
@@ -170,7 +170,7 @@ func TestPostgresRepository_CreateInvoice(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("create invoice", func(t *testing.T) {
-		invoice := &billing.Invoice{
+		invoice := &domain.Invoice{
 			ID:               uuid.New().String(),
 			SubscriptionID:   "sub-123",
 			OrganizationID:   "org-123",
@@ -266,7 +266,7 @@ func TestPostgresRepository_ListOrganizationInvoices(t *testing.T) {
 			WithArgs(orgID, limit).
 			WillReturnRows(rows)
 
-		filter := billing.InvoiceFilter{
+		filter := domain.InvoiceFilter{
 			PageSize: limit,
 		}
 		invoices, total, err := repo.ListInvoices(ctx, filter)
@@ -283,7 +283,7 @@ func TestPostgresRepository_CreateUsageRecord(t *testing.T) {
 	repo := NewPostgresRepository(gormDB)
 
 	t.Run("create usage record", func(t *testing.T) {
-		usage := &billing.UsageRecord{
+		usage := &domain.UsageRecord{
 			ID:             uuid.New().String(),
 			OrganizationID: "org-555",
 			ResourceType:   "cpu_cores",

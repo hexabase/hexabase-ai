@@ -1,4 +1,4 @@
-package billing
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
+	"github.com/hexabase/hexabase-ai/api/internal/billing/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,83 +18,83 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) CreateSubscription(ctx context.Context, subscription *billing.Subscription) error {
+func (m *mockRepository) CreateSubscription(ctx context.Context, subscription *domain.Subscription) error {
 	args := m.Called(ctx, subscription)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetSubscription(ctx context.Context, subscriptionID string) (*billing.Subscription, error) {
+func (m *mockRepository) GetSubscription(ctx context.Context, subscriptionID string) (*domain.Subscription, error) {
 	args := m.Called(ctx, subscriptionID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.Subscription), args.Error(1)
+		return args.Get(0).(*domain.Subscription), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetOrganizationSubscription(ctx context.Context, organizationID string) (*billing.Subscription, error) {
+func (m *mockRepository) GetOrganizationSubscription(ctx context.Context, organizationID string) (*domain.Subscription, error) {
 	args := m.Called(ctx, organizationID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.Subscription), args.Error(1)
+		return args.Get(0).(*domain.Subscription), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetOrganization(ctx context.Context, organizationID string) (*billing.Organization, error) {
+func (m *mockRepository) GetOrganization(ctx context.Context, organizationID string) (*domain.Organization, error) {
 	args := m.Called(ctx, organizationID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.Organization), args.Error(1)
+		return args.Get(0).(*domain.Organization), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdateSubscription(ctx context.Context, subscription *billing.Subscription) error {
+func (m *mockRepository) UpdateSubscription(ctx context.Context, subscription *domain.Subscription) error {
 	args := m.Called(ctx, subscription)
 	return args.Error(0)
 }
 
-func (m *mockRepository) CreateInvoice(ctx context.Context, invoice *billing.Invoice) error {
+func (m *mockRepository) CreateInvoice(ctx context.Context, invoice *domain.Invoice) error {
 	args := m.Called(ctx, invoice)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetInvoice(ctx context.Context, invoiceID string) (*billing.Invoice, error) {
+func (m *mockRepository) GetInvoice(ctx context.Context, invoiceID string) (*domain.Invoice, error) {
 	args := m.Called(ctx, invoiceID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.Invoice), args.Error(1)
+		return args.Get(0).(*domain.Invoice), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetInvoiceLineItems(ctx context.Context, invoiceID string) ([]*billing.LineItem, error) {
+func (m *mockRepository) GetInvoiceLineItems(ctx context.Context, invoiceID string) ([]*domain.LineItem, error) {
 	args := m.Called(ctx, invoiceID)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.LineItem), args.Error(1)
+		return args.Get(0).([]*domain.LineItem), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) ListInvoices(ctx context.Context, filter billing.InvoiceFilter) ([]*billing.Invoice, int, error) {
+func (m *mockRepository) ListInvoices(ctx context.Context, filter domain.InvoiceFilter) ([]*domain.Invoice, int, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.Invoice), args.Int(1), args.Error(2)
+		return args.Get(0).([]*domain.Invoice), args.Int(1), args.Error(2)
 	}
 	return nil, 0, args.Error(2)
 }
 
-func (m *mockRepository) UpdateInvoice(ctx context.Context, invoice *billing.Invoice) error {
+func (m *mockRepository) UpdateInvoice(ctx context.Context, invoice *domain.Invoice) error {
 	args := m.Called(ctx, invoice)
 	return args.Error(0)
 }
 
-func (m *mockRepository) CreateUsageRecord(ctx context.Context, usage *billing.UsageRecord) error {
+func (m *mockRepository) CreateUsageRecord(ctx context.Context, usage *domain.UsageRecord) error {
 	args := m.Called(ctx, usage)
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetUsageRecords(ctx context.Context, filter billing.UsageFilter) ([]*billing.UsageRecord, error) {
+func (m *mockRepository) GetUsageRecords(ctx context.Context, filter domain.UsageFilter) ([]*domain.UsageRecord, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.UsageRecord), args.Error(1)
+		return args.Get(0).([]*domain.UsageRecord), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -107,23 +107,23 @@ func (m *mockRepository) SummarizeUsage(ctx context.Context, organizationID stri
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*billing.PaymentMethod, error) {
+func (m *mockRepository) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*domain.PaymentMethod, error) {
 	args := m.Called(ctx, paymentMethodID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.PaymentMethod), args.Error(1)
+		return args.Get(0).(*domain.PaymentMethod), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) ListPaymentMethods(ctx context.Context, organizationID string) ([]*billing.PaymentMethod, error) {
+func (m *mockRepository) ListPaymentMethods(ctx context.Context, organizationID string) ([]*domain.PaymentMethod, error) {
 	args := m.Called(ctx, organizationID)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.PaymentMethod), args.Error(1)
+		return args.Get(0).([]*domain.PaymentMethod), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) CreatePaymentMethod(ctx context.Context, paymentMethod *billing.PaymentMethod) error {
+func (m *mockRepository) CreatePaymentMethod(ctx context.Context, paymentMethod *domain.PaymentMethod) error {
 	args := m.Called(ctx, paymentMethod)
 	return args.Error(0)
 }
@@ -138,59 +138,59 @@ func (m *mockRepository) DeletePaymentMethod(ctx context.Context, paymentMethodI
 	return args.Error(0)
 }
 
-func (m *mockRepository) GetPlan(ctx context.Context, planID string) (*billing.Plan, error) {
+func (m *mockRepository) GetPlan(ctx context.Context, planID string) (*domain.Plan, error) {
 	args := m.Called(ctx, planID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.Plan), args.Error(1)
+		return args.Get(0).(*domain.Plan), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) ListPlans(ctx context.Context, activeOnly bool) ([]*billing.Plan, error) {
+func (m *mockRepository) ListPlans(ctx context.Context, activeOnly bool) ([]*domain.Plan, error) {
 	args := m.Called(ctx, activeOnly)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.Plan), args.Error(1)
+		return args.Get(0).([]*domain.Plan), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetBillingSettings(ctx context.Context, organizationID string) (*billing.BillingSettings, error) {
+func (m *mockRepository) GetBillingSettings(ctx context.Context, organizationID string) (*domain.BillingSettings, error) {
 	args := m.Called(ctx, organizationID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.BillingSettings), args.Error(1)
+		return args.Get(0).(*domain.BillingSettings), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdateBillingSettings(ctx context.Context, settings *billing.BillingSettings) error {
+func (m *mockRepository) UpdateBillingSettings(ctx context.Context, settings *domain.BillingSettings) error {
 	args := m.Called(ctx, settings)
 	return args.Error(0)
 }
 
-func (m *mockRepository) BatchCreateUsageRecords(ctx context.Context, records []*billing.UsageRecord) error {
+func (m *mockRepository) BatchCreateUsageRecords(ctx context.Context, records []*domain.UsageRecord) error {
 	args := m.Called(ctx, records)
 	return args.Error(0)
 }
 
-func (m *mockRepository) CreatePlan(ctx context.Context, plan *billing.Plan) error {
+func (m *mockRepository) CreatePlan(ctx context.Context, plan *domain.Plan) error {
 	args := m.Called(ctx, plan)
 	return args.Error(0)
 }
 
-func (m *mockRepository) UpdatePlan(ctx context.Context, plan *billing.Plan) error {
+func (m *mockRepository) UpdatePlan(ctx context.Context, plan *domain.Plan) error {
 	args := m.Called(ctx, plan)
 	return args.Error(0)
 }
 
-func (m *mockRepository) ListSubscriptions(ctx context.Context, filter billing.SubscriptionFilter) ([]*billing.Subscription, error) {
+func (m *mockRepository) ListSubscriptions(ctx context.Context, filter domain.SubscriptionFilter) ([]*domain.Subscription, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) != nil {
-		return args.Get(0).([]*billing.Subscription), args.Error(1)
+		return args.Get(0).([]*domain.Subscription), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) UpdatePaymentMethod(ctx context.Context, method *billing.PaymentMethod) error {
+func (m *mockRepository) UpdatePaymentMethod(ctx context.Context, method *domain.PaymentMethod) error {
 	args := m.Called(ctx, method)
 	return args.Error(0)
 }
@@ -200,12 +200,12 @@ type mockStripeRepository struct {
 	mock.Mock
 }
 
-func (m *mockStripeRepository) CreateCustomer(ctx context.Context, org *billing.Organization) (string, error) {
+func (m *mockStripeRepository) CreateCustomer(ctx context.Context, org *domain.Organization) (string, error) {
 	args := m.Called(ctx, org)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockStripeRepository) UpdateCustomer(ctx context.Context, customerID string, org *billing.Organization) error {
+func (m *mockStripeRepository) UpdateCustomer(ctx context.Context, customerID string, org *domain.Organization) error {
 	args := m.Called(ctx, customerID, org)
 	return args.Error(0)
 }
@@ -215,10 +215,10 @@ func (m *mockStripeRepository) DeleteCustomer(ctx context.Context, customerID st
 	return args.Error(0)
 }
 
-func (m *mockStripeRepository) CreateStripeSubscription(ctx context.Context, customerID, priceID string) (*billing.StripeSubscription, error) {
+func (m *mockStripeRepository) CreateStripeSubscription(ctx context.Context, customerID, priceID string) (*domain.StripeSubscription, error) {
 	args := m.Called(ctx, customerID, priceID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.StripeSubscription), args.Error(1)
+		return args.Get(0).(*domain.StripeSubscription), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -248,18 +248,18 @@ func (m *mockStripeRepository) DetachPaymentMethod(ctx context.Context, paymentM
 	return args.Error(0)
 }
 
-func (m *mockStripeRepository) ConstructWebhookEvent(payload []byte, signature string) (*billing.StripeEvent, error) {
+func (m *mockStripeRepository) ConstructWebhookEvent(payload []byte, signature string) (*domain.StripeEvent, error) {
 	args := m.Called(payload, signature)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.StripeEvent), args.Error(1)
+		return args.Get(0).(*domain.StripeEvent), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *mockStripeRepository) CreateInvoice(ctx context.Context, customerID string) (*billing.StripeInvoice, error) {
+func (m *mockStripeRepository) CreateInvoice(ctx context.Context, customerID string) (*domain.StripeInvoice, error) {
 	args := m.Called(ctx, customerID)
 	if args.Get(0) != nil {
-		return args.Get(0).(*billing.StripeInvoice), args.Error(1)
+		return args.Get(0).(*domain.StripeInvoice), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -293,21 +293,21 @@ func TestService_CreateSubscription(t *testing.T) {
 
 	t.Run("successful subscription creation", func(t *testing.T) {
 		orgID := "org-123"
-		req := &billing.CreateSubscriptionRequest{
+		req := &domain.CreateSubscriptionRequest{
 			PlanID: "plan-premium",
 		}
 		
-		org := &billing.Organization{
+		org := &domain.Organization{
 			ID:               orgID,
 			StripeCustomerID: "cus_123",
 		}
 		
-		plan := &billing.Plan{
+		plan := &domain.Plan{
 			ID:            "plan-premium",
 			StripePriceID: "price_123",
 		}
 		
-		stripeSub := &billing.StripeSubscription{
+		stripeSub := &domain.StripeSubscription{
 			ID:                 "sub_123",
 			Status:             "active",
 			CurrentPeriodStart: time.Now(),
@@ -318,7 +318,7 @@ func TestService_CreateSubscription(t *testing.T) {
 		mockRepo.On("GetOrganization", ctx, orgID).Return(org, nil)
 		mockRepo.On("GetPlan", ctx, "plan-premium").Return(plan, nil)
 		mockStripe.On("CreateStripeSubscription", ctx, "cus_123", "price_123").Return(stripeSub, nil)
-		mockRepo.On("CreateSubscription", ctx, mock.AnythingOfType("*billing.Subscription")).Return(nil)
+		mockRepo.On("CreateSubscription", ctx, mock.AnythingOfType("*domain.Subscription")).Return(nil)
 
 		sub, err := svc.CreateSubscription(ctx, orgID, req)
 		assert.NoError(t, err)
@@ -334,7 +334,7 @@ func TestService_CreateSubscription(t *testing.T) {
 
 	t.Run("organization not found", func(t *testing.T) {
 		orgID := "org-456"
-		req := &billing.CreateSubscriptionRequest{
+		req := &domain.CreateSubscriptionRequest{
 			PlanID: "plan-basic",
 		}
 		
@@ -363,11 +363,11 @@ func TestService_UpdateSubscription(t *testing.T) {
 
 	t.Run("successful plan upgrade", func(t *testing.T) {
 		subID := uuid.New().String()
-		req := &billing.UpdateSubscriptionRequest{
+		req := &domain.UpdateSubscriptionRequest{
 			PlanID: "plan-enterprise",
 		}
 		
-		existingSub := &billing.Subscription{
+		existingSub := &domain.Subscription{
 			ID:                   subID,
 			OrganizationID:       "org-123",
 			PlanID:               "plan-premium",
@@ -375,7 +375,7 @@ func TestService_UpdateSubscription(t *testing.T) {
 			StripeSubscriptionID: "sub_123",
 		}
 		
-		newPlan := &billing.Plan{
+		newPlan := &domain.Plan{
 			ID:            "plan-enterprise",
 			StripePriceID: "price_enterprise",
 		}
@@ -389,7 +389,7 @@ func TestService_UpdateSubscription(t *testing.T) {
 		mockRepo.On("GetSubscription", ctx, subID).Return(existingSub, nil)
 		mockRepo.On("GetPlan", ctx, "plan-enterprise").Return(newPlan, nil)
 		mockStripe.On("UpdateStripeSubscription", ctx, "sub_123", expectedParams).Return(nil)
-		mockRepo.On("UpdateSubscription", ctx, mock.AnythingOfType("*billing.Subscription")).Return(nil)
+		mockRepo.On("UpdateSubscription", ctx, mock.AnythingOfType("*domain.Subscription")).Return(nil)
 
 		updatedSub, err := svc.UpdateSubscription(ctx, subID, req)
 		assert.NoError(t, err)
@@ -402,7 +402,7 @@ func TestService_UpdateSubscription(t *testing.T) {
 
 	t.Run("subscription not found", func(t *testing.T) {
 		subID := uuid.New().String()
-		req := &billing.UpdateSubscriptionRequest{
+		req := &domain.UpdateSubscriptionRequest{
 			PlanID: "plan-basic",
 		}
 		
@@ -430,11 +430,11 @@ func TestService_CancelSubscription(t *testing.T) {
 
 	t.Run("successful immediate cancellation", func(t *testing.T) {
 		subID := uuid.New().String()
-		req := &billing.CancelSubscriptionRequest{
+		req := &domain.CancelSubscriptionRequest{
 			Immediate: true,
 		}
 		
-		activeSub := &billing.Subscription{
+		activeSub := &domain.Subscription{
 			ID:                   subID,
 			OrganizationID:       "org-789",
 			PlanID:               "plan-premium",
@@ -444,14 +444,14 @@ func TestService_CancelSubscription(t *testing.T) {
 		
 		mockRepo.On("GetSubscription", ctx, subID).Return(activeSub, nil)
 		mockStripe.On("CancelStripeSubscription", ctx, "sub_456", true).Return(nil)
-		mockRepo.On("UpdateSubscription", ctx, mock.AnythingOfType("*billing.Subscription")).Return(nil)
+		mockRepo.On("UpdateSubscription", ctx, mock.AnythingOfType("*domain.Subscription")).Return(nil)
 
 		err := svc.CancelSubscription(ctx, subID, req)
 		assert.NoError(t, err)
 
 		// Verify the subscription status was updated
 		updateCall := mockRepo.Calls[1]
-		updatedSub := updateCall.Arguments[1].(*billing.Subscription)
+		updatedSub := updateCall.Arguments[1].(*domain.Subscription)
 		assert.Equal(t, "canceled", updatedSub.Status)
 		assert.NotNil(t, updatedSub.CanceledAt)
 
@@ -471,12 +471,12 @@ func TestService_CancelSubscription(t *testing.T) {
 		}
 		
 		subID := uuid.New().String()
-		req := &billing.CancelSubscriptionRequest{
+		req := &domain.CancelSubscriptionRequest{
 			Immediate: false,
 		}
 		
 		periodEnd := time.Now().AddDate(0, 1, 0)
-		activeSub := &billing.Subscription{
+		activeSub := &domain.Subscription{
 			ID:                   subID,
 			OrganizationID:       "org-999",
 			PlanID:               "plan-basic",
@@ -487,14 +487,14 @@ func TestService_CancelSubscription(t *testing.T) {
 		
 		mockRepo2.On("GetSubscription", ctx, subID).Return(activeSub, nil)
 		mockStripe2.On("CancelStripeSubscription", ctx, "sub_789", false).Return(nil)
-		mockRepo2.On("UpdateSubscription", ctx, mock.AnythingOfType("*billing.Subscription")).Return(nil)
+		mockRepo2.On("UpdateSubscription", ctx, mock.AnythingOfType("*domain.Subscription")).Return(nil)
 
 		err := svc2.CancelSubscription(ctx, subID, req)
 		assert.NoError(t, err)
 
 		// Verify the subscription status was updated
 		updateCall := mockRepo2.Calls[1]
-		updatedSub := updateCall.Arguments[1].(*billing.Subscription)
+		updatedSub := updateCall.Arguments[1].(*domain.Subscription)
 		assert.Equal(t, "cancel_at_period_end", updatedSub.Status)
 		assert.NotNil(t, updatedSub.CancelAt)
 		assert.Equal(t, periodEnd, *updatedSub.CancelAt)
@@ -520,7 +520,7 @@ func TestService_GetCurrentUsage(t *testing.T) {
 		periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		periodEnd := periodStart.AddDate(0, 1, 0)
 		
-		sub := &billing.Subscription{
+		sub := &domain.Subscription{
 			ID:                 uuid.New().String(),
 			OrganizationID:     orgID,
 			PlanID:             "plan-premium",
@@ -528,9 +528,9 @@ func TestService_GetCurrentUsage(t *testing.T) {
 			CurrentPeriodEnd:   periodEnd,
 		}
 		
-		plan := &billing.Plan{
+		plan := &domain.Plan{
 			ID: "plan-premium",
-			Limits: &billing.Limits{
+			Limits: &domain.Limits{
 				CPUCores:  8,
 				MemoryGB:  16,
 				StorageGB: 500,
@@ -584,21 +584,21 @@ func TestService_RecordUsage(t *testing.T) {
 	}
 
 	t.Run("record CPU usage", func(t *testing.T) {
-		usage := &billing.UsageRecord{
+		usage := &domain.UsageRecord{
 			OrganizationID: "org-record",
 			ResourceType:   "cpu_cores",
 			Quantity:       4.5,
 			WorkspaceID:    "ws-123",
 		}
 		
-		mockRepo.On("CreateUsageRecord", ctx, mock.AnythingOfType("*billing.UsageRecord")).Return(nil)
+		mockRepo.On("CreateUsageRecord", ctx, mock.AnythingOfType("*domain.UsageRecord")).Return(nil)
 
 		err := svc.RecordUsage(ctx, usage)
 		assert.NoError(t, err)
 
 		// Verify the usage record has an ID and timestamp
 		createCall := mockRepo.Calls[0]
-		createdUsage := createCall.Arguments[1].(*billing.UsageRecord)
+		createdUsage := createCall.Arguments[1].(*domain.UsageRecord)
 		assert.NotEmpty(t, createdUsage.ID)
 		assert.False(t, createdUsage.RecordedAt.IsZero())
 
@@ -618,12 +618,12 @@ func TestService_ListInvoices(t *testing.T) {
 
 	t.Run("list organization invoices", func(t *testing.T) {
 		orgID := "org-invoices"
-		filter := billing.InvoiceFilter{
+		filter := domain.InvoiceFilter{
 			Status:   "paid",
 			PageSize: 20,
 		}
 		
-		invoices := []*billing.Invoice{
+		invoices := []*domain.Invoice{
 			{
 				ID:             uuid.New().String(),
 				OrganizationID: orgID,
@@ -650,12 +650,12 @@ func TestService_ListInvoices(t *testing.T) {
 
 	t.Run("empty invoice list", func(t *testing.T) {
 		orgID := "org-no-invoices"
-		filter := billing.InvoiceFilter{
+		filter := domain.InvoiceFilter{
 			Status:   "pending",
 			PageSize: 10,
 		}
 		
-		mockRepo.On("ListInvoices", ctx, filter).Return([]*billing.Invoice{}, 0, nil)
+		mockRepo.On("ListInvoices", ctx, filter).Return([]*domain.Invoice{}, 0, nil)
 
 		result, total, err := svc.ListInvoices(ctx, orgID, filter)
 		assert.NoError(t, err)
