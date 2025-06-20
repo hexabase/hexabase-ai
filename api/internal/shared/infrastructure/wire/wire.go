@@ -4,6 +4,7 @@
 package wire
 
 import (
+	"context"
 	"database/sql"
 	"log/slog"
 	"net/http"
@@ -20,7 +21,7 @@ import (
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/application/service"
 
 	// Auth domain
-	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
+
 	authHandler "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
@@ -54,9 +55,14 @@ import (
 	monitoringRepo "github.com/hexabase/hexabase-ai/api/internal/monitoring/repository"
 	monitoringSvc "github.com/hexabase/hexabase-ai/api/internal/monitoring/service"
 
-	// Legacy domains that haven't been migrated yet
+	// AIOps (migrated)
+	aiopsDomain "github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
+	aiopsHandler "github.com/hexabase/hexabase-ai/api/internal/aiops/handler"
+	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/aiops/repository"
+	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/aiops/service"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	// Auth domain (needed for AIOps proxy)
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 
 	// Backup (migrated)
 	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
@@ -81,17 +87,15 @@ import (
 	functionRepo "github.com/hexabase/hexabase-ai/api/internal/function/repository"
 	functionSvc "github.com/hexabase/hexabase-ai/api/internal/function/service"
 
-	// Legacy repositories that haven't been migrated yet
+	// CICD (migrated)
 	cicdDomain "github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
 	cicdHandler "github.com/hexabase/hexabase-ai/api/internal/cicd/handler"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/cicd/repository"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/cicd/service"
-	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
-	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
-	// Legacy services that haven't been migrated yet
-	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
+	// Legacy repositories that haven't been migrated yet
+	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
+	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
@@ -195,14 +199,15 @@ var FunctionSet = wire.NewSet(
 
 var HelmSet = wire.NewSet(helm.NewService)
 
-var AIOpsProxySet = wire.NewSet(
-	ProvideAIOpsProxyHandler,
-)
-
 var AIOpsSet = wire.NewSet(
 	aiopsRepo.NewPostgresRepository,
 	ProvideOllamaService,
 	aiopsSvc.NewService,
+	ProvideAIOpsAdapter,
+	aiopsHandler.NewHandler,
+	aiopsHandler.NewGinHandler,
+	ProvideAIOpsServiceURL,
+	ProvideAIOpsProxyHandler,
 )
 
 var LogSet = wire.NewSet(
@@ -225,7 +230,9 @@ type App struct {
 	ProjectHandler     *projectHandler.Handler
 	WorkspaceHandler   *workspaceHandler.Handler
 	FunctionHandler    *functionHandler.Handler
-	AIOpsProxyHandler  *handlers.AIOpsProxyHandler
+	AIOpsHandler       *aiopsHandler.Handler
+	AIOpsGinHandler    *aiopsHandler.GinHandler
+	AIOpsProxyHandler  *aiopsHandler.AIOpsProxyHandler
 	InternalHandler    *handlers.InternalHandler
 	LogSvc             logsDomain.Service
 }
@@ -242,7 +249,9 @@ func NewApp(
 	projH *projectHandler.Handler,
 	workH *workspaceHandler.Handler,
 	funcH *functionHandler.Handler,
-	aiopsH *handlers.AIOpsProxyHandler,
+	aiopsH *aiopsHandler.Handler,
+	aiopsGinH *aiopsHandler.GinHandler,
+	aiopsProxyH *aiopsHandler.AIOpsProxyHandler,
 	internalHandler *handlers.InternalHandler,
 	logSvc logsDomain.Service,
 ) *App {
@@ -258,7 +267,9 @@ func NewApp(
 		ProjectHandler:     projH,
 		WorkspaceHandler:   workH,
 		FunctionHandler:    funcH,
-		AIOpsProxyHandler:  aiopsH,
+		AIOpsHandler:       aiopsH,
+		AIOpsGinHandler:    aiopsGinH,
+		AIOpsProxyHandler:  aiopsProxyH,
 		InternalHandler:    internalHandler,
 		LogSvc:             logSvc,
 	}
@@ -350,7 +361,7 @@ func ProvideProxmoxRepositoryInterface(repo *nodeRepo.ProxmoxRepository) nodeDom
 func ProvideBackupProxmoxRepository(cfg *config.Config) backupDomain.ProxmoxRepository {
 	// Reuse the same Proxmox connection settings
 	// TODO: Get from config
-	client := proxmox.NewClient("https://proxmox.example.com/api2/json", "root@pam", "tokenID", "tokenSecret")
+	client := proxmoxRepo.NewClient("https://proxmox.example.com/api2/json", "root@pam", "tokenID", "tokenSecret")
 	return backupRepo.NewProxmoxRepository(client)
 }
 
@@ -359,22 +370,75 @@ func ProvideBackupEncryptionKey(cfg *config.Config) string {
 	return "your-backup-encryption-key"
 }
 
-func ProvideAIOpsProxyHandler(authSvc authDomain.Service, logger *slog.Logger, cfg *config.Config) (*handlers.AIOpsProxyHandler, error) {
-	var aiopsURL string
-	if cfg.AIOps.URL != "" {
-		aiopsURL = cfg.AIOps.URL
-	} else {
-		aiopsURL = "http://ai-ops-service.ai-ops.svc.cluster.local:8000"
-	}
-	return handlers.NewAIOpsProxyHandler(authSvc, logger, aiopsURL)
-}
-
-func ProvideOllamaService(cfg *config.Config) aiops.LLMService {
+func ProvideOllamaService(cfg *config.Config) aiopsDomain.LLMService {
 	// TODO: Get Ollama configuration from config
 	ollamaURL := "http://ollama.ollama.svc.cluster.local:11434"
 	timeout := 30 * time.Second
 	headers := make(map[string]string)
 	return aiopsRepo.NewOllamaProvider(ollamaURL, timeout, headers)
+}
+
+func ProvideAIOpsProxyHandler(authSvc authDomain.Service, logger *slog.Logger, aiopsURL AIOpsServiceURL) (*aiopsHandler.AIOpsProxyHandler, error) {
+	return aiopsHandler.NewAIOpsProxyHandler(authSvc, logger, string(aiopsURL))
+}
+
+// ProvideAIOpsAdapter provides an adapter from domain.Service to AIOpsService interface
+func ProvideAIOpsAdapter(service aiopsDomain.Service) aiopsHandler.AIOpsService {
+	return &aiopsServiceAdapter{service: service}
+}
+
+// aiopsServiceAdapter adapts domain.Service to AIOpsService interface for backward compatibility
+type aiopsServiceAdapter struct {
+	service aiopsDomain.Service
+}
+
+func (a *aiopsServiceAdapter) CreateChatSession(workspaceID, userID, model string) (*aiopsDomain.ChatSession, error) {
+	ctx := context.Background()
+	return a.service.CreateChatSession(ctx, workspaceID, userID, "", model)
+}
+
+func (a *aiopsServiceAdapter) GetChatSession(sessionID string) (*aiopsDomain.ChatSession, error) {
+	ctx := context.Background()
+	return a.service.GetChatSession(ctx, sessionID)
+}
+
+func (a *aiopsServiceAdapter) ListChatSessions(workspaceID string, limit, offset int) ([]*aiopsDomain.ChatSession, error) {
+	ctx := context.Background()
+	return a.service.ListChatSessions(ctx, workspaceID, limit, offset)
+}
+
+func (a *aiopsServiceAdapter) DeleteChatSession(sessionID string) error {
+	ctx := context.Background()
+	return a.service.DeleteChatSession(ctx, sessionID)
+}
+
+func (a *aiopsServiceAdapter) Chat(sessionID string, message string, contextInts []int) (*aiopsDomain.ChatResponse, error) {
+	ctx := context.Background()
+	chatMessage := aiopsDomain.ChatMessage{
+		Role:    "user",
+		Content: message,
+	}
+	return a.service.SendMessage(ctx, sessionID, chatMessage)
+}
+
+func (a *aiopsServiceAdapter) StreamChat(sessionID string, message string, contextInts []int) (<-chan *aiopsDomain.ChatStreamResponse, error) {
+	ctx := context.Background()
+	chatMessage := aiopsDomain.ChatMessage{
+		Role:    "user",
+		Content: message,
+	}
+	return a.service.StreamMessage(ctx, sessionID, chatMessage)
+}
+
+func (a *aiopsServiceAdapter) GetAvailableModels() ([]*aiopsDomain.ModelInfo, error) {
+	ctx := context.Background()
+	return a.service.ListAvailableModels(ctx)
+}
+
+func (a *aiopsServiceAdapter) GetTokenUsage(workspaceID, model string, limit, offset int) ([]*aiopsDomain.ModelUsage, error) {
+	// This would need implementation based on the new service interface
+	// For now, return empty slice
+	return []*aiopsDomain.ModelUsage{}, nil
 }
 
 func ProvideInternalHandler(
@@ -384,7 +448,7 @@ func ProvideInternalHandler(
 	nodeSvc nodeDomain.Service,
 	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
-	aiopsSvc aiops.Service,
+	aiopsSvc aiopsDomain.Service,
 	cicdSvc cicdDomain.Service,
 	backupSvc backupDomain.Service,
 	logger *slog.Logger,
@@ -417,7 +481,6 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		CICDSet,
 		FunctionSet,
 		HelmSet,
-		AIOpsProxySet,
 		AIOpsSet,
 		LogSet,
 		InternalSet,

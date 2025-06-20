@@ -1,4 +1,4 @@
-package aiops
+package repository
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 )
 
 // LangfuseMonitor implements the LLMOpsMonitor interface for Langfuse
@@ -38,7 +38,7 @@ type batchEvent struct {
 }
 
 // NewLangfuseMonitor creates a new Langfuse monitor
-func NewLangfuseMonitor(baseURL, publicKey, secretKey string, timeout time.Duration) aiops.LLMOpsMonitor {
+func NewLangfuseMonitor(baseURL, publicKey, secretKey string, timeout time.Duration) domain.LLMOpsMonitor {
 	monitor := &LangfuseMonitor{
 		baseURL:      baseURL,
 		publicKey:    publicKey,
@@ -60,7 +60,7 @@ func NewLangfuseMonitor(baseURL, publicKey, secretKey string, timeout time.Durat
 }
 
 // CreateTrace creates a new trace in Langfuse
-func (m *LangfuseMonitor) CreateTrace(ctx context.Context, trace *aiops.Trace) error {
+func (m *LangfuseMonitor) CreateTrace(ctx context.Context, trace *domain.Trace) error {
 	payload := map[string]any{
 		"id":        trace.ID,
 		"name":      trace.Name,
@@ -83,7 +83,7 @@ func (m *LangfuseMonitor) CreateTrace(ctx context.Context, trace *aiops.Trace) e
 }
 
 // CreateGeneration creates a new generation in Langfuse
-func (m *LangfuseMonitor) CreateGeneration(ctx context.Context, generation *aiops.Generation) error {
+func (m *LangfuseMonitor) CreateGeneration(ctx context.Context, generation *domain.Generation) error {
 	payload := map[string]any{
 		"id":               generation.ID,
 		"traceId":          generation.TraceID,
@@ -114,7 +114,7 @@ func (m *LangfuseMonitor) CreateGeneration(ctx context.Context, generation *aiop
 }
 
 // CreateSpan creates a new span in Langfuse
-func (m *LangfuseMonitor) CreateSpan(ctx context.Context, span *aiops.Span) error {
+func (m *LangfuseMonitor) CreateSpan(ctx context.Context, span *domain.Span) error {
 	payload := map[string]any{
 		"id":               span.ID,
 		"traceId":          span.TraceID,
@@ -136,7 +136,7 @@ func (m *LangfuseMonitor) CreateSpan(ctx context.Context, span *aiops.Span) erro
 }
 
 // UpdateGeneration updates an existing generation
-func (m *LangfuseMonitor) UpdateGeneration(ctx context.Context, generationID string, updates *aiops.GenerationUpdate) error {
+func (m *LangfuseMonitor) UpdateGeneration(ctx context.Context, generationID string, updates *domain.GenerationUpdate) error {
 	payload := make(map[string]any)
 	
 	if updates.Output != nil {
@@ -165,7 +165,7 @@ func (m *LangfuseMonitor) UpdateGeneration(ctx context.Context, generationID str
 }
 
 // ScoreGeneration creates a score for a generation
-func (m *LangfuseMonitor) ScoreGeneration(ctx context.Context, generationID string, score *aiops.Score) error {
+func (m *LangfuseMonitor) ScoreGeneration(ctx context.Context, generationID string, score *domain.Score) error {
 	payload := map[string]any{
 		"id":             score.ID,
 		"name":           score.Name,
@@ -189,7 +189,7 @@ func (m *LangfuseMonitor) ScoreGeneration(ctx context.Context, generationID stri
 }
 
 // ScoreTrace creates a score for a trace
-func (m *LangfuseMonitor) ScoreTrace(ctx context.Context, traceID string, score *aiops.Score) error {
+func (m *LangfuseMonitor) ScoreTrace(ctx context.Context, traceID string, score *domain.Score) error {
 	payload := map[string]any{
 		"id":        score.ID,
 		"name":      score.Name,
@@ -213,7 +213,7 @@ func (m *LangfuseMonitor) ScoreTrace(ctx context.Context, traceID string, score 
 }
 
 // GetTraceMetrics retrieves trace metrics
-func (m *LangfuseMonitor) GetTraceMetrics(ctx context.Context, filter *aiops.MetricsFilter) (*aiops.TraceMetrics, error) {
+func (m *LangfuseMonitor) GetTraceMetrics(ctx context.Context, filter *domain.MetricsFilter) (*domain.TraceMetrics, error) {
 	params := url.Values{}
 	params.Set("fromTimestamp", filter.StartTime.Format(time.RFC3339))
 	params.Set("toTimestamp", filter.EndTime.Format(time.RFC3339))
@@ -253,7 +253,7 @@ func (m *LangfuseMonitor) GetTraceMetrics(ctx context.Context, filter *aiops.Met
 		return nil, err
 	}
 	
-	return &aiops.TraceMetrics{
+	return &domain.TraceMetrics{
 		TotalTraces:      response.TotalTraces,
 		TotalGenerations: response.TotalGenerations,
 		TotalTokens:      response.TotalTokens,
@@ -267,7 +267,7 @@ func (m *LangfuseMonitor) GetTraceMetrics(ctx context.Context, filter *aiops.Met
 }
 
 // GetModelMetrics retrieves model-specific metrics
-func (m *LangfuseMonitor) GetModelMetrics(ctx context.Context, filter *aiops.MetricsFilter) (*aiops.LLMModelMetrics, error) {
+func (m *LangfuseMonitor) GetModelMetrics(ctx context.Context, filter *domain.MetricsFilter) (*domain.LLMModelMetrics, error) {
 	params := url.Values{}
 	params.Set("fromTimestamp", filter.StartTime.Format(time.RFC3339))
 	params.Set("toTimestamp", filter.EndTime.Format(time.RFC3339))
@@ -293,7 +293,7 @@ func (m *LangfuseMonitor) GetModelMetrics(ctx context.Context, filter *aiops.Met
 		return nil, err
 	}
 	
-	return &aiops.LLMModelMetrics{
+	return &domain.LLMModelMetrics{
 		ModelName:        response.ModelName,
 		TotalGenerations: response.TotalGenerations,
 		TotalTokens:      response.TotalTokens,
@@ -307,7 +307,7 @@ func (m *LangfuseMonitor) GetModelMetrics(ctx context.Context, filter *aiops.Met
 }
 
 // GetUserMetrics retrieves user-specific metrics
-func (m *LangfuseMonitor) GetUserMetrics(ctx context.Context, filter *aiops.MetricsFilter) (*aiops.UserMetrics, error) {
+func (m *LangfuseMonitor) GetUserMetrics(ctx context.Context, filter *domain.MetricsFilter) (*domain.UserMetrics, error) {
 	params := url.Values{}
 	params.Set("fromTimestamp", filter.StartTime.Format(time.RFC3339))
 	params.Set("toTimestamp", filter.EndTime.Format(time.RFC3339))
@@ -316,7 +316,7 @@ func (m *LangfuseMonitor) GetUserMetrics(ctx context.Context, filter *aiops.Metr
 		params.Set("userId", filter.UserID)
 	}
 	
-	var response aiops.UserMetrics
+	var response domain.UserMetrics
 	err := m.getRequest(ctx, "/api/public/metrics/users", params, &response)
 	if err != nil {
 		return nil, err
@@ -326,7 +326,7 @@ func (m *LangfuseMonitor) GetUserMetrics(ctx context.Context, filter *aiops.Metr
 }
 
 // CreateDataset creates a new dataset
-func (m *LangfuseMonitor) CreateDataset(ctx context.Context, dataset *aiops.Dataset) error {
+func (m *LangfuseMonitor) CreateDataset(ctx context.Context, dataset *domain.Dataset) error {
 	payload := map[string]any{
 		"id":          dataset.ID,
 		"name":        dataset.Name,
@@ -338,7 +338,7 @@ func (m *LangfuseMonitor) CreateDataset(ctx context.Context, dataset *aiops.Data
 }
 
 // AddToDataset adds an item to a dataset
-func (m *LangfuseMonitor) AddToDataset(ctx context.Context, datasetID string, item *aiops.DatasetItem) error {
+func (m *LangfuseMonitor) AddToDataset(ctx context.Context, datasetID string, item *domain.DatasetItem) error {
 	payload := map[string]any{
 		"id":             item.ID,
 		"datasetId":      datasetID,
@@ -358,8 +358,8 @@ func (m *LangfuseMonitor) AddToDataset(ctx context.Context, datasetID string, it
 }
 
 // GetDataset retrieves a dataset
-func (m *LangfuseMonitor) GetDataset(ctx context.Context, datasetID string) (*aiops.Dataset, error) {
-	var dataset aiops.Dataset
+func (m *LangfuseMonitor) GetDataset(ctx context.Context, datasetID string) (*domain.Dataset, error) {
+	var dataset domain.Dataset
 	err := m.getRequest(ctx, fmt.Sprintf("/api/public/datasets/%s", datasetID), nil, &dataset)
 	if err != nil {
 		return nil, err

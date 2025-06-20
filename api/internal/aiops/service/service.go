@@ -1,4 +1,4 @@
-package aiops
+package service
 
 import (
 	"context"
@@ -7,19 +7,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 )
 
 // Service implements the AIOps service interface
 type Service struct {
-	llmService aiops.LLMService
-	repository aiops.Repository
+	llmService domain.LLMService
+	repository domain.Repository
 	logger     *slog.Logger
 	startTime  time.Time
 }
 
 // NewService creates a new AIOps service
-func NewService(llmService aiops.LLMService, repository aiops.Repository, logger *slog.Logger) aiops.Service {
+func NewService(llmService domain.LLMService, repository domain.Repository, logger *slog.Logger) domain.Service {
 	return &Service{
 		llmService: llmService,
 		repository: repository,
@@ -29,14 +29,14 @@ func NewService(llmService aiops.LLMService, repository aiops.Repository, logger
 }
 
 // CreateChatSession creates a new chat session
-func (s *Service) CreateChatSession(ctx context.Context, workspaceID, userID, title, model string) (*aiops.ChatSession, error) {
-	session := &aiops.ChatSession{
+func (s *Service) CreateChatSession(ctx context.Context, workspaceID, userID, title, model string) (*domain.ChatSession, error) {
+	session := &domain.ChatSession{
 		ID:          uuid.New().String(),
 		WorkspaceID: workspaceID,
 		UserID:      userID,
 		Title:       title,
 		Model:       model,
-		Messages:    []aiops.ChatMessage{},
+		Messages:    []domain.ChatMessage{},
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Metadata:    make(map[string]any),
@@ -58,7 +58,7 @@ func (s *Service) CreateChatSession(ctx context.Context, workspaceID, userID, ti
 }
 
 // SendMessage sends a message and gets a response from the LLM
-func (s *Service) SendMessage(ctx context.Context, sessionID string, message aiops.ChatMessage) (*aiops.ChatResponse, error) {
+func (s *Service) SendMessage(ctx context.Context, sessionID string, message domain.ChatMessage) (*domain.ChatResponse, error) {
 	// Get the chat session
 	session, err := s.repository.GetChatSession(ctx, sessionID)
 	if err != nil {
@@ -68,7 +68,7 @@ func (s *Service) SendMessage(ctx context.Context, sessionID string, message aio
 	
 	// Prepare the chat request
 	messages := append(session.Messages, message)
-	chatRequest := &aiops.ChatRequest{
+	chatRequest := &domain.ChatRequest{
 		Model:    session.Model,
 		Messages: messages,
 		Stream:   false,
@@ -99,7 +99,7 @@ func (s *Service) SendMessage(ctx context.Context, sessionID string, message aio
 	
 	// Track usage if available
 	if response.Usage != nil {
-		usage := &aiops.ModelUsage{
+		usage := &domain.ModelUsage{
 			ID:               uuid.New().String(),
 			WorkspaceID:      session.WorkspaceID,
 			UserID:           session.UserID,
@@ -131,7 +131,7 @@ func (s *Service) SendMessage(ctx context.Context, sessionID string, message aio
 }
 
 // StreamMessage sends a message and streams the response
-func (s *Service) StreamMessage(ctx context.Context, sessionID string, message aiops.ChatMessage) (<-chan *aiops.ChatStreamResponse, error) {
+func (s *Service) StreamMessage(ctx context.Context, sessionID string, message domain.ChatMessage) (<-chan *domain.ChatStreamResponse, error) {
 	// Get the chat session
 	session, err := s.repository.GetChatSession(ctx, sessionID)
 	if err != nil {
@@ -141,7 +141,7 @@ func (s *Service) StreamMessage(ctx context.Context, sessionID string, message a
 	
 	// Prepare the chat request
 	messages := append(session.Messages, message)
-	chatRequest := &aiops.ChatRequest{
+	chatRequest := &domain.ChatRequest{
 		Model:    session.Model,
 		Messages: messages,
 		Stream:   true,
@@ -159,7 +159,7 @@ func (s *Service) StreamMessage(ctx context.Context, sessionID string, message a
 }
 
 // GetChatSession retrieves a chat session by ID
-func (s *Service) GetChatSession(ctx context.Context, sessionID string) (*aiops.ChatSession, error) {
+func (s *Service) GetChatSession(ctx context.Context, sessionID string) (*domain.ChatSession, error) {
 	session, err := s.repository.GetChatSession(ctx, sessionID)
 	if err != nil {
 		s.logger.Error("Failed to get chat session", "error", err, "session_id", sessionID)
@@ -169,7 +169,7 @@ func (s *Service) GetChatSession(ctx context.Context, sessionID string) (*aiops.
 }
 
 // ListChatSessions lists chat sessions for a workspace
-func (s *Service) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*aiops.ChatSession, error) {
+func (s *Service) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*domain.ChatSession, error) {
 	sessions, err := s.repository.ListChatSessions(ctx, workspaceID, limit, offset)
 	if err != nil {
 		s.logger.Error("Failed to list chat sessions", "error", err, "workspace_id", workspaceID)
@@ -191,7 +191,7 @@ func (s *Service) DeleteChatSession(ctx context.Context, sessionID string) error
 }
 
 // ListAvailableModels lists available LLM models
-func (s *Service) ListAvailableModels(ctx context.Context) ([]*aiops.ModelInfo, error) {
+func (s *Service) ListAvailableModels(ctx context.Context) ([]*domain.ModelInfo, error) {
 	models, err := s.llmService.ListModels(ctx)
 	if err != nil {
 		s.logger.Error("Failed to list models", "error", err)
@@ -222,7 +222,7 @@ func (s *Service) EnsureModelAvailable(ctx context.Context, modelName string) er
 }
 
 // GetModelInfo gets information about a specific model
-func (s *Service) GetModelInfo(ctx context.Context, modelName string) (*aiops.ModelInfo, error) {
+func (s *Service) GetModelInfo(ctx context.Context, modelName string) (*domain.ModelInfo, error) {
 	info, err := s.llmService.GetModelInfo(ctx, modelName)
 	if err != nil {
 		s.logger.Error("Failed to get model info", "error", err, "model", modelName)
@@ -232,7 +232,7 @@ func (s *Service) GetModelInfo(ctx context.Context, modelName string) (*aiops.Mo
 }
 
 // GetUsageStats gets usage statistics for a workspace
-func (s *Service) GetUsageStats(ctx context.Context, workspaceID string, from, to time.Time) (*aiops.UsageReport, error) {
+func (s *Service) GetUsageStats(ctx context.Context, workspaceID string, from, to time.Time) (*domain.UsageReport, error) {
 	usage, err := s.repository.GetModelUsageStats(ctx, workspaceID, "", from, to)
 	if err != nil {
 		s.logger.Error("Failed to get usage stats", "error", err, "workspace_id", workspaceID)
@@ -240,15 +240,15 @@ func (s *Service) GetUsageStats(ctx context.Context, workspaceID string, from, t
 	}
 	
 	// Aggregate usage data
-	report := &aiops.UsageReport{
+	report := &domain.UsageReport{
 		WorkspaceID: workspaceID,
-		Period: aiops.Period{
+		Period: domain.Period{
 			From: from,
 			To:   to,
 		},
 		ModelBreakdown: make(map[string]int),
-		DailyUsage:     []aiops.DailyUsage{},
-		TopUsers:       []aiops.UserUsage{},
+		DailyUsage:     []domain.DailyUsage{},
+		TopUsers:       []domain.UserUsage{},
 	}
 	
 	totalTokens := 0
@@ -266,11 +266,11 @@ func (s *Service) GetUsageStats(ctx context.Context, workspaceID string, from, t
 }
 
 // GetModelMetrics gets metrics for a specific model
-func (s *Service) GetModelMetrics(ctx context.Context, modelName string, from, to time.Time) (*aiops.ModelMetrics, error) {
+func (s *Service) GetModelMetrics(ctx context.Context, modelName string, from, to time.Time) (*domain.ModelMetrics, error) {
 	// Implementation would analyze usage data for the specific model
-	metrics := &aiops.ModelMetrics{
+	metrics := &domain.ModelMetrics{
 		ModelName: modelName,
-		Period: aiops.Period{
+		Period: domain.Period{
 			From: from,
 			To:   to,
 		},
@@ -286,32 +286,32 @@ func (s *Service) GetModelMetrics(ctx context.Context, modelName string, from, t
 }
 
 // HealthCheck performs a health check of all AIOps services
-func (s *Service) HealthCheck(ctx context.Context) *aiops.HealthStatus {
-	services := make(map[string]aiops.ServiceHealth)
+func (s *Service) HealthCheck(ctx context.Context) *domain.HealthStatus {
+	services := make(map[string]domain.ServiceHealth)
 	
 	// Check LLM service health
 	llmHealthy := s.llmService.IsHealthy(ctx)
-	llmStatus := aiops.StatusHealthy
+	llmStatus := domain.StatusHealthy
 	if !llmHealthy {
-		llmStatus = aiops.StatusUnhealthy
+		llmStatus = domain.StatusUnhealthy
 	}
 	
-	services["llm"] = aiops.ServiceHealth{
+	services["llm"] = domain.ServiceHealth{
 		Status:      llmStatus,
 		LastCheck:   time.Now(),
 		ResponseTime: 0, // Would measure actual response time
 	}
 	
 	// Determine overall status
-	overallStatus := aiops.StatusHealthy
+	overallStatus := domain.StatusHealthy
 	for _, service := range services {
-		if service.Status == aiops.StatusUnhealthy {
-			overallStatus = aiops.StatusDegraded
+		if service.Status == domain.StatusUnhealthy {
+			overallStatus = domain.StatusDegraded
 			break
 		}
 	}
 	
-	return &aiops.HealthStatus{
+	return &domain.HealthStatus{
 		Status:    overallStatus,
 		Timestamp: time.Now(),
 		Services:  services,

@@ -1,4 +1,4 @@
-package aiops
+package service
 
 import (
 	"context"
@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"log/slog"
 )
 
 // Mock implementations for testing
@@ -19,28 +20,28 @@ type MockLLMService struct {
 	mock.Mock
 }
 
-func (m *MockLLMService) Chat(ctx context.Context, req *aiops.ChatRequest) (*aiops.ChatResponse, error) {
+func (m *MockLLMService) Chat(ctx context.Context, req *domain.ChatRequest) (*domain.ChatResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*aiops.ChatResponse), args.Error(1)
+	return args.Get(0).(*domain.ChatResponse), args.Error(1)
 }
 
-func (m *MockLLMService) StreamChat(ctx context.Context, req *aiops.ChatRequest) (<-chan *aiops.ChatStreamResponse, error) {
+func (m *MockLLMService) StreamChat(ctx context.Context, req *domain.ChatRequest) (<-chan *domain.ChatStreamResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(<-chan *aiops.ChatStreamResponse), args.Error(1)
+	return args.Get(0).(<-chan *domain.ChatStreamResponse), args.Error(1)
 }
 
-func (m *MockLLMService) ListModels(ctx context.Context) ([]*aiops.ModelInfo, error) {
+func (m *MockLLMService) ListModels(ctx context.Context) ([]*domain.ModelInfo, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*aiops.ModelInfo), args.Error(1)
+	return args.Get(0).([]*domain.ModelInfo), args.Error(1)
 }
 
 func (m *MockLLMService) PullModel(ctx context.Context, modelName string) error {
@@ -58,37 +59,37 @@ func (m *MockLLMService) IsHealthy(ctx context.Context) bool {
 	return args.Bool(0)
 }
 
-func (m *MockLLMService) GetModelInfo(ctx context.Context, modelName string) (*aiops.ModelInfo, error) {
+func (m *MockLLMService) GetModelInfo(ctx context.Context, modelName string) (*domain.ModelInfo, error) {
 	args := m.Called(ctx, modelName)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*aiops.ModelInfo), args.Error(1)
+	return args.Get(0).(*domain.ModelInfo), args.Error(1)
 }
 
 type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) SaveChatSession(ctx context.Context, session *aiops.ChatSession) error {
+func (m *MockRepository) SaveChatSession(ctx context.Context, session *domain.ChatSession) error {
 	args := m.Called(ctx, session)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetChatSession(ctx context.Context, sessionID string) (*aiops.ChatSession, error) {
+func (m *MockRepository) GetChatSession(ctx context.Context, sessionID string) (*domain.ChatSession, error) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*aiops.ChatSession), args.Error(1)
+	return args.Get(0).(*domain.ChatSession), args.Error(1)
 }
 
-func (m *MockRepository) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*aiops.ChatSession, error) {
+func (m *MockRepository) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*domain.ChatSession, error) {
 	args := m.Called(ctx, workspaceID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*aiops.ChatSession), args.Error(1)
+	return args.Get(0).([]*domain.ChatSession), args.Error(1)
 }
 
 func (m *MockRepository) DeleteChatSession(ctx context.Context, sessionID string) error {
@@ -96,17 +97,17 @@ func (m *MockRepository) DeleteChatSession(ctx context.Context, sessionID string
 	return args.Error(0)
 }
 
-func (m *MockRepository) TrackModelUsage(ctx context.Context, usage *aiops.ModelUsage) error {
+func (m *MockRepository) TrackModelUsage(ctx context.Context, usage *domain.ModelUsage) error {
 	args := m.Called(ctx, usage)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetModelUsageStats(ctx context.Context, workspaceID, modelName string, from, to time.Time) ([]*aiops.ModelUsage, error) {
+func (m *MockRepository) GetModelUsageStats(ctx context.Context, workspaceID, modelName string, from, to time.Time) ([]*domain.ModelUsage, error) {
 	args := m.Called(ctx, workspaceID, modelName, from, to)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*aiops.ModelUsage), args.Error(1)
+	return args.Get(0).([]*domain.ModelUsage), args.Error(1)
 }
 
 // Test helper functions
@@ -120,21 +121,21 @@ func createTestService() (*Service, *MockLLMService, *MockRepository) {
 	return service, mockLLM, mockRepo
 }
 
-func createTestChatSession() *aiops.ChatSession {
-	return &aiops.ChatSession{
+func createTestChatSession() *domain.ChatSession {
+	return &domain.ChatSession{
 		ID:          uuid.New().String(),
 		WorkspaceID: "workspace-123",
 		UserID:      "user-123",
 		Title:       "Test Chat",
 		Model:       "llama2:7b",
-		Messages:    []aiops.ChatMessage{},
+		Messages:    []domain.ChatMessage{},
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 }
 
-func createTestChatMessage() aiops.ChatMessage {
-	return aiops.ChatMessage{
+func createTestChatMessage() domain.ChatMessage {
+	return domain.ChatMessage{
 		Role:    "user",
 		Content: "Hello, how can you help me with Kubernetes troubleshooting?",
 	}
@@ -152,7 +153,7 @@ func TestCreateChatSession(t *testing.T) {
 		title := "Kubernetes Troubleshooting"
 		model := "llama2:7b"
 		
-		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*aiops.ChatSession")).Return(nil)
+		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*domain.ChatSession")).Return(nil)
 		
 		// Act
 		session, err := service.CreateChatSession(ctx, workspaceID, userID, title, model)
@@ -174,7 +175,7 @@ func TestCreateChatSession(t *testing.T) {
 		service, _, mockRepo := createTestService()
 		ctx := context.Background()
 		
-		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*aiops.ChatSession")).Return(errors.New("database error"))
+		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*domain.ChatSession")).Return(errors.New("database error"))
 		
 		// Act
 		session, err := service.CreateChatSession(ctx, "workspace-123", "user-123", "Test", "llama2:7b")
@@ -196,15 +197,15 @@ func TestSendMessage(t *testing.T) {
 		sessionID := session.ID
 		
 		// Expected LLM response
-		expectedResponse := &aiops.ChatResponse{
+		expectedResponse := &domain.ChatResponse{
 			Model: "llama2:7b",
-			Message: aiops.ChatMessage{
+			Message: domain.ChatMessage{
 				Role:    "assistant",
 				Content: "I can help you troubleshoot Kubernetes issues. What specific problem are you experiencing?",
 			},
 			Done:      true,
 			CreatedAt: time.Now(),
-			Usage: &aiops.UsageStats{
+			Usage: &domain.UsageStats{
 				PromptTokens:     15,
 				CompletionTokens: 25,
 				TotalTokens:      40,
@@ -213,9 +214,9 @@ func TestSendMessage(t *testing.T) {
 		
 		// Mock expectations
 		mockRepo.On("GetChatSession", ctx, sessionID).Return(session, nil)
-		mockLLM.On("Chat", ctx, mock.AnythingOfType("*aiops.ChatRequest")).Return(expectedResponse, nil)
-		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*aiops.ChatSession")).Return(nil)
-		mockRepo.On("TrackModelUsage", ctx, mock.AnythingOfType("*aiops.ModelUsage")).Return(nil)
+		mockLLM.On("Chat", ctx, mock.AnythingOfType("*domain.ChatRequest")).Return(expectedResponse, nil)
+		mockRepo.On("SaveChatSession", ctx, mock.AnythingOfType("*domain.ChatSession")).Return(nil)
+		mockRepo.On("TrackModelUsage", ctx, mock.AnythingOfType("*domain.ModelUsage")).Return(nil)
 		
 		// Act
 		response, err := service.SendMessage(ctx, sessionID, message)
@@ -259,7 +260,7 @@ func TestSendMessage(t *testing.T) {
 		sessionID := session.ID
 		
 		mockRepo.On("GetChatSession", ctx, sessionID).Return(session, nil)
-		mockLLM.On("Chat", ctx, mock.AnythingOfType("*aiops.ChatRequest")).Return(nil, errors.New("LLM service unavailable"))
+		mockLLM.On("Chat", ctx, mock.AnythingOfType("*domain.ChatRequest")).Return(nil, errors.New("LLM service unavailable"))
 		
 		// Act
 		response, err := service.SendMessage(ctx, sessionID, message)
@@ -276,18 +277,18 @@ func TestListAvailableModels(t *testing.T) {
 		service, mockLLM, _ := createTestService()
 		ctx := context.Background()
 		
-		expectedModels := []*aiops.ModelInfo{
+		expectedModels := []*domain.ModelInfo{
 			{
 				Name:       "llama2:7b",
 				ModifiedAt: time.Now(),
 				Size:       3800000000,
-				Status:     aiops.ModelStatusAvailable,
+				Status:     domain.ModelStatusAvailable,
 			},
 			{
 				Name:       "codellama:13b",
 				ModifiedAt: time.Now(),
 				Size:       7300000000,
-				Status:     aiops.ModelStatusAvailable,
+				Status:     domain.ModelStatusAvailable,
 			},
 		}
 		
@@ -327,9 +328,9 @@ func TestEnsureModelAvailable(t *testing.T) {
 		ctx := context.Background()
 		
 		modelName := "llama2:7b"
-		modelInfo := &aiops.ModelInfo{
+		modelInfo := &domain.ModelInfo{
 			Name:   modelName,
-			Status: aiops.ModelStatusAvailable,
+			Status: domain.ModelStatusAvailable,
 		}
 		
 		mockLLM.On("GetModelInfo", ctx, modelName).Return(modelInfo, nil)
@@ -390,9 +391,9 @@ func TestHealthCheck(t *testing.T) {
 		
 		// Assert
 		assert.NotNil(t, status)
-		assert.Equal(t, aiops.StatusHealthy, status.Status)
+		assert.Equal(t, domain.StatusHealthy, status.Status)
 		assert.Contains(t, status.Services, "llm")
-		assert.Equal(t, aiops.StatusHealthy, status.Services["llm"].Status)
+		assert.Equal(t, domain.StatusHealthy, status.Services["llm"].Status)
 		
 		mockLLM.AssertExpectations(t)
 	})
@@ -408,9 +409,9 @@ func TestHealthCheck(t *testing.T) {
 		
 		// Assert
 		assert.NotNil(t, status)
-		assert.Equal(t, aiops.StatusDegraded, status.Status)
+		assert.Equal(t, domain.StatusDegraded, status.Status)
 		assert.Contains(t, status.Services, "llm")
-		assert.Equal(t, aiops.StatusUnhealthy, status.Services["llm"].Status)
+		assert.Equal(t, domain.StatusUnhealthy, status.Services["llm"].Status)
 	})
 }
 
@@ -423,7 +424,7 @@ func TestGetUsageStats(t *testing.T) {
 		from := time.Now().AddDate(0, 0, -7)
 		to := time.Now()
 		
-		mockUsage := []*aiops.ModelUsage{
+		mockUsage := []*domain.ModelUsage{
 			{
 				ID:               "usage-1",
 				WorkspaceID:      workspaceID,

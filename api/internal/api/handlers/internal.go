@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	aiopsDomain "github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
 	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	cicdDomain "github.com/hexabase/hexabase-ai/api/internal/cicd/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
 	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
 	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
@@ -25,7 +25,7 @@ type InternalHandler struct {
 	nodeSvc         nodeDomain.Service
 	logSvc          logsDomain.Service
 	monitoringSvc   monitoringDomain.Service
-	aiopsSvc        aiops.Service
+	aiopsSvc        aiopsDomain.Service
 	CICDService     cicdDomain.Service
 	backupSvc       backupDomain.Service
 	logger          *slog.Logger
@@ -39,7 +39,7 @@ func NewInternalHandler(
 	nodeSvc nodeDomain.Service,
 	logSvc logsDomain.Service,
 	monitoringSvc monitoringDomain.Service,
-	aiopsSvc aiops.Service,
+	aiopsSvc aiopsDomain.Service,
 	CICDService cicdDomain.Service,
 	backupSvc backupDomain.Service,
 	logger *slog.Logger,
@@ -390,9 +390,9 @@ func (h *InternalHandler) GetAIInsights(c *gin.Context) {
 	usageStats, err := h.aiopsSvc.GetUsageStats(c.Request.Context(), workspaceID, from, to)
 	if err != nil {
 		h.logger.Error("failed to get usage stats", "workspace_id", workspaceID, "error", err)
-		usageStats = &aiops.UsageReport{
+		usageStats = &aiopsDomain.UsageReport{
 			WorkspaceID: workspaceID,
-			Period: aiops.Period{From: from, To: to},
+			Period: aiopsDomain.Period{From: from, To: to},
 		}
 	}
 

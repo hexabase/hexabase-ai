@@ -1,4 +1,4 @@
-package aiops
+package repository
 
 import (
 	"bufio"
@@ -11,35 +11,35 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 )
 
 // OllamaProvider implements the LLMService interface for Ollama
 type OllamaProvider struct {
+	httpClient *http.Client
 	baseURL    string
 	timeout    time.Duration
 	headers    map[string]string
-	httpClient *http.Client
 }
 
 // NewOllamaProvider creates a new Ollama provider
-func NewOllamaProvider(baseURL string, timeout time.Duration, headers map[string]string) aiops.LLMService {
+func NewOllamaProvider(baseURL string, timeout time.Duration, headers map[string]string) domain.LLMService {
 	if headers == nil {
 		headers = make(map[string]string)
 	}
 	
 	return &OllamaProvider{
-		baseURL: strings.TrimSuffix(baseURL, "/"),
-		timeout: timeout,
-		headers: headers,
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		timeout: timeout,
+		headers: headers,
 	}
 }
 
 // Chat sends a chat request to Ollama
-func (p *OllamaProvider) Chat(ctx context.Context, req *aiops.ChatRequest) (*aiops.ChatResponse, error) {
+func (p *OllamaProvider) Chat(ctx context.Context, req *domain.ChatRequest) (*domain.ChatResponse, error) {
 	// Convert to Ollama request format
 	ollamaReq := map[string]any{
 		"model":    req.Model,
@@ -125,9 +125,9 @@ func (p *OllamaProvider) Chat(ctx context.Context, req *aiops.ChatRequest) (*aio
 	}
 	
 	// Convert to domain response
-	response := &aiops.ChatResponse{
+	response := &domain.ChatResponse{
 		Model: ollamaResp.Model,
-		Message: aiops.ChatMessage{
+		Message: domain.ChatMessage{
 			Role:    ollamaResp.Message.Role,
 			Content: ollamaResp.Message.Content,
 		},
@@ -137,7 +137,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, req *aiops.ChatRequest) (*aio
 	
 	// Calculate usage statistics from Ollama response
 	if ollamaResp.EvalCount > 0 || ollamaResp.PromptEvalCount > 0 {
-		response.Usage = &aiops.UsageStats{
+		response.Usage = &domain.UsageStats{
 			PromptTokens:     ollamaResp.PromptEvalCount,
 			CompletionTokens: ollamaResp.EvalCount,
 			TotalTokens:      ollamaResp.PromptEvalCount + ollamaResp.EvalCount,
@@ -148,7 +148,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, req *aiops.ChatRequest) (*aio
 }
 
 // StreamChat sends a streaming chat request to Ollama
-func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest) (<-chan *aiops.ChatStreamResponse, error) {
+func (p *OllamaProvider) StreamChat(ctx context.Context, req *domain.ChatRequest) (<-chan *domain.ChatStreamResponse, error) {
 	// Convert to Ollama request format
 	ollamaReq := map[string]any{
 		"model":    req.Model,
@@ -191,7 +191,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest)
 	}
 	
 	// Create response channel
-	responseChan := make(chan *aiops.ChatStreamResponse, 10)
+	responseChan := make(chan *domain.ChatStreamResponse, 10)
 	
 	go func() {
 		defer close(responseChan)
@@ -218,14 +218,14 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest)
 			
 			err := json.Unmarshal([]byte(line), &ollamaResp)
 			if err != nil {
-				responseChan <- &aiops.ChatStreamResponse{
+				responseChan <- &domain.ChatStreamResponse{
 					Error: fmt.Sprintf("failed to decode response: %v", err),
 				}
 				return
 			}
 			
 			if ollamaResp.Error != "" {
-				responseChan <- &aiops.ChatStreamResponse{
+				responseChan <- &domain.ChatStreamResponse{
 					Error: ollamaResp.Error,
 				}
 				return
@@ -238,9 +238,9 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest)
 			}
 			
 			// Send response chunk
-			responseChan <- &aiops.ChatStreamResponse{
+			responseChan <- &domain.ChatStreamResponse{
 				Model: ollamaResp.Model,
-				Message: aiops.ChatMessage{
+				Message: domain.ChatMessage{
 					Role:    ollamaResp.Message.Role,
 					Content: ollamaResp.Message.Content,
 				},
@@ -255,7 +255,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest)
 		}
 		
 		if err := scanner.Err(); err != nil {
-			responseChan <- &aiops.ChatStreamResponse{
+			responseChan <- &domain.ChatStreamResponse{
 				Error: fmt.Sprintf("stream error: %v", err),
 			}
 		}
@@ -265,7 +265,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *aiops.ChatRequest)
 }
 
 // ListModels lists available models from Ollama
-func (p *OllamaProvider) ListModels(ctx context.Context) ([]*aiops.ModelInfo, error) {
+func (p *OllamaProvider) ListModels(ctx context.Context) ([]*domain.ModelInfo, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/api/tags", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -307,20 +307,20 @@ func (p *OllamaProvider) ListModels(ctx context.Context) ([]*aiops.ModelInfo, er
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	
-	models := make([]*aiops.ModelInfo, 0, len(ollamaResp.Models))
+	models := make([]*domain.ModelInfo, 0, len(ollamaResp.Models))
 	for _, model := range ollamaResp.Models {
 		modifiedAt, err := time.Parse(time.RFC3339, model.ModifiedAt)
 		if err != nil {
 			modifiedAt = time.Now()
 		}
 		
-		modelInfo := &aiops.ModelInfo{
+		modelInfo := &domain.ModelInfo{
 			Name:       model.Name,
 			ModifiedAt: modifiedAt,
 			Size:       model.Size,
 			Digest:     model.Digest,
-			Status:     aiops.ModelStatusAvailable,
-			Details: &aiops.ModelDetails{
+			Status:     domain.ModelStatusAvailable,
+			Details: &domain.ModelDetails{
 				Format:       model.Details.Format,
 				Family:       model.Details.Family,
 				Families:     model.Details.Families,
@@ -456,7 +456,7 @@ func (p *OllamaProvider) IsHealthy(ctx context.Context) bool {
 }
 
 // GetModelInfo gets information about a specific model
-func (p *OllamaProvider) GetModelInfo(ctx context.Context, modelName string) (*aiops.ModelInfo, error) {
+func (p *OllamaProvider) GetModelInfo(ctx context.Context, modelName string) (*domain.ModelInfo, error) {
 	reqBody, err := json.Marshal(map[string]string{
 		"name": modelName,
 	})
@@ -504,10 +504,10 @@ func (p *OllamaProvider) GetModelInfo(ctx context.Context, modelName string) (*a
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	
-	modelInfo := &aiops.ModelInfo{
+	modelInfo := &domain.ModelInfo{
 		Name:   modelName,
-		Status: aiops.ModelStatusAvailable,
-		Details: &aiops.ModelDetails{
+		Status: domain.ModelStatusAvailable,
+		Details: &domain.ModelDetails{
 			Format:       ollamaResp.Details.Format,
 			Family:       ollamaResp.Details.Family,
 			Families:     ollamaResp.Details.Families,

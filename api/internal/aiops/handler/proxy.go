@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"log/slog"
@@ -7,18 +7,18 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 )
 
 // AIOpsProxyHandler forwards requests to the Python AIOps service.
 type AIOpsProxyHandler struct {
-	authSvc    domain.Service
+	authSvc    authDomain.Service
 	logger     *slog.Logger
 	aiopsServiceURL *url.URL
 }
 
 // NewAIOpsProxyHandler creates a new AIOps proxy handler.
-func NewAIOpsProxyHandler(authSvc domain.Service, logger *slog.Logger, aiopsServiceURL string) (*AIOpsProxyHandler, error) {
+func NewAIOpsProxyHandler(authSvc authDomain.Service, logger *slog.Logger, aiopsServiceURL string) (*AIOpsProxyHandler, error) {
 	parsedURL, err := url.Parse(aiopsServiceURL)
 	if err != nil {
 		return nil, err

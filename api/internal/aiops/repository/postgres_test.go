@@ -1,13 +1,14 @@
-package aiops
+package repository
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
@@ -32,16 +33,16 @@ func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 func TestPostgresRepository_SaveChatSession(t *testing.T) {
 	t.Run("successful save new session", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
-		session := &aiops.ChatSession{
+		session := &domain.ChatSession{
 			ID:          uuid.New().String(),
 			WorkspaceID: "workspace-123",
 			UserID:      "user-123",
 			Title:       "Test Chat",
 			Model:       "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Hello"},
 				{Role: "assistant", Content: "Hi there!"},
 			},
@@ -82,16 +83,16 @@ func TestPostgresRepository_SaveChatSession(t *testing.T) {
 	
 	t.Run("successful update existing session", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
-		session := &aiops.ChatSession{
+		session := &domain.ChatSession{
 			ID:          uuid.New().String(),
 			WorkspaceID: "workspace-123",
 			UserID:      "user-123",
 			Title:       "Updated Chat",
 			Model:       "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Hello"},
 				{Role: "assistant", Content: "Hi there!"},
 				{Role: "user", Content: "How are you?"},
@@ -132,7 +133,7 @@ func TestPostgresRepository_SaveChatSession(t *testing.T) {
 func TestPostgresRepository_GetChatSession(t *testing.T) {
 	t.Run("successful retrieval", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		sessionID := uuid.New().String()
@@ -164,7 +165,7 @@ func TestPostgresRepository_GetChatSession(t *testing.T) {
 	
 	t.Run("session not found", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		sessionID := uuid.New().String()
@@ -187,7 +188,7 @@ func TestPostgresRepository_GetChatSession(t *testing.T) {
 func TestPostgresRepository_ListChatSessions(t *testing.T) {
 	t.Run("successful listing with pagination", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		workspaceID := "workspace-123"
@@ -226,7 +227,7 @@ func TestPostgresRepository_ListChatSessions(t *testing.T) {
 func TestPostgresRepository_DeleteChatSession(t *testing.T) {
 	t.Run("successful deletion", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		sessionID := uuid.New().String()
@@ -249,10 +250,10 @@ func TestPostgresRepository_DeleteChatSession(t *testing.T) {
 func TestPostgresRepository_TrackModelUsage(t *testing.T) {
 	t.Run("successful usage tracking", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
-		usage := &aiops.ModelUsage{
+		usage := &domain.ModelUsage{
 			ID:               uuid.New().String(),
 			WorkspaceID:      "workspace-123",
 			UserID:           "user-123",
@@ -295,7 +296,7 @@ func TestPostgresRepository_TrackModelUsage(t *testing.T) {
 func TestPostgresRepository_GetModelUsageStats(t *testing.T) {
 	t.Run("successful stats retrieval", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		workspaceID := "workspace-123"
@@ -336,7 +337,7 @@ func TestPostgresRepository_GetModelUsageStats(t *testing.T) {
 	
 	t.Run("retrieve all models when model name is empty", func(t *testing.T) {
 		db, mock := setupTestDB(t)
-		repo := NewPostgresRepository(db)
+		repo := NewPostgresRepository(db, slog.Default())
 		ctx := context.Background()
 		
 		workspaceID := "workspace-123"

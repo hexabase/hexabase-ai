@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
@@ -7,32 +7,33 @@ import (
 	"strconv"
 	"strings"
 
+	"log/slog"
+
 	"github.com/gorilla/mux"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 )
 
-// AIOpsService defines the interface for AIOps operations
+// AIOpsService defines the interface for AIOps operations (preserved from original)
 type AIOpsService interface {
-	CreateChatSession(workspaceID, userID, model string) (*aiops.ChatSession, error)
-	GetChatSession(sessionID string) (*aiops.ChatSession, error)
-	ListChatSessions(workspaceID string, limit, offset int) ([]*aiops.ChatSession, error)
+	CreateChatSession(workspaceID, userID, model string) (*domain.ChatSession, error)
+	GetChatSession(sessionID string) (*domain.ChatSession, error)
+	ListChatSessions(workspaceID string, limit, offset int) ([]*domain.ChatSession, error)
 	DeleteChatSession(sessionID string) error
-	Chat(sessionID string, message string, context []int) (*aiops.ChatResponse, error)
-	StreamChat(sessionID string, message string, context []int) (<-chan *aiops.ChatStreamResponse, error)
-	GetAvailableModels() ([]*aiops.ModelInfo, error)
-	GetTokenUsage(workspaceID, model string, limit, offset int) ([]*aiops.ModelUsage, error)
+	Chat(sessionID string, message string, context []int) (*domain.ChatResponse, error)
+	StreamChat(sessionID string, message string, context []int) (<-chan *domain.ChatStreamResponse, error)
+	GetAvailableModels() ([]*domain.ModelInfo, error)
+	GetTokenUsage(workspaceID, model string, limit, offset int) ([]*domain.ModelUsage, error)
 }
 
-// AIOpsHandler handles AIOps-related requests
-type AIOpsHandler struct {
+// Handler handles AIOps-related requests
+type Handler struct {
 	service AIOpsService
-	logger  *zap.Logger
+	logger  *slog.Logger
 }
 
-// NewAIOpsHandler creates a new AIOps handler
-func NewAIOpsHandler(service AIOpsService, logger *zap.Logger) *AIOpsHandler {
-	return &AIOpsHandler{
+// NewHandler creates a new AIOps handler
+func NewHandler(service AIOpsService, logger *slog.Logger) *Handler {
+	return &Handler{
 		service: service,
 		logger:  logger,
 	}
@@ -46,10 +47,10 @@ type CreateChatSessionRequest struct {
 }
 
 // CreateChatSession handles POST /api/v1/aiops/sessions
-func (h *AIOpsHandler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
 	var req CreateChatSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Failed to decode request", zap.Error(err))
+		h.logger.Error("Failed to decode request", "error", err)
 		h.respondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -70,7 +71,7 @@ func (h *AIOpsHandler) CreateChatSession(w http.ResponseWriter, r *http.Request)
 
 	session, err := h.service.CreateChatSession(req.WorkspaceID, req.UserID, req.Model)
 	if err != nil {
-		h.logger.Error("Failed to create chat session", zap.Error(err))
+		h.logger.Error("Failed to create chat session", "error", err)
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to create chat session")
 		return
 	}
@@ -79,13 +80,13 @@ func (h *AIOpsHandler) CreateChatSession(w http.ResponseWriter, r *http.Request)
 }
 
 // GetChatSession handles GET /api/v1/aiops/sessions/{sessionId}
-func (h *AIOpsHandler) GetChatSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetChatSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionID := vars["sessionId"]
 
 	session, err := h.service.GetChatSession(sessionID)
 	if err != nil {
-		h.logger.Error("Failed to get chat session", zap.Error(err))
+		h.logger.Error("Failed to get chat session", "error", err)
 		h.respondWithError(w, http.StatusNotFound, "Chat session not found")
 		return
 	}
@@ -95,12 +96,12 @@ func (h *AIOpsHandler) GetChatSession(w http.ResponseWriter, r *http.Request) {
 
 // ListChatSessionsResponse represents the response for listing chat sessions
 type ListChatSessionsResponse struct {
-	Sessions []*aiops.ChatSession `json:"sessions"`
+	Sessions []*domain.ChatSession `json:"sessions"`
 	Total    int                  `json:"total"`
 }
 
 // ListChatSessions handles GET /api/v1/aiops/sessions
-func (h *AIOpsHandler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
 	workspaceID := r.URL.Query().Get("workspace_id")
 	if workspaceID == "" {
 		h.respondWithError(w, http.StatusBadRequest, "workspace_id is required")
@@ -124,7 +125,7 @@ func (h *AIOpsHandler) ListChatSessions(w http.ResponseWriter, r *http.Request) 
 
 	sessions, err := h.service.ListChatSessions(workspaceID, limit, offset)
 	if err != nil {
-		h.logger.Error("Failed to list chat sessions", zap.Error(err))
+		h.logger.Error("Failed to list chat sessions", "error", err)
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to list chat sessions")
 		return
 	}
@@ -138,13 +139,13 @@ func (h *AIOpsHandler) ListChatSessions(w http.ResponseWriter, r *http.Request) 
 }
 
 // DeleteChatSession handles DELETE /api/v1/aiops/sessions/{sessionId}
-func (h *AIOpsHandler) DeleteChatSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteChatSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionID := vars["sessionId"]
 
 	err := h.service.DeleteChatSession(sessionID)
 	if err != nil {
-		h.logger.Error("Failed to delete chat session", zap.Error(err))
+		h.logger.Error("Failed to delete chat session", "error", err)
 		h.respondWithError(w, http.StatusNotFound, "Chat session not found")
 		return
 	}
@@ -159,13 +160,13 @@ type ChatRequest struct {
 }
 
 // Chat handles POST /api/v1/aiops/sessions/{sessionId}/chat
-func (h *AIOpsHandler) Chat(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionID := vars["sessionId"]
 
 	var req ChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Failed to decode request", zap.Error(err))
+		h.logger.Error("Failed to decode request", "error", err)
 		h.respondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -184,7 +185,7 @@ func (h *AIOpsHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	// Regular non-streaming chat
 	response, err := h.service.Chat(sessionID, req.Message, req.Context)
 	if err != nil {
-		h.logger.Error("Failed to process chat", zap.Error(err))
+		h.logger.Error("Failed to process chat", "error", err)
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to process chat")
 		return
 	}
@@ -193,7 +194,7 @@ func (h *AIOpsHandler) Chat(w http.ResponseWriter, r *http.Request) {
 }
 
 // streamChat handles streaming chat responses
-func (h *AIOpsHandler) streamChat(w http.ResponseWriter, r *http.Request, sessionID string, req ChatRequest) {
+func (h *Handler) streamChat(w http.ResponseWriter, r *http.Request, sessionID string, req ChatRequest) {
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -210,7 +211,7 @@ func (h *AIOpsHandler) streamChat(w http.ResponseWriter, r *http.Request, sessio
 	// Start streaming
 	stream, err := h.service.StreamChat(sessionID, req.Message, req.Context)
 	if err != nil {
-		h.logger.Error("Failed to start chat stream", zap.Error(err))
+		h.logger.Error("Failed to start chat stream", "error", err)
 		fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
 		flusher.Flush()
 		return
@@ -237,14 +238,14 @@ func (h *AIOpsHandler) streamChat(w http.ResponseWriter, r *http.Request, sessio
 
 // GetModelsResponse represents the response for getting available models
 type GetModelsResponse struct {
-	Models []*aiops.ModelInfo `json:"models"`
+	Models []*domain.ModelInfo `json:"models"`
 }
 
 // GetAvailableModels handles GET /api/v1/aiops/models
-func (h *AIOpsHandler) GetAvailableModels(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAvailableModels(w http.ResponseWriter, r *http.Request) {
 	models, err := h.service.GetAvailableModels()
 	if err != nil {
-		h.logger.Error("Failed to get available models", zap.Error(err))
+		h.logger.Error("Failed to get available models", "error", err)
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to get available models")
 		return
 	}
@@ -258,12 +259,12 @@ func (h *AIOpsHandler) GetAvailableModels(w http.ResponseWriter, r *http.Request
 
 // GetTokenUsageResponse represents the response for token usage
 type GetTokenUsageResponse struct {
-	Usage []*aiops.ModelUsage `json:"usage"`
+	Usage []*domain.ModelUsage `json:"usage"`
 	Total int                 `json:"total"`
 }
 
 // GetTokenUsage handles GET /api/v1/aiops/usage
-func (h *AIOpsHandler) GetTokenUsage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetTokenUsage(w http.ResponseWriter, r *http.Request) {
 	workspaceID := r.URL.Query().Get("workspace_id")
 	if workspaceID == "" {
 		h.respondWithError(w, http.StatusBadRequest, "workspace_id is required")
@@ -288,7 +289,7 @@ func (h *AIOpsHandler) GetTokenUsage(w http.ResponseWriter, r *http.Request) {
 
 	usage, err := h.service.GetTokenUsage(workspaceID, model, limit, offset)
 	if err != nil {
-		h.logger.Error("Failed to get token usage", zap.Error(err))
+		h.logger.Error("Failed to get token usage", "error", err)
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to get token usage")
 		return
 	}
@@ -307,12 +308,12 @@ type ErrorResponse struct {
 }
 
 // respondWithError sends an error response
-func (h *AIOpsHandler) respondWithError(w http.ResponseWriter, code int, message string) {
+func (h *Handler) respondWithError(w http.ResponseWriter, code int, message string) {
 	h.respondWithJSON(w, code, ErrorResponse{Error: message})
 }
 
 // respondWithJSON sends a JSON response
-func (h *AIOpsHandler) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+func (h *Handler) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

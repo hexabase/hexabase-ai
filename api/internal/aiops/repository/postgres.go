@@ -1,26 +1,29 @@
-package aiops
+package repository
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
-// PostgresRepository implements the Repository interface for PostgreSQL
+// PostgresRepository implements the AIOps repository interface using PostgreSQL
 type PostgresRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *slog.Logger
 }
 
 // NewPostgresRepository creates a new PostgreSQL repository
-func NewPostgresRepository(db *gorm.DB) aiops.Repository {
+func NewPostgresRepository(db *gorm.DB, logger *slog.Logger) domain.Repository {
 	return &PostgresRepository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -64,7 +67,7 @@ func (ModelUsageModel) TableName() string {
 }
 
 // SaveChatSession saves or updates a chat session
-func (r *PostgresRepository) SaveChatSession(ctx context.Context, session *aiops.ChatSession) error {
+func (r *PostgresRepository) SaveChatSession(ctx context.Context, session *domain.ChatSession) error {
 	// Convert messages to JSON
 	messagesJSON, err := json.Marshal(session.Messages)
 	if err != nil {
@@ -139,7 +142,7 @@ func (r *PostgresRepository) SaveChatSession(ctx context.Context, session *aiops
 }
 
 // GetChatSession retrieves a chat session by ID
-func (r *PostgresRepository) GetChatSession(ctx context.Context, sessionID string) (*aiops.ChatSession, error) {
+func (r *PostgresRepository) GetChatSession(ctx context.Context, sessionID string) (*domain.ChatSession, error) {
 	var model ChatSessionModel
 	result := r.db.WithContext(ctx).Where("id = ?", sessionID).First(&model)
 	if result.Error != nil {
@@ -150,7 +153,7 @@ func (r *PostgresRepository) GetChatSession(ctx context.Context, sessionID strin
 	}
 	
 	// Convert from model to domain
-	session := &aiops.ChatSession{
+	session := &domain.ChatSession{
 		ID:          model.ID,
 		WorkspaceID: model.WorkspaceID,
 		UserID:      model.UserID,
@@ -188,7 +191,7 @@ func (r *PostgresRepository) GetChatSession(ctx context.Context, sessionID strin
 }
 
 // ListChatSessions lists chat sessions for a workspace
-func (r *PostgresRepository) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*aiops.ChatSession, error) {
+func (r *PostgresRepository) ListChatSessions(ctx context.Context, workspaceID string, limit, offset int) ([]*domain.ChatSession, error) {
 	var models []ChatSessionModel
 	result := r.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
@@ -201,9 +204,9 @@ func (r *PostgresRepository) ListChatSessions(ctx context.Context, workspaceID s
 		return nil, fmt.Errorf("failed to list chat sessions: %w", result.Error)
 	}
 	
-	sessions := make([]*aiops.ChatSession, len(models))
+	sessions := make([]*domain.ChatSession, len(models))
 	for i, model := range models {
-		session := &aiops.ChatSession{
+		session := &domain.ChatSession{
 			ID:          model.ID,
 			WorkspaceID: model.WorkspaceID,
 			UserID:      model.UserID,
@@ -256,7 +259,7 @@ func (r *PostgresRepository) DeleteChatSession(ctx context.Context, sessionID st
 }
 
 // TrackModelUsage tracks model usage statistics
-func (r *PostgresRepository) TrackModelUsage(ctx context.Context, usage *aiops.ModelUsage) error {
+func (r *PostgresRepository) TrackModelUsage(ctx context.Context, usage *domain.ModelUsage) error {
 	// Convert metadata to JSON
 	metadataJSON, err := json.Marshal(usage.Metadata)
 	if err != nil {
@@ -286,7 +289,7 @@ func (r *PostgresRepository) TrackModelUsage(ctx context.Context, usage *aiops.M
 }
 
 // GetModelUsageStats retrieves model usage statistics
-func (r *PostgresRepository) GetModelUsageStats(ctx context.Context, workspaceID, modelName string, from, to time.Time) ([]*aiops.ModelUsage, error) {
+func (r *PostgresRepository) GetModelUsageStats(ctx context.Context, workspaceID, modelName string, from, to time.Time) ([]*domain.ModelUsage, error) {
 	var models []ModelUsageModel
 	
 	query := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID)
@@ -302,9 +305,9 @@ func (r *PostgresRepository) GetModelUsageStats(ctx context.Context, workspaceID
 		return nil, fmt.Errorf("failed to get model usage stats: %w", result.Error)
 	}
 	
-	stats := make([]*aiops.ModelUsage, len(models))
+	stats := make([]*domain.ModelUsage, len(models))
 	for i, model := range models {
-		usage := &aiops.ModelUsage{
+		usage := &domain.ModelUsage{
 			ID:               model.ID,
 			WorkspaceID:      model.WorkspaceID,
 			UserID:           model.UserID,

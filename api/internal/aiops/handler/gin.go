@@ -1,34 +1,34 @@
-package handlers
+package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"go.uber.org/zap"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 )
 
-// AIOpsGinHandler wraps the AIOps handler for Gin framework
-type AIOpsGinHandler struct {
-	service aiops.Service
-	logger  *zap.Logger
+// GinHandler wraps the AIOps handler for Gin framework
+type GinHandler struct {
+	service domain.Service
+	logger  *slog.Logger
 }
 
-// NewAIOpsGinHandler creates a new AIOps Gin handler
-func NewAIOpsGinHandler(service aiops.Service, logger *zap.Logger) *AIOpsGinHandler {
-	return &AIOpsGinHandler{
+// NewGinHandler creates a new AIOps Gin handler
+func NewGinHandler(service domain.Service, logger *slog.Logger) *GinHandler {
+	return &GinHandler{
 		service: service,
 		logger:  logger,
 	}
 }
 
 // CreateChatSession handles POST /api/v1/aiops/sessions
-func (h *AIOpsGinHandler) CreateChatSession(c *gin.Context) {
+func (h *GinHandler) CreateChatSession(c *gin.Context) {
 	var req CreateChatSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Error("Failed to decode request", zap.Error(err))
+		h.logger.Error("Failed to decode request", slog.Any("error", err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
@@ -51,7 +51,7 @@ func (h *AIOpsGinHandler) CreateChatSession(c *gin.Context) {
 	title := "New Chat Session" // Default title
 	session, err := h.service.CreateChatSession(ctx, req.WorkspaceID, req.UserID, title, req.Model)
 	if err != nil {
-		h.logger.Error("Failed to create chat session", zap.Error(err))
+		h.logger.Error("Failed to create chat session", slog.Any("error", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create chat session"})
 		return
 	}
@@ -60,13 +60,13 @@ func (h *AIOpsGinHandler) CreateChatSession(c *gin.Context) {
 }
 
 // GetChatSession handles GET /api/v1/aiops/sessions/:sessionId
-func (h *AIOpsGinHandler) GetChatSession(c *gin.Context) {
+func (h *GinHandler) GetChatSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	ctx := c.Request.Context()
 
 	session, err := h.service.GetChatSession(ctx, sessionID)
 	if err != nil {
-		h.logger.Error("Failed to get chat session", zap.Error(err))
+		h.logger.Error("Failed to get chat session", slog.Any("error", err))
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat session not found"})
 		return
 	}
@@ -75,7 +75,7 @@ func (h *AIOpsGinHandler) GetChatSession(c *gin.Context) {
 }
 
 // ListChatSessions handles GET /api/v1/aiops/sessions
-func (h *AIOpsGinHandler) ListChatSessions(c *gin.Context) {
+func (h *GinHandler) ListChatSessions(c *gin.Context) {
 	workspaceID := c.Query("workspace_id")
 	if workspaceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace_id is required"})
@@ -100,7 +100,7 @@ func (h *AIOpsGinHandler) ListChatSessions(c *gin.Context) {
 	ctx := c.Request.Context()
 	sessions, err := h.service.ListChatSessions(ctx, workspaceID, limit, offset)
 	if err != nil {
-		h.logger.Error("Failed to list chat sessions", zap.Error(err))
+		h.logger.Error("Failed to list chat sessions", slog.Any("error", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list chat sessions"})
 		return
 	}
@@ -114,13 +114,13 @@ func (h *AIOpsGinHandler) ListChatSessions(c *gin.Context) {
 }
 
 // DeleteChatSession handles DELETE /api/v1/aiops/sessions/:sessionId
-func (h *AIOpsGinHandler) DeleteChatSession(c *gin.Context) {
+func (h *GinHandler) DeleteChatSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	ctx := c.Request.Context()
 
 	err := h.service.DeleteChatSession(ctx, sessionID)
 	if err != nil {
-		h.logger.Error("Failed to delete chat session", zap.Error(err))
+		h.logger.Error("Failed to delete chat session", slog.Any("error", err))
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chat session not found"})
 		return
 	}
@@ -129,13 +129,13 @@ func (h *AIOpsGinHandler) DeleteChatSession(c *gin.Context) {
 }
 
 // Chat handles POST /api/v1/aiops/sessions/:sessionId/chat
-func (h *AIOpsGinHandler) Chat(c *gin.Context) {
+func (h *GinHandler) Chat(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	ctx := c.Request.Context()
 
 	var req ChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Error("Failed to decode request", zap.Error(err))
+		h.logger.Error("Failed to decode request", slog.Any("error", err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
@@ -146,7 +146,7 @@ func (h *AIOpsGinHandler) Chat(c *gin.Context) {
 	}
 
 	// Create chat message
-	message := aiops.ChatMessage{
+	message := domain.ChatMessage{
 		Role:    "user",
 		Content: req.Message,
 	}
@@ -160,7 +160,7 @@ func (h *AIOpsGinHandler) Chat(c *gin.Context) {
 	// Regular non-streaming chat
 	response, err := h.service.SendMessage(ctx, sessionID, message)
 	if err != nil {
-		h.logger.Error("Failed to process chat", zap.Error(err))
+		h.logger.Error("Failed to process chat", slog.Any("error", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process chat"})
 		return
 	}
@@ -169,7 +169,7 @@ func (h *AIOpsGinHandler) Chat(c *gin.Context) {
 }
 
 // streamChat handles streaming chat responses
-func (h *AIOpsGinHandler) streamChat(c *gin.Context, sessionID string, message aiops.ChatMessage) {
+func (h *GinHandler) streamChat(c *gin.Context, sessionID string, message domain.ChatMessage) {
 	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -180,7 +180,7 @@ func (h *AIOpsGinHandler) streamChat(c *gin.Context, sessionID string, message a
 	// Start streaming
 	stream, err := h.service.StreamMessage(ctx, sessionID, message)
 	if err != nil {
-		h.logger.Error("Failed to start chat stream", zap.Error(err))
+		h.logger.Error("Failed to start chat stream", slog.Any("error", err))
 		c.SSEvent("error", err.Error())
 		c.Writer.Flush()
 		return
@@ -205,11 +205,11 @@ func (h *AIOpsGinHandler) streamChat(c *gin.Context, sessionID string, message a
 }
 
 // GetAvailableModels handles GET /api/v1/aiops/models
-func (h *AIOpsGinHandler) GetAvailableModels(c *gin.Context) {
+func (h *GinHandler) GetAvailableModels(c *gin.Context) {
 	ctx := c.Request.Context()
 	models, err := h.service.ListAvailableModels(ctx)
 	if err != nil {
-		h.logger.Error("Failed to get available models", zap.Error(err))
+		h.logger.Error("Failed to get available models", slog.Any("error", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get available models"})
 		return
 	}
@@ -222,7 +222,7 @@ func (h *AIOpsGinHandler) GetAvailableModels(c *gin.Context) {
 }
 
 // GetTokenUsage handles GET /api/v1/aiops/usage
-func (h *AIOpsGinHandler) GetTokenUsage(c *gin.Context) {
+func (h *GinHandler) GetTokenUsage(c *gin.Context) {
 	workspaceID := c.Query("workspace_id")
 	if workspaceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace_id is required"})
@@ -248,7 +248,7 @@ func (h *AIOpsGinHandler) GetTokenUsage(c *gin.Context) {
 	ctx := c.Request.Context()
 	usageReport, err := h.service.GetUsageStats(ctx, workspaceID, from, to)
 	if err != nil {
-		h.logger.Error("Failed to get usage stats", zap.Error(err))
+		h.logger.Error("Failed to get usage stats", slog.Any("error", err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get usage stats"})
 		return
 	}

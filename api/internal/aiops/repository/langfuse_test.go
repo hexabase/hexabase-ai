@@ -1,4 +1,4 @@
-package aiops
+package repository
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +46,7 @@ func TestLangfuseMonitor_CreateTrace(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		trace := &aiops.Trace{
+		trace := &domain.Trace{
 			ID:        uuid.New().String(),
 			Name:      "test-trace",
 			UserID:    "user-123",
@@ -78,7 +78,7 @@ func TestLangfuseMonitor_CreateTrace(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		trace := &aiops.Trace{
+		trace := &domain.Trace{
 			ID:    uuid.New().String(),
 			Name:  "test-trace",
 		}
@@ -120,7 +120,7 @@ func TestLangfuseMonitor_CreateGeneration(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		generation := &aiops.Generation{
+		generation := &domain.Generation{
 			ID:      uuid.New().String(),
 			TraceID: "trace-123",
 			Name:    "test-generation",
@@ -167,7 +167,7 @@ func TestLangfuseMonitor_UpdateGeneration(t *testing.T) {
 		
 		endTime := time.Now()
 		completionTokens := 25
-		update := &aiops.GenerationUpdate{
+		update := &domain.GenerationUpdate{
 			Output: map[string]string{
 				"response": "Hello! How can I help you?",
 			},
@@ -206,11 +206,11 @@ func TestLangfuseMonitor_ScoreGeneration(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		score := &aiops.Score{
+		score := &domain.Score{
 			ID:        uuid.New().String(),
 			Name:      "quality",
 			Value:     0.95,
-			DataType:  aiops.ScoreDataTypeNumeric,
+			DataType:  domain.ScoreDataTypeNumeric,
 			Comment:   "High quality response",
 			Timestamp: time.Now(),
 		}
@@ -255,7 +255,7 @@ func TestLangfuseMonitor_GetTraceMetrics(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		filter := &aiops.MetricsFilter{
+		filter := &domain.MetricsFilter{
 			StartTime: time.Now().Add(-24 * time.Hour),
 			EndTime:   time.Now(),
 			UserID:    "user-123",
@@ -301,7 +301,7 @@ func TestLangfuseMonitor_CreateDataset(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		dataset := &aiops.Dataset{
+		dataset := &domain.Dataset{
 			ID:          uuid.New().String(),
 			Name:        "test-dataset",
 			Description: "Dataset for testing",
@@ -339,7 +339,7 @@ func TestLangfuseMonitor_AddToDataset(t *testing.T) {
 		monitor := NewLangfuseMonitor(server.URL, "pk_test", "sk_test", 30*time.Second)
 		ctx := context.Background()
 		
-		item := &aiops.DatasetItem{
+		item := &domain.DatasetItem{
 			ID: uuid.New().String(),
 			Input: map[string]string{
 				"question": "What is the capital of France?",
@@ -444,7 +444,7 @@ func TestLangfuseMonitor_BatchingBehavior(t *testing.T) {
 		
 		// Create multiple traces quickly
 		for i := 0; i < 5; i++ {
-			trace := &aiops.Trace{
+			trace := &domain.Trace{
 				ID:        uuid.New().String(),
 				Name:      "batch-test-trace",
 				UserID:    "user-123",

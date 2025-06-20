@@ -1,4 +1,4 @@
-package aiops
+package domain
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package aiops
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
+	"github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,9 +46,9 @@ func TestOllamaProvider_Chat(t *testing.T) {
 		ctx := context.Background()
 		
 		// Prepare request
-		req := &aiops.ChatRequest{
+		req := &domain.ChatRequest{
 			Model: "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Help me troubleshoot Kubernetes"},
 			},
 		}
@@ -78,9 +78,9 @@ func TestOllamaProvider_Chat(t *testing.T) {
 		provider := NewOllamaProvider(server.URL, 30*time.Second, nil)
 		ctx := context.Background()
 		
-		req := &aiops.ChatRequest{
+		req := &domain.ChatRequest{
 			Model: "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Test"},
 			},
 		}
@@ -106,9 +106,9 @@ func TestOllamaProvider_Chat(t *testing.T) {
 		provider := NewOllamaProvider(server.URL, 100*time.Millisecond, nil)
 		ctx := context.Background()
 		
-		req := &aiops.ChatRequest{
+		req := &domain.ChatRequest{
 			Model: "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Test"},
 			},
 		}
@@ -177,7 +177,7 @@ func TestOllamaProvider_ListModels(t *testing.T) {
 		assert.Equal(t, int64(3800000000), models[0].Size)
 		assert.Equal(t, "codellama:13b", models[1].Name)
 		assert.Equal(t, int64(7300000000), models[1].Size)
-		assert.Equal(t, aiops.ModelStatusAvailable, models[0].Status)
+		assert.Equal(t, domain.ModelStatusAvailable, models[0].Status)
 	})
 }
 
@@ -267,9 +267,9 @@ func TestOllamaProvider_StreamChat(t *testing.T) {
 		provider := NewOllamaProvider(server.URL, 30*time.Second, nil)
 		ctx := context.Background()
 		
-		req := &aiops.ChatRequest{
+		req := &domain.ChatRequest{
 			Model: "llama2:7b",
-			Messages: []aiops.ChatMessage{
+			Messages: []domain.ChatMessage{
 				{Role: "user", Content: "Help me"},
 			},
 			Stream: true,
@@ -281,7 +281,7 @@ func TestOllamaProvider_StreamChat(t *testing.T) {
 		assert.NotNil(t, responseChan)
 		
 		// Collect responses
-		var responses []*aiops.ChatStreamResponse
+		var responses []*domain.ChatStreamResponse
 		for response := range responseChan {
 			responses = append(responses, response)
 		}
@@ -371,7 +371,7 @@ func TestOllamaProvider_GetModelInfo(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, info)
 		assert.Equal(t, "llama2:7b", info.Name)
-		assert.Equal(t, aiops.ModelStatusAvailable, info.Status)
+		assert.Equal(t, domain.ModelStatusAvailable, info.Status)
 		assert.NotNil(t, info.Details)
 		assert.Equal(t, "gguf", info.Details.Format)
 		assert.Equal(t, "llama", info.Details.Family)
