@@ -95,7 +95,7 @@ import (
 
 	// Legacy repositories that haven't been migrated yet
 	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
-	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
+	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/repository"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"

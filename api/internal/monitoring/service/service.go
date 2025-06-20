@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
+	kubernetes "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/domain"
 )
 
 // service implements the domain.Service interface

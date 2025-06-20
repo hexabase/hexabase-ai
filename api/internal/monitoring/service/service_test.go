@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
+	kubernetes "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

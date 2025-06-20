@@ -9,6 +9,10 @@ package wire
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"net/http"
+	"time"
+
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/wire"
 	domain7 "github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
@@ -60,8 +64,8 @@ import (
 	handler9 "github.com/hexabase/hexabase-ai/api/internal/project/handler"
 	repository10 "github.com/hexabase/hexabase-ai/api/internal/project/repository"
 	service9 "github.com/hexabase/hexabase-ai/api/internal/project/service"
-	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
+	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/repository"
 	domain9 "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	handler10 "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
 	repository4 "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
@@ -71,9 +75,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
-	"log/slog"
-	"net/http"
-	"time"
 )
 
 // Injectors from wire.go:

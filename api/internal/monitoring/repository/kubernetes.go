@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
+	kubernetes "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/domain"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"

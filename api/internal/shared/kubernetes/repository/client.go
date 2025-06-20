@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/kubernetes"
+	kubernetes "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
