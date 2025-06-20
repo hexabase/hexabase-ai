@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"net/http"
@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	backup "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 )
 
-// BackupHandler handles backup-related HTTP requests
-type BackupHandler struct {
+// Handler handles backup-related HTTP requests
+type Handler struct {
 	backupService backup.Service
 }
 
-// NewBackupHandler creates a new backup handler
-func NewBackupHandler(backupService backup.Service) *BackupHandler {
-	return &BackupHandler{
+// NewHandler creates a new backup handler
+func NewHandler(backupService backup.Service) *Handler {
+	return &Handler{
 		backupService: backupService,
 	}
 }
@@ -34,7 +34,7 @@ func NewBackupHandler(backupService backup.Service) *BackupHandler {
 // @Failure 403 {object} ErrorResponse "Only available for Dedicated Plan"
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages [post]
-func (h *BackupHandler) CreateBackupStorage(c *gin.Context) {
+func (h *Handler) CreateBackupStorage(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	if workspaceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace ID is required"})
@@ -71,7 +71,7 @@ func (h *BackupHandler) CreateBackupStorage(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages [get]
-func (h *BackupHandler) ListBackupStorages(c *gin.Context) {
+func (h *Handler) ListBackupStorages(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	if workspaceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace ID is required"})
@@ -99,7 +99,7 @@ func (h *BackupHandler) ListBackupStorages(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages/{storageId} [get]
-func (h *BackupHandler) GetBackupStorage(c *gin.Context) {
+func (h *Handler) GetBackupStorage(c *gin.Context) {
 	storageID := c.Param("storageId")
 	if storageID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "storage ID is required"})
@@ -133,7 +133,7 @@ func (h *BackupHandler) GetBackupStorage(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages/{storageId} [put]
-func (h *BackupHandler) UpdateBackupStorage(c *gin.Context) {
+func (h *Handler) UpdateBackupStorage(c *gin.Context) {
 	storageID := c.Param("storageId")
 	if storageID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "storage ID is required"})
@@ -172,7 +172,7 @@ func (h *BackupHandler) UpdateBackupStorage(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages/{storageId} [delete]
-func (h *BackupHandler) DeleteBackupStorage(c *gin.Context) {
+func (h *Handler) DeleteBackupStorage(c *gin.Context) {
 	storageID := c.Param("storageId")
 	if storageID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "storage ID is required"})
@@ -204,7 +204,7 @@ func (h *BackupHandler) DeleteBackupStorage(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storages/{storageId}/usage [get]
-func (h *BackupHandler) GetStorageUsage(c *gin.Context) {
+func (h *Handler) GetStorageUsage(c *gin.Context) {
 	storageID := c.Param("storageId")
 	if storageID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "storage ID is required"})
@@ -233,7 +233,7 @@ func (h *BackupHandler) GetStorageUsage(c *gin.Context) {
 // @Failure 403 {object} ErrorResponse "Only available for Dedicated Plan"
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/policy [post]
-func (h *BackupHandler) CreateBackupPolicy(c *gin.Context) {
+func (h *Handler) CreateBackupPolicy(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -270,7 +270,7 @@ func (h *BackupHandler) CreateBackupPolicy(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/policy [get]
-func (h *BackupHandler) GetBackupPolicy(c *gin.Context) {
+func (h *Handler) GetBackupPolicy(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -304,7 +304,7 @@ func (h *BackupHandler) GetBackupPolicy(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/policy/{policyId} [put]
-func (h *BackupHandler) UpdateBackupPolicy(c *gin.Context) {
+func (h *Handler) UpdateBackupPolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	if policyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "policy ID is required"})
@@ -342,7 +342,7 @@ func (h *BackupHandler) UpdateBackupPolicy(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/policy/{policyId} [delete]
-func (h *BackupHandler) DeleteBackupPolicy(c *gin.Context) {
+func (h *Handler) DeleteBackupPolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	if policyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "policy ID is required"})
@@ -375,7 +375,7 @@ func (h *BackupHandler) DeleteBackupPolicy(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse "No backup policy found"
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/trigger [post]
-func (h *BackupHandler) TriggerManualBackup(c *gin.Context) {
+func (h *Handler) TriggerManualBackup(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -414,7 +414,7 @@ func (h *BackupHandler) TriggerManualBackup(c *gin.Context) {
 // @Success 200 {object} object{executions=[]backup.BackupExecution,total=int}
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/executions [get]
-func (h *BackupHandler) ListBackupExecutions(c *gin.Context) {
+func (h *Handler) ListBackupExecutions(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -459,7 +459,7 @@ func (h *BackupHandler) ListBackupExecutions(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/executions/{executionId} [get]
-func (h *BackupHandler) GetBackupExecution(c *gin.Context) {
+func (h *Handler) GetBackupExecution(c *gin.Context) {
 	executionID := c.Param("executionId")
 	if executionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "execution ID is required"})
@@ -492,7 +492,7 @@ func (h *BackupHandler) GetBackupExecution(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /backup/executions/{executionId}/restore [post]
-func (h *BackupHandler) RestoreBackup(c *gin.Context) {
+func (h *Handler) RestoreBackup(c *gin.Context) {
 	executionID := c.Param("executionId")
 	if executionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "execution ID is required"})
@@ -529,7 +529,7 @@ func (h *BackupHandler) RestoreBackup(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /backup/restores/{restoreId} [get]
-func (h *BackupHandler) GetBackupRestore(c *gin.Context) {
+func (h *Handler) GetBackupRestore(c *gin.Context) {
 	restoreID := c.Param("restoreId")
 	if restoreID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "restore ID is required"})
@@ -561,7 +561,7 @@ func (h *BackupHandler) GetBackupRestore(c *gin.Context) {
 // @Success 200 {object} object{restores=[]backup.BackupRestore,total=int}
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/restores [get]
-func (h *BackupHandler) ListBackupRestores(c *gin.Context) {
+func (h *Handler) ListBackupRestores(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -605,7 +605,7 @@ func (h *BackupHandler) ListBackupRestores(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /applications/{appId}/backup/latest [get]
-func (h *BackupHandler) GetLatestBackup(c *gin.Context) {
+func (h *Handler) GetLatestBackup(c *gin.Context) {
 	applicationID := c.Param("appId")
 	if applicationID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "application ID is required"})
@@ -636,7 +636,7 @@ func (h *BackupHandler) GetLatestBackup(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /backup/executions/{backupId}/manifest [get]
-func (h *BackupHandler) GetBackupManifest(c *gin.Context) {
+func (h *Handler) GetBackupManifest(c *gin.Context) {
 	backupID := c.Param("backupId")
 	if backupID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "backup ID is required"})
@@ -666,7 +666,7 @@ func (h *BackupHandler) GetBackupManifest(c *gin.Context) {
 // @Success 200 {array} backup.BackupStorageUsage
 // @Failure 500 {object} ErrorResponse
 // @Router /workspaces/{wsId}/backup/storage-usage [get]
-func (h *BackupHandler) GetWorkspaceStorageUsage(c *gin.Context) {
+func (h *Handler) GetWorkspaceStorageUsage(c *gin.Context) {
 	workspaceID := c.Param("wsId")
 	if workspaceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace ID is required"})
@@ -693,7 +693,7 @@ func (h *BackupHandler) GetWorkspaceStorageUsage(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /backup/executions/{executionId}/download [get]
-func (h *BackupHandler) DownloadBackup(c *gin.Context) {
+func (h *Handler) DownloadBackup(c *gin.Context) {
 	executionID := c.Param("executionId")
 	if executionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "execution ID is required"})

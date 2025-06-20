@@ -1,4 +1,4 @@
-package backup
+package service
 
 import (
 	"context"
@@ -6,14 +6,14 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	"k8s.io/client-go/kubernetes"
 )
 
 // BackupExecutor handles the actual execution of backup operations
 type BackupExecutor struct {
 	k8sClient     kubernetes.Interface
-	proxmoxRepo   backup.ProxmoxRepository
+	proxmoxRepo   domain.ProxmoxRepository
 	logger        *slog.Logger
 	config        *ExecutorConfig
 }
@@ -33,7 +33,7 @@ type ExecutorConfig struct {
 // NewBackupExecutor creates a new backup executor instance
 func NewBackupExecutor(
 	k8sClient kubernetes.Interface,
-	proxmoxRepo backup.ProxmoxRepository,
+	proxmoxRepo domain.ProxmoxRepository,
 	logger *slog.Logger,
 	config *ExecutorConfig,
 ) *BackupExecutor {
@@ -65,14 +65,14 @@ func NewBackupExecutor(
 }
 
 // ExecuteBackup performs the complete backup operation
-func (e *BackupExecutor) ExecuteBackup(ctx context.Context, execution *backup.BackupExecution, policy *backup.BackupPolicy) error {
+func (e *BackupExecutor) ExecuteBackup(ctx context.Context, execution *domain.BackupExecution, policy *domain.BackupPolicy) error {
 	e.logger.Info("starting backup execution",
 		"executionID", execution.ID,
 		"policyID", policy.ID,
 		"applicationID", policy.ApplicationID)
 
 	// Update status to running
-	execution.Status = backup.BackupExecutionStatusRunning
+	execution.Status = domain.BackupExecutionStatusRunning
 	execution.StartedAt = time.Now()
 
 	// TODO: Implement actual backup logic
@@ -99,7 +99,7 @@ func (e *BackupExecutor) ExecuteBackup(ctx context.Context, execution *backup.Ba
 	execution.CompressedSizeBytes = 1024 * 1024 * 50 // 50 MB
 
 	// Mark as succeeded
-	execution.Status = backup.BackupExecutionStatusSucceeded
+	execution.Status = domain.BackupExecutionStatusSucceeded
 	completedAt := time.Now()
 	execution.CompletedAt = &completedAt
 
@@ -113,14 +113,14 @@ func (e *BackupExecutor) ExecuteBackup(ctx context.Context, execution *backup.Ba
 }
 
 // RestoreBackup performs the complete restore operation
-func (e *BackupExecutor) RestoreBackup(ctx context.Context, restore *backup.BackupRestore, execution *backup.BackupExecution, policy *backup.BackupPolicy) error {
+func (e *BackupExecutor) RestoreBackup(ctx context.Context, restore *domain.BackupRestore, execution *domain.BackupExecution, policy *domain.BackupPolicy) error {
 	e.logger.Info("starting restore operation",
 		"restoreID", restore.ID,
 		"backupID", execution.ID,
 		"applicationID", restore.ApplicationID)
 
 	// Update status to restoring
-	restore.Status = backup.RestoreStatusRestoring
+	restore.Status = domain.RestoreStatusRestoring
 	now := time.Now()
 	restore.StartedAt = &now
 
@@ -138,7 +138,7 @@ func (e *BackupExecutor) RestoreBackup(ctx context.Context, restore *backup.Back
 	}
 
 	// Mark as completed
-	restore.Status = backup.RestoreStatusCompleted
+	restore.Status = domain.RestoreStatusCompleted
 	completedAt := time.Now()
 	restore.CompletedAt = &completedAt
 

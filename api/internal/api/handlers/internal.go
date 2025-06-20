@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
+	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 	logsDomain "github.com/hexabase/hexabase-ai/api/internal/logs/domain"
 	monitoringDomain "github.com/hexabase/hexabase-ai/api/internal/monitoring/domain"
@@ -27,7 +27,7 @@ type InternalHandler struct {
 	monitoringSvc   monitoringDomain.Service
 	aiopsSvc        aiops.Service
 	cicdSvc         cicd.Service
-	backupSvc       backup.Service
+	backupSvc       backupDomain.Service
 	logger          *slog.Logger
 }
 
@@ -41,7 +41,7 @@ func NewInternalHandler(
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,
-	backupSvc backup.Service,
+	backupSvc backupDomain.Service,
 	logger *slog.Logger,
 ) *InternalHandler {
 	return &InternalHandler{
@@ -330,9 +330,9 @@ func (h *InternalHandler) AutoScaleApplication(c *gin.Context) {
 func (h *InternalHandler) TriggerBackup(c *gin.Context) {
 	appID := c.Param("appId")
 
-	var req backup.TriggerBackupRequest
+	var req backupDomain.TriggerBackupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		req = backup.TriggerBackupRequest{
+		req = backupDomain.TriggerBackupRequest{
 			ApplicationID: appID,
 			Metadata: map[string]interface{}{
 				"triggered_by": "ai_agent",

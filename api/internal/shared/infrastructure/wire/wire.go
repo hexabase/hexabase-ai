@@ -25,8 +25,12 @@ import (
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
 
-	// Organization domain
+	// Backup domain (migrated)
 
+	backupRepo "github.com/hexabase/hexabase-ai/api/internal/backup/repository"
+	backupSvc "github.com/hexabase/hexabase-ai/api/internal/backup/service"
+
+	// Organization domain
 	orgHandler "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
 	orgRepo "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
 	orgSvc "github.com/hexabase/hexabase-ai/api/internal/organization/service"
@@ -57,7 +61,6 @@ import (
 
 	// Legacy domains that haven't been migrated yet
 	"github.com/hexabase/hexabase-ai/api/internal/domain/aiops"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/billing"
 	"github.com/hexabase/hexabase-ai/api/internal/domain/cicd"
 
@@ -74,7 +77,6 @@ import (
 
 	// Legacy repositories that haven't been migrated yet
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/repository/aiops"
-	backupRepo "github.com/hexabase/hexabase-ai/api/internal/repository/backup"
 	billingRepo "github.com/hexabase/hexabase-ai/api/internal/repository/billing"
 	cicdRepo "github.com/hexabase/hexabase-ai/api/internal/repository/cicd"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
@@ -82,7 +84,6 @@ import (
 
 	// Legacy services that haven't been migrated yet
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/service/aiops"
-	backupSvc "github.com/hexabase/hexabase-ai/api/internal/service/backup"
 	billingSvc "github.com/hexabase/hexabase-ai/api/internal/service/billing"
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/service/cicd"
 
@@ -138,8 +139,9 @@ var WorkspaceSet = wire.NewSet(
 var BackupSet = wire.NewSet(
 	backupRepo.NewPostgresRepository, 
 	ProvideBackupProxmoxRepository, 
-	ProvideBackupService,
-	handlers.NewBackupHandler,
+	ProvideBackupEncryptionKey,
+	backupSvc.NewService,
+	backupHandler.NewHandler,
 )
 
 var BillingSet = wire.NewSet(
@@ -208,7 +210,7 @@ var InternalSet = wire.NewSet(ProvideInternalHandler)
 type App struct {
 	ApplicationHandler  *applicationHandler.ApplicationHandler
 	AuthHandler        *authHandler.Handler
-	BackupHandler      *handlers.BackupHandler
+	BackupHandler      *backupHandler.Handler
 	BillingHandler     *handlers.BillingHandler
 	MonitoringHandler  *monitoringHandler.Handler
 	NodeHandler        *nodeHandler.Handler
@@ -225,7 +227,7 @@ type App struct {
 func NewApp(
 	appH *applicationHandler.ApplicationHandler,
 	authH *authHandler.Handler,
-	backupH *handlers.BackupHandler,
+	backupH *backupHandler.Handler,
 	billH *handlers.BillingHandler,
 	monH *monitoringHandler.Handler,
 	nodeH *nodeHandler.Handler,
@@ -339,24 +341,19 @@ func ProvideProxmoxRepositoryInterface(repo *nodeRepo.ProxmoxRepository) nodeDom
 	return repo
 }
 
-func ProvideBackupProxmoxRepository(cfg *config.Config) backup.ProxmoxRepository {
+func ProvideBackupProxmoxRepository(cfg *config.Config) backupDomain.ProxmoxRepository {
 	// Reuse the same Proxmox connection settings
 	// TODO: Get from config
 	client := proxmox.NewClient("https://proxmox.example.com/api2/json", "root@pam", "tokenID", "tokenSecret")
 	return backupRepo.NewProxmoxRepository(client)
 }
 
-func ProvideBackupService(
-	repo backup.Repository,
-	proxmoxRepo backup.ProxmoxRepository,
-	appRepo domain.Repository,
-	workspaceRepo workspaceDomain.Repository,
-	k8sClient kubernetes.Interface,
-	cfg *config.Config,
-) backup.Service {
+func ProvideBackupEncryptionKey(cfg *config.Config) string {
 	// TODO: Get encryption key from config
-	encryptionKey := "your-backup-encryption-key"
-	return backupSvc.NewService(repo, proxmoxRepo, appRepo, workspaceRepo, k8sClient, encryptionKey)
+	if cfg.Backup.EncryptionKey != "" {
+		return cfg.Backup.EncryptionKey
+	}
+	return "your-backup-encryption-key"
 }
 
 func ProvideAIOpsProxyHandler(authSvc authDomain.Service, logger *slog.Logger, cfg *config.Config) (*handlers.AIOpsProxyHandler, error) {
@@ -386,7 +383,7 @@ func ProvideInternalHandler(
 	monitoringSvc monitoringDomain.Service,
 	aiopsSvc aiops.Service,
 	cicdSvc cicd.Service,
-	backupSvc backup.Service,
+	backupSvc backupDomain.Service,
 	logger *slog.Logger,
 ) *handlers.InternalHandler {
 	return handlers.NewInternalHandler(

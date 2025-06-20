@@ -1,4 +1,4 @@
-package backup
+package service
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	applicationDomain "github.com/hexabase/hexabase-ai/api/internal/application/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	workspaceDomain "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,33 +19,33 @@ type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) CreateBackupStorage(ctx context.Context, storage *backup.BackupStorage) error {
+func (m *MockRepository) CreateBackupStorage(ctx context.Context, storage *domain.BackupStorage) error {
 	args := m.Called(ctx, storage)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetBackupStorage(ctx context.Context, storageID string) (*backup.BackupStorage, error) {
+func (m *MockRepository) GetBackupStorage(ctx context.Context, storageID string) (*domain.BackupStorage, error) {
 	args := m.Called(ctx, storageID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupStorage), args.Error(1)
+	return args.Get(0).(*domain.BackupStorage), args.Error(1)
 }
 
-func (m *MockRepository) GetBackupStorageByName(ctx context.Context, workspaceID, name string) (*backup.BackupStorage, error) {
+func (m *MockRepository) GetBackupStorageByName(ctx context.Context, workspaceID, name string) (*domain.BackupStorage, error) {
 	args := m.Called(ctx, workspaceID, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupStorage), args.Error(1)
+	return args.Get(0).(*domain.BackupStorage), args.Error(1)
 }
 
-func (m *MockRepository) ListBackupStorages(ctx context.Context, workspaceID string) ([]backup.BackupStorage, error) {
+func (m *MockRepository) ListBackupStorages(ctx context.Context, workspaceID string) ([]domain.BackupStorage, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]backup.BackupStorage), args.Error(1)
+	return args.Get(0).([]domain.BackupStorage), args.Error(1)
 }
 
-func (m *MockRepository) UpdateBackupStorage(ctx context.Context, storage *backup.BackupStorage) error {
+func (m *MockRepository) UpdateBackupStorage(ctx context.Context, storage *domain.BackupStorage) error {
 	args := m.Called(ctx, storage)
 	return args.Error(0)
 }
@@ -60,33 +60,33 @@ func (m *MockRepository) UpdateStorageUsage(ctx context.Context, storageID strin
 	return args.Error(0)
 }
 
-func (m *MockRepository) CreateBackupPolicy(ctx context.Context, policy *backup.BackupPolicy) error {
+func (m *MockRepository) CreateBackupPolicy(ctx context.Context, policy *domain.BackupPolicy) error {
 	args := m.Called(ctx, policy)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetBackupPolicy(ctx context.Context, policyID string) (*backup.BackupPolicy, error) {
+func (m *MockRepository) GetBackupPolicy(ctx context.Context, policyID string) (*domain.BackupPolicy, error) {
 	args := m.Called(ctx, policyID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupPolicy), args.Error(1)
+	return args.Get(0).(*domain.BackupPolicy), args.Error(1)
 }
 
-func (m *MockRepository) GetBackupPolicyByApplication(ctx context.Context, applicationID string) (*backup.BackupPolicy, error) {
+func (m *MockRepository) GetBackupPolicyByApplication(ctx context.Context, applicationID string) (*domain.BackupPolicy, error) {
 	args := m.Called(ctx, applicationID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupPolicy), args.Error(1)
+	return args.Get(0).(*domain.BackupPolicy), args.Error(1)
 }
 
-func (m *MockRepository) ListBackupPolicies(ctx context.Context, workspaceID string) ([]backup.BackupPolicy, error) {
+func (m *MockRepository) ListBackupPolicies(ctx context.Context, workspaceID string) ([]domain.BackupPolicy, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]backup.BackupPolicy), args.Error(1)
+	return args.Get(0).([]domain.BackupPolicy), args.Error(1)
 }
 
-func (m *MockRepository) UpdateBackupPolicy(ctx context.Context, policy *backup.BackupPolicy) error {
+func (m *MockRepository) UpdateBackupPolicy(ctx context.Context, policy *domain.BackupPolicy) error {
 	args := m.Called(ctx, policy)
 	return args.Error(0)
 }
@@ -96,45 +96,45 @@ func (m *MockRepository) DeleteBackupPolicy(ctx context.Context, policyID string
 	return args.Error(0)
 }
 
-func (m *MockRepository) ListEnabledPolicies(ctx context.Context) ([]backup.BackupPolicy, error) {
+func (m *MockRepository) ListEnabledPolicies(ctx context.Context) ([]domain.BackupPolicy, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]backup.BackupPolicy), args.Error(1)
+	return args.Get(0).([]domain.BackupPolicy), args.Error(1)
 }
 
-func (m *MockRepository) CreateBackupExecution(ctx context.Context, execution *backup.BackupExecution) error {
+func (m *MockRepository) CreateBackupExecution(ctx context.Context, execution *domain.BackupExecution) error {
 	args := m.Called(ctx, execution)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetBackupExecution(ctx context.Context, executionID string) (*backup.BackupExecution, error) {
+func (m *MockRepository) GetBackupExecution(ctx context.Context, executionID string) (*domain.BackupExecution, error) {
 	args := m.Called(ctx, executionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+	return args.Get(0).(*domain.BackupExecution), args.Error(1)
 }
 
-func (m *MockRepository) ListBackupExecutions(ctx context.Context, policyID string, limit, offset int) ([]backup.BackupExecution, int, error) {
+func (m *MockRepository) ListBackupExecutions(ctx context.Context, policyID string, limit, offset int) ([]domain.BackupExecution, int, error) {
 	args := m.Called(ctx, policyID, limit, offset)
-	return args.Get(0).([]backup.BackupExecution), args.Int(1), args.Error(2)
+	return args.Get(0).([]domain.BackupExecution), args.Int(1), args.Error(2)
 }
 
-func (m *MockRepository) UpdateBackupExecution(ctx context.Context, execution *backup.BackupExecution) error {
+func (m *MockRepository) UpdateBackupExecution(ctx context.Context, execution *domain.BackupExecution) error {
 	args := m.Called(ctx, execution)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetLatestBackupExecution(ctx context.Context, policyID string) (*backup.BackupExecution, error) {
+func (m *MockRepository) GetLatestBackupExecution(ctx context.Context, policyID string) (*domain.BackupExecution, error) {
 	args := m.Called(ctx, policyID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupExecution), args.Error(1)
+	return args.Get(0).(*domain.BackupExecution), args.Error(1)
 }
 
-func (m *MockRepository) GetBackupExecutionsByApplication(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupExecution, int, error) {
+func (m *MockRepository) GetBackupExecutionsByApplication(ctx context.Context, applicationID string, limit, offset int) ([]domain.BackupExecution, int, error) {
 	args := m.Called(ctx, applicationID, limit, offset)
-	return args.Get(0).([]backup.BackupExecution), args.Int(1), args.Error(2)
+	return args.Get(0).([]domain.BackupExecution), args.Int(1), args.Error(2)
 }
 
 func (m *MockRepository) CleanupOldBackups(ctx context.Context, policyID string, retentionDays int) error {
@@ -142,47 +142,47 @@ func (m *MockRepository) CleanupOldBackups(ctx context.Context, policyID string,
 	return args.Error(0)
 }
 
-func (m *MockRepository) CreateBackupRestore(ctx context.Context, restore *backup.BackupRestore) error {
+func (m *MockRepository) CreateBackupRestore(ctx context.Context, restore *domain.BackupRestore) error {
 	args := m.Called(ctx, restore)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetBackupRestore(ctx context.Context, restoreID string) (*backup.BackupRestore, error) {
+func (m *MockRepository) GetBackupRestore(ctx context.Context, restoreID string) (*domain.BackupRestore, error) {
 	args := m.Called(ctx, restoreID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupRestore), args.Error(1)
+	return args.Get(0).(*domain.BackupRestore), args.Error(1)
 }
 
-func (m *MockRepository) ListBackupRestores(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupRestore, int, error) {
+func (m *MockRepository) ListBackupRestores(ctx context.Context, applicationID string, limit, offset int) ([]domain.BackupRestore, int, error) {
 	args := m.Called(ctx, applicationID, limit, offset)
-	return args.Get(0).([]backup.BackupRestore), args.Int(1), args.Error(2)
+	return args.Get(0).([]domain.BackupRestore), args.Int(1), args.Error(2)
 }
 
-func (m *MockRepository) UpdateBackupRestore(ctx context.Context, restore *backup.BackupRestore) error {
+func (m *MockRepository) UpdateBackupRestore(ctx context.Context, restore *domain.BackupRestore) error {
 	args := m.Called(ctx, restore)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetStorageUsage(ctx context.Context, storageID string) (*backup.BackupStorageUsage, error) {
+func (m *MockRepository) GetStorageUsage(ctx context.Context, storageID string) (*domain.BackupStorageUsage, error) {
 	args := m.Called(ctx, storageID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.BackupStorageUsage), args.Error(1)
+	return args.Get(0).(*domain.BackupStorageUsage), args.Error(1)
 }
 
-func (m *MockRepository) GetWorkspaceStorageUsage(ctx context.Context, workspaceID string) ([]backup.BackupStorageUsage, error) {
+func (m *MockRepository) GetWorkspaceStorageUsage(ctx context.Context, workspaceID string) ([]domain.BackupStorageUsage, error) {
 	args := m.Called(ctx, workspaceID)
-	return args.Get(0).([]backup.BackupStorageUsage), args.Error(1)
+	return args.Get(0).([]domain.BackupStorageUsage), args.Error(1)
 }
 
 type MockProxmoxRepository struct {
 	mock.Mock
 }
 
-func (m *MockProxmoxRepository) CreateStorage(ctx context.Context, nodeID string, config backup.ProxmoxStorageConfig) (string, error) {
+func (m *MockProxmoxRepository) CreateStorage(ctx context.Context, nodeID string, config domain.ProxmoxStorageConfig) (string, error) {
 	args := m.Called(ctx, nodeID, config)
 	return args.String(0), args.Error(1)
 }
@@ -192,12 +192,12 @@ func (m *MockProxmoxRepository) DeleteStorage(ctx context.Context, nodeID, stora
 	return args.Error(0)
 }
 
-func (m *MockProxmoxRepository) GetStorageInfo(ctx context.Context, nodeID, storageID string) (*backup.ProxmoxStorageInfo, error) {
+func (m *MockProxmoxRepository) GetStorageInfo(ctx context.Context, nodeID, storageID string) (*domain.ProxmoxStorageInfo, error) {
 	args := m.Called(ctx, nodeID, storageID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.ProxmoxStorageInfo), args.Error(1)
+	return args.Get(0).(*domain.ProxmoxStorageInfo), args.Error(1)
 }
 
 func (m *MockProxmoxRepository) ResizeStorage(ctx context.Context, nodeID, storageID string, newSizeGB int) error {
@@ -215,12 +215,12 @@ func (m *MockProxmoxRepository) DeleteBackupVolume(ctx context.Context, nodeID, 
 	return args.Error(0)
 }
 
-func (m *MockProxmoxRepository) GetVolumeInfo(ctx context.Context, nodeID, storageID, volumeID string) (*backup.ProxmoxVolumeInfo, error) {
+func (m *MockProxmoxRepository) GetVolumeInfo(ctx context.Context, nodeID, storageID, volumeID string) (*domain.ProxmoxVolumeInfo, error) {
 	args := m.Called(ctx, nodeID, storageID, volumeID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.ProxmoxVolumeInfo), args.Error(1)
+	return args.Get(0).(*domain.ProxmoxVolumeInfo), args.Error(1)
 }
 
 func (m *MockProxmoxRepository) SetStorageQuota(ctx context.Context, nodeID, storageID string, quotaGB int) error {
@@ -228,12 +228,12 @@ func (m *MockProxmoxRepository) SetStorageQuota(ctx context.Context, nodeID, sto
 	return args.Error(0)
 }
 
-func (m *MockProxmoxRepository) GetStorageQuota(ctx context.Context, nodeID, storageID string) (*backup.ProxmoxStorageQuota, error) {
+func (m *MockProxmoxRepository) GetStorageQuota(ctx context.Context, nodeID, storageID string) (*domain.ProxmoxStorageQuota, error) {
 	args := m.Called(ctx, nodeID, storageID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*backup.ProxmoxStorageQuota), args.Error(1)
+	return args.Get(0).(*domain.ProxmoxStorageQuota), args.Error(1)
 }
 
 type MockApplicationRepository struct {
@@ -567,11 +567,11 @@ func TestCreateBackupStorage(t *testing.T) {
 		mockRepo.On("GetBackupStorageByName", ctx, "ws-123", "test-storage").Return(nil, nil)
 
 		// Create storage
-		mockRepo.On("CreateBackupStorage", ctx, mock.MatchedBy(func(s *backup.BackupStorage) bool {
+		mockRepo.On("CreateBackupStorage", ctx, mock.MatchedBy(func(s *domain.BackupStorage) bool {
 			return s.Name == "test-storage" &&
 				s.WorkspaceID == "ws-123" &&
-				s.Type == backup.StorageTypeNFS &&
-				s.Status == backup.StorageStatusPending
+				s.Type == domain.StorageTypeNFS &&
+				s.Status == domain.StorageStatusPending
 		})).Return(nil)
 
 		// Mock UpdateBackupStorage for the async provisioning
@@ -581,9 +581,9 @@ func TestCreateBackupStorage(t *testing.T) {
 		mockProxmoxRepo.On("CreateStorage", mock.Anything, mock.Anything, mock.Anything).Return("nfs-storage-id", nil).Maybe()
 		mockProxmoxRepo.On("SetStorageQuota", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		req := backup.CreateBackupStorageRequest{
+		req := domain.CreateBackupStorageRequest{
 			Name:             "test-storage",
-			Type:             backup.StorageTypeNFS,
+			Type:             domain.StorageTypeNFS,
 			ProxmoxStorageID: "nfs-storage",
 			ProxmoxNodeID:    "node-1",
 			CapacityGB:       100,
@@ -598,7 +598,7 @@ func TestCreateBackupStorage(t *testing.T) {
 		assert.NotNil(t, storage)
 		assert.Equal(t, "test-storage", storage.Name)
 		// The status is set to creating when the provisioning starts
-		assert.Contains(t, []backup.StorageStatus{backup.StorageStatusPending, backup.StorageStatusCreating}, storage.Status)
+		assert.Contains(t, []domain.StorageStatus{domain.StorageStatusPending, domain.StorageStatusCreating}, storage.Status)
 
 		mockWorkspaceRepo.AssertExpectations(t)
 		mockRepo.AssertExpectations(t)
@@ -620,9 +620,9 @@ func TestCreateBackupStorage(t *testing.T) {
 		}
 		mockWorkspaceRepo.On("GetWorkspace", ctx, "ws-123").Return(ws, nil)
 
-		req := backup.CreateBackupStorageRequest{
+		req := domain.CreateBackupStorageRequest{
 			Name:          "test-storage",
-			Type:          backup.StorageTypeNFS,
+			Type:          domain.StorageTypeNFS,
 			ProxmoxNodeID: "node-1",
 			CapacityGB:    100,
 		}
@@ -667,27 +667,27 @@ func TestCreateBackupPolicy(t *testing.T) {
 		mockRepo.On("GetBackupPolicyByApplication", ctx, "app-123").Return(nil, nil)
 
 		// Mock storage
-		storage := &backup.BackupStorage{
+		storage := &domain.BackupStorage{
 			ID:          "storage-123",
 			WorkspaceID: "ws-123",
-			Status:      backup.StorageStatusActive,
+			Status:      domain.StorageStatusActive,
 		}
 		mockRepo.On("GetBackupStorage", ctx, "storage-123").Return(storage, nil)
 
 		// Create policy
-		mockRepo.On("CreateBackupPolicy", ctx, mock.MatchedBy(func(p *backup.BackupPolicy) bool {
+		mockRepo.On("CreateBackupPolicy", ctx, mock.MatchedBy(func(p *domain.BackupPolicy) bool {
 			return p.ApplicationID == "app-123" &&
 				p.StorageID == "storage-123" &&
 				p.Schedule == "0 2 * * *" &&
 				p.Enabled == true
 		})).Return(nil)
 
-		req := backup.CreateBackupPolicyRequest{
+		req := domain.CreateBackupPolicyRequest{
 			StorageID:          "storage-123",
 			Enabled:            true,
 			Schedule:           "0 2 * * *",
 			RetentionDays:      30,
-			BackupType:         backup.BackupTypeFull,
+			BackupType:         domain.BackupTypeFull,
 			IncludeVolumes:     true,
 			IncludeDatabase:    true,
 			IncludeConfig:      true,
@@ -734,17 +734,17 @@ func TestCreateBackupPolicy(t *testing.T) {
 		mockRepo.On("GetBackupPolicyByApplication", ctx, "app-123").Return(nil, nil)
 
 		// Mock storage in pending state
-		storage := &backup.BackupStorage{
+		storage := &domain.BackupStorage{
 			ID:          "storage-123",
 			WorkspaceID: "ws-123",
-			Status:      backup.StorageStatusPending,
+			Status:      domain.StorageStatusPending,
 		}
 		mockRepo.On("GetBackupStorage", ctx, "storage-123").Return(storage, nil)
 
-		req := backup.CreateBackupPolicyRequest{
+		req := domain.CreateBackupPolicyRequest{
 			StorageID:     "storage-123",
 			Schedule:      "0 2 * * *",
-			BackupType:    backup.BackupTypeFull,
+			BackupType:    domain.BackupTypeFull,
 			RetentionDays: 30,
 		}
 
@@ -772,20 +772,20 @@ func TestTriggerManualBackup(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock policy
-		policy := &backup.BackupPolicy{
+		policy := &domain.BackupPolicy{
 			ID:            "policy-123",
 			ApplicationID: "app-123",
-			BackupType:    backup.BackupTypeFull,
+			BackupType:    domain.BackupTypeFull,
 		}
 		mockRepo.On("GetBackupPolicyByApplication", ctx, "app-123").Return(policy, nil)
 
 		// Create execution
-		mockRepo.On("CreateBackupExecution", ctx, mock.MatchedBy(func(e *backup.BackupExecution) bool {
+		mockRepo.On("CreateBackupExecution", ctx, mock.MatchedBy(func(e *domain.BackupExecution) bool {
 			return e.PolicyID == "policy-123" &&
-				e.Status == backup.BackupExecutionStatusRunning
+				e.Status == domain.BackupExecutionStatusRunning
 		})).Return(nil)
 
-		req := backup.TriggerBackupRequest{
+		req := domain.TriggerBackupRequest{
 			ApplicationID: "app-123",
 			Metadata: map[string]interface{}{
 				"triggered_by": "user",
@@ -796,7 +796,7 @@ func TestTriggerManualBackup(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, execution)
 		assert.Equal(t, "policy-123", execution.PolicyID)
-		assert.Equal(t, backup.BackupExecutionStatusRunning, execution.Status)
+		assert.Equal(t, domain.BackupExecutionStatusRunning, execution.Status)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -813,7 +813,7 @@ func TestTriggerManualBackup(t *testing.T) {
 		// No policy found
 		mockRepo.On("GetBackupPolicyByApplication", ctx, "app-123").Return(nil, nil)
 
-		req := backup.TriggerBackupRequest{
+		req := domain.TriggerBackupRequest{
 			ApplicationID: "app-123",
 		}
 
@@ -839,30 +839,30 @@ func TestRestoreBackup(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock backup execution
-		execution := &backup.BackupExecution{
+		execution := &domain.BackupExecution{
 			ID:       "exec-123",
 			PolicyID: "policy-123",
-			Status:   backup.BackupExecutionStatusSucceeded,
+			Status:   domain.BackupExecutionStatusSucceeded,
 		}
 		mockRepo.On("GetBackupExecution", ctx, "exec-123").Return(execution, nil)
 
 		// Mock policy
-		policy := &backup.BackupPolicy{
+		policy := &domain.BackupPolicy{
 			ID:            "policy-123",
 			ApplicationID: "app-123",
 		}
 		mockRepo.On("GetBackupPolicy", ctx, "policy-123").Return(policy, nil)
 
 		// Create restore
-		mockRepo.On("CreateBackupRestore", ctx, mock.MatchedBy(func(r *backup.BackupRestore) bool {
+		mockRepo.On("CreateBackupRestore", ctx, mock.MatchedBy(func(r *domain.BackupRestore) bool {
 			return r.BackupExecutionID == "exec-123" &&
 				r.ApplicationID == "app-123" &&
-				r.Status == backup.RestoreStatusPending &&
-				r.RestoreType == backup.RestoreTypeFull
+				r.Status == domain.RestoreStatusPending &&
+				r.RestoreType == domain.RestoreTypeFull
 		})).Return(nil)
 
-		req := backup.RestoreBackupRequest{
-			RestoreType: backup.RestoreTypeFull,
+		req := domain.RestoreBackupRequest{
+			RestoreType: domain.RestoreTypeFull,
 			RestoreOptions: map[string]interface{}{
 				"verify": true,
 			},
@@ -873,7 +873,7 @@ func TestRestoreBackup(t *testing.T) {
 		assert.NotNil(t, restore)
 		assert.Equal(t, "exec-123", restore.BackupExecutionID)
 		assert.Equal(t, "app-123", restore.ApplicationID)
-		assert.Equal(t, backup.RestoreStatusPending, restore.Status)
+		assert.Equal(t, domain.RestoreStatusPending, restore.Status)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -888,15 +888,15 @@ func TestRestoreBackup(t *testing.T) {
 		service := NewService(mockRepo, mockProxmoxRepo, mockAppRepo, mockWorkspaceRepo, fakeK8s, "test-encryption-key")
 
 		// Mock failed backup execution
-		execution := &backup.BackupExecution{
+		execution := &domain.BackupExecution{
 			ID:       "exec-123",
 			PolicyID: "policy-123",
-			Status:   backup.BackupExecutionStatusFailed,
+			Status:   domain.BackupExecutionStatusFailed,
 		}
 		mockRepo.On("GetBackupExecution", ctx, "exec-123").Return(execution, nil)
 
-		req := backup.RestoreBackupRequest{
-			RestoreType: backup.RestoreTypeFull,
+		req := domain.RestoreBackupRequest{
+			RestoreType: domain.RestoreTypeFull,
 		}
 
 		restore, err := service.RestoreBackup(ctx, "exec-123", req)

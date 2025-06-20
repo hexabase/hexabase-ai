@@ -1,4 +1,4 @@
-package backup
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"gorm.io/gorm"
 )
@@ -18,7 +18,7 @@ type PostgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL backup repository
-func NewPostgresRepository(database *gorm.DB) backup.Repository {
+func NewPostgresRepository(database *gorm.DB) domain.Repository {
 	return &PostgresRepository{
 		db: database,
 	}
@@ -26,7 +26,7 @@ func NewPostgresRepository(database *gorm.DB) backup.Repository {
 
 // BackupStorage operations
 
-func (r *PostgresRepository) CreateBackupStorage(ctx context.Context, storage *backup.BackupStorage) error {
+func (r *PostgresRepository) CreateBackupStorage(ctx context.Context, storage *domain.BackupStorage) error {
 	dbStorage := r.domainToDBStorage(storage)
 	if err := r.db.WithContext(ctx).Create(dbStorage).Error; err != nil {
 		return fmt.Errorf("failed to create backup storage: %w", err)
@@ -35,7 +35,7 @@ func (r *PostgresRepository) CreateBackupStorage(ctx context.Context, storage *b
 	return nil
 }
 
-func (r *PostgresRepository) GetBackupStorage(ctx context.Context, storageID string) (*backup.BackupStorage, error) {
+func (r *PostgresRepository) GetBackupStorage(ctx context.Context, storageID string) (*domain.BackupStorage, error) {
 	var dbStorage db.BackupStorage
 	if err := r.db.WithContext(ctx).Where("id = ?", storageID).First(&dbStorage).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -46,7 +46,7 @@ func (r *PostgresRepository) GetBackupStorage(ctx context.Context, storageID str
 	return r.dbToDomainStorage(&dbStorage), nil
 }
 
-func (r *PostgresRepository) GetBackupStorageByName(ctx context.Context, workspaceID, name string) (*backup.BackupStorage, error) {
+func (r *PostgresRepository) GetBackupStorageByName(ctx context.Context, workspaceID, name string) (*domain.BackupStorage, error) {
 	var dbStorage db.BackupStorage
 	if err := r.db.WithContext(ctx).Where("workspace_id = ? AND name = ?", workspaceID, name).First(&dbStorage).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -57,20 +57,20 @@ func (r *PostgresRepository) GetBackupStorageByName(ctx context.Context, workspa
 	return r.dbToDomainStorage(&dbStorage), nil
 }
 
-func (r *PostgresRepository) ListBackupStorages(ctx context.Context, workspaceID string) ([]backup.BackupStorage, error) {
+func (r *PostgresRepository) ListBackupStorages(ctx context.Context, workspaceID string) ([]domain.BackupStorage, error) {
 	var dbStorages []db.BackupStorage
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&dbStorages).Error; err != nil {
 		return nil, fmt.Errorf("failed to list backup storages: %w", err)
 	}
 	
-	storages := make([]backup.BackupStorage, len(dbStorages))
+	storages := make([]domain.BackupStorage, len(dbStorages))
 	for i, s := range dbStorages {
 		storages[i] = *r.dbToDomainStorage(&s)
 	}
 	return storages, nil
 }
 
-func (r *PostgresRepository) UpdateBackupStorage(ctx context.Context, storage *backup.BackupStorage) error {
+func (r *PostgresRepository) UpdateBackupStorage(ctx context.Context, storage *domain.BackupStorage) error {
 	dbStorage := r.domainToDBStorage(storage)
 	if err := r.db.WithContext(ctx).Save(dbStorage).Error; err != nil {
 		return fmt.Errorf("failed to update backup storage: %w", err)
@@ -96,7 +96,7 @@ func (r *PostgresRepository) UpdateStorageUsage(ctx context.Context, storageID s
 
 // BackupPolicy operations
 
-func (r *PostgresRepository) CreateBackupPolicy(ctx context.Context, policy *backup.BackupPolicy) error {
+func (r *PostgresRepository) CreateBackupPolicy(ctx context.Context, policy *domain.BackupPolicy) error {
 	dbPolicy := r.domainToDBPolicy(policy)
 	if err := r.db.WithContext(ctx).Create(dbPolicy).Error; err != nil {
 		return fmt.Errorf("failed to create backup policy: %w", err)
@@ -105,7 +105,7 @@ func (r *PostgresRepository) CreateBackupPolicy(ctx context.Context, policy *bac
 	return nil
 }
 
-func (r *PostgresRepository) GetBackupPolicy(ctx context.Context, policyID string) (*backup.BackupPolicy, error) {
+func (r *PostgresRepository) GetBackupPolicy(ctx context.Context, policyID string) (*domain.BackupPolicy, error) {
 	var dbPolicy db.BackupPolicy
 	if err := r.db.WithContext(ctx).Where("id = ?", policyID).First(&dbPolicy).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -116,7 +116,7 @@ func (r *PostgresRepository) GetBackupPolicy(ctx context.Context, policyID strin
 	return r.dbToDomainPolicy(&dbPolicy), nil
 }
 
-func (r *PostgresRepository) GetBackupPolicyByApplication(ctx context.Context, applicationID string) (*backup.BackupPolicy, error) {
+func (r *PostgresRepository) GetBackupPolicyByApplication(ctx context.Context, applicationID string) (*domain.BackupPolicy, error) {
 	var dbPolicy db.BackupPolicy
 	if err := r.db.WithContext(ctx).Where("application_id = ?", applicationID).First(&dbPolicy).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -127,7 +127,7 @@ func (r *PostgresRepository) GetBackupPolicyByApplication(ctx context.Context, a
 	return r.dbToDomainPolicy(&dbPolicy), nil
 }
 
-func (r *PostgresRepository) ListBackupPolicies(ctx context.Context, workspaceID string) ([]backup.BackupPolicy, error) {
+func (r *PostgresRepository) ListBackupPolicies(ctx context.Context, workspaceID string) ([]domain.BackupPolicy, error) {
 	var dbPolicies []db.BackupPolicy
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN applications ON backup_policies.application_id = applications.id").
@@ -136,14 +136,14 @@ func (r *PostgresRepository) ListBackupPolicies(ctx context.Context, workspaceID
 		return nil, fmt.Errorf("failed to list backup policies: %w", err)
 	}
 	
-	policies := make([]backup.BackupPolicy, len(dbPolicies))
+	policies := make([]domain.BackupPolicy, len(dbPolicies))
 	for i, p := range dbPolicies {
 		policies[i] = *r.dbToDomainPolicy(&p)
 	}
 	return policies, nil
 }
 
-func (r *PostgresRepository) UpdateBackupPolicy(ctx context.Context, policy *backup.BackupPolicy) error {
+func (r *PostgresRepository) UpdateBackupPolicy(ctx context.Context, policy *domain.BackupPolicy) error {
 	dbPolicy := r.domainToDBPolicy(policy)
 	if err := r.db.WithContext(ctx).Save(dbPolicy).Error; err != nil {
 		return fmt.Errorf("failed to update backup policy: %w", err)
@@ -158,13 +158,13 @@ func (r *PostgresRepository) DeleteBackupPolicy(ctx context.Context, policyID st
 	return nil
 }
 
-func (r *PostgresRepository) ListEnabledPolicies(ctx context.Context) ([]backup.BackupPolicy, error) {
+func (r *PostgresRepository) ListEnabledPolicies(ctx context.Context) ([]domain.BackupPolicy, error) {
 	var dbPolicies []db.BackupPolicy
 	if err := r.db.WithContext(ctx).Where("enabled = ?", true).Find(&dbPolicies).Error; err != nil {
 		return nil, fmt.Errorf("failed to list enabled policies: %w", err)
 	}
 	
-	policies := make([]backup.BackupPolicy, len(dbPolicies))
+	policies := make([]domain.BackupPolicy, len(dbPolicies))
 	for i, p := range dbPolicies {
 		policies[i] = *r.dbToDomainPolicy(&p)
 	}
@@ -173,7 +173,7 @@ func (r *PostgresRepository) ListEnabledPolicies(ctx context.Context) ([]backup.
 
 // BackupExecution operations
 
-func (r *PostgresRepository) CreateBackupExecution(ctx context.Context, execution *backup.BackupExecution) error {
+func (r *PostgresRepository) CreateBackupExecution(ctx context.Context, execution *domain.BackupExecution) error {
 	dbExecution := r.domainToDBExecution(execution)
 	if err := r.db.WithContext(ctx).Create(dbExecution).Error; err != nil {
 		return fmt.Errorf("failed to create backup execution: %w", err)
@@ -182,7 +182,7 @@ func (r *PostgresRepository) CreateBackupExecution(ctx context.Context, executio
 	return nil
 }
 
-func (r *PostgresRepository) GetBackupExecution(ctx context.Context, executionID string) (*backup.BackupExecution, error) {
+func (r *PostgresRepository) GetBackupExecution(ctx context.Context, executionID string) (*domain.BackupExecution, error) {
 	var dbExecution db.BackupExecution
 	if err := r.db.WithContext(ctx).Where("id = ?", executionID).First(&dbExecution).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -193,7 +193,7 @@ func (r *PostgresRepository) GetBackupExecution(ctx context.Context, executionID
 	return r.dbToDomainExecution(&dbExecution), nil
 }
 
-func (r *PostgresRepository) ListBackupExecutions(ctx context.Context, policyID string, limit, offset int) ([]backup.BackupExecution, int, error) {
+func (r *PostgresRepository) ListBackupExecutions(ctx context.Context, policyID string, limit, offset int) ([]domain.BackupExecution, int, error) {
 	var total int64
 	var dbExecutions []db.BackupExecution
 	
@@ -209,7 +209,7 @@ func (r *PostgresRepository) ListBackupExecutions(ctx context.Context, policyID 
 		return nil, 0, fmt.Errorf("failed to list backup executions: %w", err)
 	}
 	
-	executions := make([]backup.BackupExecution, len(dbExecutions))
+	executions := make([]domain.BackupExecution, len(dbExecutions))
 	for i, e := range dbExecutions {
 		executions[i] = *r.dbToDomainExecution(&e)
 	}
@@ -217,7 +217,7 @@ func (r *PostgresRepository) ListBackupExecutions(ctx context.Context, policyID 
 	return executions, int(total), nil
 }
 
-func (r *PostgresRepository) UpdateBackupExecution(ctx context.Context, execution *backup.BackupExecution) error {
+func (r *PostgresRepository) UpdateBackupExecution(ctx context.Context, execution *domain.BackupExecution) error {
 	dbExecution := r.domainToDBExecution(execution)
 	if err := r.db.WithContext(ctx).Save(dbExecution).Error; err != nil {
 		return fmt.Errorf("failed to update backup execution: %w", err)
@@ -225,7 +225,7 @@ func (r *PostgresRepository) UpdateBackupExecution(ctx context.Context, executio
 	return nil
 }
 
-func (r *PostgresRepository) GetLatestBackupExecution(ctx context.Context, policyID string) (*backup.BackupExecution, error) {
+func (r *PostgresRepository) GetLatestBackupExecution(ctx context.Context, policyID string) (*domain.BackupExecution, error) {
 	var dbExecution db.BackupExecution
 	if err := r.db.WithContext(ctx).
 		Where("policy_id = ? AND status = ?", policyID, "succeeded").
@@ -239,7 +239,7 @@ func (r *PostgresRepository) GetLatestBackupExecution(ctx context.Context, polic
 	return r.dbToDomainExecution(&dbExecution), nil
 }
 
-func (r *PostgresRepository) GetBackupExecutionsByApplication(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupExecution, int, error) {
+func (r *PostgresRepository) GetBackupExecutionsByApplication(ctx context.Context, applicationID string, limit, offset int) ([]domain.BackupExecution, int, error) {
 	var total int64
 	var dbExecutions []db.BackupExecution
 	
@@ -258,7 +258,7 @@ func (r *PostgresRepository) GetBackupExecutionsByApplication(ctx context.Contex
 		return nil, 0, fmt.Errorf("failed to list backup executions by application: %w", err)
 	}
 	
-	executions := make([]backup.BackupExecution, len(dbExecutions))
+	executions := make([]domain.BackupExecution, len(dbExecutions))
 	for i, e := range dbExecutions {
 		executions[i] = *r.dbToDomainExecution(&e)
 	}
@@ -281,7 +281,7 @@ func (r *PostgresRepository) CleanupOldBackups(ctx context.Context, policyID str
 
 // BackupRestore operations
 
-func (r *PostgresRepository) CreateBackupRestore(ctx context.Context, restore *backup.BackupRestore) error {
+func (r *PostgresRepository) CreateBackupRestore(ctx context.Context, restore *domain.BackupRestore) error {
 	dbRestore := r.domainToDBRestore(restore)
 	if err := r.db.WithContext(ctx).Create(dbRestore).Error; err != nil {
 		return fmt.Errorf("failed to create backup restore: %w", err)
@@ -290,7 +290,7 @@ func (r *PostgresRepository) CreateBackupRestore(ctx context.Context, restore *b
 	return nil
 }
 
-func (r *PostgresRepository) GetBackupRestore(ctx context.Context, restoreID string) (*backup.BackupRestore, error) {
+func (r *PostgresRepository) GetBackupRestore(ctx context.Context, restoreID string) (*domain.BackupRestore, error) {
 	var dbRestore db.BackupRestore
 	if err := r.db.WithContext(ctx).Where("id = ?", restoreID).First(&dbRestore).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -301,7 +301,7 @@ func (r *PostgresRepository) GetBackupRestore(ctx context.Context, restoreID str
 	return r.dbToDomainRestore(&dbRestore), nil
 }
 
-func (r *PostgresRepository) ListBackupRestores(ctx context.Context, applicationID string, limit, offset int) ([]backup.BackupRestore, int, error) {
+func (r *PostgresRepository) ListBackupRestores(ctx context.Context, applicationID string, limit, offset int) ([]domain.BackupRestore, int, error) {
 	var total int64
 	var dbRestores []db.BackupRestore
 	
@@ -317,7 +317,7 @@ func (r *PostgresRepository) ListBackupRestores(ctx context.Context, application
 		return nil, 0, fmt.Errorf("failed to list backup restores: %w", err)
 	}
 	
-	restores := make([]backup.BackupRestore, len(dbRestores))
+	restores := make([]domain.BackupRestore, len(dbRestores))
 	for i := range dbRestores {
 		dbRestore := dbRestores[i]
 		restores[i] = *r.dbToDomainRestore(&dbRestore)
@@ -326,7 +326,7 @@ func (r *PostgresRepository) ListBackupRestores(ctx context.Context, application
 	return restores, int(total), nil
 }
 
-func (r *PostgresRepository) UpdateBackupRestore(ctx context.Context, restore *backup.BackupRestore) error {
+func (r *PostgresRepository) UpdateBackupRestore(ctx context.Context, restore *domain.BackupRestore) error {
 	dbRestore := r.domainToDBRestore(restore)
 	if err := r.db.WithContext(ctx).Save(dbRestore).Error; err != nil {
 		return fmt.Errorf("failed to update backup restore: %w", err)
@@ -336,7 +336,7 @@ func (r *PostgresRepository) UpdateBackupRestore(ctx context.Context, restore *b
 
 // Storage usage operations
 
-func (r *PostgresRepository) GetStorageUsage(ctx context.Context, storageID string) (*backup.BackupStorageUsage, error) {
+func (r *PostgresRepository) GetStorageUsage(ctx context.Context, storageID string) (*domain.BackupStorageUsage, error) {
 	var storage db.BackupStorage
 	if err := r.db.WithContext(ctx).Where("id = ?", storageID).First(&storage).Error; err != nil {
 		return nil, fmt.Errorf("failed to get storage: %w", err)
@@ -365,7 +365,7 @@ func (r *PostgresRepository) GetStorageUsage(ctx context.Context, storageID stri
 		Limit(1).
 		Pluck("started_at", &latestBackup)
 	
-	usage := &backup.BackupStorageUsage{
+	usage := &domain.BackupStorageUsage{
 		StorageID:    storage.ID,
 		TotalGB:      storage.CapacityGB,
 		UsedGB:       storage.UsedGB,
@@ -384,13 +384,13 @@ func (r *PostgresRepository) GetStorageUsage(ctx context.Context, storageID stri
 	return usage, nil
 }
 
-func (r *PostgresRepository) GetWorkspaceStorageUsage(ctx context.Context, workspaceID string) ([]backup.BackupStorageUsage, error) {
+func (r *PostgresRepository) GetWorkspaceStorageUsage(ctx context.Context, workspaceID string) ([]domain.BackupStorageUsage, error) {
 	var storages []db.BackupStorage
 	if err := r.db.WithContext(ctx).Where("workspace_id = ?", workspaceID).Find(&storages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get workspace storages: %w", err)
 	}
 	
-	usages := make([]backup.BackupStorageUsage, len(storages))
+	usages := make([]domain.BackupStorageUsage, len(storages))
 	for i, storage := range storages {
 		usage, err := r.GetStorageUsage(ctx, storage.ID)
 		if err != nil {
@@ -404,7 +404,7 @@ func (r *PostgresRepository) GetWorkspaceStorageUsage(ctx context.Context, works
 
 // Helper functions for converting between domain and database models
 
-func (r *PostgresRepository) domainToDBStorage(storage *backup.BackupStorage) *db.BackupStorage {
+func (r *PostgresRepository) domainToDBStorage(storage *domain.BackupStorage) *db.BackupStorage {
 	return &db.BackupStorage{
 		ID:               storage.ID,
 		WorkspaceID:      storage.WorkspaceID,
@@ -422,17 +422,17 @@ func (r *PostgresRepository) domainToDBStorage(storage *backup.BackupStorage) *d
 	}
 }
 
-func (r *PostgresRepository) dbToDomainStorage(dbStorage *db.BackupStorage) *backup.BackupStorage {
-	return &backup.BackupStorage{
+func (r *PostgresRepository) dbToDomainStorage(dbStorage *db.BackupStorage) *domain.BackupStorage {
+	return &domain.BackupStorage{
 		ID:               dbStorage.ID,
 		WorkspaceID:      dbStorage.WorkspaceID,
 		Name:             dbStorage.Name,
-		Type:             backup.StorageType(dbStorage.Type),
+		Type:             domain.StorageType(dbStorage.Type),
 		ProxmoxStorageID: dbStorage.ProxmoxStorageID,
 		ProxmoxNodeID:    dbStorage.ProxmoxNodeID,
 		CapacityGB:       dbStorage.CapacityGB,
 		UsedGB:           dbStorage.UsedGB,
-		Status:           backup.StorageStatus(dbStorage.Status),
+		Status:           domain.StorageStatus(dbStorage.Status),
 		ConnectionConfig: jsonToMap(dbStorage.ConnectionConfig),
 		ErrorMessage:     dbStorage.ErrorMessage,
 		CreatedAt:        dbStorage.CreatedAt,
@@ -440,7 +440,7 @@ func (r *PostgresRepository) dbToDomainStorage(dbStorage *db.BackupStorage) *bac
 	}
 }
 
-func (r *PostgresRepository) domainToDBPolicy(policy *backup.BackupPolicy) *db.BackupPolicy {
+func (r *PostgresRepository) domainToDBPolicy(policy *domain.BackupPolicy) *db.BackupPolicy {
 	return &db.BackupPolicy{
 		ID:                 policy.ID,
 		ApplicationID:      policy.ApplicationID,
@@ -462,15 +462,15 @@ func (r *PostgresRepository) domainToDBPolicy(policy *backup.BackupPolicy) *db.B
 	}
 }
 
-func (r *PostgresRepository) dbToDomainPolicy(dbPolicy *db.BackupPolicy) *backup.BackupPolicy {
-	return &backup.BackupPolicy{
+func (r *PostgresRepository) dbToDomainPolicy(dbPolicy *db.BackupPolicy) *domain.BackupPolicy {
+	return &domain.BackupPolicy{
 		ID:                 dbPolicy.ID,
 		ApplicationID:      dbPolicy.ApplicationID,
 		StorageID:          dbPolicy.StorageID,
 		Enabled:            dbPolicy.Enabled,
 		Schedule:           dbPolicy.Schedule,
 		RetentionDays:      dbPolicy.RetentionDays,
-		BackupType:         backup.BackupType(dbPolicy.BackupType),
+		BackupType:         domain.BackupType(dbPolicy.BackupType),
 		IncludeVolumes:     dbPolicy.IncludeVolumes,
 		IncludeDatabase:    dbPolicy.IncludeDatabase,
 		IncludeConfig:      dbPolicy.IncludeConfig,
@@ -484,7 +484,7 @@ func (r *PostgresRepository) dbToDomainPolicy(dbPolicy *db.BackupPolicy) *backup
 	}
 }
 
-func (r *PostgresRepository) domainToDBExecution(execution *backup.BackupExecution) *db.BackupExecution {
+func (r *PostgresRepository) domainToDBExecution(execution *domain.BackupExecution) *db.BackupExecution {
 	var cronJobExecutionID *string
 	if execution.CronJobExecutionID != "" {
 		cronJobExecutionID = &execution.CronJobExecutionID
@@ -507,17 +507,17 @@ func (r *PostgresRepository) domainToDBExecution(execution *backup.BackupExecuti
 	}
 }
 
-func (r *PostgresRepository) dbToDomainExecution(dbExecution *db.BackupExecution) *backup.BackupExecution {
+func (r *PostgresRepository) dbToDomainExecution(dbExecution *db.BackupExecution) *domain.BackupExecution {
 	cronJobExecutionID := ""
 	if dbExecution.CronJobExecutionID != nil {
 		cronJobExecutionID = *dbExecution.CronJobExecutionID
 	}
 	
-	return &backup.BackupExecution{
+	return &domain.BackupExecution{
 		ID:                  dbExecution.ID,
 		PolicyID:            dbExecution.PolicyID,
 		CronJobExecutionID:  cronJobExecutionID,
-		Status:              backup.BackupExecutionStatus(dbExecution.Status),
+		Status:              domain.BackupExecutionStatus(dbExecution.Status),
 		SizeBytes:           dbExecution.SizeBytes,
 		CompressedSizeBytes: dbExecution.CompressedSizeBytes,
 		BackupPath:          dbExecution.BackupPath,
@@ -530,7 +530,7 @@ func (r *PostgresRepository) dbToDomainExecution(dbExecution *db.BackupExecution
 	}
 }
 
-func (r *PostgresRepository) domainToDBRestore(restore *backup.BackupRestore) *db.BackupRestore {
+func (r *PostgresRepository) domainToDBRestore(restore *domain.BackupRestore) *db.BackupRestore {
 	var newApplicationID *string
 	if restore.NewApplicationID != "" {
 		newApplicationID = &restore.NewApplicationID
@@ -552,18 +552,18 @@ func (r *PostgresRepository) domainToDBRestore(restore *backup.BackupRestore) *d
 	}
 }
 
-func (r *PostgresRepository) dbToDomainRestore(dbRestore *db.BackupRestore) *backup.BackupRestore {
+func (r *PostgresRepository) dbToDomainRestore(dbRestore *db.BackupRestore) *domain.BackupRestore {
 	newApplicationID := ""
 	if dbRestore.NewApplicationID != nil {
 		newApplicationID = *dbRestore.NewApplicationID
 	}
 	
-	return &backup.BackupRestore{
+	return &domain.BackupRestore{
 		ID:                dbRestore.ID,
 		BackupExecutionID: dbRestore.BackupExecutionID,
 		ApplicationID:     dbRestore.ApplicationID,
-		Status:            backup.RestoreStatus(dbRestore.Status),
-		RestoreType:       backup.RestoreType(dbRestore.RestoreType),
+		Status:            domain.RestoreStatus(dbRestore.Status),
+		RestoreType:       domain.RestoreType(dbRestore.RestoreType),
 		RestoreOptions:    jsonToMap(dbRestore.RestoreOptions),
 		NewApplicationID:  newApplicationID,
 		StartedAt:         dbRestore.StartedAt,

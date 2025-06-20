@@ -1,27 +1,27 @@
-package backup
+package repository
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/hexabase/hexabase-ai/api/internal/domain/backup"
+	"github.com/hexabase/hexabase-ai/api/internal/backup/domain"
 	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 )
 
-// ProxmoxRepository implements backup.ProxmoxRepository interface
+// ProxmoxRepository implements domain.ProxmoxRepository interface
 type ProxmoxRepository struct {
 	client *proxmox.Client
 }
 
 // NewProxmoxRepository creates a new Proxmox repository for backup operations
-func NewProxmoxRepository(client *proxmox.Client) backup.ProxmoxRepository {
+func NewProxmoxRepository(client *proxmox.Client) domain.ProxmoxRepository {
 	return &ProxmoxRepository{
 		client: client,
 	}
 }
 
 // CreateStorage creates a new storage in Proxmox
-func (r *ProxmoxRepository) CreateStorage(ctx context.Context, nodeID string, config backup.ProxmoxStorageConfig) (string, error) {
+func (r *ProxmoxRepository) CreateStorage(ctx context.Context, nodeID string, config domain.ProxmoxStorageConfig) (string, error) {
 	// TODO: Implement actual Proxmox storage creation
 	// For now, return a stub storage ID
 	storageID := fmt.Sprintf("backup-%s-%d", config.Name, 12345)
@@ -35,9 +35,9 @@ func (r *ProxmoxRepository) DeleteStorage(ctx context.Context, nodeID, storageID
 }
 
 // GetStorageInfo retrieves storage information from Proxmox
-func (r *ProxmoxRepository) GetStorageInfo(ctx context.Context, nodeID, storageID string) (*backup.ProxmoxStorageInfo, error) {
+func (r *ProxmoxRepository) GetStorageInfo(ctx context.Context, nodeID, storageID string) (*domain.ProxmoxStorageInfo, error) {
 	// TODO: Implement actual Proxmox storage info retrieval
-	return &backup.ProxmoxStorageInfo{
+	return &domain.ProxmoxStorageInfo{
 		ID:        storageID,
 		Type:      "dir",
 		Total:     1024 * 1024 * 1024 * 100, // 100GB
@@ -70,9 +70,9 @@ func (r *ProxmoxRepository) DeleteBackupVolume(ctx context.Context, nodeID, stor
 }
 
 // GetVolumeInfo retrieves volume information from Proxmox
-func (r *ProxmoxRepository) GetVolumeInfo(ctx context.Context, nodeID, storageID, volumeID string) (*backup.ProxmoxVolumeInfo, error) {
+func (r *ProxmoxRepository) GetVolumeInfo(ctx context.Context, nodeID, storageID, volumeID string) (*domain.ProxmoxVolumeInfo, error) {
 	// TODO: Implement actual Proxmox volume info retrieval
-	return &backup.ProxmoxVolumeInfo{
+	return &domain.ProxmoxVolumeInfo{
 		ID:     volumeID,
 		Name:   fmt.Sprintf("backup-volume-%s", volumeID),
 		Size:   1024 * 1024 * 1024 * 20, // 20GB
@@ -89,9 +89,9 @@ func (r *ProxmoxRepository) SetStorageQuota(ctx context.Context, nodeID, storage
 }
 
 // GetStorageQuota retrieves storage quota from Proxmox
-func (r *ProxmoxRepository) GetStorageQuota(ctx context.Context, nodeID, storageID string) (*backup.ProxmoxStorageQuota, error) {
+func (r *ProxmoxRepository) GetStorageQuota(ctx context.Context, nodeID, storageID string) (*domain.ProxmoxStorageQuota, error) {
 	// TODO: Implement actual Proxmox storage quota retrieval
-	return &backup.ProxmoxStorageQuota{
+	return &domain.ProxmoxStorageQuota{
 		StorageID: storageID,
 		QuotaGB:   100,
 		UsedGB:    10,
