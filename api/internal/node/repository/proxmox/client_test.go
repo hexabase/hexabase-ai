@@ -6,7 +6,7 @@ import (
 	"time"
 
 	nodeDomain "github.com/hexabase/hexabase-ai/api/internal/node/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
+	"github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

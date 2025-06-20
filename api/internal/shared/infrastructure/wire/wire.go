@@ -94,8 +94,8 @@ import (
 	cicdSvc "github.com/hexabase/hexabase-ai/api/internal/cicd/service"
 
 	// Legacy repositories that haven't been migrated yet
+	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
 	k8sRepo "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
-	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"

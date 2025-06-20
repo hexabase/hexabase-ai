@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hexabase/hexabase-ai/api/internal/node/domain"
-	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
+	proxmoxRepo "github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
 )
 
 // ProxmoxRepository implements the domain.ProxmoxRepository interface

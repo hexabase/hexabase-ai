@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hexabase/hexabase-ai/api/internal/backup/domain"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
+	"github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
 )
 
 // ProxmoxRepository implements domain.ProxmoxRepository interface

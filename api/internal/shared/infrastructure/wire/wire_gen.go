@@ -51,6 +51,7 @@ import (
 	domain5 "github.com/hexabase/hexabase-ai/api/internal/node/domain"
 	handler7 "github.com/hexabase/hexabase-ai/api/internal/node/handler"
 	repository8 "github.com/hexabase/hexabase-ai/api/internal/node/repository"
+	"github.com/hexabase/hexabase-ai/api/internal/node/repository/proxmox"
 	service7 "github.com/hexabase/hexabase-ai/api/internal/node/service"
 	handler8 "github.com/hexabase/hexabase-ai/api/internal/organization/handler"
 	repository9 "github.com/hexabase/hexabase-ai/api/internal/organization/repository"
@@ -60,7 +61,6 @@ import (
 	repository10 "github.com/hexabase/hexabase-ai/api/internal/project/repository"
 	service9 "github.com/hexabase/hexabase-ai/api/internal/project/service"
 	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/repository/kubernetes"
-	"github.com/hexabase/hexabase-ai/api/internal/repository/proxmox"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 	domain9 "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	handler10 "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
@@ -163,11 +163,11 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	conn, err := ProvideClickHouseConn(cfg)
+	v2, err := ProvideClickHouseConn(cfg)
 	if err != nil {
 		return nil, err
 	}
-	repository26 := repository13.NewClickHouseRepository(conn, logger)
+	repository26 := repository13.NewClickHouseRepository(v2, logger)
 	service26 := service13.NewLogService(repository26, logger)
 	internalHandler := ProvideInternalHandler(service22, service21, domainService, service19, service26, service18, service25, service17, service15, logger)
 	app := NewApp(applicationHandler, handlerHandler, handler13, handler14, handler15, handler16, handler17, handler18, handler19, handler20, handler21, handler22, ginHandler, aiOpsProxyHandler, internalHandler, service26)
