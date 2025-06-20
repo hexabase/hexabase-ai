@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+
+	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
 	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -244,18 +248,61 @@ func (m *mockKeyRepository) RotateKeys() error {
 	return args.Error(0)
 }
 
+type mockTokenDomainService struct {
+	mock.Mock
+}
+
+func (m *mockTokenDomainService) RefreshToken(ctx context.Context, session *domain.Session, user *domain.User) (*domain.Claims, error) {
+	args := m.Called(ctx, session, user)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Claims), args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Session) error {
+	args := m.Called(session)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	args := m.Called(userID, refreshToken, deviceID, clientIP, userAgent)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Session), args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateTokenClaims(claims *domain.Claims) error {
+	args := m.Called(claims)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) ShouldRefreshToken(claims *domain.Claims) bool {
+	args := m.Called(claims)
+	return args.Bool(0)
+}
 func TestService_GetAuthURL(t *testing.T) {
 	ctx := context.Background()
 	
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
+	mockTokenDomainService := new(mockTokenDomainService)
+	
+	// Create a dummy TokenManager
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
 	
 	svc := &service{
-		repo:      mockRepo,
-		oauthRepo: mockOAuthRepo,
-		keyRepo:   mockKeyRepo,
-		logger:    slog.Default(),
+		repo:               mockRepo,
+		oauthRepo:          mockOAuthRepo,
+		keyRepo:            mockKeyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: mockTokenDomainService,
+		logger:             slog.Default(),
+		defaultTokenExpiry: 3600, // 1 hour default
 	}
 
 	t.Run("successful get auth URL", func(t *testing.T) {
@@ -300,12 +347,21 @@ func TestService_HandleCallback(t *testing.T) {
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
+	mockTokenDomainService := new(mockTokenDomainService)
+	
+	// Create a dummy TokenManager
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
 	
 	svc := &service{
-		repo:       mockRepo,
-		oauthRepo:  mockOAuthRepo,
-		keyRepo:    mockKeyRepo,
-		logger:     slog.Default(),
+		repo:               mockRepo,
+		oauthRepo:          mockOAuthRepo,
+		keyRepo:            mockKeyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: mockTokenDomainService,
+		logger:             slog.Default(),
+		defaultTokenExpiry: 3600, // 1 hour default
 	}
 
 	t.Run("successful callback - new user", func(t *testing.T) {
@@ -317,8 +373,9 @@ func TestService_HandleCallback(t *testing.T) {
 		userAgent := "Mozilla/5.0"
 
 		authState := &domain.AuthState{
-			State:    "valid-state-123",
-			Provider: "google",
+			State:     "valid-state-123",
+			Provider:  "google",
+			ExpiresAt: time.Now().Add(10 * time.Minute), // Valid for 10 minutes
 		}
 
 		oauthToken := &domain.OAuthToken{
@@ -333,34 +390,7 @@ func TestService_HandleCallback(t *testing.T) {
 			Provider: "google",
 		}
 
-		// Mock private key for token generation
-		privateKey := []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF32M0w5md/Y2c2Shj5cHOtIVYC1Y
-/c2Id85e5iJGPO85VaFfpUW0DwvnkLanf2rgQvSCFUvz8L6CLLxOZjG5MwJwmhE/
-ZFqEuHqIbpJfDFhkKjBLJmkEDDW2KFvquTe9+CZmI3O6eSspJWRQUfACLRCOFRHc
-Vz7RppLnzXvQqgMKiCxvUBhJRaAQJlCvDafI8MrDwAzdllbHFQhVVv6sKNnStzHZ
-EqGKN3f0GanVfJUw8Ys1wyYmMWNYbJbIiJGXLYSWwElaUltFapKhKjC7OvHLfJ5P
-4HUR1ON6lxYl3ciTisg0VkHAcDaGLmhK7YqUgwIDAQABAoIBAD2wzqIms6LHJIoG
-SLoSJc/lQItrFMnLBHBF3aP4J9zHO3KJmHbr1h+v9OdJq0Uv3k4DRCx55xtDC0++
-LGDNGKxMg5qFN1FYuF+ALmwDyx5tuxCOZ8p32Rv6iZ9efgh9InVyKFOPiUMX8Sjn
-S+x0S6LSXB7HIUcMXih37vc9qLI1K3BcNdAGQm1xNZKepIDkztMULdVcQPuGvr6T
-MsJ7vANmBLwHTP1UXNdG8nxo9AQs/RCEgIFxQmKQSpHw3bqBR4eHMrn5aUPrmQKG
-Lg4OGgP0yWZhGAqm2x7VHvTznHlvDZBAyycf3x+gDh4hFq0nqDZiB9lNsa5Ooqwz
-4sLvovECgYEA6eVMd2C4ffwHFhrBCBx5e6logOXqxkpE2MDTrWL7jHJGgdb3bCXU
-Qx0BhbG2PU+gaPe9cQSz6gCLDt7x/zJq6Qb5TXp6rZbbQiLnKYQQbb5Z7ZV6zpJk
-w1gnqrDi8a1eexMdpvr+pHK7IjYaTPRvFsyM4j9Vo1GlMD96ZBaGiI8CgYEA5Z2X
-z9f7f0G7bqZOvcJVCPL5WANpyPFmCx1Gx0Sg6pNOdIIJJtUYwXIXgF9Vf+i2BbO5
-byaNMixLFNIUZvFb5shc8HrnQ0qVLuEpyHh0SOIYU3jE4yZECZxFnkd5ZTQqNdun
-VtLNGDGXU8L2cCF0rGcLd3aVQJL5RR0i3DodYv0CgYAyX7xGIxGZECIR8WwcJyRF
-aHE8LY+6qWKJIMH0rM8N0XvsuWI7u3kkcOEJYWdq0V5OjdVaobFdxP9x7NIhvGeT
-pQ3k1yvvvMCGNiGLq2N7i5qiVLU4vD5q9rCh1HQZDa12lXEjUDQbRuFMPmh+7F+o
-DuWDq3iikCBnIVnlXM4FGQKBgH4HZyMDQfBLupzcO0kC6F1P7bc1j/itIvCUoTHv
-rFTMZRsKcDvE4xvxm6aTqrv+Q8I3AeoXYGNTm2S9F8KGQNRs/4s8fngTanhUJoWJ
-4GhHldgqGF7LHMsBG+wQxWgGRANwcy/8mm5n6e6SlJQWdmDpfrB6HrGGP9Z3i0K4
-TqMdAoGBAMvQm5j8yZSrPa8TMLxUKMjQVQ7CkGIDTZaIQrcVMU5PKNtryp7LQJkl
-a1rAOo4S1l7kZX8b6HBRZLNX+zqLAQ3q+qu/PWhYGz3FvFocKqJSFl6bPdHVWHGD
-IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
------END RSA PRIVATE KEY-----`)
+		// No longer need to generate private key for test since TokenManager handles it
 
 		// Mock the flow
 		mockRepo.On("GetAuthState", ctx, "valid-state-123").Return(authState, nil)
@@ -371,12 +401,10 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		// User doesn't exist yet
 		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
 		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
-		mockRepo.On("UpdateLastLogin", ctx, mock.AnythingOfType("string")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Times(2)
 		
 		// Generate tokens
 		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil)
-		mockKeyRepo.On("GetPrivateKey").Return(privateKey, nil)
 		
 		// Create session
 		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
@@ -391,7 +419,6 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 
 		mockRepo.AssertExpectations(t)
 		mockOAuthRepo.AssertExpectations(t)
-		mockKeyRepo.AssertExpectations(t)
 	})
 
 	t.Run("invalid state", func(t *testing.T) {
@@ -418,41 +445,23 @@ func TestService_RefreshToken(t *testing.T) {
 	
 	mockRepo := new(mockRepository)
 	mockKeyRepo := new(mockKeyRepository)
+	mockTokenDomainService := new(mockTokenDomainService)
+	
+	// Create a dummy TokenManager
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
 	
 	svc := &service{
-		repo:       mockRepo,
-		keyRepo:    mockKeyRepo,
-		logger:     slog.Default(),
+		repo:               mockRepo,
+		keyRepo:            mockKeyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: mockTokenDomainService,
+		logger:             slog.Default(),
+		defaultTokenExpiry: 3600, // 1 hour default
 	}
 
-	// Mock private key for token generation
-	privateKey := []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF32M0w5md/Y2c2Shj5cHOtIVYC1Y
-/c2Id85e5iJGPO85VaFfpUW0DwvnkLanf2rgQvSCFUvz8L6CLLxOZjG5MwJwmhE/
-ZFqEuHqIbpJfDFhkKjBLJmkEDDW2KFvquTe9+CZmI3O6eSspJWRQUfACLRCOFRHc
-Vz7RppLnzXvQqgMKiCxvUBhJRaAQJlCvDafI8MrDwAzdllbHFQhVVv6sKNnStzHZ
-EqGKN3f0GanVfJUw8Ys1wyYmMWNYbJbIiJGXLYSWwElaUltFapKhKjC7OvHLfJ5P
-4HUR1ON6lxYl3ciTisg0VkHAcDaGLmhK7YqUgwIDAQABAoIBAD2wzqIms6LHJIoG
-SLoSJc/lQItrFMnLBHBF3aP4J9zHO3KJmHbr1h+v9OdJq0Uv3k4DRCx55xtDC0++
-LGDNGKxMg5qFN1FYuF+ALmwDyx5tuxCOZ8p32Rv6iZ9efgh9InVyKFOPiUMX8Sjn
-S+x0S6LSXB7HIUcMXih37vc9qLI1K3BcNdAGQm1xNZKepIDkztMULdVcQPuGvr6T
-MsJ7vANmBLwHTP1UXNdG8nxo9AQs/RCEgIFxQmKQSpHw3bqBR4eHMrn5aUPrmQKG
-Lg4OGgP0yWZhGAqm2x7VHvTznHlvDZBAyycf3x+gDh4hFq0nqDZiB9lNsa5Ooqwz
-4sLvovECgYEA6eVMd2C4ffwHFhrBCBx5e6logOXqxkpE2MDTrWL7jHJGgdb3bCXU
-Qx0BhbG2PU+gaPe9cQSz6gCLDt7x/zJq6Qb5TXp6rZbbQiLnKYQQbb5Z7ZV6zpJk
-w1gnqrDi8a1eexMdpvr+pHK7IjYaTPRvFsyM4j9Vo1GlMD96ZBaGiI8CgYEA5Z2X
-z9f7f0G7bqZOvcJVCPL5WANpyPFmCx1Gx0Sg6pNOdIIJJtUYwXIXgF9Vf+i2BbO5
-byaNMixLFNIUZvFb5shc8HrnQ0qVLuEpyHh0SOIYU3jE4yZECZxFnkd5ZTQqNdun
-VtLNGDGXU8L2cCF0rGcLd3aVQJL5RR0i3DodYv0CgYAyX7xGIxGZECIR8WwcJyRF
-aHE8LY+6qWKJIMH0rM8N0XvsuWI7u3kkcOEJYWdq0V5OjdVaobFdxP9x7NIhvGeT
-pQ3k1yvvvMCGNiGLq2N7i5qiVLU4vD5q9rCh1HQZDa12lXEjUDQbRuFMPmh+7F+o
-DuWDq3iikCBnIVnlXM4FGQKBgH4HZyMDQfBLupzcO0kC6F1P7bc1j/itIvCUoTHv
-rFTMZRsKcDvE4xvxm6aTqrv+Q8I3AeoXYGNTm2S9F8KGQNRs/4s8fngTanhUJoWJ
-4GhHldgqGF7LHMsBG+wQxWgGRANwcy/8mm5n6e6SlJQWdmDpfrB6HrGGP9Z3i0K4
-TqMdAoGBAMvQm5j8yZSrPa8TMLxUKMjQVQ7CkGIDTZaIQrcVMU5PKNtryp7LQJkl
-a1rAOo4S1l7kZX8b6HBRZLNX+zqLAQ3q+qu/PWhYGz3FvFocKqJSFl6bPdHVWHGD
-IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
------END RSA PRIVATE KEY-----`)
+	// No longer need to generate private key for test since TokenManager handles it
 
 	t.Run("successful refresh", func(t *testing.T) {
 		refreshToken := "valid-refresh-token"
@@ -473,12 +482,20 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 			ExpiresAt:    time.Now().Add(24 * time.Hour),
 		}
 
+		// Expected Claims from TokenDomainService
+		expectedClaims := &domain.Claims{
+			UserID:    "user-123",
+			Email:     "user@example.com",
+			Name:      "Test User",
+			Provider:  "google",
+			SessionID: session.ID,
+		}
+
 		// Mock repository calls
 		mockRepo.On("IsRefreshTokenBlacklisted", ctx, refreshToken).Return(false, nil)
 		mockRepo.On("GetSessionByRefreshToken", ctx, refreshToken).Return(session, nil)
 		mockRepo.On("GetUser", ctx, "user-123").Return(user, nil)
-		mockRepo.On("GetUserOrganizations", ctx, "user-123").Return([]string{"org-1"}, nil)
-		mockKeyRepo.On("GetPrivateKey").Return(privateKey, nil)
+		mockTokenDomainService.On("RefreshToken", ctx, session, user).Return(expectedClaims, nil)
 		mockRepo.On("BlacklistRefreshToken", ctx, refreshToken, session.ExpiresAt).Return(nil)
 		mockRepo.On("UpdateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
@@ -489,10 +506,9 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		assert.NotEmpty(t, response.AccessToken)
 		assert.NotEmpty(t, response.RefreshToken)
 		assert.Equal(t, "Bearer", response.TokenType)
-		assert.Equal(t, 900, response.ExpiresIn)
+		assert.Equal(t, 3600, response.ExpiresIn)
 
 		mockRepo.AssertExpectations(t)
-		mockKeyRepo.AssertExpectations(t)
 	})
 
 	t.Run("blacklisted token", func(t *testing.T) {
@@ -524,6 +540,7 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 
 		mockRepo.On("IsRefreshTokenBlacklisted", ctx, refreshToken).Return(false, nil)
 		mockRepo.On("GetSessionByRefreshToken", ctx, refreshToken).Return(session, nil)
+		// Note: GetUser and TokenDomainService.RefreshToken are NOT called because session is expired
 
 		response, err := svc.RefreshToken(ctx, refreshToken, clientIP, userAgent)
 		assert.Error(t, err)
@@ -531,6 +548,7 @@ IwvA1RJNp2TVgqetD1QYn7BdJCz/LoYUJ4cUF6j4BFxWGQJBfwuo
 		assert.Contains(t, err.Error(), "expired")
 
 		mockRepo.AssertExpectations(t)
+		// Note: TokenDomainService expectations are NOT added because the method isn't called
 	})
 }
 
@@ -538,10 +556,19 @@ func TestService_RevokeSession(t *testing.T) {
 	ctx := context.Background()
 	
 	mockRepo := new(mockRepository)
+	mockTokenDomainService := new(mockTokenDomainService)
+	
+	// Create a dummy TokenManager
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
 	
 	svc := &service{
-		repo:   mockRepo,
-		logger: slog.Default(),
+		repo:               mockRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: mockTokenDomainService,
+		logger:             slog.Default(),
+		defaultTokenExpiry: 3600, // 1 hour default
 	}
 
 	t.Run("successful revoke", func(t *testing.T) {

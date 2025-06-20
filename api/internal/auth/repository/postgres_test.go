@@ -298,6 +298,7 @@ func TestPostgresRepository_CreateSession(t *testing.T) {
 				sqlmock.AnyArg(), // expires_at
 				sqlmock.AnyArg(), // created_at
 				sqlmock.AnyArg(), // last_used_at
+				false,            // revoked (default value)
 			).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
@@ -319,10 +320,10 @@ func TestPostgresRepository_GetSession(t *testing.T) {
 
 		rows := sqlmock.NewRows([]string{
 			"id", "user_id", "refresh_token", "device_id", "ip_address",
-			"user_agent", "expires_at", "created_at", "last_used_at",
+			"user_agent", "expires_at", "created_at", "last_used_at", "revoked",
 		}).AddRow(
 			sessionID, "user-123", "refresh-token-123", "device-123", "192.168.1.100",
-			"Mozilla/5.0...", now.Add(24*time.Hour), now, now,
+			"Mozilla/5.0...", now.Add(24*time.Hour), now, now, false,
 		)
 
 		mock.ExpectQuery(`SELECT \* FROM "sessions" WHERE id = \$1 ORDER BY "sessions"\."id" LIMIT \$2`).

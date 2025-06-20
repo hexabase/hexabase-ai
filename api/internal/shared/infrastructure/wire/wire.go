@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/wire"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/api/handlers"
 
@@ -21,7 +22,8 @@ import (
 	applicationSvc "github.com/hexabase/hexabase-ai/api/internal/application/service"
 
 	// Auth domain
-
+	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
+	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	authHandler "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
 	authRepo "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
 	authSvc "github.com/hexabase/hexabase-ai/api/internal/auth/service"
@@ -60,9 +62,6 @@ import (
 	aiopsHandler "github.com/hexabase/hexabase-ai/api/internal/aiops/handler"
 	aiopsRepo "github.com/hexabase/hexabase-ai/api/internal/aiops/repository"
 	aiopsSvc "github.com/hexabase/hexabase-ai/api/internal/aiops/service"
-
-	// Auth domain (needed for AIOps proxy)
-	authDomain "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 
 	// Backup (migrated)
 	backupDomain "github.com/hexabase/hexabase-ai/api/internal/backup/domain"
@@ -118,6 +117,9 @@ var AuthSet = wire.NewSet(
 	authRepo.NewPostgresRepository,
 	authRepo.NewOAuthRepository,
 	authRepo.NewKeyRepository,
+	ProvideTokenManager,
+	ProvideTokenDomainService,
+	ProvideDefaultTokenExpiry,
 	authSvc.NewService,
 	authHandler.NewHandler,
 )
@@ -492,4 +494,39 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		NewApp,
 	)
 	return nil, nil
+}
+
+// ProvideTokenManager provides a TokenManager instance
+func ProvideTokenManager(keyRepo authDomain.KeyRepository, cfg *config.Config) (*internalAuth.TokenManager, error) {
+	privateKeyPEM, err := keyRepo.GetPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	
+	publicKeyPEM, err := keyRepo.GetPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+	
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+	
+	return internalAuth.NewTokenManager(privateKey, publicKey, "https://api.hexabase-kaas.io", time.Hour), nil
+}
+
+// ProvideTokenDomainService provides a TokenDomainService instance
+func ProvideTokenDomainService() authDomain.TokenDomainService {
+	return authDomain.NewTokenDomainService()
+}
+
+// ProvideDefaultTokenExpiry provides the default token expiry
+func ProvideDefaultTokenExpiry() int {
+	return 3600 // 1 hour
 }

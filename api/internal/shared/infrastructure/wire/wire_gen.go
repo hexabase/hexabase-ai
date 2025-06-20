@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/wire"
 	domain7 "github.com/hexabase/hexabase-ai/api/internal/aiops/domain"
 	handler12 "github.com/hexabase/hexabase-ai/api/internal/aiops/handler"
@@ -19,6 +20,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/application/handler"
 	"github.com/hexabase/hexabase-ai/api/internal/application/repository"
 	"github.com/hexabase/hexabase-ai/api/internal/application/service"
+	"github.com/hexabase/hexabase-ai/api/internal/auth"
 	domain8 "github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	handler2 "github.com/hexabase/hexabase-ai/api/internal/auth/handler"
 	repository2 "github.com/hexabase/hexabase-ai/api/internal/auth/repository"
@@ -94,7 +96,13 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	service14 := service2.NewService(repository14, oAuthRepository, keyRepository, logger)
+	tokenManager, err := ProvideTokenManager(keyRepository, cfg)
+	if err != nil {
+		return nil, err
+	}
+	tokenDomainService := ProvideTokenDomainService()
+	int2 := ProvideDefaultTokenExpiry()
+	service14 := service2.NewService(repository14, oAuthRepository, keyRepository, tokenManager, tokenDomainService, logger, int2)
 	handlerHandler := handler2.NewHandler(service14, logger)
 	repository15 := repository3.NewPostgresRepository(db)
 	proxmoxRepository := ProvideBackupProxmoxRepository(cfg)
@@ -179,7 +187,10 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 // Updated wire sets for migrated packages
 var ApplicationSet = wire.NewSet(repository.NewPostgresRepository, repository.NewKubernetesRepository, service.NewService, handler.NewApplicationHandler)
 
-var AuthSet = wire.NewSet(repository2.NewPostgresRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, service2.NewService, handler2.NewHandler)
+var AuthSet = wire.NewSet(repository2.NewPostgresRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, ProvideTokenManager,
+	ProvideTokenDomainService,
+	ProvideDefaultTokenExpiry, service2.NewService, handler2.NewHandler,
+)
 
 var OrganizationSet = wire.NewSet(repository9.NewPostgresRepository, repository9.NewAuthRepositoryAdapter, repository9.NewBillingRepositoryAdapter, service8.NewService, handler8.NewHandler)
 
@@ -489,4 +500,39 @@ func ProvideInternalHandler(
 		backupSvc,
 		logger,
 	)
+}
+
+// ProvideTokenManager provides a TokenManager instance
+func ProvideTokenManager(keyRepo domain8.KeyRepository, cfg *config.Config) (*auth.TokenManager, error) {
+	privateKeyPEM, err := keyRepo.GetPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	publicKeyPEM, err := keyRepo.GetPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewTokenManager(privateKey, publicKey, "https://api.hexabase-kaas.io", time.Hour), nil
+}
+
+// ProvideTokenDomainService provides a TokenDomainService instance
+func ProvideTokenDomainService() domain8.TokenDomainService {
+	return domain8.NewTokenDomainService()
+}
+
+// ProvideDefaultTokenExpiry provides the default token expiry
+func ProvideDefaultTokenExpiry() int {
+	return 3600
 }
