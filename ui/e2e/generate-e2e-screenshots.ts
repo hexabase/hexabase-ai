@@ -165,7 +165,7 @@ function createDirectories() {
 }
 
 // Generate a mock screenshot HTML
-function generateMockScreenshot(title: string, description: string, category: string): string {
+function generateMockScreenshot(title: string, description: string, category: string, screenshotName?: string): string {
   const colors = {
     auth: '#3B82F6',
     dashboard: '#8B5CF6',
@@ -185,181 +185,57 @@ function generateMockScreenshot(title: string, description: string, category: st
 
   const color = colors[category] || '#6B7280';
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { 
-            margin: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #F9FAFB;
-            display: flex;
-            min-height: 100vh;
-        }
-        .sidebar {
-            width: 240px;
-            background: #1F2937;
-            padding: 20px;
-            color: white;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-            margin-bottom: 30px;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        .logo-icon {
-            width: 32px;
-            height: 32px;
-            background: ${color};
-            border-radius: 8px;
-            margin-right: 12px;
-        }
-        .nav-item {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .nav-item:hover {
-            background: #374151;
-        }
-        .nav-item.active {
-            background: ${color}20;
-            border-left: 3px solid ${color};
-        }
-        .main-content {
-            flex: 1;
-            padding: 32px;
-        }
-        .header {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            color: #111827;
-        }
-        .header p {
-            margin: 8px 0 0 0;
-            color: #6B7280;
-        }
-        .content-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .status-success {
-            background: #D1FAE5;
-            color: #065F46;
-        }
-        .status-warning {
-            background: #FEF3C7;
-            color: #92400E;
-        }
-        .status-error {
-            background: #FEE2E2;
-            color: #991B1B;
-        }
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-top: 24px;
-        }
-        .metric-card {
-            background: #F9FAFB;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #E5E7EB;
-        }
-        .metric-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: ${color};
-        }
-        .metric-label {
-            color: #6B7280;
-            margin-top: 4px;
-        }
-        .button {
-            background: ${color};
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 16px;
-        }
-        .mock-content {
-            background: #F3F4F6;
-            border: 2px dashed #D1D5DB;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            color: #6B7280;
-            margin-top: 24px;
-        }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="logo">
-            <div class="logo-icon"></div>
-            Hexabase AI
-        </div>
-        <div class="nav-item ${category === 'dashboard' ? 'active' : ''}">Dashboard</div>
-        <div class="nav-item ${category === 'organization' ? 'active' : ''}">Organizations</div>
-        <div class="nav-item ${category === 'workspace' ? 'active' : ''}">Workspaces</div>
-        <div class="nav-item ${category === 'projects' ? 'active' : ''}">Projects</div>
-        <div class="nav-item ${category === 'applications' ? 'active' : ''}">Applications</div>
-        <div class="nav-item ${category === 'deployments' ? 'active' : ''}">Deployments</div>
-        <div class="nav-item ${category === 'monitoring' ? 'active' : ''}">Monitoring</div>
-    </div>
-    <div class="main-content">
-        <div class="header">
-            <h1>${title}</h1>
-            <p>${description}</p>
-        </div>
-        <div class="content-card">
-            <div class="mock-content">
-                <h2 style="margin: 0; color: #374151;">${title}</h2>
-                <p style="margin: 16px 0;">${description}</p>
-                <div class="metric-grid" style="text-align: left;">
-                    <div class="metric-card">
-                        <div class="metric-value">${Math.floor(Math.random() * 100)}</div>
-                        <div class="metric-label">Active Items</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">${Math.floor(Math.random() * 50)}%</div>
-                        <div class="metric-label">Usage</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">${Math.floor(Math.random() * 1000)}</div>
-                        <div class="metric-label">Total Operations</div>
-                    </div>
-                </div>
-                <button class="button">Take Action</button>
-            </div>
-        </div>
-    </div>
-</body>
-</html>`;
+  // Generate feature-specific content based on category and screenshot
+  let specificContent = '';
+  
+  switch (category) {
+    case 'auth':
+      specificContent = getAuthContent(screenshotName, color);
+      break;
+    case 'dashboard':
+      specificContent = getDashboardContent(screenshotName, color);
+      break;
+    case 'organization':
+      specificContent = getOrganizationContent(screenshotName, color);
+      break;
+    case 'workspace':
+      specificContent = getWorkspaceContent(screenshotName, color);
+      break;
+    case 'projects':
+      specificContent = getProjectsContent(screenshotName, color);
+      break;
+    case 'applications':
+      specificContent = getApplicationsContent(screenshotName, color);
+      break;
+    case 'deployments':
+      specificContent = getDeploymentsContent(screenshotName, color);
+      break;
+    case 'cicd':
+      specificContent = getCICDContent(screenshotName, color);
+      break;
+    case 'backup':
+      specificContent = getBackupContent(screenshotName, color);
+      break;
+    case 'serverless':
+      specificContent = getServerlessContent(screenshotName, color);
+      break;
+    case 'monitoring':
+      specificContent = getMonitoringContent(screenshotName, color);
+      break;
+    case 'ai_chat':
+      specificContent = getAIChatContent(screenshotName, color);
+      break;
+    case 'oauth':
+      specificContent = getOAuthContent(screenshotName, color);
+      break;
+    case 'error_handling':
+      specificContent = getErrorHandlingContent(screenshotName, color);
+      break;
+    default:
+      specificContent = getDefaultContent(title, description, color);
+  }
+
+  return specificContent;
 }
 
 // Generate screenshots
@@ -382,7 +258,7 @@ async function generateScreenshots() {
     
     for (const screenshot of scenario.screenshots) {
       const page = await context.newPage();
-      const html = generateMockScreenshot(screenshot.title, screenshot.description, scenario.category);
+      const html = generateMockScreenshot(screenshot.title, screenshot.description, scenario.category, screenshot.name);
       
       await page.setContent(html);
       await page.waitForTimeout(100);
