@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/hexabase/hexabase-ai/api/internal/auth"
-	"github.com/hexabase/hexabase-ai/api/internal/config"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 )

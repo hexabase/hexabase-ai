@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	domainAuth "github.com/hexabase/hexabase-ai/api/internal/domain/auth"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 )
 
 // TokenManager handles JWT token generation and validation
@@ -139,7 +139,7 @@ func (tm *TokenManager) GetPublicKey() *rsa.PublicKey {
 
 // SignClaims signs claims to create a JWT token
 // This method is pure infrastructure - no business logic
-func (tm *TokenManager) SignClaims(claims *domainAuth.Claims) (string, error) {
+func (tm *TokenManager) SignClaims(claims *domain.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	return token.SignedString(tm.privateKey)
 }
