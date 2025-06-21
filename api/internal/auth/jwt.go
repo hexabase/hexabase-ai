@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 )
 
 // TokenManager handles JWT token generation and validation
@@ -136,18 +137,9 @@ func (tm *TokenManager) GetPublicKey() *rsa.PublicKey {
 	return tm.publicKey
 }
 
-// RefreshToken generates a new token from existing claims
-func (tm *TokenManager) RefreshToken(oldToken string) (string, error) {
-	claims, err := tm.ValidateToken(oldToken)
-	if err != nil {
-		return "", err
-	}
-
-	// Check if token is expired but within refresh window (e.g., 7 days)
-	if claims.ExpiresAt != nil && time.Now().After(claims.ExpiresAt.Add(7*24*time.Hour)) {
-		return "", fmt.Errorf("token is too old to refresh")
-	}
-
-	// Generate new token with same claims but updated timestamps
-	return tm.GenerateToken(claims.UserID, claims.Email, claims.Name, claims.OrgIDs)
+// SignClaims signs claims to create a JWT token
+// This method is pure infrastructure - no business logic
+func (tm *TokenManager) SignClaims(claims *domain.Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(tm.privateKey)
 }

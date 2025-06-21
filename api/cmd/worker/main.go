@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/hexabase/hexabase-ai/api/internal/config"
-	"github.com/hexabase/hexabase-ai/api/internal/db"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/db"
 	"go.uber.org/zap"
 )
 
