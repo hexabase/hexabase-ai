@@ -28,7 +28,7 @@ This mixed approach has become a significant **technical debt** that threatens t
 
 ## 2. Status
 
-Proposed
+Accepted
 
 ## 3. Other options considered
 
