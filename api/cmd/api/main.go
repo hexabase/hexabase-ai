@@ -55,12 +55,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Run migrations
-	if err := db.MigrateDatabase(database); err != nil {
-		logger.Error("Failed to migrate database", "error", err)
-		os.Exit(1)
-	}
-
 	// Initialize Gin router
 	if cfg.Server.Host == "0.0.0.0" && os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
