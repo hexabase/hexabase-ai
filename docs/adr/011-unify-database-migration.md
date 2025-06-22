@@ -1,4 +1,4 @@
-# ADR-012: Unification of Database Migration
+# ADR-011: Unification of Database Migration
 
 - **Date**: 2025-06-20
 - **Status**: Proposed
