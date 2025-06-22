@@ -51,6 +51,7 @@ help:
 	@echo "  make status         - Show environment status"
 	@echo "  make logs-api       - Tail API logs"
 	@echo "  make db-shell       - Access database shell"
+	@echo "  make migrate-create - Interactively create a new migration file"
 
 # Setup development environment
 setup:
@@ -64,6 +65,8 @@ clean:
 
 # Run API server
 dev-api:
+	@echo "Running database migrations..."
+	@docker compose -f docker-compose.yml --profile tools run --rm migrate
 	@echo "Starting API server..."
 	@cd api && if [ -f .env ]; then export $$(cat .env | grep -v '^#' | xargs); fi && go run cmd/api/main.go
 
@@ -185,6 +188,15 @@ logs-api:
 db-shell:
 	@docker-compose exec postgres psql -U hexabase -d hexabase_kaas
 
+# Create a new migration file
+migrate-create:
+	@read -p "Enter migration name in snake_case (e.g., add_user_api_keys): " name; \
+	if [ -z "$$name" ]; then \
+		echo "Error: Migration name cannot be empty."; \
+		exit 1; \
+	fi; \
+	cd api && go tool migrate create -ext sql -dir internal/shared/db/migrations -format "20060102150405" $$name
+
 # Quick start (alias for setup)
 start: setup
 
@@ -199,6 +211,8 @@ debug:
 debug-api:
 	@echo "Starting API in debug mode..."
 	@docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d postgres redis nats
+	@echo "Running database migrations..."
+	@docker compose -f docker-compose.yml -f docker-compose.debug.yml --profile tools run --rm migrate
 	@docker compose -f docker-compose.yml -f docker-compose.debug.yml up api
 
 debug-ui:
