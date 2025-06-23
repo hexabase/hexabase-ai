@@ -75,8 +75,8 @@ func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Sess
 	return args.Error(0)
 }
 
-func (m *mockTokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
-	args := m.Called(userID, refreshToken, deviceID, clientIP, userAgent)
+func (m *mockTokenDomainService) CreateSession(sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	args := m.Called(sessionID, userID, refreshToken, deviceID, clientIP, userAgent)
 	if args.Get(0) != nil {
 		return args.Get(0).(*domain.Session), args.Error(1)
 	}
@@ -445,7 +445,7 @@ func TestService_HandleCallback(t *testing.T) {
 		
 		// Create session
 		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
-		mockTokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+		mockTokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
 			ID: "session-123",
 			UserID: "user-123",
 		}, nil)
@@ -694,26 +694,20 @@ func TestService_generateTokenPairWithSessionID(t *testing.T) {
 		Provider:    "google",
 	}
 
+	sessionID := "session-123"
 	orgIDs := []string{"org-1", "org-2"}
 	mockRepo.On("GetUserOrganizations", ctx, user.ID).Return(orgIDs, nil)
 
-
-	// This test will fail until we implement the sessionID parameter
-	tokenPair, err := svc.generateTokenPair(ctx, user)
+	// Test generateTokenPair with sessionID parameter
+	tokenPair, err := svc.generateTokenPair(ctx, user, sessionID)
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenPair)
-
-	// Test with sessionID parameter
-	sessionID := "session-123"
-	tokenPairWithSession, err := svc.generateTokenPair(ctx, user, sessionID)
-	assert.NoError(t, err)
-	assert.NotNil(t, tokenPairWithSession)
-	assert.NotEmpty(t, tokenPairWithSession.AccessToken)
-	assert.NotEmpty(t, tokenPairWithSession.RefreshToken)
+	assert.NotEmpty(t, tokenPair.AccessToken)
+	assert.NotEmpty(t, tokenPair.RefreshToken)
 	
 	// Verify the token contains the session ID by parsing it directly
 	// Parse the token using domain.Claims which includes SessionID
-	token, err := jwt.ParseWithClaims(tokenPairWithSession.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenPair.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// We need to use the same key that was used to sign the token
 		// Since we can't access the private key from the service, we'll just verify structure
 		return testPublicKey, nil
@@ -755,7 +749,7 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 	}
 	
 	// Mock tokenDomainService.CreateSession
-	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
 		ID: "session-123",
 		UserID: "user-123",
 	}, nil)

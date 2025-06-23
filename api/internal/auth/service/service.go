@@ -170,12 +170,10 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 	}
 
 	// Create session with the pre-generated session ID
-	session, err := s.tokenDomainService.CreateSession(user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
+	session, err := s.tokenDomainService.CreateSession(sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session domain object: %w", err)
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
-	// Override the auto-generated session ID with our pre-generated one
-	session.ID = sessionID
 	
 	// Save session to repository
 	err = s.repo.CreateSession(ctx, session)
@@ -728,18 +726,12 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 
 // Helper functions
 
-func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sessionID ...string) (*domain.TokenPair, error) {
+func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sessionID string) (*domain.TokenPair, error) {
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
 		s.logger.Warn("failed to get user organizations", "error", err)
 		orgIDs = []string{}
-	}
-
-	// Extract sessionID if provided
-	var currentSessionID string
-	if len(sessionID) > 0 {
-		currentSessionID = sessionID[0]
 	}
 
 	// Create domain claims
@@ -757,7 +749,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sess
 		Name:      user.DisplayName,
 		Provider:  user.Provider,
 		OrgIDs:    orgIDs,
-		SessionID: currentSessionID,
+		SessionID: sessionID,
 	}
 
 	// Use common token pair generation logic
