@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -334,6 +335,99 @@ func TestPostgresRepository_GetSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, session)
 		assert.Equal(t, sessionID, session.ID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestPostgresRepository_RefreshTokenBlacklist(t *testing.T) {
+	ctx := context.Background()
+	gormDB, mock := setupTestDB(t)
+	repo := NewPostgresRepository(gormDB)
+
+	t.Run("blacklist and check token", func(t *testing.T) {
+		token := "test-refresh-token"
+		expiresAt := time.Now().Add(1 * time.Hour)
+
+		// 1. BlacklistRefreshToken
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "refresh_token_blacklists"`).
+			WithArgs(sqlmock.AnyArg(), token, expiresAt, sqlmock.AnyArg()). // id, token, expires_at, created_at
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.BlacklistRefreshToken(ctx, token, expiresAt)
+		assert.NoError(t, err)
+
+		// 2. IsRefreshTokenBlacklisted - should be true
+		rows := sqlmock.NewRows([]string{"count"}).AddRow(1)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "refresh_token_blacklists" WHERE token = \$1 AND expires_at > \$2`).
+			WithArgs(token, sqlmock.AnyArg()). // token, time.Now()
+			WillReturnRows(rows)
+
+		isBlacklisted, err := repo.IsRefreshTokenBlacklisted(ctx, token)
+		assert.NoError(t, err)
+		assert.True(t, isBlacklisted)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("token not in blacklist", func(t *testing.T) {
+		token := "non-blacklisted-token"
+
+		rows := sqlmock.NewRows([]string{"count"}).AddRow(0)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "refresh_token_blacklists" WHERE token = \$1 AND expires_at > \$2`).
+			WithArgs(token, sqlmock.AnyArg()).
+			WillReturnRows(rows)
+
+		isBlacklisted, err := repo.IsRefreshTokenBlacklisted(ctx, token)
+		assert.NoError(t, err)
+		assert.False(t, isBlacklisted)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("expired token in blacklist", func(t *testing.T) {
+		token := "expired-token"
+
+		// IsRefreshTokenBlacklisted checks for "expires_at > ?", so a count of 0 is expected
+		rows := sqlmock.NewRows([]string{"count"}).AddRow(0)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "refresh_token_blacklists" WHERE token = \$1 AND expires_at > \$2`).
+			WithArgs(token, sqlmock.AnyArg()).
+			WillReturnRows(rows)
+
+		isBlacklisted, err := repo.IsRefreshTokenBlacklisted(ctx, token)
+		assert.NoError(t, err)
+		assert.False(t, isBlacklisted)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("db error on BlacklistRefreshToken", func(t *testing.T) {
+		token := "some-token"
+		expiresAt := time.Now().Add(1 * time.Hour)
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "refresh_token_blacklists"`).
+			WithArgs(sqlmock.AnyArg(), token, expiresAt, sqlmock.AnyArg()).
+			WillReturnError(fmt.Errorf("db error"))
+		mock.ExpectRollback()
+
+		err := repo.BlacklistRefreshToken(ctx, token, expiresAt)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to blacklist refresh token")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("db error on IsRefreshTokenBlacklisted", func(t *testing.T) {
+		token := "some-token"
+
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "refresh_token_blacklists"`).
+			WithArgs(token, sqlmock.AnyArg()).
+			WillReturnError(fmt.Errorf("db error"))
+
+		_, err := repo.IsRefreshTokenBlacklisted(ctx, token)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check blacklist")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

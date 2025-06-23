@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"gorm.io/gorm"
 )
@@ -194,9 +195,9 @@ func (r *postgresRepository) DeleteAuthState(ctx context.Context, stateValue str
 
 func (r *postgresRepository) BlacklistRefreshToken(ctx context.Context, token string, expiresAt time.Time) error {
 	blacklist := &RefreshTokenBlacklist{
+		ID:        uuid.New().String(),
 		Token:     token,
 		ExpiresAt: expiresAt,
-		CreatedAt: time.Now(),
 	}
 
 	if err := r.db.WithContext(ctx).Create(blacklist).Error; err != nil {
@@ -323,10 +324,12 @@ func (r *postgresRepository) GetUserWorkspaceGroups(ctx context.Context, userID,
 
 // Helper types
 
+// RefreshTokenBlacklist represents a blacklisted refresh token.
 type RefreshTokenBlacklist struct {
-	Token     string    `gorm:"primaryKey"`
+	ID        string `gorm:"primaryKey"`
+	Token     string `gorm:"uniqueIndex"`
 	ExpiresAt time.Time `gorm:"index"`
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 // Cleanup functions
