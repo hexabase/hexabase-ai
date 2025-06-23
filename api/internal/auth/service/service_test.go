@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
 	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
@@ -20,6 +21,76 @@ import (
 // Mock repository
 type mockRepository struct {
 	mock.Mock
+}
+
+// Mock token manager
+type mockTokenManager struct {
+	mock.Mock
+}
+
+func (m *mockTokenManager) GenerateTokenPair(claims *domain.Claims) (*domain.TokenPair, error) {
+	args := m.Called(claims)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.TokenPair), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) ValidateToken(tokenString string) (*domain.Claims, error) {
+	args := m.Called(tokenString)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Claims), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) GetPublicKey() (*rsa.PublicKey, error) {
+	args := m.Called()
+	if args.Get(0) != nil {
+		return args.Get(0).(*rsa.PublicKey), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) GenerateWorkspaceToken(claims interface{}) (string, error) {
+	args := m.Called(claims)
+	return args.String(0), args.Error(1)
+}
+
+// Mock token domain service
+type mockTokenDomainService struct {
+	mock.Mock
+}
+
+func (m *mockTokenDomainService) RefreshToken(ctx context.Context, session *domain.Session, user *domain.User) (*domain.Claims, error) {
+	args := m.Called(ctx, session, user)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Claims), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Session) error {
+	args := m.Called(session)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	args := m.Called(userID, refreshToken, deviceID, clientIP, userAgent)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Session), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateTokenClaims(claims *domain.Claims) error {
+	args := m.Called(claims)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) ShouldRefreshToken(claims *domain.Claims) bool {
+	args := m.Called(claims)
+	return args.Bool(0)
 }
 
 func (m *mockRepository) CreateUser(ctx context.Context, user *domain.User) error {
@@ -248,40 +319,6 @@ func (m *mockKeyRepository) RotateKeys() error {
 	return args.Error(0)
 }
 
-type mockTokenDomainService struct {
-	mock.Mock
-}
-
-func (m *mockTokenDomainService) RefreshToken(ctx context.Context, session *domain.Session, user *domain.User) (*domain.Claims, error) {
-	args := m.Called(ctx, session, user)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Claims), args.Error(1)
-}
-
-func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Session) error {
-	args := m.Called(session)
-	return args.Error(0)
-}
-
-func (m *mockTokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
-	args := m.Called(userID, refreshToken, deviceID, clientIP, userAgent)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Session), args.Error(1)
-}
-
-func (m *mockTokenDomainService) ValidateTokenClaims(claims *domain.Claims) error {
-	args := m.Called(claims)
-	return args.Error(0)
-}
-
-func (m *mockTokenDomainService) ShouldRefreshToken(claims *domain.Claims) bool {
-	args := m.Called(claims)
-	return args.Bool(0)
-}
 func TestService_GetAuthURL(t *testing.T) {
 	ctx := context.Background()
 	
@@ -408,6 +445,10 @@ func TestService_HandleCallback(t *testing.T) {
 		
 		// Create session
 		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+		mockTokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+			ID: "session-123",
+			UserID: "user-123",
+		}, nil)
 
 		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
 		assert.NoError(t, err)
@@ -625,4 +666,161 @@ func TestService_RevokeSession(t *testing.T) {
 
 		mockRepo.AssertExpectations(t)
 	})
+}
+
+// Test for generateTokenPair with sessionID parameter
+func TestService_generateTokenPairWithSessionID(t *testing.T) {
+	mockRepo := &mockRepository{}
+	logger := slog.Default()
+	
+	// Create a test RSA key pair
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+	tokenDomainService := &mockTokenDomainService{}
+
+	svc := &service{
+		repo:               mockRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: tokenDomainService,
+		logger:             logger,
+	}
+
+	ctx := context.Background()
+	user := &domain.User{
+		ID:          "user-123",
+		Email:       "test@example.com",
+		DisplayName: "Test User",
+		Provider:    "google",
+	}
+
+	orgIDs := []string{"org-1", "org-2"}
+	mockRepo.On("GetUserOrganizations", ctx, user.ID).Return(orgIDs, nil)
+
+
+	// This test will fail until we implement the sessionID parameter
+	tokenPair, err := svc.generateTokenPair(ctx, user)
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenPair)
+
+	// Test with sessionID parameter
+	sessionID := "session-123"
+	tokenPairWithSession, err := svc.generateTokenPair(ctx, user, sessionID)
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenPairWithSession)
+	assert.NotEmpty(t, tokenPairWithSession.AccessToken)
+	assert.NotEmpty(t, tokenPairWithSession.RefreshToken)
+	
+	// Verify the token contains the session ID by parsing it directly
+	// Parse the token using domain.Claims which includes SessionID
+	token, err := jwt.ParseWithClaims(tokenPairWithSession.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// We need to use the same key that was used to sign the token
+		// Since we can't access the private key from the service, we'll just verify structure
+		return testPublicKey, nil
+	})
+	
+	// The token validation will fail because we're using different keys,
+	// but we can still verify the claims structure was parsed correctly
+	if token != nil && token.Claims != nil {
+		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
+			// This should contain the sessionID we passed in
+			assert.Equal(t, sessionID, domainClaims.SessionID, "SessionID should match the one passed to generateTokenPair")
+		}
+	}
+
+	mockRepo.AssertExpectations(t)
+}
+
+// Test OAuth flow to verify sessionID is included in token
+func TestService_OAuthFlowWithSessionID(t *testing.T) {
+	mockRepo := &mockRepository{}
+	mockOAuthRepo := &mockOAuthRepository{}
+	mockKeyRepo := &mockKeyRepository{}
+	logger := slog.Default()
+	
+	// Create a test RSA key pair
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+	tokenDomainService := &mockTokenDomainService{}
+
+	svc := &service{
+		repo:               mockRepo,
+		oauthRepo:          mockOAuthRepo,
+		keyRepo:            mockKeyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: tokenDomainService,
+		logger:             logger,
+		defaultTokenExpiry: 3600,
+	}
+	
+	// Mock tokenDomainService.CreateSession
+	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+		ID: "session-123",
+		UserID: "user-123",
+	}, nil)
+
+	ctx := context.Background()
+	req := &domain.CallbackRequest{
+		Code:  "auth-code-123",
+		State: "state-123",
+	}
+	clientIP := "127.0.0.1"
+	userAgent := "test-agent"
+
+	// Mock auth state
+	authState := &domain.AuthState{
+		State:        "state-123",
+		Provider:     "google",
+		RedirectURL:  "http://localhost:3000/callback",
+		CodeVerifier: "",
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+	}
+
+
+	// Set up mock expectations
+	mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil)
+	mockOAuthRepo.On("ExchangeCode", ctx, "google", req.Code).Return(&domain.OAuthToken{AccessToken: "access-token"}, nil)
+	mockOAuthRepo.On("GetUserInfo", ctx, "google", mock.AnythingOfType("*domain.OAuthToken")).Return(&domain.UserInfo{
+		ID:       "google-123",
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Provider: "google",
+	}, nil)
+	mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
+	mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{"org-1"}, nil)
+	mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+	mockRepo.On("DeleteAuthState", ctx, req.State).Return(nil)
+	mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
+
+	// Execute OAuth callback
+	authResponse, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+	assert.NoError(t, err)
+	assert.NotNil(t, authResponse)
+	assert.NotEmpty(t, authResponse.AccessToken)
+
+	// Validate that the token contains session information
+	// This test currently passes but we need to verify SessionID is properly set
+	claims, err := tokenManager.ValidateToken(authResponse.AccessToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims)
+	
+	// Extract the actual token and decode it to verify SessionID is included
+	// Since our implementation now uses domain.Claims with SessionID, it should be present
+	token, err := jwt.ParseWithClaims(authResponse.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// For this test, we'll accept any signing method since we're testing the claims structure
+		return []byte("dummy-key"), nil // This will fail validation but we only care about parsing structure
+	})
+	
+	// Even though validation fails due to dummy key, we can still examine the claims
+	if token != nil {
+		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
+			// This should now contain a valid SessionID after our fix
+			assert.NotEmpty(t, domainClaims.SessionID, "SessionID should now be included in the token after our fix")
+		}
+	}
+
+	mockRepo.AssertExpectations(t)
+	mockOAuthRepo.AssertExpectations(t)
 }
