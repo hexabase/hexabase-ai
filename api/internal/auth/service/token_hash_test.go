@@ -30,7 +30,7 @@ func TestService_HashToken_BusinessLogic(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "token must be at least 8 characters long")
 		// Repository should not be called due to business validation failure
-		mockRepo.AssertNotCalled(t, "hashToken")
+		mockRepo.AssertNotCalled(t, "HashToken")
 	})
 
 	t.Run("Business validation - accept valid token and delegate to repository", func(t *testing.T) {
