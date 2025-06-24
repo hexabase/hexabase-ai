@@ -10,12 +10,17 @@ import (
 )
 
 type postgresRepository struct {
-	db *gorm.DB
+	db                  *gorm.DB
+	tokenHashRepository *tokenHashRepository
 }
 
 // NewPostgresRepository creates a new PostgreSQL auth repository
+// Repository has its own infrastructure implementation (following DDD)
 func NewPostgresRepository(db *gorm.DB) domain.Repository {
-	return &postgresRepository{db: db}
+	return &postgresRepository{
+		db:               db,
+		tokenHashRepository: NewTokenHashRepository(), // Repository's own infrastructure implementation
+	}
 }
 
 // User operations
@@ -82,6 +87,8 @@ func (r *postgresRepository) UpdateLastLogin(ctx context.Context, userID string)
 // Session operations
 
 func (r *postgresRepository) CreateSession(ctx context.Context, session *domain.Session) error {
+	// Repository should receive already-hashed token from service layer
+	// Service layer is responsible for business logic and token hashing
 	if err := r.db.WithContext(ctx).Create(session).Error; err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
 	}
@@ -99,15 +106,12 @@ func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (
 	return &session, nil
 }
 
-func (r *postgresRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
-	var session domain.Session
-	if err := r.db.WithContext(ctx).Where("refresh_token = ?", refreshToken).First(&session).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("session not found")
-		}
-		return nil, fmt.Errorf("failed to get session by refresh token: %w", err)
+func (r *postgresRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
+	var sessions []*domain.Session
+	if err := r.db.WithContext(ctx).Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&sessions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get active sessions: %w", err)
 	}
-	return &session, nil
+	return sessions, nil
 }
 
 func (r *postgresRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
@@ -339,4 +343,14 @@ func (r *postgresRepository) scheduleAuthStateCleanup(state string, expiresAt ti
 func (r *postgresRepository) scheduleBlacklistCleanup(token string, expiresAt time.Time) {
 	time.Sleep(time.Until(expiresAt))
 	r.db.Where("token = ?", token).Delete(&RefreshTokenBlacklist{})
+}
+
+// HashToken delegates to tokenHashRepository for pure crypto operations
+func (r *postgresRepository) HashToken(token string) (hashedToken string, salt string, err error) {
+	return r.tokenHashRepository.HashToken(token)
+}
+
+// VerifyToken delegates to tokenHashRepository for pure crypto operations  
+func (r *postgresRepository) VerifyToken(plainToken, hashedToken, salt string) bool {
+	return r.tokenHashRepository.VerifyToken(plainToken, hashedToken, salt)
 }
