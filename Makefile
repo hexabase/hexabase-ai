@@ -195,7 +195,7 @@ migrate-create:
 		echo "Error: Migration name cannot be empty."; \
 		exit 1; \
 	fi; \
-	cd api && go tool migrate create -ext sql -dir internal/shared/db/migrations -format "20060102150405" $$name
+	cd api && go tool migrate create -ext sql -dir internal/shared/db/migrations -format "20060102150405000" $$name
 
 # Quick start (alias for setup)
 start: setup
