@@ -73,12 +73,12 @@ func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (str
 
 	// Store auth state
 	authState := &domain.AuthState{
-		State:        state,
-		Provider:     req.Provider,
-		RedirectURL:  req.RedirectURL,
-		CodeVerifier: codeChallenge, // Store for later verification
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
-		CreatedAt:    time.Now(),
+		State:         state,
+		Provider:      req.Provider,
+		RedirectURL:   req.RedirectURL,
+		CodeChallenge: codeChallenge, // Store for later verification
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
+		CreatedAt:     time.Now(),
 	}
 
 	if err := s.repo.StoreAuthState(ctx, authState); err != nil {
@@ -699,16 +699,18 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 		return fmt.Errorf("auth state not found: %w", err)
 	}
 
-	if authState.CodeVerifier == "" {
+	if authState.CodeChallenge == "" {
 		return nil // PKCE not required
 	}
 
 	// Verify code verifier matches stored challenge
+	// Use RawURLEncoding (no padding) as required by RFC 7636
 	h := sha256.New()
 	h.Write([]byte(codeVerifier))
-	computedChallenge := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	computedChallenge := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
-	if computedChallenge != authState.CodeVerifier {
+	if computedChallenge != authState.CodeChallenge {
+		s.logger.Warn("PKCE verification failed", "state", state)
 		return fmt.Errorf("PKCE verification failed")
 	}
 
