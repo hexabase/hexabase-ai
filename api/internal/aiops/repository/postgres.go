@@ -334,7 +334,3 @@ func (r *PostgresRepository) GetModelUsageStats(ctx context.Context, workspaceID
 	return stats, nil
 }
 
-// Migrate creates the necessary database tables
-func (r *PostgresRepository) Migrate() error {
-	return r.db.AutoMigrate(&ChatSessionModel{}, &ModelUsageModel{})
-}

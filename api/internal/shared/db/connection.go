@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -94,38 +93,6 @@ func ConnectDatabase(cfg *DatabaseConfig) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
-}
-
-// MigrateDatabase runs all migrations
-func MigrateDatabase(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&domain.User{},
-		&domain.Session{},
-		&Organization{},
-		&OrganizationUser{},
-		&Plan{},
-		&Workspace{},
-		&Project{},
-		&Group{},
-		&GroupMembership{},
-		&Role{},
-		&RoleAssignment{},
-		&VClusterProvisioningTask{},
-		&StripeEvent{},
-		// Node management models
-		&NodePlan{},
-		&WorkspaceNodeAllocation{},
-		&DedicatedNode{},
-		&NodeEvent{},
-		// CI/CD models
-		&Pipeline{},
-		&PipelineRun{},
-		&PipelineTemplate{},
-		&WorkspaceProviderConfig{},
-		&CICDCredential{},
-		// Auth models
-		&domain.AuthState{},
-	)
 }
 
 // getEnv gets environment variable with default value

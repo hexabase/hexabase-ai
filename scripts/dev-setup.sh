@@ -350,9 +350,6 @@ print_success "Infrastructure services started"
 print_step "Waiting for services to be ready..."
 sleep 10
 
-# Run database migrations
-print_step "Running database migrations..."
-
 # Create .env file for API with correct ports
 cat > "$PROJECT_ROOT/api/.env" <<EOF
 # Database

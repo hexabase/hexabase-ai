@@ -4,7 +4,7 @@ ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'stateless' CHECK (type IN ('s
 ADD COLUMN IF NOT EXISTS cron_schedule VARCHAR(100),
 ADD COLUMN IF NOT EXISTS cron_command TEXT[],
 ADD COLUMN IF NOT EXISTS cron_args TEXT[],
-ADD COLUMN IF NOT EXISTS template_app_id UUID REFERENCES applications(id),
+ADD COLUMN IF NOT EXISTS template_app_id TEXT REFERENCES applications(id),
 ADD COLUMN IF NOT EXISTS last_execution_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS next_execution_at TIMESTAMP;
 
@@ -14,7 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_applications_template_app_id ON applications(temp
 -- CronJob execution history table
 CREATE TABLE IF NOT EXISTS cronjob_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+    application_id TEXT REFERENCES applications(id) ON DELETE CASCADE,
     job_name VARCHAR(255) NOT NULL,
     started_at TIMESTAMP NOT NULL,
     completed_at TIMESTAMP,

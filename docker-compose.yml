@@ -10,6 +10,11 @@ services:
       - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-hexabase}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - hexabase
 
@@ -90,6 +95,19 @@ services:
       - hexabase
     volumes:
       - ./api/config.yaml:/root/config.yaml:ro
+
+  migrate:
+    image: migrate/migrate:4
+    profiles:
+      - tools
+    volumes:
+      - ./api/internal/shared/db/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-hexabase}?sslmode=disable", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hexabase
 
 volumes:
   postgres_data:
