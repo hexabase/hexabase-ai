@@ -94,6 +94,7 @@ type Session struct {
 	ID           string    `json:"id"`
 	UserID       string    `json:"user_id"`
 	RefreshToken string    `json:"refresh_token"`
+	Salt         string    `json:"salt"` // Salt for refresh token hashing
 	DeviceID     string    `json:"device_id,omitempty"`
 	IPAddress    string    `json:"ip_address"`
 	UserAgent    string    `json:"user_agent"`
