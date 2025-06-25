@@ -16,11 +16,9 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL auth repository
-// Repository has its own infrastructure implementation (following DDD)
-func NewPostgresRepository(db *gorm.DB) domain.Repository {
+func NewPostgresRepository(db *gorm.DB) *postgresRepository {
 	return &postgresRepository{
-		db:               db,
-		tokenHashRepository: NewTokenHashRepository(), // Repository's own infrastructure implementation
+		db: db,
 	}
 }
 
@@ -346,14 +344,4 @@ func (r *postgresRepository) scheduleAuthStateCleanup(state string, expiresAt ti
 func (r *postgresRepository) scheduleBlacklistCleanup(token string, expiresAt time.Time) {
 	time.Sleep(time.Until(expiresAt))
 	r.db.Where("token = ?", token).Delete(&RefreshTokenBlacklist{})
-}
-
-// HashToken delegates to tokenHashRepository for pure crypto operations
-func (r *postgresRepository) HashToken(token string) (hashedToken string, salt string, err error) {
-	return r.tokenHashRepository.HashToken(token)
-}
-
-// VerifyToken delegates to tokenHashRepository for pure crypto operations  
-func (r *postgresRepository) VerifyToken(plainToken, hashedToken, salt string) bool {
-	return r.tokenHashRepository.VerifyToken(plainToken, hashedToken, salt)
 }

@@ -64,6 +64,7 @@ import (
 	"github.com/hexabase/hexabase-ai/api/internal/shared/api/handlers"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
 	kubernetes2 "github.com/hexabase/hexabase-ai/api/internal/shared/kubernetes/repository"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/redis"
 	domain9 "github.com/hexabase/hexabase-ai/api/internal/workspace/domain"
 	handler10 "github.com/hexabase/hexabase-ai/api/internal/workspace/handler"
 	repository4 "github.com/hexabase/hexabase-ai/api/internal/workspace/repository"
@@ -89,7 +90,14 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	kubernetesRepository := repository.NewKubernetesRepository(k8sClient, versionedInterface)
 	domainService := service.NewService(domainRepository, kubernetesRepository)
 	applicationHandler := handler.NewApplicationHandler(domainService)
-	repository14 := repository2.NewPostgresRepository(db)
+	postgresRepository := repository2.NewPostgresRepository(db)
+	client, err := ProvideRedisClient(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
+	redisAuthRepository := repository2.NewRedisAuthRepository(client)
+	tokenHashRepository := repository2.NewTokenHashRepository()
+	repository14 := repository2.NewCompositeRepository(postgresRepository, redisAuthRepository, tokenHashRepository)
 	v := ProvideOAuthProviderConfigs(cfg)
 	oAuthRepository := repository2.NewOAuthRepository(v, logger)
 	keyRepository, err := repository2.NewKeyRepository()
@@ -126,8 +134,8 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	repository20 := kubernetes2.NewKubernetesRepository(k8sClient)
 	service18 := service6.NewService(repository19, repository20, logger)
 	handler16 := handler6.NewHandler(service18, logger)
-	postgresRepository := repository8.NewPostgresRepository(db)
-	repository21 := ProvideNodeRepository(postgresRepository)
+	repositoryPostgresRepository := repository8.NewPostgresRepository(db)
+	repository21 := ProvideNodeRepository(repositoryPostgresRepository)
 	repositoryProxmoxRepository := ProvideProxmoxRepository(cfg)
 	domainProxmoxRepository := ProvideProxmoxRepositoryInterface(repositoryProxmoxRepository)
 	serviceService := service7.NewService(repository21, domainProxmoxRepository)
@@ -151,8 +159,8 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	repositoryPostgresRepository := repository11.NewPostgresRepository(sqlDB)
-	repository24 := ProvideFunctionRepository(repositoryPostgresRepository)
+	postgresRepository2 := repository11.NewPostgresRepository(sqlDB)
+	repository24 := ProvideFunctionRepository(postgresRepository2)
 	domainProviderFactory := ProvideFunctionProviderFactory(k8sClient, dynamicClient)
 	service23 := service11.NewService(repository24, domainProviderFactory, logger)
 	service24 := ProvideFunctionService(service23)
@@ -171,11 +179,11 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 	if err != nil {
 		return nil, err
 	}
-	conn, err := ProvideClickHouseConn(cfg)
+	v2, err := ProvideClickHouseConn(cfg)
 	if err != nil {
 		return nil, err
 	}
-	repository26 := repository13.NewClickHouseRepository(conn, logger)
+	repository26 := repository13.NewClickHouseRepository(v2, logger)
 	service26 := service13.NewLogService(repository26, logger)
 	internalHandler := ProvideInternalHandler(service22, service21, domainService, service19, service26, service18, service25, service17, service15, logger)
 	app := NewApp(applicationHandler, handlerHandler, handler13, handler14, handler15, handler16, handler17, handler18, handler19, handler20, handler21, handler22, ginHandler, aiOpsProxyHandler, internalHandler, service26)
@@ -187,7 +195,8 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 // Updated wire sets for migrated packages
 var ApplicationSet = wire.NewSet(repository.NewPostgresRepository, repository.NewKubernetesRepository, service.NewService, handler.NewApplicationHandler)
 
-var AuthSet = wire.NewSet(repository2.NewPostgresRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, ProvideTokenManager,
+var AuthSet = wire.NewSet(
+	ProvideRedisClient, repository2.NewPostgresRepository, repository2.NewRedisAuthRepository, repository2.NewTokenHashRepository, repository2.NewCompositeRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, ProvideTokenManager,
 	ProvideTokenDomainService,
 	ProvideDefaultTokenExpiry, service2.NewService, handler2.NewHandler,
 )
@@ -535,4 +544,9 @@ func ProvideTokenDomainService() domain8.TokenDomainService {
 // ProvideDefaultTokenExpiry provides the default token expiry
 func ProvideDefaultTokenExpiry() int {
 	return 3600
+}
+
+// ProvideRedisClient provides a Redis client instance
+func ProvideRedisClient(cfg *config.Config, logger *slog.Logger) (*redis.Client, error) {
+	return redis.NewClient(&cfg.Redis, logger)
 }

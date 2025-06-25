@@ -80,6 +80,10 @@ func (m *mockTokenHashRepository) VerifyToken(plainToken, hashedToken, salt stri
 	return subtle.ConstantTimeCompare([]byte(computedHash), []byte(hashedToken)) == 1
 }
 
+// テスト用のダミーredisAuthRepository型
+// CompositeRepositoryの引数用（何もしない）
+type dummyRedisAuthRepository struct{}
+
 // TestHashedRefreshTokenIntegration validates the complete authentication flow with hashed refresh tokens
 func TestHashedRefreshTokenIntegration(t *testing.T) {
 	// Setup in-memory database for integration testing
@@ -93,14 +97,16 @@ func TestHashedRefreshTokenIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup repository (infrastructure has its own implementation)
-	repo := repository.NewPostgresRepository(db)
+	dbRepo := repository.NewPostgresRepository(db)
+	cacheRepo := repository.NewRedisAuthRepository(nil) // テスト用にnilで生成
+	tokenHashRepo := repository.NewTokenHashRepository()
+	repo := repository.NewCompositeRepository(dbRepo, cacheRepo, tokenHashRepo)
 	
 	// Setup service layer for proper DDD architecture
 	// Note: Using nil for other dependencies since we're only testing token hashing functionality
 	svc := &testService{repo: repo}
 	
 	// Setup repository-level token hashing for testing crypto operations
-	tokenHashRepo := &mockTokenHashRepository{}
 	ctx := context.Background()
 
 	t.Run("End-to-end hashed refresh token flow", func(t *testing.T) {

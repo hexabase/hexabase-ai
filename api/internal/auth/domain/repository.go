@@ -34,6 +34,10 @@ type Repository interface {
 	BlacklistRefreshToken(ctx context.Context, token string, expiresAt time.Time) error
 	IsRefreshTokenBlacklisted(ctx context.Context, token string) (bool, error)
 
+	// Session blocklist operations (Redis)
+	BlockSession(ctx context.Context, sessionID string, expiresAt time.Time) error
+	IsSessionBlocked(ctx context.Context, sessionID string) (bool, error)
+
 	// Security event operations
 	CreateSecurityEvent(ctx context.Context, event *SecurityEvent) error
 	ListSecurityEvents(ctx context.Context, filter SecurityLogFilter) ([]*SecurityEvent, error)
@@ -52,6 +56,7 @@ type Repository interface {
 type OAuthRepository interface {
 	// Provider configuration
 	GetProviderConfig(provider string) (*ProviderConfig, error)
+
 
 	// OAuth flow
 	GetAuthURL(provider, state string, params map[string]string) (string, error)

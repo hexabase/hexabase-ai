@@ -30,7 +30,7 @@ func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
-func setupTestRepository(t *testing.T) (domain.Repository, sqlmock.Sqlmock) {
+func setupTestRepository(t *testing.T) (*postgresRepository, sqlmock.Sqlmock) {
 	gormDB, mock := setupTestDB(t)
 	// Repository creates its own infrastructure implementation
 	repo := NewPostgresRepository(gormDB)
