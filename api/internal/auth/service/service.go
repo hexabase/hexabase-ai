@@ -162,16 +162,25 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 		}
 	}
 
-	// Generate tokens
-	tokenPair, err := s.generateTokenPair(ctx, user)
+	// Generate session ID first
+	sessionID := uuid.New().String()
+
+	// Generate tokens with session ID
+	tokenPair, err := s.generateTokenPair(ctx, user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Create session
-	_, err = s.CreateSession(ctx, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
+	// Create session with the pre-generated session ID
+	session, err := s.tokenDomainService.CreateSession(sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Save session to repository
+	err = s.repo.CreateSession(ctx, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save session: %w", err)
 	}
 
 	// Clean up auth state
@@ -202,7 +211,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	}
 
 	// Infrastructure concerns: Get session by refresh token
-	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
+	session, err := s.getSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
@@ -235,8 +244,14 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
-	// Infrastructure concerns: Update session with new refresh token
-	session.RefreshToken = tokenPair.RefreshToken
+	// Infrastructure concerns: Hash and update session with new refresh token
+	hashedNewToken, newSalt, err := s.hashToken(tokenPair.RefreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash new refresh token: %w", err)
+	}
+
+	session.RefreshToken = hashedNewToken
+	session.Salt = newSalt
 	session.LastUsedAt = time.Now()
 	if err := s.repo.UpdateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to update session: %w", err)
@@ -249,10 +264,17 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 }
 
 func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	// Hash the refresh token before storing (CRITICAL SECURITY FIX)
+	hashedToken, salt, err := s.hashToken(refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
+	}
+
 	session := &domain.Session{
 		ID:           uuid.New().String(),
 		UserID:       userID,
-		RefreshToken: refreshToken,
+		RefreshToken: hashedToken, // Store hashed token
+		Salt:         salt,        // Store salt
 		DeviceID:     deviceID,
 		IPAddress:    clientIP,
 		UserAgent:    userAgent,
@@ -588,7 +610,7 @@ func (s *service) generateRefreshToken() (string, error) {
 
 func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	// Get session to find expiry
-	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
+	session, err := s.getSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return fmt.Errorf("session not found: %w", err)
 	}
@@ -749,7 +771,7 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 
 // Helper functions
 
-func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*domain.TokenPair, error) {
+func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sessionID string) (*domain.TokenPair, error) {
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
@@ -772,7 +794,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*do
 		Name:      user.DisplayName,
 		Provider:  user.Provider,
 		OrgIDs:    orgIDs,
-		SessionID: "", // Will be set when session is created
+		SessionID: sessionID,
 	}
 
 	// Use common token pair generation logic
@@ -828,4 +850,68 @@ func (s *service) GenerateInternalAIOpsToken(ctx context.Context, userID string,
 	}
 
 	return tokenString, nil
+}
+
+// hashToken applies business validation and delegates to repository for crypto operations
+func (s *service) hashToken(token string) (hashedToken string, salt string, err error) {
+	// Business validation
+	if token == "" {
+		return "", "", fmt.Errorf("token cannot be empty")
+	}
+
+	if len(token) < 8 {
+		return "", "", fmt.Errorf("token must be at least 8 characters long for security")
+	}
+
+	// Delegate to repository for crypto implementation
+	hashedToken, salt, err = s.repo.HashToken(token)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	// Business validation: ensure output meets security requirements
+	if len(hashedToken) != 64 || len(salt) != 64 {
+		return "", "", fmt.Errorf("hash generation failed security validation")
+	}
+
+	return hashedToken, salt, nil
+}
+
+// verifyToken applies business validation and delegates to repository for crypto operations
+func (s *service) verifyToken(plainToken, hashedToken, salt string) bool {
+	// Business validation
+	if plainToken == "" || hashedToken == "" || salt == "" {
+		return false
+	}
+
+	// Business rule: tokens must meet minimum security requirements
+	if len(plainToken) < 8 {
+		return false
+	}
+
+	// Business validation: hash and salt must be proper format
+	if len(hashedToken) != 64 || len(salt) != 64 {
+		return false
+	}
+
+	// Delegate to repository for crypto verification
+	return s.repo.VerifyToken(plainToken, hashedToken, salt)
+}
+
+// getSessionByRefreshToken implements internal session lookup coordination
+func (s *service) getSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
+	// Get all active sessions from repository (pure data operation)
+	sessions, err := s.repo.GetAllActiveSessions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active sessions: %w", err)
+	}
+
+	// Check each session using service business logic + crypto operations
+	for _, session := range sessions {
+		if session.Salt != "" && s.verifyToken(refreshToken, session.RefreshToken, session.Salt) {
+			return session, nil
+		}
+	}
+
+	return nil, fmt.Errorf("session not found")
 }

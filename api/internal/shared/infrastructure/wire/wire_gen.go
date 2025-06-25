@@ -96,7 +96,8 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 		return nil, err
 	}
 	redisAuthRepository := repository2.NewRedisAuthRepository(client)
-	repository14 := repository2.NewCompositeRepository(postgresRepository, redisAuthRepository)
+	tokenHashRepository := repository2.NewTokenHashRepository()
+	repository14 := repository2.NewCompositeRepository(postgresRepository, redisAuthRepository, tokenHashRepository)
 	v := ProvideOAuthProviderConfigs(cfg)
 	oAuthRepository := repository2.NewOAuthRepository(v, logger)
 	keyRepository, err := repository2.NewKeyRepository()
@@ -195,7 +196,7 @@ func InitializeApp(cfg *config.Config, db *gorm.DB, k8sClient kubernetes.Interfa
 var ApplicationSet = wire.NewSet(repository.NewPostgresRepository, repository.NewKubernetesRepository, service.NewService, handler.NewApplicationHandler)
 
 var AuthSet = wire.NewSet(
-	ProvideRedisClient, repository2.NewPostgresRepository, repository2.NewRedisAuthRepository, repository2.NewCompositeRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, ProvideTokenManager,
+	ProvideRedisClient, repository2.NewPostgresRepository, repository2.NewRedisAuthRepository, repository2.NewTokenHashRepository, repository2.NewCompositeRepository, repository2.NewOAuthRepository, repository2.NewKeyRepository, ProvideTokenManager,
 	ProvideTokenDomainService,
 	ProvideDefaultTokenExpiry, service2.NewService, handler2.NewHandler,
 )

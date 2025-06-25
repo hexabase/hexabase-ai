@@ -18,7 +18,7 @@ type Repository interface {
 	// Session operations
 	CreateSession(ctx context.Context, session *Session) error
 	GetSession(ctx context.Context, sessionID string) (*Session, error)
-	GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*Session, error)
+	GetAllActiveSessions(ctx context.Context) ([]*Session, error)
 	ListUserSessions(ctx context.Context, userID string) ([]*Session, error)
 	UpdateSession(ctx context.Context, session *Session) error
 	DeleteSession(ctx context.Context, sessionID string) error
@@ -46,12 +46,17 @@ type Repository interface {
 	// User organization operations
 	GetUserOrganizations(ctx context.Context, userID string) ([]string, error)
 	GetUserWorkspaceGroups(ctx context.Context, userID, workspaceID string) ([]string, error)
+
+	// Token hashing operations (infrastructure layer - pure crypto without business logic)
+	HashToken(token string) (hashedToken string, salt string, err error)
+	VerifyToken(plainToken, hashedToken, salt string) bool
 }
 
 // OAuthRepository defines the interface for OAuth operations
 type OAuthRepository interface {
 	// Provider configuration
 	GetProviderConfig(provider string) (*ProviderConfig, error)
+
 
 	// OAuth flow
 	GetAuthURL(provider, state string, params map[string]string) (string, error)

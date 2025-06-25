@@ -1,7 +1,7 @@
 -- Backup storage configuration
 CREATE TABLE IF NOT EXISTS backup_storages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL CHECK (type IN ('nfs', 'ceph', 'local', 'proxmox')),
     proxmox_storage_id VARCHAR(255) NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS backup_storages (
 -- Backup policies for applications
 CREATE TABLE IF NOT EXISTS backup_policies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     storage_id UUID NOT NULL REFERENCES backup_storages(id),
     enabled BOOLEAN DEFAULT true,
     schedule VARCHAR(100) NOT NULL, -- Cron expression
@@ -59,11 +59,11 @@ CREATE TABLE IF NOT EXISTS backup_executions (
 CREATE TABLE IF NOT EXISTS backup_restores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     backup_execution_id UUID NOT NULL REFERENCES backup_executions(id),
-    application_id UUID NOT NULL REFERENCES applications(id),
+    application_id TEXT NOT NULL REFERENCES applications(id),
     status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'preparing', 'restoring', 'verifying', 'completed', 'failed')),
     restore_type VARCHAR(50) NOT NULL CHECK (restore_type IN ('full', 'selective')),
     restore_options JSONB, -- Options like target namespace, selective resources, etc.
-    new_application_id UUID REFERENCES applications(id), -- If restoring to new app
+    new_application_id TEXT REFERENCES applications(id), -- If restoring to new app
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     error_message TEXT,
@@ -83,10 +83,6 @@ CREATE INDEX idx_backup_executions_started_at ON backup_executions(started_at);
 CREATE INDEX idx_backup_restores_backup_execution_id ON backup_restores(backup_execution_id);
 CREATE INDEX idx_backup_restores_application_id ON backup_restores(application_id);
 CREATE INDEX idx_backup_restores_status ON backup_restores(status);
-
--- Add plan check constraint to ensure only Dedicated Plan workspaces can create backup storage
-ALTER TABLE backup_storages ADD CONSTRAINT check_workspace_plan 
-    CHECK ((SELECT plan FROM workspaces WHERE id = workspace_id) = 'dedicated');
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_backup_updated_at()

@@ -170,6 +170,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		IPAddress:   c.ClientIP(),
 		UserAgent:   c.GetHeader("User-Agent"),
 		Level:       "info",
+		Metadata:    make(map[string]any),
 	}
 
 	if err := h.service.LogSecurityEvent(c.Request.Context(), event); err != nil {

@@ -11,13 +11,15 @@ import (
 type CompositeRepository struct {
 	dbRepo    *postgresRepository
 	cacheRepo *redisAuthRepository
+	tokenHashRepo *tokenHashRepository
 }
 
 // NewCompositeRepository creates a new composite repository
-func NewCompositeRepository(dbRepo *postgresRepository, cacheRepo *redisAuthRepository) domain.Repository {
+func NewCompositeRepository(dbRepo *postgresRepository, cacheRepo *redisAuthRepository, tokenHashRepo *tokenHashRepository) domain.Repository {
 	return &CompositeRepository{
 		dbRepo:    dbRepo,
 		cacheRepo: cacheRepo,
+		tokenHashRepo:  tokenHashRepo,
 	}
 }
 
@@ -57,8 +59,8 @@ func (r *CompositeRepository) GetSession(ctx context.Context, sessionID string) 
 	return r.dbRepo.GetSession(ctx, sessionID)
 }
 
-func (r *CompositeRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
-	return r.dbRepo.GetSessionByRefreshToken(ctx, refreshToken)
+func (r *CompositeRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
+	return r.dbRepo.GetAllActiveSessions(ctx)
 }
 
 func (r *CompositeRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
@@ -137,4 +139,14 @@ func (r *CompositeRepository) GetUserOrganizations(ctx context.Context, userID s
 
 func (r *CompositeRepository) GetUserWorkspaceGroups(ctx context.Context, userID, workspaceID string) ([]string, error) {
 	return r.dbRepo.GetUserWorkspaceGroups(ctx, userID, workspaceID)
+}
+
+// HashToken implements domain.Repository.
+func (r *CompositeRepository) HashToken(token string) (hashedToken string, salt string, err error) {
+	return r.tokenHashRepo.HashToken(token)
+}
+
+// VerifyToken implements domain.Repository.
+func (r *CompositeRepository) VerifyToken(plainToken string, hashedToken string, salt string) bool {
+	return r.tokenHashRepo.VerifyToken(plainToken, hashedToken, salt)
 }

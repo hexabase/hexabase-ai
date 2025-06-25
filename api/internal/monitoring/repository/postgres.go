@@ -318,12 +318,3 @@ func (r *postgresRepository) recordToAlert(rec *alertRecord) *domain.Alert {
 		ResolvedAt:  rec.ResolvedAt,
 	}
 }
-
-// Ensure tables exist
-func (r *postgresRepository) AutoMigrate() error {
-	return r.db.AutoMigrate(
-		&metricRecord{},
-		&alertRecord{},
-		&healthCheckRecord{},
-	)
-}

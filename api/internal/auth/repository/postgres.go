@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hexabase/hexabase-ai/api/internal/auth/domain"
 	"gorm.io/gorm"
 )
 
 type postgresRepository struct {
-	db *gorm.DB
+	db                  *gorm.DB
+	tokenHashRepository *tokenHashRepository
 }
 
 // NewPostgresRepository creates a new PostgreSQL auth repository
@@ -84,6 +86,8 @@ func (r *postgresRepository) UpdateLastLogin(ctx context.Context, userID string)
 // Session operations
 
 func (r *postgresRepository) CreateSession(ctx context.Context, session *domain.Session) error {
+	// Repository should receive already-hashed token from service layer
+	// Service layer is responsible for business logic and token hashing
 	if err := r.db.WithContext(ctx).Create(session).Error; err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
 	}
@@ -101,15 +105,12 @@ func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (
 	return &session, nil
 }
 
-func (r *postgresRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
-	var session domain.Session
-	if err := r.db.WithContext(ctx).Where("refresh_token = ?", refreshToken).First(&session).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("session not found")
-		}
-		return nil, fmt.Errorf("failed to get session by refresh token: %w", err)
+func (r *postgresRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
+	var sessions []*domain.Session
+	if err := r.db.WithContext(ctx).Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&sessions).Error; err != nil {
+		return nil, fmt.Errorf("failed to get active sessions: %w", err)
 	}
-	return &session, nil
+	return sessions, nil
 }
 
 func (r *postgresRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
@@ -196,9 +197,9 @@ func (r *postgresRepository) DeleteAuthState(ctx context.Context, stateValue str
 
 func (r *postgresRepository) BlacklistRefreshToken(ctx context.Context, token string, expiresAt time.Time) error {
 	blacklist := &RefreshTokenBlacklist{
+		ID:        uuid.New().String(),
 		Token:     token,
 		ExpiresAt: expiresAt,
-		CreatedAt: time.Now(),
 	}
 
 	if err := r.db.WithContext(ctx).Create(blacklist).Error; err != nil {
@@ -325,10 +326,12 @@ func (r *postgresRepository) GetUserWorkspaceGroups(ctx context.Context, userID,
 
 // Helper types
 
+// RefreshTokenBlacklist represents a blacklisted refresh token.
 type RefreshTokenBlacklist struct {
-	Token     string    `gorm:"primaryKey"`
+	ID        string `gorm:"primaryKey"`
+	Token     string `gorm:"uniqueIndex"`
 	ExpiresAt time.Time `gorm:"index"`
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 // Cleanup functions

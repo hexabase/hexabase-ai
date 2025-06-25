@@ -94,6 +94,7 @@ type Session struct {
 	ID           string    `json:"id"`
 	UserID       string    `json:"user_id"`
 	RefreshToken string    `json:"refresh_token"`
+	Salt         string    `json:"salt"` // Salt for refresh token hashing
 	DeviceID     string    `json:"device_id,omitempty"`
 	IPAddress    string    `json:"ip_address"`
 	UserAgent    string    `json:"user_agent"`
@@ -146,6 +147,14 @@ type SecurityEvent struct {
 	Level       string                 `json:"level"` // info, warning, critical
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
+}
+
+// TODO: This TableName method is a temporary workaround to make GORM work with the domain model directly.
+// In the future, a separate DTO for the repository layer should be created,
+// and this method should be removed. The conversion between the domain model and the DTO
+// will be handled within the repository.
+func (SecurityEvent) TableName() string {
+	return "security_events"
 }
 
 // LoginRequest represents OAuth login request

@@ -118,6 +118,7 @@ var AuthSet = wire.NewSet(
 	ProvideRedisClient,
 	authRepo.NewPostgresRepository,
 	authRepo.NewRedisAuthRepository,
+	authRepo.NewTokenHashRepository, // 追加
 	authRepo.NewCompositeRepository,
 	authRepo.NewOAuthRepository,
 	authRepo.NewKeyRepository,

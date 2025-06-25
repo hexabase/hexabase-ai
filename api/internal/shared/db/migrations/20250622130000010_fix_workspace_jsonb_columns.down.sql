@@ -40,14 +40,8 @@ BEGIN
   END IF;
 END $$;
 
-DO $$ 
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'function_invocations') THEN
-    ALTER TABLE function_invocations 
-      ALTER COLUMN payload TYPE text USING payload::text,
-      ALTER COLUMN metadata TYPE text USING metadata::text;
-  END IF;
-END $$;
+-- Note: function_invocations table has JSONB columns by design
+-- No reversion needed
 
 DO $$ 
 BEGIN

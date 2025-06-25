@@ -55,7 +55,7 @@ type Service interface {
 type TokenDomainService interface {
 	RefreshToken(ctx context.Context, session *Session, user *User) (*Claims, error)
 	ValidateRefreshEligibility(session *Session) error
-	CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
+	CreateSession(sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
 	ValidateTokenClaims(claims *Claims) error
 	ShouldRefreshToken(claims *Claims) bool
 }

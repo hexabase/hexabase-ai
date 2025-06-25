@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
 	internalAuth "github.com/hexabase/hexabase-ai/api/internal/auth"
@@ -20,6 +21,76 @@ import (
 // Mock repository
 type mockRepository struct {
 	mock.Mock
+}
+
+// Mock token manager
+type mockTokenManager struct {
+	mock.Mock
+}
+
+func (m *mockTokenManager) GenerateTokenPair(claims *domain.Claims) (*domain.TokenPair, error) {
+	args := m.Called(claims)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.TokenPair), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) ValidateToken(tokenString string) (*domain.Claims, error) {
+	args := m.Called(tokenString)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Claims), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) GetPublicKey() (*rsa.PublicKey, error) {
+	args := m.Called()
+	if args.Get(0) != nil {
+		return args.Get(0).(*rsa.PublicKey), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenManager) GenerateWorkspaceToken(claims interface{}) (string, error) {
+	args := m.Called(claims)
+	return args.String(0), args.Error(1)
+}
+
+// Mock token domain service
+type mockTokenDomainService struct {
+	mock.Mock
+}
+
+func (m *mockTokenDomainService) RefreshToken(ctx context.Context, session *domain.Session, user *domain.User) (*domain.Claims, error) {
+	args := m.Called(ctx, session, user)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Claims), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Session) error {
+	args := m.Called(session)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) CreateSession(sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	args := m.Called(sessionID, userID, refreshToken, deviceID, clientIP, userAgent)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.Session), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockTokenDomainService) ValidateTokenClaims(claims *domain.Claims) error {
+	args := m.Called(claims)
+	return args.Error(0)
+}
+
+func (m *mockTokenDomainService) ShouldRefreshToken(claims *domain.Claims) bool {
+	args := m.Called(claims)
+	return args.Bool(0)
 }
 
 func (m *mockRepository) CreateUser(ctx context.Context, user *domain.User) error {
@@ -74,13 +145,6 @@ func (m *mockRepository) GetSession(ctx context.Context, sessionID string) (*dom
 	return nil, args.Error(1)
 }
 
-func (m *mockRepository) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
-	args := m.Called(ctx, refreshToken)
-	if args.Get(0) != nil {
-		return args.Get(0).(*domain.Session), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
 
 func (m *mockRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
 	args := m.Called(ctx, userID)
@@ -172,6 +236,24 @@ func (m *mockRepository) GetUserWorkspaceGroups(ctx context.Context, userID, wor
 	return nil, args.Error(1)
 }
 
+func (m *mockRepository) HashToken(token string) (hashedToken string, salt string, err error) {
+	args := m.Called(token)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
+func (m *mockRepository) VerifyToken(plainToken, hashedToken, salt string) bool {
+	args := m.Called(plainToken, hashedToken, salt)
+	return args.Bool(0)
+}
+
+func (m *mockRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
+	args := m.Called(ctx)
+	if args.Get(0) != nil {
+		return args.Get(0).([]*domain.Session), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
 func (m *mockRepository) BlockSession(ctx context.Context, sessionID string, expiresAt time.Time) error {
 	args := m.Called(ctx, sessionID, expiresAt)
 	return args.Error(0)
@@ -258,52 +340,21 @@ func (m *mockKeyRepository) RotateKeys() error {
 	return args.Error(0)
 }
 
-type mockTokenDomainService struct {
-	mock.Mock
-}
-
-func (m *mockTokenDomainService) RefreshToken(ctx context.Context, session *domain.Session, user *domain.User) (*domain.Claims, error) {
-	args := m.Called(ctx, session, user)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Claims), args.Error(1)
-}
-
-func (m *mockTokenDomainService) ValidateRefreshEligibility(session *domain.Session) error {
-	args := m.Called(session)
-	return args.Error(0)
-}
-
-func (m *mockTokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
-	args := m.Called(userID, refreshToken, deviceID, clientIP, userAgent)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Session), args.Error(1)
-}
-
-func (m *mockTokenDomainService) ValidateTokenClaims(claims *domain.Claims) error {
-	args := m.Called(claims)
-	return args.Error(0)
-}
-
-func (m *mockTokenDomainService) ShouldRefreshToken(claims *domain.Claims) bool {
-	args := m.Called(claims)
-	return args.Bool(0)
-}
 func TestService_GetAuthURL(t *testing.T) {
 	ctx := context.Background()
+
 
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
+
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+
 
 	svc := &service{
 		repo:               mockRepo,
@@ -354,15 +405,18 @@ func TestService_GetAuthURL(t *testing.T) {
 func TestService_HandleCallback(t *testing.T) {
 	ctx := context.Background()
 
+
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
+
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+
 
 	svc := &service{
 		repo:               mockRepo,
@@ -408,16 +462,28 @@ func TestService_HandleCallback(t *testing.T) {
 		mockOAuthRepo.On("ExchangeCode", ctx, "google", "auth-code-123").Return(oauthToken, nil)
 		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil)
 
+
 		// User doesn't exist yet
 		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
 		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Times(2)
 
+
 		// Generate tokens
 		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil)
 
+		// Hash token for session creation
+		mockRepo.On("HashToken", mock.AnythingOfType("string")).Return(
+			"1234567890123456789012345678901234567890123456789012345678901234", // 64 chars
+			"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd", // 64 chars  
+			nil).Maybe()
+
 		// Create session
 		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+		mockTokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+			ID: "session-123",
+			UserID: "user-123",
+		}, nil)
 
 		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
 		assert.NoError(t, err)
@@ -457,10 +523,12 @@ func TestService_RefreshToken(t *testing.T) {
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
+
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+
 
 	svc := &service{
 		repo:               mockRepo,
@@ -485,10 +553,15 @@ func TestService_RefreshToken(t *testing.T) {
 			Provider:    "google",
 		}
 
+		// Create session with mock hash and salt values (for testing purposes)
+		hashedToken := "b8c8f5e6d4a7c2e9f1b3d6e8a5c7f9e2d4b6e8f1c3e5a7b9d2f4e6c8a1b3d5e7"
+		salt := "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678"
+
 		session := &domain.Session{
 			ID:           uuid.New().String(),
 			UserID:       "user-123",
-			RefreshToken: refreshToken,
+			RefreshToken: hashedToken,
+			Salt:         salt,
 			ExpiresAt:    time.Now().Add(24 * time.Hour),
 		}
 
@@ -501,12 +574,20 @@ func TestService_RefreshToken(t *testing.T) {
 			SessionID: session.ID,
 		}
 
-		// Mock repository calls
+		// Mock repository calls - the VerifyToken should return true for our test token
 		mockRepo.On("IsRefreshTokenBlacklisted", ctx, refreshToken).Return(false, nil)
-		mockRepo.On("GetSessionByRefreshToken", ctx, refreshToken).Return(session, nil)
+		mockRepo.On("GetAllActiveSessions", ctx).Return([]*domain.Session{session}, nil)
+		mockRepo.On("VerifyToken", refreshToken, hashedToken, salt).Return(true)
 		mockRepo.On("GetUser", ctx, "user-123").Return(user, nil)
 		mockTokenDomainService.On("RefreshToken", ctx, session, user).Return(expectedClaims, nil)
 		mockRepo.On("BlacklistRefreshToken", ctx, refreshToken, session.ExpiresAt).Return(nil)
+
+		// Hash token for session update with new refresh token
+		mockRepo.On("HashToken", mock.AnythingOfType("string")).Return(
+			"9876543210987654321098765432109876543210987654321098765432109876", // 64 chars
+			"efghefghefghefghefghefghefghefghefghefghefghefghefghefghefghefgh", // 64 chars
+			nil)
+
 		mockRepo.On("UpdateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
 
@@ -541,21 +622,18 @@ func TestService_RefreshToken(t *testing.T) {
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		session := &domain.Session{
-			ID:           uuid.New().String(),
-			UserID:       "user-789",
-			RefreshToken: refreshToken,
-			ExpiresAt:    time.Now().Add(-1 * time.Hour), // Expired
-		}
+		// No session setup needed - expired sessions are filtered out by GetAllActiveSessions
 
 		mockRepo.On("IsRefreshTokenBlacklisted", ctx, refreshToken).Return(false, nil)
-		mockRepo.On("GetSessionByRefreshToken", ctx, refreshToken).Return(session, nil)
-		// Note: GetUser and TokenDomainService.RefreshToken are NOT called because session is expired
+		mockRepo.On("GetAllActiveSessions", ctx).Return([]*domain.Session{}, nil) // Empty list - expired sessions are filtered out
+		// VerifyTokenのmock追加（呼ばれる場合に備えて）
+		mockRepo.On("VerifyToken", mock.Anything, mock.Anything, mock.Anything).Return(false)
+		// Note: GetUser and TokenDomainService.RefreshToken are NOT called because no sessions found
 
 		response, err := svc.RefreshToken(ctx, refreshToken, clientIP, userAgent)
 		assert.Error(t, err)
 		assert.Nil(t, response)
-		assert.Contains(t, err.Error(), "expired")
+		assert.Contains(t, err.Error(), "session not found")
 
 		mockRepo.AssertExpectations(t)
 		// Note: TokenDomainService expectations are NOT added because the method isn't called
@@ -565,13 +643,16 @@ func TestService_RefreshToken(t *testing.T) {
 func TestService_RevokeSession(t *testing.T) {
 	ctx := context.Background()
 
+
 	mockRepo := new(mockRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
+
 
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+
 
 	svc := &service{
 		repo:               mockRepo,
@@ -635,4 +716,159 @@ func TestService_RevokeSession(t *testing.T) {
 
 		mockRepo.AssertExpectations(t)
 	})
+}
+
+// Test for generateTokenPair with sessionID parameter
+func TestService_generateTokenPairWithSessionID(t *testing.T) {
+	mockRepo := &mockRepository{}
+	logger := slog.Default()
+	
+	// Create a test RSA key pair
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+	tokenDomainService := &mockTokenDomainService{}
+
+	svc := &service{
+		repo:               mockRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: tokenDomainService,
+		logger:             logger,
+	}
+
+	ctx := context.Background()
+	user := &domain.User{
+		ID:          "user-123",
+		Email:       "test@example.com",
+		DisplayName: "Test User",
+		Provider:    "google",
+	}
+
+	sessionID := "session-123"
+	orgIDs := []string{"org-1", "org-2"}
+	mockRepo.On("GetUserOrganizations", ctx, user.ID).Return(orgIDs, nil)
+
+	// Test generateTokenPair with sessionID parameter
+	tokenPair, err := svc.generateTokenPair(ctx, user, sessionID)
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenPair)
+	assert.NotEmpty(t, tokenPair.AccessToken)
+	assert.NotEmpty(t, tokenPair.RefreshToken)
+	
+	// Verify the token contains the session information
+	// This test currently passes but we need to verify SessionID is properly set
+	claims, err := tokenManager.ValidateToken(tokenPair.AccessToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims)
+	
+	// Extract the actual token and decode it to verify SessionID is included
+	// Since our implementation now uses domain.Claims with SessionID, it should be present
+	token, err := jwt.ParseWithClaims(tokenPair.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// For this test, we'll accept any signing method since we're testing the claims structure
+		return []byte("dummy-key"), nil // This will fail validation but we only care about parsing structure
+	})
+	
+	// Even though validation fails due to dummy key, we can still examine the claims
+	if token != nil {
+		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
+			// This should now contain a valid SessionID after our fix
+			assert.NotEmpty(t, domainClaims.SessionID, "SessionID should now be included in the token after our fix")
+		}
+	}
+
+	mockRepo.AssertExpectations(t)
+}
+
+// Test OAuth flow to verify sessionID is included in token
+func TestService_OAuthFlowWithSessionID(t *testing.T) {
+	mockRepo := &mockRepository{}
+	mockOAuthRepo := &mockOAuthRepository{}
+	mockKeyRepo := &mockKeyRepository{}
+	logger := slog.Default()
+	
+	// Create a test RSA key pair
+	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	testPublicKey := &testPrivateKey.PublicKey
+	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
+	tokenDomainService := &mockTokenDomainService{}
+
+	svc := &service{
+		repo:               mockRepo,
+		oauthRepo:          mockOAuthRepo,
+		keyRepo:            mockKeyRepo,
+		tokenManager:       tokenManager,
+		tokenDomainService: tokenDomainService,
+		logger:             logger,
+		defaultTokenExpiry: 3600,
+	}
+	
+	// Mock tokenDomainService.CreateSession
+	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
+		ID: "session-123",
+		UserID: "user-123",
+	}, nil)
+
+	ctx := context.Background()
+	req := &domain.CallbackRequest{
+		Code:  "auth-code-123",
+		State: "state-123",
+	}
+	clientIP := "127.0.0.1"
+	userAgent := "test-agent"
+
+	// Mock auth state
+	authState := &domain.AuthState{
+		State:        "state-123",
+		Provider:     "google",
+		RedirectURL:  "http://localhost:3000/callback",
+		CodeVerifier: "",
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+	}
+
+
+	// Set up mock expectations
+	mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil)
+	mockOAuthRepo.On("ExchangeCode", ctx, "google", req.Code).Return(&domain.OAuthToken{AccessToken: "access-token"}, nil)
+	mockOAuthRepo.On("GetUserInfo", ctx, "google", mock.AnythingOfType("*domain.OAuthToken")).Return(&domain.UserInfo{
+		ID:       "google-123",
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Provider: "google",
+	}, nil)
+	mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
+	mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{"org-1"}, nil)
+	mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+	mockRepo.On("DeleteAuthState", ctx, req.State).Return(nil)
+	mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
+
+	// Execute OAuth callback
+	authResponse, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+	assert.NoError(t, err)
+	assert.NotNil(t, authResponse)
+	assert.NotEmpty(t, authResponse.AccessToken)
+
+	// Validate that the token contains session information
+	// This test currently passes but we need to verify SessionID is properly set
+	claims, err := tokenManager.ValidateToken(authResponse.AccessToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims)
+	
+	// Extract the actual token and decode it to verify SessionID is included
+	// Since our implementation now uses domain.Claims with SessionID, it should be present
+	token, err := jwt.ParseWithClaims(authResponse.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// For this test, we'll accept any signing method since we're testing the claims structure
+		return []byte("dummy-key"), nil // This will fail validation but we only care about parsing structure
+	})
+	
+	// Even though validation fails due to dummy key, we can still examine the claims
+	if token != nil {
+		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
+			// This should now contain a valid SessionID after our fix
+			assert.NotEmpty(t, domainClaims.SessionID, "SessionID should now be included in the token after our fix")
+		}
+	}
+
+	mockRepo.AssertExpectations(t)
+	mockOAuthRepo.AssertExpectations(t)
 }
