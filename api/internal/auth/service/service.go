@@ -26,6 +26,8 @@ type InternalAIOpsClaims struct {
 	TokenType         string   `json:"token_type"`
 }
 
+const legacySessionID = "legacy-session"
+
 type service struct {
 	repo               domain.Repository
 	oauthRepo          domain.OAuthRepository
@@ -466,7 +468,7 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 	if sessionID, ok := mapClaims["session_id"].(string); ok {
 		claims.SessionID = sessionID
 	} else {
-		claims.SessionID = "legacy-session"
+		claims.SessionID = legacySessionID
 	}
 
 	// Extract org IDs if present
@@ -474,6 +476,18 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 		claims.OrgIDs = make([]string, len(orgIDs))
 		for i, id := range orgIDs {
 			claims.OrgIDs[i] = id.(string)
+		}
+	}
+
+	// Check if session is blocked (skip legacy sessions for backwards compatibility)
+	if claims.SessionID != legacySessionID {
+		blocked, err := s.repo.IsSessionBlocked(ctx, claims.SessionID)
+		if err != nil {
+			s.logger.Error("failed to check session blocklist", "error", err, "session_id", claims.SessionID)
+			// If Redis is down, we cannot confirm session validity, so we must deny access.
+			return nil, fmt.Errorf("could not verify session validity: upstream service unavailable: %w", err)
+		} else if blocked {
+			return nil, fmt.Errorf("session has been invalidated")
 		}
 	}
 
@@ -583,6 +597,24 @@ func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) e
 	if err := s.repo.BlacklistRefreshToken(ctx, refreshToken, session.ExpiresAt); err != nil {
 		return fmt.Errorf("failed to blacklist refresh token: %w", err)
 	}
+
+	return nil
+}
+
+func (s *service) InvalidateSession(ctx context.Context, sessionID string) error {
+	// Get session to determine TTL
+	session, err := s.repo.GetSession(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	// Block session in Redis with TTL matching session expiry
+	if err := s.repo.BlockSession(ctx, sessionID, session.ExpiresAt); err != nil {
+		return fmt.Errorf("failed to block session: %w", err)
+	}
+
+	// Log security event for session invalidation
+	s.logSecurityEvent(ctx, session.UserID, "session_invalidated", "Session manually invalidated", "", "", "info")
 
 	return nil
 }

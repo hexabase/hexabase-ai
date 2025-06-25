@@ -46,6 +46,9 @@ type Service interface {
 
 	// Internal operations
 	GenerateInternalAIOpsToken(ctx context.Context, userID string, orgIDs []string, activeWorkspaceID string) (string, error)
+
+	// Session invalidation operations
+	InvalidateSession(ctx context.Context, sessionID string) error
 }
 
 // TokenDomainService defines the interface for token business logic

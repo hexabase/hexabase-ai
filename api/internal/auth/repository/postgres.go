@@ -14,8 +14,10 @@ type postgresRepository struct {
 }
 
 // NewPostgresRepository creates a new PostgreSQL auth repository
-func NewPostgresRepository(db *gorm.DB) domain.Repository {
-	return &postgresRepository{db: db}
+func NewPostgresRepository(db *gorm.DB) *postgresRepository {
+	return &postgresRepository{
+		db: db,
+	}
 }
 
 // User operations
