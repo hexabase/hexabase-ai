@@ -148,6 +148,14 @@ type SecurityEvent struct {
 	CreatedAt   time.Time              `json:"created_at"`
 }
 
+// TODO: This TableName method is a temporary workaround to make GORM work with the domain model directly.
+// In the future, a separate DTO for the repository layer should be created,
+// and this method should be removed. The conversion between the domain model and the DTO
+// will be handled within the repository.
+func (SecurityEvent) TableName() string {
+	return "security_events"
+}
+
 // LoginRequest represents OAuth login request
 type LoginRequest struct {
 	Provider            string `json:"provider" binding:"required"`
