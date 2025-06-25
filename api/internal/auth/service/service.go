@@ -160,16 +160,25 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 		}
 	}
 
-	// Generate tokens
-	tokenPair, err := s.generateTokenPair(ctx, user)
+	// Generate session ID first
+	sessionID := uuid.New().String()
+
+	// Generate tokens with session ID
+	tokenPair, err := s.generateTokenPair(ctx, user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Create session
-	_, err = s.CreateSession(ctx, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
+	// Create session with the pre-generated session ID
+	session, err := s.tokenDomainService.CreateSession(sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+	
+	// Save session to repository
+	err = s.repo.CreateSession(ctx, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save session: %w", err)
 	}
 
 	// Clean up auth state
@@ -717,7 +726,7 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 
 // Helper functions
 
-func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*domain.TokenPair, error) {
+func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sessionID string) (*domain.TokenPair, error) {
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
@@ -740,7 +749,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*do
 		Name:      user.DisplayName,
 		Provider:  user.Provider,
 		OrgIDs:    orgIDs,
-		SessionID: "", // Will be set when session is created
+		SessionID: sessionID,
 	}
 
 	// Use common token pair generation logic

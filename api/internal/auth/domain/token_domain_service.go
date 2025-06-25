@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 // tokenDomainService implements business rules for token management
@@ -69,11 +68,11 @@ func (s *tokenDomainService) ValidateRefreshEligibility(session *Session) error 
 }
 
 // CreateSession creates a new session with proper business rules
-func (s *tokenDomainService) CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error) {
+func (s *tokenDomainService) CreateSession(sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error) {
 	now := time.Now()
 	
 	session := &Session{
-		ID:           uuid.NewString(),
+		ID:           sessionID,
 		UserID:       userID,
 		RefreshToken: refreshToken,
 		DeviceID:     deviceID,
