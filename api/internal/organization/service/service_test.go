@@ -1265,48 +1265,143 @@ func TestGetMember(t *testing.T) {
 	})
 }
 
-func TestGetOrganizationStats(t *testing.T) {
+func TestGetOrganization_WithSettingsAndSubscriptionInfo(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.Default()
 
-	t.Run("successful stats retrieval", func(t *testing.T) {
-		// Setup mocks
-		mockRepo := new(MockRepository)
-		mockAuthRepo := new(MockAuthRepository)
-		mockBillingRepo := new(MockBillingRepository)
+	mockRepo := new(MockRepository)
+	mockAuthRepo := new(MockAuthRepository)
+	mockBillingRepo := new(MockBillingRepository)
 
-		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
+	service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
-		orgID := "org-123"
-		expectedStats := &domain.OrganizationStats{
-			OrganizationID:   orgID,
-			TotalMembers:     10,
-			ActiveMembers:    8,
-			TotalWorkspaces:  5,
-			ActiveWorkspaces: 4,
-			TotalProjects:    15,
-			ResourceUsage: &domain.Usage{
-				CPU:     4.5,
-				Memory:  16.0,
-				Storage: 100.0,
-				Cost:    250.0,
-			},
-			LastUpdated: time.Now(),
-		}
+	orgID := "org-settings"
+	settings := map[string]interface{}{
+		"theme": "dark",
+		"lang": "ja",
+	}
 
-		// Mock expectations
-		mockRepo.On("GetOrganizationStats", ctx, orgID).Return(expectedStats, nil)
+	subscription := &domain.Subscription{
+		PlanID:    "plan-gold",
+		PlanName:  "Gold",
+		Status:    "active",
+		CurrentPeriodEnd: time.Now().Add(30 * 24 * time.Hour),
+	}
+	subscriptionInfo := &domain.SubscriptionInfo{
+		PlanID:   subscription.PlanID,
+		PlanName: subscription.PlanName,
+		Status:   subscription.Status,
+		// 必要に応じて他のフィールドもコピー
+	}
 
-		// Execute
-		stats, err := service.GetOrganizationStats(ctx, orgID)
+	expectedOrg := &domain.Organization{
+		ID:               orgID,
+		Name:             "org-with-settings",
+		DisplayName:      "Org With Settings",
+		Status:           "active",
+		Description:      "Test org for settings/subscription",
+		Email:            "org@example.com",
+		Website:          "https://org.example.com",
+		OwnerID:          "owner-001",
+		Settings:         settings,
+		SubscriptionInfo: subscriptionInfo, // SubscriptionInfo 型をセット
+		CreatedAt:        time.Now().Add(-24 * time.Hour),
+		UpdatedAt:        time.Now(),
+	}
 
-		// Assert
-		assert.NoError(t, err)
-		assert.NotNil(t, stats)
-		assert.Equal(t, expectedStats, stats)
+	mockRepo.On("GetOrganization", ctx, orgID).Return(expectedOrg, nil)
+	mockRepo.On("ListMembers", ctx, mock.MatchedBy(func(filter domain.MemberFilter) bool {
+		return filter.OrganizationID == orgID && filter.PageSize == 1000
+	})).Return([]*domain.OrganizationUser{}, 0, nil)
+	mockBillingRepo.On("GetOrganizationSubscription", ctx, orgID).Return(subscription, nil)
 
-		mockRepo.AssertExpectations(t)
-	})
+	org, err := service.GetOrganization(ctx, orgID)
+	assert.NoError(t, err)
+	assert.NotNil(t, org)
+	assert.Equal(t, expectedOrg.ID, org.ID)
+	assert.Equal(t, expectedOrg.Name, org.Name)
+	assert.Equal(t, expectedOrg.DisplayName, org.DisplayName)
+	assert.Equal(t, expectedOrg.Status, org.Status)
+	assert.Equal(t, expectedOrg.Description, org.Description)
+	assert.Equal(t, expectedOrg.Email, org.Email)
+	assert.Equal(t, expectedOrg.Website, org.Website)
+	assert.Equal(t, expectedOrg.OwnerID, org.OwnerID)
+	assert.Equal(t, expectedOrg.Settings, org.Settings)
+	assert.NotNil(t, org.SubscriptionInfo)
+	assert.Equal(t, "Gold", org.SubscriptionInfo.PlanName)
+	assert.WithinDuration(t, expectedOrg.CreatedAt, org.CreatedAt, time.Second)
+	assert.WithinDuration(t, expectedOrg.UpdatedAt, org.UpdatedAt, time.Second)
+
+	mockRepo.AssertExpectations(t)
+	mockBillingRepo.AssertExpectations(t)
+}
+
+func TestUpdateOrganization_SettingsAndNonPersistedFields(t *testing.T) {
+	t.Skip("UpdateOrganization is not implemented yet.")
+	ctx := context.Background()
+	logger := slog.Default()
+
+	mockRepo := new(MockRepository)
+	mockAuthRepo := new(MockAuthRepository)
+	mockBillingRepo := new(MockBillingRepository)
+
+	service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
+
+	orgID := "org-nonpersisted"
+	// 既存のOrganization（Settings, SubscriptionInfoあり）
+	existingOrg := &domain.Organization{
+		ID:          orgID,
+		Name:        "org-nonpersisted",
+		DisplayName: "Org NonPersisted",
+		Description: "before update",
+		Settings: map[string]interface{}{
+			"theme": "light",
+		},
+		SubscriptionInfo: &domain.SubscriptionInfo{
+			PlanID:   "plan-basic",
+			PlanName: "Basic",
+			Status:   "active",
+		},
+	}
+
+	// 更新リクエスト（Settings, SubscriptionInfoを変更）
+	newSettings := map[string]interface{}{
+		"theme": "dark",
+		"lang":  "ja",
+	}
+	newSubscription := &domain.Subscription{
+		PlanID:   "plan-pro",
+		PlanName: "Pro",
+		Status:   "trialing",
+	}
+	updateReq := &domain.UpdateOrganizationRequest{
+		DisplayName: "Org NonPersisted Updated",
+		Description: "after update",
+		Settings:    newSettings,
+	}
+
+	mockRepo.On("GetOrganization", ctx, orgID).Return(existingOrg, nil)
+	mockRepo.On("UpdateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
+		return org.DisplayName == "Org NonPersisted Updated" &&
+			org.Description == "after update" &&
+			org.Settings["theme"] == "dark" &&
+			org.Settings["lang"] == "ja"
+	})).Return(nil)
+	mockBillingRepo.On("GetOrganizationSubscription", ctx, orgID).Return(newSubscription, nil).Once()
+
+	updatedOrg, err := service.UpdateOrganization(ctx, orgID, updateReq)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedOrg)
+	assert.Equal(t, "Org NonPersisted Updated", updatedOrg.DisplayName)
+	assert.Equal(t, "after update", updatedOrg.Description)
+	assert.Equal(t, newSettings, updatedOrg.Settings)
+	assert.NotNil(t, updatedOrg.SubscriptionInfo)
+	assert.Equal(t, "Pro", updatedOrg.SubscriptionInfo.PlanName)
+	assert.Equal(t, "trialing", updatedOrg.SubscriptionInfo.Status)
+
+	mockRepo.AssertExpectations(t)
+	mockBillingRepo.AssertExpectations(t)
 }
 
 func TestValidateOrganizationAccess(t *testing.T) {

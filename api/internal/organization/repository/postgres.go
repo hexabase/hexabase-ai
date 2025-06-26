@@ -28,6 +28,7 @@ func (r *postgresRepository) CreateOrganization(ctx context.Context, org *domain
 	// Update the domain model with any generated values
 	org.CreatedAt = dbOrg.CreatedAt
 	org.UpdatedAt = dbOrg.UpdatedAt
+	org.ID = dbOrg.ID
 	return nil
 }
 
@@ -43,21 +44,21 @@ func (r *postgresRepository) GetOrganization(ctx context.Context, orgID string) 
 }
 
 func (r *postgresRepository) GetOrganizationByName(ctx context.Context, name string) (*domain.Organization, error) {
-	var org domain.Organization
-	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&org).Error; err != nil {
+	var dbOrg dbOrganization
+	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&dbOrg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get organization by name: %w", err)
 	}
-	return &org, nil
+	return dbToDomainOrganization(&dbOrg), nil
 }
 
 func (r *postgresRepository) ListOrganizations(ctx context.Context, filter domain.OrganizationFilter) ([]*domain.Organization, int, error) {
-	var orgs []*domain.Organization
+	var dbOrgs []dbOrganization
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&domain.Organization{})
+	query := r.db.WithContext(ctx).Model(&dbOrganization{})
 
 	// Apply filters
 	if filter.UserID != "" {
@@ -99,22 +100,28 @@ func (r *postgresRepository) ListOrganizations(ctx context.Context, filter domai
 		}
 	}
 
-	if err := query.Order(orderBy).Find(&orgs).Error; err != nil {
+	if err := query.Order(orderBy).Find(&dbOrgs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list organizations: %w", err)
+	}
+
+	orgs := make([]*domain.Organization, len(dbOrgs))
+	for i, dbOrg := range dbOrgs {
+		orgs[i] = dbToDomainOrganization(&dbOrg)
 	}
 
 	return orgs, int(total), nil
 }
 
 func (r *postgresRepository) UpdateOrganization(ctx context.Context, org *domain.Organization) error {
-	if err := r.db.WithContext(ctx).Save(org).Error; err != nil {
+	dbOrg := domainToDBOrganization(org)
+	if err := r.db.WithContext(ctx).Save(dbOrg).Error; err != nil {
 		return fmt.Errorf("failed to update organization: %w", err)
 	}
 	return nil
 }
 
 func (r *postgresRepository) DeleteOrganization(ctx context.Context, orgID string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", orgID).Delete(&domain.Organization{}).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", orgID).Delete(&dbOrganization{}).Error; err != nil {
 		return fmt.Errorf("failed to delete organization: %w", err)
 	}
 	return nil
