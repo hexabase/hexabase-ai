@@ -37,8 +37,6 @@ type Service interface {
 
 	// Auth state operations
 	StoreAuthState(ctx context.Context, state *AuthState) error
-	VerifyAuthState(ctx context.Context, state, clientIP string) error
-	VerifyPKCE(ctx context.Context, state, codeVerifier string) error
 
 	// Security operations
 	LogSecurityEvent(ctx context.Context, event *SecurityEvent) error

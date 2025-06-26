@@ -423,7 +423,7 @@ func TestService_HandleCallback(t *testing.T) {
 		// No longer need to generate private key for test since TokenManager handles it
 
 		// Mock the flow
-		mockRepo.On("GetAuthState", ctx, "valid-state-123").Return(authState, nil)
+		mockRepo.On("GetAuthState", ctx, "valid-state-123").Return(authState, nil).Once()
 		mockRepo.On("DeleteAuthState", ctx, "valid-state-123").Return(nil)
 		mockOAuthRepo.On("ExchangeCode", ctx, "google", "auth-code-123").Return(oauthToken, nil)
 		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil)
@@ -471,14 +471,101 @@ func TestService_HandleCallback(t *testing.T) {
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		mockRepo.On("GetAuthState", ctx, "invalid-state").Return(nil, errors.New("not found"))
+		mockRepo.On("GetAuthState", ctx, "invalid-state").Return(nil, errors.New("not found")).Once()
 
 		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
 		assert.Error(t, err)
 		assert.Nil(t, response)
-		assert.Contains(t, err.Error(), "invalid state")
+		assert.Contains(t, err.Error(), "auth state not found")
 
 		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("successful callback with PKCE", func(t *testing.T) {
+		req := &domain.CallbackRequest{
+			Code:         "auth-code-pkce",
+			State:        "valid-state-pkce",
+			CodeVerifier: "verifier-123",
+		}
+		clientIP := "192.168.1.1"
+		userAgent := "Mozilla/5.0"
+
+		authState := &domain.AuthState{
+			State:        "valid-state-pkce",
+			Provider:      "google",
+			CodeChallenge: "Ds3NpaREu9I2EYq6l0l3ZkFyv_Gt5O4EpGD6cZlY0Kg", // sha256("verifier-123")
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+		}
+
+		oauthToken := &domain.OAuthToken{AccessToken: "access-token-pkce"}
+		userInfo := &domain.UserInfo{ID: "google-pkce", Email: "pkce@example.com", Name: "PKCE User"}
+
+		mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil).Once()
+		mockOAuthRepo.On("ExchangeCode", ctx, "google", req.Code).Return(oauthToken, nil).Once()
+		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil).Once()
+		mockRepo.On("GetUserByExternalID", ctx, userInfo.ID, "google").Return(nil, errors.New("not found")).Once()
+		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil).Once()
+		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil).Once()
+		mockRepo.On("HashToken", mock.AnythingOfType("string")).Return("hashed-token", "salt", nil).Once()
+		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil).Once()
+		mockRepo.On("DeleteAuthState", ctx, req.State).Return(nil).Once()
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Twice()
+
+		// No longer need to mock VerifyPKCE directly as it's now an internal helper
+
+		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+		assert.NoError(t, err)
+		assert.NotNil(t, response)
+	})
+
+	t.Run("PKCE verification failed - wrong verifier", func(t *testing.T) {
+		req := &domain.CallbackRequest{
+			Code:         "auth-code-pkce-fail",
+			State:        "state-pkce-fail",
+			CodeVerifier: "wrong-verifier",
+		}
+		clientIP := "192.168.1.1"
+		userAgent := "Mozilla/5.0"
+
+		authState := &domain.AuthState{
+			State:         "state-pkce-fail",
+			Provider:      "google",
+			CodeChallenge: "m6M3_w_n222e5N7g-aA4a-AYxEK299lF-iQ2pE79gA4", // sha256("verifier-123")
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+		}
+
+		mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil).Once()
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Once()
+
+		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "PKCE verification failed")
+	})
+
+	t.Run("PKCE error - verifier missing", func(t *testing.T) {
+		req := &domain.CallbackRequest{
+			Code:         "auth-code-pkce-missing",
+			State:        "state-pkce-missing",
+			CodeVerifier: "", // Verifier is missing
+		}
+		clientIP := "192.168.1.1"
+		userAgent := "Mozilla/5.0"
+
+		authState := &domain.AuthState{
+			State:         "state-pkce-missing",
+			Provider:      "google",
+			CodeChallenge: "m6M3_w_n222e5N7g-aA4a-AYxEK299lF-iQ2pE79gA4",
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+		}
+
+		mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil).Once()
+		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Once()
+
+		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "code_verifier is required")
 	})
 }
 
