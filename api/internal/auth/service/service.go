@@ -75,12 +75,12 @@ func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (str
 
 	// Store auth state
 	authState := &domain.AuthState{
-		State:        state,
-		Provider:     req.Provider,
-		RedirectURL:  req.RedirectURL,
-		CodeVerifier: codeChallenge, // Store for later verification
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
-		CreatedAt:    time.Now(),
+		State:         state,
+		Provider:      req.Provider,
+		RedirectURL:   req.RedirectURL,
+		CodeChallenge: codeChallenge, // Store for later verification
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
+		CreatedAt:     time.Now(),
 	}
 
 	if err := s.repo.StoreAuthState(ctx, authState); err != nil {
@@ -172,15 +172,8 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 	}
 
 	// Create session with the pre-generated session ID
-	session, err := s.tokenDomainService.CreateSession(sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
-	if err != nil {
+	if _, err := s.CreateSession(ctx, sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent); err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
-	}
-
-	// Save session to repository
-	err = s.repo.CreateSession(ctx, session)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save session: %w", err)
 	}
 
 	// Clean up auth state
@@ -263,13 +256,14 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	return tokenPair, nil
 }
 
-func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
 	// Hash the refresh token before storing (CRITICAL SECURITY FIX)
 	hashedToken, salt, err := s.hashToken(refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
 	}
 
+	now := time.Now()
 	session := &domain.Session{
 		ID:           uuid.New().String(),
 		UserID:       userID,
@@ -278,9 +272,10 @@ func (s *service) CreateSession(ctx context.Context, userID, refreshToken, devic
 		DeviceID:     deviceID,
 		IPAddress:    clientIP,
 		UserAgent:    userAgent,
-		ExpiresAt:    time.Now().Add(30 * 24 * time.Hour), // 30 days
-		CreatedAt:    time.Now(),
-		LastUsedAt:   time.Now(),
+		ExpiresAt:    now.Add(30 * 24 * time.Hour), // 30 days
+		CreatedAt:    now,
+		LastUsedAt:   now,
+		Revoked: 	  false,
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
@@ -753,16 +748,18 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 		return fmt.Errorf("auth state not found: %w", err)
 	}
 
-	if authState.CodeVerifier == "" {
+	if authState.CodeChallenge == "" {
 		return nil // PKCE not required
 	}
 
 	// Verify code verifier matches stored challenge
+	// Use RawURLEncoding (no padding) as required by RFC 7636
 	h := sha256.New()
 	h.Write([]byte(codeVerifier))
-	computedChallenge := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	computedChallenge := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
-	if computedChallenge != authState.CodeVerifier {
+	if computedChallenge != authState.CodeChallenge {
+		s.logger.Warn("PKCE verification failed", "state", state)
 		return fmt.Errorf("PKCE verification failed")
 	}
 

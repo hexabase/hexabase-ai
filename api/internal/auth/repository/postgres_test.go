@@ -392,6 +392,199 @@ func TestPostgresRepository_GetSession(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_StoreAuthState(t *testing.T) {
+	ctx := context.Background()
+	gormDB, mock := setupTestDB(t)
+	repo := NewPostgresRepository(gormDB)
+
+	t.Run("successfully stores auth state with code challenge", func(t *testing.T) {
+		authState := &domain.AuthState{
+			State:         "test-state-123",
+			Provider:      "google",
+			RedirectURL:   "https://example.com/callback",
+			CodeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", // RFC 7636 compliant challenge
+			ClientIP:      "192.168.1.1",
+			UserAgent:     "Mozilla/5.0",
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+			CreatedAt:     time.Now(),
+		}
+
+		// Expect the INSERT query with the new code_challenge column
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "auth_states" \("state","provider","redirect_url","code_challenge","client_ip","user_agent","expires_at","created_at"\)`).
+			WithArgs(
+				authState.State,
+				authState.Provider,
+				authState.RedirectURL,
+				authState.CodeChallenge,
+				authState.ClientIP,
+				authState.UserAgent,
+				sqlmock.AnyArg(), // expires_at
+				sqlmock.AnyArg(), // created_at
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.StoreAuthState(ctx, authState)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("successfully stores auth state without PKCE", func(t *testing.T) {
+		authState := &domain.AuthState{
+			State:         "test-state-456",
+			Provider:      "github",
+			RedirectURL:   "https://example.com/callback",
+			CodeChallenge: "", // No PKCE
+			ClientIP:      "192.168.1.2",
+			UserAgent:     "Chrome/91.0",
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+			CreatedAt:     time.Now(),
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "auth_states"`).
+			WithArgs(
+				authState.State,
+				authState.Provider,
+				authState.RedirectURL,
+				authState.CodeChallenge,
+				authState.ClientIP,
+				authState.UserAgent,
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.StoreAuthState(ctx, authState)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestPostgresRepository_GetAuthState(t *testing.T) {
+	ctx := context.Background()
+	gormDB, mock := setupTestDB(t)
+	repo := NewPostgresRepository(gormDB)
+
+	t.Run("successfully retrieves auth state with code challenge", func(t *testing.T) {
+		stateValue := "test-state-123"
+		expectedChallenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+		expiresAt := time.Now().Add(5 * time.Minute)
+		createdAt := time.Now().Add(-5 * time.Minute)
+
+		// Expect the SELECT query to include code_challenge column
+		rows := sqlmock.NewRows([]string{
+			"state", "provider", "redirect_url", "code_challenge", 
+			"client_ip", "user_agent", "expires_at", "created_at",
+		}).AddRow(
+			stateValue,
+			"google",
+			"https://example.com/callback",
+			expectedChallenge,
+			"192.168.1.1",
+			"Mozilla/5.0",
+			expiresAt,
+			createdAt,
+		)
+
+		mock.ExpectQuery(`SELECT \* FROM "auth_states" WHERE state = \$1 AND expires_at > \$2 ORDER BY "auth_states"\."state" LIMIT \$3`).
+			WithArgs(stateValue, sqlmock.AnyArg(), 1).
+			WillReturnRows(rows)
+
+		authState, err := repo.GetAuthState(ctx, stateValue)
+		assert.NoError(t, err)
+		assert.NotNil(t, authState)
+		assert.Equal(t, stateValue, authState.State)
+		assert.Equal(t, expectedChallenge, authState.CodeChallenge)
+		assert.Equal(t, "google", authState.Provider)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error for expired auth state", func(t *testing.T) {
+		stateValue := "expired-state"
+
+		mock.ExpectQuery(`SELECT \* FROM "auth_states" WHERE state = \$1 AND expires_at > \$2 ORDER BY "auth_states"\."state" LIMIT \$3`).
+			WithArgs(stateValue, sqlmock.AnyArg(), 1).
+			WillReturnError(gorm.ErrRecordNotFound)
+
+		authState, err := repo.GetAuthState(ctx, stateValue)
+		assert.Error(t, err)
+		assert.Nil(t, authState)
+		assert.Contains(t, err.Error(), "not found or expired")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("handles auth state without PKCE", func(t *testing.T) {
+		stateValue := "no-pkce-state"
+		expiresAt := time.Now().Add(5 * time.Minute)
+		createdAt := time.Now().Add(-5 * time.Minute)
+
+		rows := sqlmock.NewRows([]string{
+			"state", "provider", "redirect_url", "code_challenge",
+			"client_ip", "user_agent", "expires_at", "created_at",
+		}).AddRow(
+			stateValue,
+			"github",
+			"https://example.com/callback",
+			"", // Empty code challenge
+			"192.168.1.2",
+			"Chrome/91.0",
+			expiresAt,
+			createdAt,
+		)
+
+		mock.ExpectQuery(`SELECT \* FROM "auth_states" WHERE state = \$1 AND expires_at > \$2 ORDER BY "auth_states"\."state" LIMIT \$3`).
+			WithArgs(stateValue, sqlmock.AnyArg(), 1).
+			WillReturnRows(rows)
+
+		authState, err := repo.GetAuthState(ctx, stateValue)
+		assert.NoError(t, err)
+		assert.NotNil(t, authState)
+		assert.Equal(t, stateValue, authState.State)
+		assert.Equal(t, "", authState.CodeChallenge)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestPostgresRepository_AuthStateColumnCompatibility(t *testing.T) {
+	ctx := context.Background()
+	gormDB, mock := setupTestDB(t)
+	repo := NewPostgresRepository(gormDB)
+
+	t.Run("verifies code_challenge column is used in queries", func(t *testing.T) {
+		// This test ensures that the repository is using the new column name
+		authState := &domain.AuthState{
+			State:         "migration-test",
+			Provider:      "google",
+			CodeChallenge: "test-challenge-value",
+			ExpiresAt:     time.Now().Add(10 * time.Minute),
+			CreatedAt:     time.Now(),
+		}
+
+		// The INSERT should specifically include code_challenge, not code_verifier
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "auth_states" \(.*"code_challenge".*\)`).
+			WithArgs(
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+				authState.CodeChallenge,
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.StoreAuthState(ctx, authState)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestPostgresRepository_RefreshTokenBlacklist(t *testing.T) {
 	ctx := context.Background()
 	gormDB, mock := setupTestDB(t)

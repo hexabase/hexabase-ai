@@ -23,40 +23,6 @@ type mockRepository struct {
 	mock.Mock
 }
 
-// Mock token manager
-type mockTokenManager struct {
-	mock.Mock
-}
-
-func (m *mockTokenManager) GenerateTokenPair(claims *domain.Claims) (*domain.TokenPair, error) {
-	args := m.Called(claims)
-	if args.Get(0) != nil {
-		return args.Get(0).(*domain.TokenPair), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockTokenManager) ValidateToken(tokenString string) (*domain.Claims, error) {
-	args := m.Called(tokenString)
-	if args.Get(0) != nil {
-		return args.Get(0).(*domain.Claims), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockTokenManager) GetPublicKey() (*rsa.PublicKey, error) {
-	args := m.Called()
-	if args.Get(0) != nil {
-		return args.Get(0).(*rsa.PublicKey), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockTokenManager) GenerateWorkspaceToken(claims interface{}) (string, error) {
-	args := m.Called(claims)
-	return args.String(0), args.Error(1)
-}
-
 // Mock token domain service
 type mockTokenDomainService struct {
 	mock.Mock
@@ -722,7 +688,7 @@ func TestService_RevokeSession(t *testing.T) {
 func TestService_generateTokenPairWithSessionID(t *testing.T) {
 	mockRepo := &mockRepository{}
 	logger := slog.Default()
-	
+
 	// Create a test RSA key pair
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
@@ -754,20 +720,20 @@ func TestService_generateTokenPairWithSessionID(t *testing.T) {
 	assert.NotNil(t, tokenPair)
 	assert.NotEmpty(t, tokenPair.AccessToken)
 	assert.NotEmpty(t, tokenPair.RefreshToken)
-	
+
 	// Verify the token contains the session information
 	// This test currently passes but we need to verify SessionID is properly set
 	claims, err := tokenManager.ValidateToken(tokenPair.AccessToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
-	
+
 	// Extract the actual token and decode it to verify SessionID is included
 	// Since our implementation now uses domain.Claims with SessionID, it should be present
 	token, err := jwt.ParseWithClaims(tokenPair.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// For this test, we'll accept any signing method since we're testing the claims structure
 		return []byte("dummy-key"), nil // This will fail validation but we only care about parsing structure
 	})
-	
+
 	// Even though validation fails due to dummy key, we can still examine the claims
 	if token != nil {
 		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
@@ -782,10 +748,15 @@ func TestService_generateTokenPairWithSessionID(t *testing.T) {
 // Test OAuth flow to verify sessionID is included in token
 func TestService_OAuthFlowWithSessionID(t *testing.T) {
 	mockRepo := &mockRepository{}
+	mockRepo.On("HashToken", mock.AnythingOfType("string")).Return(
+		"1234567890123456789012345678901234567890123456789012345678901234", // 64 chars
+		"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd", // 64 chars
+		nil,
+	).Maybe()
 	mockOAuthRepo := &mockOAuthRepository{}
 	mockKeyRepo := &mockKeyRepository{}
 	logger := slog.Default()
-	
+
 	// Create a test RSA key pair
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
@@ -801,7 +772,7 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 		logger:             logger,
 		defaultTokenExpiry: 3600,
 	}
-	
+
 	// Mock tokenDomainService.CreateSession
 	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
 		ID: "session-123",
@@ -821,7 +792,7 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 		State:        "state-123",
 		Provider:     "google",
 		RedirectURL:  "http://localhost:3000/callback",
-		CodeVerifier: "",
+		CodeChallenge: "",
 		ExpiresAt:    time.Now().Add(10 * time.Minute),
 	}
 
@@ -853,14 +824,14 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 	claims, err := tokenManager.ValidateToken(authResponse.AccessToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
-	
+
 	// Extract the actual token and decode it to verify SessionID is included
 	// Since our implementation now uses domain.Claims with SessionID, it should be present
 	token, err := jwt.ParseWithClaims(authResponse.AccessToken, &domain.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// For this test, we'll accept any signing method since we're testing the claims structure
 		return []byte("dummy-key"), nil // This will fail validation but we only care about parsing structure
 	})
-	
+
 	// Even though validation fails due to dummy key, we can still examine the claims
 	if token != nil {
 		if domainClaims, ok := token.Claims.(*domain.Claims); ok {
