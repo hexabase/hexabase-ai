@@ -144,6 +144,16 @@ func (h *Handler) Logout(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 
 	userID := c.GetString("user_id")
+	sessionID := c.GetString("session_id")
+
+	// Invalidate session immediately if session_id is available
+	if sessionID != "" {
+		if err := h.service.InvalidateSession(c.Request.Context(), sessionID); err != nil {
+			h.logger.Error("failed to invalidate session", "error", err, "session_id", sessionID)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed"})
+			return
+		}
+	}
 
 	// Revoke refresh token if provided
 	if req.RefreshToken != "" {
@@ -160,6 +170,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		IPAddress:   c.ClientIP(),
 		UserAgent:   c.GetHeader("User-Agent"),
 		Level:       "info",
+		Metadata:    make(map[string]any),
 	}
 
 	if err := h.service.LogSecurityEvent(c.Request.Context(), event); err != nil {
@@ -324,6 +335,7 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 		c.Set("user_name", claims.Name)
 		c.Set("provider", claims.Provider)
 		c.Set("org_ids", claims.OrgIDs)
+		c.Set("session_id", claims.SessionID)
 
 		c.Next()
 	}
