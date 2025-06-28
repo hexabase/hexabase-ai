@@ -15,8 +15,6 @@ import (
 
 // TestPKCEVerificationRFC7636Compliance tests PKCE implementation compliance with RFC 7636
 func TestPKCEVerificationRFC7636Compliance(t *testing.T) {
-	ctx := context.Background()
-
 	// Test vectors from RFC 7636 Appendix B
 	// https://datatracker.ietf.org/doc/html/rfc7636#appendix-B
 	testCases := []struct {
@@ -48,7 +46,7 @@ func TestPKCEVerificationRFC7636Compliance(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRepo := new(mockRepository)
-			
+
 			svc := &service{
 				repo:   mockRepo,
 				logger: slog.Default(),
@@ -68,15 +66,11 @@ func TestPKCEVerificationRFC7636Compliance(t *testing.T) {
 				ExpiresAt:     time.Now().Add(10 * time.Minute),
 			}
 
-			mockRepo.On("GetAuthState", ctx, "test-state").Return(authState, nil).Once()
-
-			err := svc.VerifyPKCE(ctx, "test-state", tc.codeVerifier)
+			err := svc.verifyPKCE(authState, tc.codeVerifier)
 			assert.NoError(t, err, "PKCE verification should succeed with RFC-compliant implementation")
 
 			// Test failed verification with incorrect verifier
-			mockRepo.On("GetAuthState", ctx, "test-state").Return(authState, nil).Once()
-
-			err = svc.VerifyPKCE(ctx, "test-state", "incorrect-verifier")
+			err = svc.verifyPKCE(authState, "incorrect-verifier")
 			assert.Error(t, err, "PKCE verification should fail with incorrect verifier")
 			assert.Contains(t, err.Error(), "PKCE verification failed")
 

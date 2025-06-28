@@ -103,21 +103,32 @@ func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (str
 }
 
 func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackRequest, clientIP, userAgent string) (*domain.AuthResponse, error) {
-	// Verify state
-	if err := s.VerifyAuthState(ctx, req.State, clientIP); err != nil {
-		return nil, fmt.Errorf("invalid state: %w", err)
-	}
-
-	// Get auth state
+	// Get auth state once and perform all validations
 	authState, err := s.repo.GetAuthState(ctx, req.State)
 	if err != nil {
 		return nil, fmt.Errorf("auth state not found: %w", err)
 	}
 
-	// Verify PKCE if provided
-	if req.CodeVerifier != "" {
-		if err := s.VerifyPKCE(ctx, req.State, req.CodeVerifier); err != nil {
-			return nil, err
+	// Verify state
+	if err := s.verifyAuthState(authState, clientIP); err != nil {
+		return nil, fmt.Errorf("invalid state: %w", err)
+	}
+
+	// PKCE-related security enhancements
+	if authState.CodeChallenge != "" {
+		// If a code_challenge was set, the client MUST provide a code_verifier.
+		if req.CodeVerifier == "" {
+			s.logger.Warn("PKCE verifier missing", "state", req.State, "client_ip", clientIP)
+			s.logSecurityEvent(ctx, "", "pkce_missing_verifier", "Client did not provide a code_verifier despite a code_challenge being set.", clientIP, userAgent, "warning")
+			return nil, fmt.Errorf("PKCE error: code_verifier is required")
+		}
+
+		// Perform the PKCE verification.
+		if err := s.verifyPKCE(authState, req.CodeVerifier); err != nil {
+			// Log the failure and return a generic error to the client.
+			s.logger.Warn("PKCE verification failed", "state", req.State, "error", err, "client_ip", clientIP)
+			s.logSecurityEvent(ctx, "", "pkce_verification_failed", err.Error(), clientIP, userAgent, "warning")
+			return nil, fmt.Errorf("PKCE verification failed")
 		}
 	}
 
@@ -265,7 +276,7 @@ func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshT
 
 	now := time.Now()
 	session := &domain.Session{
-		ID:           uuid.New().String(),
+		ID:           sessionID,
 		UserID:       userID,
 		RefreshToken: hashedToken, // Store hashed token
 		Salt:         salt,        // Store salt
@@ -719,16 +730,7 @@ func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interfac
 	return config, nil
 }
 
-func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
-	return s.repo.StoreAuthState(ctx, state)
-}
-
-func (s *service) VerifyAuthState(ctx context.Context, state, clientIP string) error {
-	authState, err := s.repo.GetAuthState(ctx, state)
-	if err != nil {
-		return fmt.Errorf("auth state not found: %w", err)
-	}
-
+func (s *service) verifyAuthState(authState *domain.AuthState, clientIP string) error {
 	// Check expiry
 	if authState.ExpiresAt.Before(time.Now()) {
 		return fmt.Errorf("auth state expired")
@@ -742,12 +744,7 @@ func (s *service) VerifyAuthState(ctx context.Context, state, clientIP string) e
 	return nil
 }
 
-func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) error {
-	authState, err := s.repo.GetAuthState(ctx, state)
-	if err != nil {
-		return fmt.Errorf("auth state not found: %w", err)
-	}
-
+func (s *service) verifyPKCE(authState *domain.AuthState, codeVerifier string) error {
 	if authState.CodeChallenge == "" {
 		return nil // PKCE not required
 	}
@@ -759,12 +756,18 @@ func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) er
 	computedChallenge := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
 	if computedChallenge != authState.CodeChallenge {
-		s.logger.Warn("PKCE verification failed", "state", state)
+		s.logger.Warn("PKCE verification failed", "state", authState.State)
 		return fmt.Errorf("PKCE verification failed")
 	}
 
 	return nil
 }
+
+func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
+	return s.repo.StoreAuthState(ctx, state)
+}
+
+
 
 // Helper functions
 
