@@ -26,6 +26,8 @@ type InternalAIOpsClaims struct {
 	TokenType         string   `json:"token_type"`
 }
 
+const legacySessionID = "legacy-session"
+
 type service struct {
 	repo               domain.Repository
 	oauthRepo          domain.OAuthRepository
@@ -73,12 +75,12 @@ func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (str
 
 	// Store auth state
 	authState := &domain.AuthState{
-		State:        state,
-		Provider:     req.Provider,
-		RedirectURL:  req.RedirectURL,
-		CodeVerifier: codeChallenge, // Store for later verification
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
-		CreatedAt:    time.Now(),
+		State:         state,
+		Provider:      req.Provider,
+		RedirectURL:   req.RedirectURL,
+		CodeChallenge: codeChallenge, // Store for later verification
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
+		CreatedAt:     time.Now(),
 	}
 
 	if err := s.repo.StoreAuthState(ctx, authState); err != nil {
@@ -101,21 +103,32 @@ func (s *service) GetAuthURL(ctx context.Context, req *domain.LoginRequest) (str
 }
 
 func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackRequest, clientIP, userAgent string) (*domain.AuthResponse, error) {
-	// Verify state
-	if err := s.VerifyAuthState(ctx, req.State, clientIP); err != nil {
-		return nil, fmt.Errorf("invalid state: %w", err)
-	}
-
-	// Get auth state
+	// Get auth state once and perform all validations
 	authState, err := s.repo.GetAuthState(ctx, req.State)
 	if err != nil {
 		return nil, fmt.Errorf("auth state not found: %w", err)
 	}
 
-	// Verify PKCE if provided
-	if req.CodeVerifier != "" {
-		if err := s.VerifyPKCE(ctx, req.State, req.CodeVerifier); err != nil {
-			return nil, err
+	// Verify state
+	if err := s.verifyAuthState(authState, clientIP); err != nil {
+		return nil, fmt.Errorf("invalid state: %w", err)
+	}
+
+	// PKCE-related security enhancements
+	if authState.CodeChallenge != "" {
+		// If a code_challenge was set, the client MUST provide a code_verifier.
+		if req.CodeVerifier == "" {
+			s.logger.Warn("PKCE verifier missing", "state", req.State, "client_ip", clientIP)
+			s.logSecurityEvent(ctx, "", "pkce_missing_verifier", "Client did not provide a code_verifier despite a code_challenge being set.", clientIP, userAgent, "warning")
+			return nil, fmt.Errorf("PKCE error: code_verifier is required")
+		}
+
+		// Perform the PKCE verification.
+		if err := s.verifyPKCE(authState, req.CodeVerifier); err != nil {
+			// Log the failure and return a generic error to the client.
+			s.logger.Warn("PKCE verification failed", "state", req.State, "error", err, "client_ip", clientIP)
+			s.logSecurityEvent(ctx, "", "pkce_verification_failed", err.Error(), clientIP, userAgent, "warning")
+			return nil, fmt.Errorf("PKCE verification failed")
 		}
 	}
 
@@ -160,15 +173,17 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 		}
 	}
 
-	// Generate tokens
-	tokenPair, err := s.generateTokenPair(ctx, user)
+	// Generate session ID first
+	sessionID := uuid.New().String()
+
+	// Generate tokens with session ID
+	tokenPair, err := s.generateTokenPair(ctx, user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Create session
-	_, err = s.CreateSession(ctx, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent)
-	if err != nil {
+	// Create session with the pre-generated session ID
+	if _, err := s.CreateSession(ctx, sessionID, user.ID, tokenPair.RefreshToken, "", clientIP, userAgent); err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
@@ -200,7 +215,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	}
 
 	// Infrastructure concerns: Get session by refresh token
-	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
+	session, err := s.getSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
@@ -233,8 +248,14 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
-	// Infrastructure concerns: Update session with new refresh token
-	session.RefreshToken = tokenPair.RefreshToken
+	// Infrastructure concerns: Hash and update session with new refresh token
+	hashedNewToken, newSalt, err := s.hashToken(tokenPair.RefreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash new refresh token: %w", err)
+	}
+
+	session.RefreshToken = hashedNewToken
+	session.Salt = newSalt
 	session.LastUsedAt = time.Now()
 	if err := s.repo.UpdateSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to update session: %w", err)
@@ -246,17 +267,26 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	return tokenPair, nil
 }
 
-func (s *service) CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
+	// Hash the refresh token before storing (CRITICAL SECURITY FIX)
+	hashedToken, salt, err := s.hashToken(refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
+	}
+
+	now := time.Now()
 	session := &domain.Session{
-		ID:           uuid.New().String(),
+		ID:           sessionID,
 		UserID:       userID,
-		RefreshToken: refreshToken,
+		RefreshToken: hashedToken, // Store hashed token
+		Salt:         salt,        // Store salt
 		DeviceID:     deviceID,
 		IPAddress:    clientIP,
 		UserAgent:    userAgent,
-		ExpiresAt:    time.Now().Add(30 * 24 * time.Hour), // 30 days
-		CreatedAt:    time.Now(),
-		LastUsedAt:   time.Now(),
+		ExpiresAt:    now.Add(30 * 24 * time.Hour), // 30 days
+		CreatedAt:    now,
+		LastUsedAt:   now,
+		Revoked: 	  false,
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
@@ -466,7 +496,7 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 	if sessionID, ok := mapClaims["session_id"].(string); ok {
 		claims.SessionID = sessionID
 	} else {
-		claims.SessionID = "legacy-session"
+		claims.SessionID = legacySessionID
 	}
 
 	// Extract org IDs if present
@@ -474,6 +504,18 @@ func (s *service) ValidateAccessToken(ctx context.Context, tokenString string) (
 		claims.OrgIDs = make([]string, len(orgIDs))
 		for i, id := range orgIDs {
 			claims.OrgIDs[i] = id.(string)
+		}
+	}
+
+	// Check if session is blocked (skip legacy sessions for backwards compatibility)
+	if claims.SessionID != legacySessionID {
+		blocked, err := s.repo.IsSessionBlocked(ctx, claims.SessionID)
+		if err != nil {
+			s.logger.Error("failed to check session blocklist", "error", err, "session_id", claims.SessionID)
+			// If Redis is down, we cannot confirm session validity, so we must deny access.
+			return nil, fmt.Errorf("could not verify session validity: upstream service unavailable: %w", err)
+		} else if blocked {
+			return nil, fmt.Errorf("session has been invalidated")
 		}
 	}
 
@@ -574,7 +616,7 @@ func (s *service) generateRefreshToken() (string, error) {
 
 func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	// Get session to find expiry
-	session, err := s.repo.GetSessionByRefreshToken(ctx, refreshToken)
+	session, err := s.getSessionByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return fmt.Errorf("session not found: %w", err)
 	}
@@ -583,6 +625,24 @@ func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) e
 	if err := s.repo.BlacklistRefreshToken(ctx, refreshToken, session.ExpiresAt); err != nil {
 		return fmt.Errorf("failed to blacklist refresh token: %w", err)
 	}
+
+	return nil
+}
+
+func (s *service) InvalidateSession(ctx context.Context, sessionID string) error {
+	// Get session to determine TTL
+	session, err := s.repo.GetSession(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	// Block session in Redis with TTL matching session expiry
+	if err := s.repo.BlockSession(ctx, sessionID, session.ExpiresAt); err != nil {
+		return fmt.Errorf("failed to block session: %w", err)
+	}
+
+	// Log security event for session invalidation
+	s.logSecurityEvent(ctx, session.UserID, "session_invalidated", "Session manually invalidated", "", "", "info")
 
 	return nil
 }
@@ -670,16 +730,7 @@ func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interfac
 	return config, nil
 }
 
-func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
-	return s.repo.StoreAuthState(ctx, state)
-}
-
-func (s *service) VerifyAuthState(ctx context.Context, state, clientIP string) error {
-	authState, err := s.repo.GetAuthState(ctx, state)
-	if err != nil {
-		return fmt.Errorf("auth state not found: %w", err)
-	}
-
+func (s *service) verifyAuthState(authState *domain.AuthState, clientIP string) error {
 	// Check expiry
 	if authState.ExpiresAt.Before(time.Now()) {
 		return fmt.Errorf("auth state expired")
@@ -693,31 +744,34 @@ func (s *service) VerifyAuthState(ctx context.Context, state, clientIP string) e
 	return nil
 }
 
-func (s *service) VerifyPKCE(ctx context.Context, state, codeVerifier string) error {
-	authState, err := s.repo.GetAuthState(ctx, state)
-	if err != nil {
-		return fmt.Errorf("auth state not found: %w", err)
-	}
-
-	if authState.CodeVerifier == "" {
+func (s *service) verifyPKCE(authState *domain.AuthState, codeVerifier string) error {
+	if authState.CodeChallenge == "" {
 		return nil // PKCE not required
 	}
 
 	// Verify code verifier matches stored challenge
+	// Use RawURLEncoding (no padding) as required by RFC 7636
 	h := sha256.New()
 	h.Write([]byte(codeVerifier))
-	computedChallenge := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	computedChallenge := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
-	if computedChallenge != authState.CodeVerifier {
+	if computedChallenge != authState.CodeChallenge {
+		s.logger.Warn("PKCE verification failed", "state", authState.State)
 		return fmt.Errorf("PKCE verification failed")
 	}
 
 	return nil
 }
 
+func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
+	return s.repo.StoreAuthState(ctx, state)
+}
+
+
+
 // Helper functions
 
-func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*domain.TokenPair, error) {
+func (s *service) generateTokenPair(ctx context.Context, user *domain.User, sessionID string) (*domain.TokenPair, error) {
 	// Get user's organizations
 	orgIDs, err := s.repo.GetUserOrganizations(ctx, user.ID)
 	if err != nil {
@@ -740,7 +794,7 @@ func (s *service) generateTokenPair(ctx context.Context, user *domain.User) (*do
 		Name:      user.DisplayName,
 		Provider:  user.Provider,
 		OrgIDs:    orgIDs,
-		SessionID: "", // Will be set when session is created
+		SessionID: sessionID,
 	}
 
 	// Use common token pair generation logic
@@ -796,4 +850,68 @@ func (s *service) GenerateInternalAIOpsToken(ctx context.Context, userID string,
 	}
 
 	return tokenString, nil
+}
+
+// hashToken applies business validation and delegates to repository for crypto operations
+func (s *service) hashToken(token string) (hashedToken string, salt string, err error) {
+	// Business validation
+	if token == "" {
+		return "", "", fmt.Errorf("token cannot be empty")
+	}
+
+	if len(token) < 8 {
+		return "", "", fmt.Errorf("token must be at least 8 characters long for security")
+	}
+
+	// Delegate to repository for crypto implementation
+	hashedToken, salt, err = s.repo.HashToken(token)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	// Business validation: ensure output meets security requirements
+	if len(hashedToken) != 64 || len(salt) != 64 {
+		return "", "", fmt.Errorf("hash generation failed security validation")
+	}
+
+	return hashedToken, salt, nil
+}
+
+// verifyToken applies business validation and delegates to repository for crypto operations
+func (s *service) verifyToken(plainToken, hashedToken, salt string) bool {
+	// Business validation
+	if plainToken == "" || hashedToken == "" || salt == "" {
+		return false
+	}
+
+	// Business rule: tokens must meet minimum security requirements
+	if len(plainToken) < 8 {
+		return false
+	}
+
+	// Business validation: hash and salt must be proper format
+	if len(hashedToken) != 64 || len(salt) != 64 {
+		return false
+	}
+
+	// Delegate to repository for crypto verification
+	return s.repo.VerifyToken(plainToken, hashedToken, salt)
+}
+
+// getSessionByRefreshToken implements internal session lookup coordination
+func (s *service) getSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
+	// Get all active sessions from repository (pure data operation)
+	sessions, err := s.repo.GetAllActiveSessions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active sessions: %w", err)
+	}
+
+	// Check each session using service business logic + crypto operations
+	for _, session := range sessions {
+		if session.Salt != "" && s.verifyToken(refreshToken, session.RefreshToken, session.Salt) {
+			return session, nil
+		}
+	}
+
+	return nil, fmt.Errorf("session not found")
 }

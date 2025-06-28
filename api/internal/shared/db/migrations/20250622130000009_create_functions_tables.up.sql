@@ -1,6 +1,6 @@
 -- Create functions table
 CREATE TABLE IF NOT EXISTS functions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS functions (
     handler VARCHAR(255) NOT NULL,
     description TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    active_version UUID,
+    active_version TEXT,
     labels JSONB DEFAULT '{}',
     annotations JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -20,15 +20,20 @@ CREATE TABLE IF NOT EXISTS functions (
         REFERENCES workspaces(id) 
         ON DELETE CASCADE,
         
+    CONSTRAINT fk_project
+        FOREIGN KEY (project_id) 
+        REFERENCES projects(id) 
+        ON DELETE CASCADE,
+        
     CONSTRAINT unique_function_name_per_project
         UNIQUE (workspace_id, project_id, name)
 );
 
 -- Create function_versions table
 CREATE TABLE IF NOT EXISTS function_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
-    function_id UUID NOT NULL,
+    function_id TEXT NOT NULL,
     function_name VARCHAR(255) NOT NULL,
     version INTEGER NOT NULL,
     runtime VARCHAR(50),
@@ -51,9 +56,9 @@ CREATE TABLE IF NOT EXISTS function_versions (
 
 -- Create function_triggers table
 CREATE TABLE IF NOT EXISTS function_triggers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
-    function_id UUID NOT NULL,
+    function_id TEXT NOT NULL,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL,
     function_name VARCHAR(255) NOT NULL,
@@ -75,7 +80,7 @@ CREATE TABLE IF NOT EXISTS function_triggers (
 CREATE TABLE IF NOT EXISTS function_invocations (
     invocation_id VARCHAR(255) PRIMARY KEY,
     workspace_id TEXT NOT NULL,
-    function_id UUID NOT NULL,
+    function_id TEXT NOT NULL,
     status VARCHAR(50) NOT NULL,
     started_at TIMESTAMP WITH TIME ZONE NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
@@ -90,9 +95,9 @@ CREATE TABLE IF NOT EXISTS function_invocations (
 
 -- Create function_events table for audit trail
 CREATE TABLE IF NOT EXISTS function_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
-    function_id UUID NOT NULL,
+    function_id TEXT NOT NULL,
     type VARCHAR(50) NOT NULL,
     description TEXT,
     user_id TEXT,

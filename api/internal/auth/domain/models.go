@@ -94,6 +94,7 @@ type Session struct {
 	ID           string    `json:"id"`
 	UserID       string    `json:"user_id"`
 	RefreshToken string    `json:"refresh_token"`
+	Salt         string    `json:"salt"` // Salt for refresh token hashing
 	DeviceID     string    `json:"device_id,omitempty"`
 	IPAddress    string    `json:"ip_address"`
 	UserAgent    string    `json:"user_agent"`
@@ -125,12 +126,12 @@ func (s *Session) UpdateLastUsed() {
 
 // AuthState represents OAuth state data stored temporarily during the auth flow.
 type AuthState struct {
-	State        string    `gorm:"primaryKey" json:"state"` // gorm:primaryKey - Uniquely identifies the auth request.
-	Provider     string    `gorm:"not null" json:"provider"`   // gorm:not null - Required to identify the auth provider on callback.
-	RedirectURL  string    `json:"redirect_url,omitempty"`
-	CodeVerifier string    `json:"code_verifier,omitempty"`
-	ClientIP     string    `json:"client_ip"`
-	UserAgent    string    `json:"user_agent"`
+	State         string    `gorm:"primaryKey" json:"state"` // gorm:primaryKey - Uniquely identifies the auth request.
+	Provider      string    `gorm:"not null" json:"provider"`   // gorm:not null - Required to identify the auth provider on callback.
+	RedirectURL   string    `json:"redirect_url,omitempty"`
+	CodeChallenge string    `json:"code_challenge,omitempty"` // RFC 7636: Stores the code challenge (SHA256 hash of verifier)
+	ClientIP      string    `json:"client_ip"`
+	UserAgent     string    `json:"user_agent"`
 	ExpiresAt    time.Time `gorm:"index;not null" json:"expires_at"` // gorm:index - For efficient lookup of active states. gorm:not null - States must expire.
 	CreatedAt    time.Time `gorm:"not null" json:"created_at"`       // gorm:not null - Ensures creation timestamp exists for auditing.
 }
@@ -146,6 +147,14 @@ type SecurityEvent struct {
 	Level       string                 `json:"level"` // info, warning, critical
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
+}
+
+// TODO: This TableName method is a temporary workaround to make GORM work with the domain model directly.
+// In the future, a separate DTO for the repository layer should be created,
+// and this method should be removed. The conversion between the domain model and the DTO
+// will be handled within the repository.
+func (SecurityEvent) TableName() string {
+	return "security_events"
 }
 
 // LoginRequest represents OAuth login request

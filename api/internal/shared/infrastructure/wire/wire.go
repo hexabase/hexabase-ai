@@ -98,6 +98,7 @@ import (
 
 	"github.com/hexabase/hexabase-ai/api/internal/helm"
 	"github.com/hexabase/hexabase-ai/api/internal/shared/config"
+	"github.com/hexabase/hexabase-ai/api/internal/shared/redis"
 	"gorm.io/gorm"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -114,7 +115,11 @@ var ApplicationSet = wire.NewSet(
 )
 
 var AuthSet = wire.NewSet(
+	ProvideRedisClient,
 	authRepo.NewPostgresRepository,
+	authRepo.NewRedisAuthRepository,
+	authRepo.NewTokenHashRepository, // 追加
+	authRepo.NewCompositeRepository,
 	authRepo.NewOAuthRepository,
 	authRepo.NewKeyRepository,
 	ProvideTokenManager,
@@ -502,22 +507,22 @@ func ProvideTokenManager(keyRepo authDomain.KeyRepository, cfg *config.Config) (
 	if err != nil {
 		return nil, err
 	}
-	
+
 	publicKeyPEM, err := keyRepo.GetPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyPEM)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return internalAuth.NewTokenManager(privateKey, publicKey, "https://api.hexabase-kaas.io", time.Hour), nil
 }
 
@@ -529,4 +534,9 @@ func ProvideTokenDomainService() authDomain.TokenDomainService {
 // ProvideDefaultTokenExpiry provides the default token expiry
 func ProvideDefaultTokenExpiry() int {
 	return 3600 // 1 hour
+}
+
+// ProvideRedisClient provides a Redis client instance
+func ProvideRedisClient(cfg *config.Config, logger *slog.Logger) (*redis.Client, error) {
+	return redis.NewClient(&cfg.Redis, logger)
 }

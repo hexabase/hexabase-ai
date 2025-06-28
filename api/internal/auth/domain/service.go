@@ -16,7 +16,7 @@ type Service interface {
 	ValidateAccessToken(ctx context.Context, token string) (*Claims, error)
 
 	// Session operations
-	CreateSession(ctx context.Context, userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
+	CreateSession(ctx context.Context, sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
 	GetSession(ctx context.Context, sessionID string) (*Session, error)
 	GetUserSessions(ctx context.Context, userID string) ([]*SessionInfo, error)
 	RevokeSession(ctx context.Context, userID, sessionID string) error
@@ -37,8 +37,6 @@ type Service interface {
 
 	// Auth state operations
 	StoreAuthState(ctx context.Context, state *AuthState) error
-	VerifyAuthState(ctx context.Context, state, clientIP string) error
-	VerifyPKCE(ctx context.Context, state, codeVerifier string) error
 
 	// Security operations
 	LogSecurityEvent(ctx context.Context, event *SecurityEvent) error
@@ -46,13 +44,16 @@ type Service interface {
 
 	// Internal operations
 	GenerateInternalAIOpsToken(ctx context.Context, userID string, orgIDs []string, activeWorkspaceID string) (string, error)
+
+	// Session invalidation operations
+	InvalidateSession(ctx context.Context, sessionID string) error
 }
 
 // TokenDomainService defines the interface for token business logic
 type TokenDomainService interface {
 	RefreshToken(ctx context.Context, session *Session, user *User) (*Claims, error)
 	ValidateRefreshEligibility(session *Session) error
-	CreateSession(userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
+	CreateSession(sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*Session, error)
 	ValidateTokenClaims(claims *Claims) error
 	ShouldRefreshToken(claims *Claims) bool
 }

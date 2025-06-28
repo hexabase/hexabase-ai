@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{
@@ -49,7 +50,7 @@ func TestPostgresRepository_DeleteOrganization(t *testing.T) {
 		orgID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "organizations" WHERE id = $1`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "organizations" WHERE id = $1`)).
 			WithArgs(orgID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
@@ -66,7 +67,7 @@ func TestPostgresRepository_DeleteOrganization(t *testing.T) {
 		orgID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "organizations" WHERE id = $1`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "organizations" WHERE id = $1`)).
 			WithArgs(orgID).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
@@ -92,7 +93,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`INSERT INTO "organization_users" ("organization_id","user_id","role","joined_at") VALUES ($1,$2,$3,$4) RETURNING "joined_at"`).
+		mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "organization_users" ("organization_id","user_id","role","joined_at") VALUES ($1,$2,$3,$4) RETURNING "joined_at"`)).
 			WithArgs(
 				member.OrganizationID,
 				member.UserID,
@@ -116,7 +117,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		newRole := "admin"
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "organization_users" SET "role"=$1 WHERE organization_id = $2 AND user_id = $3`).
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "organization_users" SET "role"=$1 WHERE organization_id = $2 AND user_id = $3`)).
 			WithArgs(newRole, orgID, userID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
@@ -134,7 +135,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		userID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "organization_users" WHERE organization_id = $1 AND user_id = $2`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "organization_users" WHERE organization_id = $1 AND user_id = $2`)).
 			WithArgs(orgID, userID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
@@ -151,7 +152,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		orgID := uuid.New().String()
 
 		countRows := sqlmock.NewRows([]string{"count"}).AddRow(5)
-		mock.ExpectQuery(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1 AND status = $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1 AND status = $2`)).
 			WithArgs(orgID, "active").
 			WillReturnRows(countRows)
 
@@ -177,7 +178,7 @@ func TestPostgresRepository_MemberOperations(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "organization_users" SET "email"=$1,"role"=$2,"invited_by"=$3,"invited_at"=$4,"joined_at"=$5,"status"=$6 WHERE "organization_id" = $7 AND "user_id" = $8`).
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "organization_users" SET "email"=$1,"role"=$2,"invited_by"=$3,"invited_at"=$4,"joined_at"=$5,"status"=$6 WHERE "organization_id" = $7 AND "user_id" = $8`)).
 			WithArgs(
 				member.Email,
 				member.Role,
@@ -217,7 +218,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`INSERT INTO "invitations" ("id","organization_id","email","role","token","invited_by","expires_at","created_at","accepted_at","status") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`).
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "invitations" ("id","organization_id","email","role","token","invited_by","expires_at","created_at","accepted_at","status") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`)).
 			WithArgs(
 				invitation.ID,
 				invitation.OrganizationID,
@@ -255,7 +256,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		}
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "invitations" SET "organization_id"=$1,"email"=$2,"role"=$3,"token"=$4,"invited_by"=$5,"expires_at"=$6,"created_at"=$7,"accepted_at"=$8,"status"=$9 WHERE "id" = $10`).
+		mock.ExpectExec(regexp.QuoteMeta(`UPDATE "invitations" SET "organization_id"=$1,"email"=$2,"role"=$3,"token"=$4,"invited_by"=$5,"expires_at"=$6,"created_at"=$7,"accepted_at"=$8,"status"=$9 WHERE "id" = $10`)).
 			WithArgs(
 				invitation.OrganizationID,
 				invitation.Email,
@@ -283,7 +284,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		invitationID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "invitations" WHERE id = $1`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "invitations" WHERE id = $1`)).
 			WithArgs(invitationID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
@@ -300,7 +301,7 @@ func TestPostgresRepository_InvitationOperations(t *testing.T) {
 		before := time.Now()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "invitations" WHERE expires_at < $1 AND status = $2`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "invitations" WHERE expires_at < $1 AND status = $2`)).
 			WithArgs(sqlmock.AnyArg(), "pending").
 			WillReturnResult(sqlmock.NewResult(0, 3))
 		mock.ExpectCommit()
@@ -328,7 +329,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 			ResourceID:     uuid.New().String(),
 			Timestamp:      time.Now(),
 		}
-		
+
 		// Use helper method to set details
 		detailsErr := activity.SetDetailsFromMap(map[string]interface{}{
 			"role": "member",
@@ -336,7 +337,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 		require.NoError(t, detailsErr)
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`INSERT INTO "activities" ("id","organization_id","user_id","type","action","resource_type","resource_id","details","timestamp") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`).
+		mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "activities" ("id","organization_id","user_id","type","action","resource_type","resource_id","details","timestamp") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`)).
 			WithArgs(
 				activity.ID,
 				activity.OrganizationID,
@@ -345,7 +346,7 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 				activity.Action,
 				activity.ResourceType,
 				activity.ResourceID,
-				`{"role":"member"}`, // JSON formatted by helper method
+				`{"role":"member"}`,
 				sqlmock.AnyArg(), // timestamp
 			).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -383,24 +384,24 @@ func TestPostgresRepository_ActivityOperations(t *testing.T) {
 			AddRow(uuid.New().String(), orgID, userID, "member", "role_updated",
 				"organization_user", uuid.New().String(), `{"old_role": "member", "new_role": "admin"}`, time.Now())
 
-		mock.ExpectQuery(`SELECT * FROM "activities" WHERE organization_id = $1 AND user_id = $2 AND type = $3 AND timestamp >= $4 AND timestamp <= $5 ORDER BY timestamp DESC LIMIT $6`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "activities" WHERE organization_id = $1 AND user_id = $2 AND type = $3 AND timestamp >= $4 AND timestamp <= $5 ORDER BY timestamp DESC LIMIT $6`)).
 			WithArgs(orgID, userID, "member", sqlmock.AnyArg(), sqlmock.AnyArg(), 10).
 			WillReturnRows(rows)
 
 		activities, err := repo.ListActivities(ctx, filter)
 		assert.NoError(t, err)
 		assert.Len(t, activities, 2)
-		
+
 		// Verify details can be parsed using helper methods
 		firstActivityDetails, err := activities[0].GetDetailsAsMap()
 		assert.NoError(t, err)
 		assert.Equal(t, "member", firstActivityDetails["role"])
-		
+
 		secondActivityDetails, err := activities[1].GetDetailsAsMap()
 		assert.NoError(t, err)
 		assert.Equal(t, "member", secondActivityDetails["old_role"])
 		assert.Equal(t, "admin", secondActivityDetails["new_role"])
-		
+
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
@@ -415,27 +416,27 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 		orgID := uuid.New().String()
 
 		// Count total members
-		mock.ExpectQuery(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
 
 		// Count active members
-		mock.ExpectQuery(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1 AND status = $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1 AND status = $2`)).
 			WithArgs(orgID, "active").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(8))
 
 		// Count total workspaces
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
 
 		// Count active workspaces
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`)).
 			WithArgs(orgID, "RUNNING").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
 
 		// Count projects
-		mock.ExpectQuery(`SELECT count(*) FROM "projects" JOIN workspaces ON projects.workspace_id = workspaces.id WHERE workspaces.organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "projects" JOIN workspaces ON projects.workspace_id = workspaces.id WHERE workspaces.organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(12))
 
@@ -458,12 +459,12 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 		orgID := uuid.New().String()
 
 		// Total count
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
 
 		// Active count with correct column name
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`)).
 			WithArgs(orgID, "RUNNING").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(8))
 
@@ -481,7 +482,7 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 		orgID := uuid.New().String()
 
 		rows := sqlmock.NewRows([]string{"count"}).AddRow(15)
-		mock.ExpectQuery(`SELECT count(*) FROM "projects" JOIN workspaces ON projects.workspace_id = workspaces.id WHERE workspaces.organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "projects" JOIN workspaces ON projects.workspace_id = workspaces.id WHERE workspaces.organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(rows)
 
@@ -519,7 +520,7 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 			AddRow(uuid.New().String(), "workspace-2", "RUNNING").
 			AddRow(uuid.New().String(), "workspace-3", "ERROR")
 
-		mock.ExpectQuery(`SELECT id, name, v_cluster_status FROM "workspaces" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, v_cluster_status FROM "workspaces" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(rows)
 
@@ -527,8 +528,7 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, workspaces, 3)
 		assert.Equal(t, "workspace-1", workspaces[0].Name)
-		
-		// DBの"RUNNING"がドメインの"active"に変換されることを確認
+
 		assert.Equal(t, "active", workspaces[0].Status)
 		assert.Equal(t, "error", workspaces[2].Status)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -540,15 +540,13 @@ func TestPostgresRepository_StatisticsOperations(t *testing.T) {
 
 		orgID := uuid.New().String()
 
-		// 総数のクエリ
 		totalRows := sqlmock.NewRows([]string{"count"}).AddRow(5)
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(totalRows)
 
-		// アクティブ数のクエリ（RUNNING = activeに対応）
 		activeRows := sqlmock.NewRows([]string{"count"}).AddRow(3)
-		mock.ExpectQuery(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "workspaces" WHERE organization_id = $1 AND v_cluster_status = $2`)).
 			WithArgs(orgID, "RUNNING").
 			WillReturnRows(activeRows)
 
@@ -571,7 +569,7 @@ func TestPostgresRepository_ErrorScenarios(t *testing.T) {
 		orgID := uuid.New().String()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "organizations"`).
+		mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "organizations"`)).
 			WithArgs(orgID).
 			WillReturnError(sql.ErrConnDone)
 		mock.ExpectRollback()
@@ -588,8 +586,7 @@ func TestPostgresRepository_ErrorScenarios(t *testing.T) {
 		orgID := uuid.New().String()
 		userID := uuid.New().String()
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "organization_users" WHERE organization_id = $1 AND user_id = $2 ORDER BY "organization_users"."organization_id" LIMIT $3`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "organization_users" WHERE organization_id = $1 AND user_id = $2 ORDER BY "organization_users"."organization_id" LIMIT $3`)).
 			WithArgs(orgID, userID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -605,8 +602,7 @@ func TestPostgresRepository_ErrorScenarios(t *testing.T) {
 
 		invitationID := uuid.New().String()
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE id = $1 ORDER BY "invitations"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE id = $1 ORDER BY "invitations"."id" LIMIT $2`)).
 			WithArgs(invitationID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -639,7 +635,7 @@ func TestPostgresRepository_ComplexQueries(t *testing.T) {
 			AddRow(uuid.New().String(), orgID, "user2@example.com", "admin", uuid.New().String(),
 				uuid.New().String(), now.Add(24*time.Hour), now, nil, status)
 
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE organization_id = $1 AND status = $2 ORDER BY created_at DESC`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE organization_id = $1 AND status = $2 ORDER BY created_at DESC`)).
 			WithArgs(orgID, status).
 			WillReturnRows(rows)
 
@@ -665,7 +661,7 @@ func TestPostgresRepository_ComplexQueries(t *testing.T) {
 			AddRow(uuid.New().String(), orgID, "user2@example.com", "admin", uuid.New().String(),
 				uuid.New().String(), now.Add(24*time.Hour), now.Add(-1*time.Hour), &now, "accepted")
 
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE organization_id = $1 ORDER BY created_at DESC`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE organization_id = $1 ORDER BY created_at DESC`)).
 			WithArgs(orgID).
 			WillReturnRows(rows)
 
@@ -695,8 +691,7 @@ func TestPostgresRepository_UserOperations(t *testing.T) {
 			now, now, &now,
 		)
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "users" WHERE id = $1 ORDER BY "users"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE id = $1 ORDER BY "users"."id" LIMIT $2`)).
 			WithArgs(userID, 1).
 			WillReturnRows(rows)
 
@@ -723,8 +718,7 @@ func TestPostgresRepository_UserOperations(t *testing.T) {
 			now, now, nil,
 		)
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "users" WHERE email = $1 ORDER BY "users"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE email = $1 ORDER BY "users"."id" LIMIT $2`)).
 			WithArgs(email, 1).
 			WillReturnRows(rows)
 
@@ -750,8 +744,7 @@ func TestPostgresRepository_UserOperations(t *testing.T) {
 			AddRow(userID1, "user1@example.com", "User 1", "google", "google-1", now, now, nil).
 			AddRow(userID2, "user2@example.com", "User 2", "github", "github-2", now, now, nil)
 
-		// GORMが実際に生成するSQLに合わせる（スペースなし）
-		mock.ExpectQuery(`SELECT * FROM "users" WHERE id IN ($1,$2)`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE id IN ($1,$2)`)).
 			WithArgs(userID1, userID2).
 			WillReturnRows(rows)
 
@@ -767,8 +760,7 @@ func TestPostgresRepository_UserOperations(t *testing.T) {
 
 		userID := uuid.New().String()
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "users" WHERE id = $1 ORDER BY "users"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE id = $1 ORDER BY "users"."id" LIMIT $2`)).
 			WithArgs(userID, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -785,8 +777,7 @@ func TestPostgresRepository_UserOperations(t *testing.T) {
 
 		email := "nonexistent@example.com"
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "users" WHERE email = $1 ORDER BY "users"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE email = $1 ORDER BY "users"."id" LIMIT $2`)).
 			WithArgs(email, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -817,8 +808,7 @@ func TestPostgresRepository_GetMember(t *testing.T) {
 			uuid.New().String(), now, now, "active",
 		)
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "organization_users" WHERE organization_id = $1 AND user_id = $2 ORDER BY "organization_users"."organization_id" LIMIT $3`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "organization_users" WHERE organization_id = $1 AND user_id = $2 ORDER BY "organization_users"."organization_id" LIMIT $3`)).
 			WithArgs(orgID, userID, 1).
 			WillReturnRows(rows)
 
@@ -852,8 +842,7 @@ func TestPostgresRepository_GetInvitation(t *testing.T) {
 			uuid.New().String(), expiresAt, now, nil, "pending",
 		)
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE id = $1 ORDER BY "invitations"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE id = $1 ORDER BY "invitations"."id" LIMIT $2`)).
 			WithArgs(invitationID, 1).
 			WillReturnRows(rows)
 
@@ -879,8 +868,7 @@ func TestPostgresRepository_GetInvitation(t *testing.T) {
 			uuid.New().String(), now.Add(24*time.Hour), now, nil, "pending",
 		)
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE token = $1 ORDER BY "invitations"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE token = $1 ORDER BY "invitations"."id" LIMIT $2`)).
 			WithArgs(token, 1).
 			WillReturnRows(rows)
 
@@ -897,8 +885,7 @@ func TestPostgresRepository_GetInvitation(t *testing.T) {
 
 		token := uuid.New().String()
 
-		// GORMが実際に生成するSQLに合わせる（ORDER BYとLIMIT句を含む）
-		mock.ExpectQuery(`SELECT * FROM "invitations" WHERE token = $1 ORDER BY "invitations"."id" LIMIT $2`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "invitations" WHERE token = $1 ORDER BY "invitations"."id" LIMIT $2`)).
 			WithArgs(token, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
@@ -974,17 +961,16 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 		}
 
 		// Count query
-		mock.ExpectQuery(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "organization_users" WHERE organization_id = $1`)).
 			WithArgs(orgID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(12))
 
-		// Data query with offset - GORMが実際に生成するSQLに合わせる
 		now := time.Now()
 		dataRows := sqlmock.NewRows([]string{
 			"organization_id", "user_id", "email", "role",
 			"invited_by", "invited_at", "joined_at", "status",
 		})
-		
+
 		// Add 5 rows for page 2
 		for i := 0; i < 5; i++ {
 			dataRows.AddRow(
@@ -993,8 +979,8 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 			)
 		}
 
-		mock.ExpectQuery(`SELECT * FROM "organization_users" WHERE organization_id = $1 ORDER BY joined_at ASC LIMIT $2 OFFSET $3`).
-			WithArgs(orgID, 5, 5). // limit=5, offset=5
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "organization_users" WHERE organization_id = $1 ORDER BY joined_at ASC LIMIT $2 OFFSET $3`)).
+			WithArgs(orgID, 5, 5).
 			WillReturnRows(dataRows)
 
 		members, total, err := repo.ListMembers(ctx, filter)
@@ -1016,8 +1002,7 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 			PageSize:       10,
 		}
 
-		// Count query with search - GORMが実際に生成するSQLに合わせる
-		mock.ExpectQuery(`SELECT count(*) FROM "organization_users" JOIN users ON organization_users.user_id = users.id WHERE organization_id = $1 AND (users.email ILIKE $2 OR users.display_name ILIKE $3)`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "organization_users" JOIN users ON organization_users.user_id = users.id WHERE organization_id = $1 AND (users.email ILIKE $2 OR users.display_name ILIKE $3)`)).
 			WithArgs(orgID, "%john%", "%john%").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
@@ -1030,7 +1015,7 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 			AddRow(orgID, uuid.New().String(), "john.doe@example.com", "member", "", now, now, "active").
 			AddRow(orgID, uuid.New().String(), "johnny@example.com", "admin", "", now, now, "active")
 
-		mock.ExpectQuery(`SELECT "organization_users"."organization_id","organization_users"."user_id","organization_users"."email","organization_users"."role","organization_users"."invited_by","organization_users"."invited_at","organization_users"."joined_at","organization_users"."status" FROM "organization_users" JOIN users ON organization_users.user_id = users.id WHERE organization_id = $1 AND (users.email ILIKE $2 OR users.display_name ILIKE $3) ORDER BY joined_at ASC LIMIT $4`).
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT "organization_users"."organization_id","organization_users"."user_id","organization_users"."email","organization_users"."role","organization_users"."invited_by","organization_users"."invited_at","organization_users"."joined_at","organization_users"."status" FROM "organization_users" JOIN users ON organization_users.user_id = users.id WHERE organization_id = $1 AND (users.email ILIKE $2 OR users.display_name ILIKE $3) ORDER BY joined_at ASC LIMIT $4`)).
 			WithArgs(orgID, "%john%", "%john%", 10).
 			WillReturnRows(dataRows)
 
@@ -1038,6 +1023,65 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, total)
 		assert.Len(t, members, 2)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("create and get organization", func(t *testing.T) {
+		ctx := context.Background()
+		gormDB, mock := setupTestDB(t)
+		repo := NewPostgresRepository(gormDB)
+
+		orgID := uuid.New().String()
+		now := time.Now().UTC()
+		deletedAt := now.Add(24 * time.Hour)
+		org := &domain.Organization{
+			ID:          orgID,
+			Name:        "testorg",
+			DisplayName: "Test Org",
+			Description: "desc",
+			Website:     "https://example.com",
+			Email:       "test@example.com",
+			Status:      "active",
+			OwnerID:     uuid.New().String(),
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			DeletedAt:   &deletedAt,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO \"organizations\" (\"id\",\"name\",\"display_name\",\"description\",\"website\",\"email\",\"status\",\"owner_id\",\"stripe_customer_id\",\"stripe_subscription_id\",\"created_at\",\"updated_at\",\"deleted_at\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)")).
+		WithArgs(
+			org.ID, org.Name, org.DisplayName, org.Description, org.Website, org.Email, org.Status, org.OwnerID, nil, nil, org.CreatedAt, org.UpdatedAt, org.DeletedAt,
+		).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := repo.CreateOrganization(ctx, org)
+		assert.NoError(t, err)
+
+		// GetOrganization
+		rows := sqlmock.NewRows([]string{
+			"id", "name", "display_name", "description", "website", "email", "status", "owner_id", "stripe_customer_id", "stripe_subscription_id", "created_at", "updated_at", "deleted_at",
+		}).AddRow(
+			org.ID, org.Name, org.DisplayName, org.Description, org.Website, org.Email, org.Status, org.OwnerID, nil, nil, org.CreatedAt, org.UpdatedAt, org.DeletedAt,
+		)
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"organizations\" WHERE id = $1 ORDER BY \"organizations\".\"id\" LIMIT $2")).
+			WithArgs(orgID, 1).
+			WillReturnRows(rows)
+
+		got, err := repo.GetOrganization(ctx, orgID)
+		assert.NoError(t, err)
+		assert.Equal(t, org.ID, got.ID)
+		assert.Equal(t, org.Name, got.Name)
+		assert.Equal(t, org.DisplayName, got.DisplayName)
+		assert.Equal(t, org.Description, got.Description)
+		assert.Equal(t, org.Website, got.Website)
+		assert.Equal(t, org.Email, got.Email)
+		assert.Equal(t, org.Status, got.Status)
+		assert.Equal(t, org.OwnerID, got.OwnerID)
+		assert.WithinDuration(t, org.CreatedAt, got.CreatedAt, time.Second)
+		assert.WithinDuration(t, org.UpdatedAt, got.UpdatedAt, time.Second)
+		assert.WithinDuration(t, *org.DeletedAt, *got.DeletedAt, time.Second)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
