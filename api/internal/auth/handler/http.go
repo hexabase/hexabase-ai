@@ -146,12 +146,15 @@ func (h *Handler) Logout(c *gin.Context) {
 	userID := c.GetString("user_id")
 	sessionID := c.GetString("session_id")
 
+	h.logger.Info("logout attempt", "user_id", userID, "session_id", sessionID)
+
 	// Invalidate session immediately if session_id is available
 	if sessionID != "" {
 		if err := h.service.InvalidateSession(c.Request.Context(), sessionID); err != nil {
 			h.logger.Error("failed to invalidate session", "error", err, "session_id", sessionID)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed"})
-			return
+			// Don't return error - continue with logout process
+		} else {
+			h.logger.Info("session invalidated successfully", "session_id", sessionID)
 		}
 	}
 

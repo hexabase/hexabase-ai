@@ -165,4 +165,83 @@ func TestAuthenticationDomain_RevokeSession(t *testing.T) {
 		assert.False(t, session.IsValid())
 		assert.False(t, session.IsExpired()) // Still not expired, just revoked
 	})
-} 
+}
+
+func TestAuthenticationDomain_RefreshTokenSelector(t *testing.T) {
+	t.Run("create session with refresh token selector", func(t *testing.T) {
+		now := time.Now()
+		session := &Session{
+			ID:                   "session-123",
+			UserID:               "user-456",
+			RefreshToken:         "hashed-verifier-789",
+			RefreshTokenSelector: "selector-abc123",
+			Salt:                 "salt-def456",
+			DeviceID:             "device-xyz",
+			IPAddress:            "192.168.1.1",
+			UserAgent:            "Mozilla/5.0",
+			ExpiresAt:            now.Add(30 * 24 * time.Hour), // 30 days
+			CreatedAt:            now,
+			LastUsedAt:           now,
+			Revoked:              false,
+		}
+
+		// Test that RefreshTokenSelector field is properly set
+		assert.Equal(t, "selector-abc123", session.RefreshTokenSelector)
+		assert.Equal(t, "hashed-verifier-789", session.RefreshToken)
+		assert.Equal(t, "salt-def456", session.Salt)
+		assert.True(t, session.IsValid())
+	})
+
+	t.Run("validate refresh token selector format", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			selector string
+			valid    bool
+		}{
+			{
+				name:     "valid selector",
+				selector: "abcd1234efgh5678",
+				valid:    true,
+			},
+			{
+				name:     "empty selector",
+				selector: "",
+				valid:    false,
+			},
+			{
+				name:     "too short selector",
+				selector: "short",
+				valid:    false,
+			},
+			{
+				name:     "valid long selector",
+				selector: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
+				valid:    true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				now := time.Now()
+				session := &Session{
+					ID:                   "session-123",
+					UserID:               "user-456",
+					RefreshToken:         "hashed-verifier",
+					RefreshTokenSelector: tt.selector,
+					Salt:                 "salt",
+					ExpiresAt:            now.Add(1 * time.Hour),
+					CreatedAt:            now,
+					LastUsedAt:           now,
+					Revoked:              false,
+				}
+
+				err := session.ValidateRefreshTokenSelector()
+				if tt.valid {
+					assert.NoError(t, err)
+				} else {
+					assert.Error(t, err)
+				}
+			})
+		}
+	})
+}

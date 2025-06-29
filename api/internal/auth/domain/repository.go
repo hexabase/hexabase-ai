@@ -18,6 +18,7 @@ type Repository interface {
 	// Session operations
 	CreateSession(ctx context.Context, session *Session) error
 	GetSession(ctx context.Context, sessionID string) (*Session, error)
+	GetSessionByRefreshTokenSelector(ctx context.Context, selector string) (*Session, error)
 	GetAllActiveSessions(ctx context.Context) ([]*Session, error)
 	ListUserSessions(ctx context.Context, userID string) ([]*Session, error)
 	UpdateSession(ctx context.Context, session *Session) error
