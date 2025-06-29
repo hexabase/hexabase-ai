@@ -263,7 +263,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 
 	// Infrastructure concerns: Hash and update session with new refresh token
 	// Parse new refresh token to extract selector and verifier
-	tokenParts, err := s.parseRefreshTokenWithLegacySupport(tokenPair.RefreshToken)
+	tokenParts, err := s.parseRefreshToken(tokenPair.RefreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse new refresh token: %w", err)
 	}
@@ -994,23 +994,6 @@ func (s *service) parseRefreshToken(refreshToken string) (*RefreshTokenParts, er
 	return &RefreshTokenParts{
 		Selector: parts[0],
 		Verifier: parts[1],
-	}, nil
-}
-
-// parseRefreshTokenWithLegacySupport parses a refresh token with support for legacy format
-func (s *service) parseRefreshTokenWithLegacySupport(refreshToken string) (*RefreshTokenParts, error) {
-	parts := strings.Split(refreshToken, refreshTokenSeparator)
-	if len(parts) == refreshTokenExpectedParts {
-		return &RefreshTokenParts{
-			Selector: parts[0],
-			Verifier: parts[1],
-		}, nil
-	}
-
-	// Legacy format: use entire token as verifier
-	return &RefreshTokenParts{
-		Selector: "",
-		Verifier: refreshToken,
 	}, nil
 }
 

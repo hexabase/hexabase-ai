@@ -38,7 +38,7 @@ func TestRefreshTokenHelpers(t *testing.T) {
 	t.Run("parseRefreshTokenWithLegacySupport should handle valid format", func(t *testing.T) {
 		token := "selector123.verifier456"
 
-		parts, err := s.parseRefreshTokenWithLegacySupport(token)
+		parts, err := s.parseRefreshToken(token)
 		require.NoError(t, err)
 		assert.Equal(t, "selector123", parts.Selector)
 		assert.Equal(t, "verifier456", parts.Verifier)
@@ -47,10 +47,9 @@ func TestRefreshTokenHelpers(t *testing.T) {
 	t.Run("parseRefreshTokenWithLegacySupport should handle legacy format", func(t *testing.T) {
 		legacyToken := "legacy-token-without-separator"
 
-		parts, err := s.parseRefreshTokenWithLegacySupport(legacyToken)
-		require.NoError(t, err)
-		assert.Equal(t, "", parts.Selector)
-		assert.Equal(t, "legacy-token-without-separator", parts.Verifier)
+		parts, err := s.parseRefreshToken(legacyToken)
+		require.Error(t, err)
+		assert.Nil(t, parts, "should return nil parts for legacy format")
 	})
 
 	t.Run("buildRefreshToken should combine selector and verifier", func(t *testing.T) {
