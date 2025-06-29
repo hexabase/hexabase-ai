@@ -114,7 +114,7 @@ func (r *postgresRepository) ListOrganizations(ctx context.Context, filter domai
 
 func (r *postgresRepository) UpdateOrganization(ctx context.Context, org *domain.Organization) error {
 	dbOrg := domainToDBOrganization(org)
-	if err := r.db.WithContext(ctx).Save(dbOrg).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&dbOrganization{ID: org.ID}).Updates(dbOrg).Error; err != nil {
 		return fmt.Errorf("failed to update organization: %w", err)
 	}
 	return nil

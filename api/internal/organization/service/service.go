@@ -209,9 +209,15 @@ func (s *service) ListOrganizations(ctx context.Context, filter domain.Organizat
 }
 
 func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *domain.UpdateOrganizationRequest) (*domain.Organization, error) {
-	org, err := s.repo.GetOrganization(ctx, orgID)
+	// Check if organization exists
+	_, err := s.repo.GetOrganization(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization: %w", err)
+	}
+
+	org := &domain.Organization{
+		ID:		   orgID,
+		UpdatedAt: time.Now(),
 	}
 
 	// Update fields
@@ -224,8 +230,6 @@ func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *dom
 	if req.Settings != nil {
 		org.Settings = req.Settings
 	}
-
-	org.UpdatedAt = time.Now()
 
 	if err := s.repo.UpdateOrganization(ctx, org); err != nil {
 		return nil, fmt.Errorf("failed to update organization: %w", err)
