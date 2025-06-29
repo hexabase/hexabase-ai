@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,10 +13,10 @@ import (
 )
 
 type service struct {
-	repo       domain.Repository
-	authRepo   domain.AuthRepository
+	repo        domain.Repository
+	authRepo    domain.AuthRepository
 	billingRepo domain.BillingRepository
-	logger     *slog.Logger
+	logger      *slog.Logger
 }
 
 // NewService creates a new organization service
@@ -138,7 +139,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter domain.Organizat
 				if err := s.repo.CreateOrganization(ctx, devOrg); err != nil {
 					s.logger.Warn("failed to create dev organization", "error", err)
 				}
-				
+
 				// Add dev user as member
 				member := &domain.OrganizationUser{
 					OrganizationID: devOrg.ID,
@@ -152,7 +153,7 @@ func (s *service) ListOrganizations(ctx context.Context, filter domain.Organizat
 					s.logger.Warn("failed to add dev user as member", "error", err)
 				}
 			}
-			
+
 			return &domain.OrganizationList{
 				Organizations: []*domain.Organization{devOrg},
 				Total:         1,
@@ -209,14 +210,8 @@ func (s *service) ListOrganizations(ctx context.Context, filter domain.Organizat
 }
 
 func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *domain.UpdateOrganizationRequest) (*domain.Organization, error) {
-	// Check if organization exists
-	_, err := s.repo.GetOrganization(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get organization: %w", err)
-	}
-
 	org := &domain.Organization{
-		ID:		   orgID,
+		ID:        orgID,
 		UpdatedAt: time.Now(),
 	}
 
@@ -232,10 +227,14 @@ func (s *service) UpdateOrganization(ctx context.Context, orgID string, req *dom
 	}
 
 	if err := s.repo.UpdateOrganization(ctx, org); err != nil {
+		if errors.Is(err, domain.ErrOrganizationNotFound) {
+			return nil, fmt.Errorf("organization not found: %s: %w", orgID, err)
+		}
 		return nil, fmt.Errorf("failed to update organization: %w", err)
 	}
 
-	return org, nil
+	// Return the updated organization
+	return s.repo.GetOrganization(ctx, orgID)
 }
 
 func (s *service) DeleteOrganization(ctx context.Context, orgID string) error {
@@ -266,7 +265,6 @@ func (s *service) DeleteOrganization(ctx context.Context, orgID string) error {
 
 	return nil
 }
-
 
 func (s *service) RemoveMember(ctx context.Context, orgID, userID, removerID string) error {
 	// Check if user is the owner
@@ -341,7 +339,7 @@ func (s *service) ListMembers(ctx context.Context, filter domain.MemberFilter) (
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert OrganizationUser to Member
 	members := make([]*domain.Member, 0, len(orgUsers))
 	for _, ou := range orgUsers {
@@ -351,7 +349,7 @@ func (s *service) ListMembers(ctx context.Context, filter domain.MemberFilter) (
 			s.logger.Warn("failed to get user details", "user_id", ou.UserID, "error", err)
 			continue
 		}
-		
+
 		member := &domain.Member{
 			ID:          fmt.Sprintf("%s-%s", ou.OrganizationID, ou.UserID), // Composite ID
 			UserID:      ou.UserID,
@@ -363,7 +361,7 @@ func (s *service) ListMembers(ctx context.Context, filter domain.MemberFilter) (
 		}
 		members = append(members, member)
 	}
-	
+
 	return &domain.OrganizationMemberList{
 		Members:  members,
 		Total:    total,
@@ -371,7 +369,6 @@ func (s *service) ListMembers(ctx context.Context, filter domain.MemberFilter) (
 		PageSize: filter.PageSize,
 	}, nil
 }
-
 
 func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*domain.OrganizationUser, error) {
 	// Get invitation by token
@@ -412,16 +409,13 @@ func (s *service) AcceptInvitation(ctx context.Context, token, userID string) (*
 
 	// Log activity with structured details
 	s.logActivityWithDetails(ctx, invitation.OrganizationID, userID, "member", "joined", "organization_user", userID, map[string]interface{}{
-		"role":        invitation.Role,
-		"invited_by":  invitation.InvitedBy,
+		"role":           invitation.Role,
+		"invited_by":     invitation.InvitedBy,
 		"via_invitation": true,
 	})
 
 	return member, nil
 }
-
-
-
 
 func (s *service) LogActivity(ctx context.Context, activity *domain.Activity) error {
 	activity.ID = uuid.New().String()
