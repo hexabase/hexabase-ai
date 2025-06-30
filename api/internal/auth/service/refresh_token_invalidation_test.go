@@ -102,9 +102,8 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 	mockRepo.On("VerifyToken", refreshToken, hashedToken, salt).Return(true).Once()
 	mockRepo.On("GetUser", ctx, user.ID).Return(user, nil).Once()
 
-	// New session ID should be generated for the refreshed session
-	newSessionID := uuid.New().String()
-	newClaims := &domain.Claims{
+	// Domain service returns claims with the original session ID
+	domainClaims := &domain.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
@@ -114,11 +113,11 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 		Email:     user.Email,
 		Name:      user.DisplayName,
 		Provider:  user.Provider,
-		SessionID: newSessionID, // NEW SESSION ID
+		SessionID: sessionID, // Original session ID from domain service
 		OrgIDs:    []string{"org-1"},
 	}
 
-	mockTokenDomainService.On("RefreshToken", ctx, session, user).Return(newClaims, nil).Once()
+	mockTokenDomainService.On("RefreshToken", ctx, session, user).Return(domainClaims, nil).Once()
 	mockRepo.On("BlacklistRefreshToken", ctx, refreshToken, session.ExpiresAt).Return(nil).Once()
 
 	// Hash new refresh token
@@ -158,13 +157,15 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "session has been invalidated")
 
 	// Step 5: Verify new access token is valid
-	mockRepo.On("IsSessionBlocked", ctx, newSessionID).Return(false, nil).Once()
+	// The new session ID is dynamically generated, so we use AnythingOfType
+	mockRepo.On("IsSessionBlocked", ctx, mock.AnythingOfType("string")).Return(false, nil).Once()
 
 	newTokenClaims, err := svc.ValidateAccessToken(ctx, newTokenPair.AccessToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, newTokenClaims)
 	assert.Equal(t, user.ID, newTokenClaims.UserID)
-	assert.Equal(t, newSessionID, newTokenClaims.SessionID)
+	// Verify that the new session ID is different from the old one
+	assert.NotEqual(t, sessionID, newTokenClaims.SessionID)
 
 	// Verify all expectations were met
 	mockRepo.AssertExpectations(t)

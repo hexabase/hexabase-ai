@@ -236,13 +236,15 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 
 	// Generate new session ID to invalidate old access tokens
 	newSessionID := uuid.New().String()
-	session.ID = newSessionID
 
-	// Business logic: Create new claims with the new session ID
+	// Business logic: Create new claims without modifying the original session
 	newClaims, err := s.tokenDomainService.RefreshToken(ctx, session, user)
 	if err != nil {
 		return nil, fmt.Errorf("refresh validation failed: %w", err)
 	}
+
+	// Update claims with new session ID after domain logic validation
+	newClaims.SessionID = newSessionID
 
 	// Infrastructure concerns: Generate token pair using new claims
 	tokenPair, err := s.generateTokenPairFromClaims(ctx, newClaims)
@@ -256,8 +258,9 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	}
 
 	// Block the old session ID to invalidate all access tokens associated with it
+	// This is a critical security operation - must not proceed if blocking fails
 	if err := s.repo.BlockSession(ctx, oldSessionID, session.ExpiresAt); err != nil {
-		s.logger.Error("failed to block old session", "error", err, "old_session_id", oldSessionID)
+		return nil, fmt.Errorf("failed to block old session: %w", err)
 	}
 
 	// Infrastructure concerns: Hash new refresh token
