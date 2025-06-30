@@ -312,8 +312,17 @@ npm run test:e2e               # Playwright E2E tests
 
 **API:**
 ```bash
-# Linting
-golangci-lint run
+# Linting (recommended - checks only new changes)
+make lint-api
+
+# Or run directly for new changes only
+cd api && golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
+
+# Run linting for all files (not just new changes)
+cd api && golangci-lint run -c ./.golangci.yaml
+
+# Run all linters (both Go and UI)
+make lint
 
 # Format code
 go fmt ./...

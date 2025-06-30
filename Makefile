@@ -117,6 +117,11 @@ lint:
 	@echo "Running UI linters..."
 	@cd ui && npm run lint
 
+# Run API linter
+lint-api:
+	@echo "Running Go linter for API..."
+	@cd api && golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
+
 # Format code
 fmt:
 	@echo "Formatting Go code..."
