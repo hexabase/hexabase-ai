@@ -111,7 +111,6 @@ func (m *mockRepository) GetSession(ctx context.Context, sessionID string) (*dom
 	return nil, args.Error(1)
 }
 
-
 func (m *mockRepository) ListUserSessions(ctx context.Context, userID string) ([]*domain.Session, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) != nil {
@@ -309,18 +308,15 @@ func (m *mockKeyRepository) RotateKeys() error {
 func TestService_GetAuthURL(t *testing.T) {
 	ctx := context.Background()
 
-
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
-
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
-
 
 	svc := &service{
 		repo:               mockRepo,
@@ -371,18 +367,15 @@ func TestService_GetAuthURL(t *testing.T) {
 func TestService_HandleCallback(t *testing.T) {
 	ctx := context.Background()
 
-
 	mockRepo := new(mockRepository)
 	mockOAuthRepo := new(mockOAuthRepository)
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
-
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
-
 
 	svc := &service{
 		repo:               mockRepo,
@@ -428,12 +421,10 @@ func TestService_HandleCallback(t *testing.T) {
 		mockOAuthRepo.On("ExchangeCode", ctx, "google", "auth-code-123").Return(oauthToken, nil)
 		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil)
 
-
 		// User doesn't exist yet
 		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
 		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Times(2)
-
 
 		// Generate tokens
 		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil)
@@ -441,13 +432,13 @@ func TestService_HandleCallback(t *testing.T) {
 		// Hash token for session creation
 		mockRepo.On("HashToken", mock.AnythingOfType("string")).Return(
 			"1234567890123456789012345678901234567890123456789012345678901234", // 64 chars
-			"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd", // 64 chars  
+			"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd", // 64 chars
 			nil).Maybe()
 
 		// Create session
 		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
 		mockTokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
-			ID: "session-123",
+			ID:     "session-123",
 			UserID: "user-123",
 		}, nil)
 
@@ -491,7 +482,7 @@ func TestService_HandleCallback(t *testing.T) {
 		userAgent := "Mozilla/5.0"
 
 		authState := &domain.AuthState{
-			State:        "valid-state-pkce",
+			State:         "valid-state-pkce",
 			Provider:      "google",
 			CodeChallenge: "Ds3NpaREu9I2EYq6l0l3ZkFyv_Gt5O4EpGD6cZlY0Kg", // sha256("verifier-123")
 			ExpiresAt:     time.Now().Add(10 * time.Minute),
@@ -576,12 +567,10 @@ func TestService_RefreshToken(t *testing.T) {
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
 
-
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
-
 
 	svc := &service{
 		repo:               mockRepo,
@@ -641,7 +630,10 @@ func TestService_RefreshToken(t *testing.T) {
 			"efghefghefghefghefghefghefghefghefghefghefghefghefghefghefghefgh", // 64 chars
 			nil)
 
-		mockRepo.On("UpdateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+		// Block old session and create new session (new behavior)
+		mockRepo.On("BlockSession", ctx, session.ID, mock.AnythingOfType("time.Time")).Return(nil)
+		mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
+		mockRepo.On("DeleteSession", ctx, session.ID).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil)
 
 		response, err := svc.RefreshToken(ctx, refreshToken, clientIP, userAgent)
@@ -696,16 +688,13 @@ func TestService_RefreshToken(t *testing.T) {
 func TestService_RevokeSession(t *testing.T) {
 	ctx := context.Background()
 
-
 	mockRepo := new(mockRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
-
 
 	// Create a dummy TokenManager
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	testPublicKey := &testPrivateKey.PublicKey
 	tokenManager := internalAuth.NewTokenManager(testPrivateKey, testPublicKey, "test-issuer", time.Hour)
-
 
 	svc := &service{
 		repo:               mockRepo,
@@ -862,7 +851,7 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 
 	// Mock tokenDomainService.CreateSession
 	tokenDomainService.On("CreateSession", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(&domain.Session{
-		ID: "session-123",
+		ID:     "session-123",
 		UserID: "user-123",
 	}, nil)
 
@@ -876,13 +865,12 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 
 	// Mock auth state
 	authState := &domain.AuthState{
-		State:        "state-123",
-		Provider:     "google",
-		RedirectURL:  "http://localhost:3000/callback",
+		State:         "state-123",
+		Provider:      "google",
+		RedirectURL:   "http://localhost:3000/callback",
 		CodeChallenge: "",
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
 	}
-
 
 	// Set up mock expectations
 	mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil)

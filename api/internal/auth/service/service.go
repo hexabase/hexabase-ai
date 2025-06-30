@@ -231,7 +231,14 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	// Business logic: Apply domain rules through domain service
+	// Store old session ID before creating new one
+	oldSessionID := session.ID
+
+	// Generate new session ID to invalidate old access tokens
+	newSessionID := uuid.New().String()
+	session.ID = newSessionID
+
+	// Business logic: Create new claims with the new session ID
 	newClaims, err := s.tokenDomainService.RefreshToken(ctx, session, user)
 	if err != nil {
 		return nil, fmt.Errorf("refresh validation failed: %w", err)
@@ -248,21 +255,45 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
-	// Infrastructure concerns: Hash and update session with new refresh token
+	// Block the old session ID to invalidate all access tokens associated with it
+	if err := s.repo.BlockSession(ctx, oldSessionID, session.ExpiresAt); err != nil {
+		s.logger.Error("failed to block old session", "error", err, "old_session_id", oldSessionID)
+	}
+
+	// Infrastructure concerns: Hash new refresh token
 	hashedNewToken, newSalt, err := s.hashToken(tokenPair.RefreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash new refresh token: %w", err)
 	}
 
-	session.RefreshToken = hashedNewToken
-	session.Salt = newSalt
-	session.LastUsedAt = time.Now()
-	if err := s.repo.UpdateSession(ctx, session); err != nil {
-		return nil, fmt.Errorf("failed to update session: %w", err)
+	// Create new session with the new session ID
+	now := time.Now()
+	newSession := &domain.Session{
+		ID:           newSessionID,
+		UserID:       session.UserID,
+		RefreshToken: hashedNewToken,
+		Salt:         newSalt,
+		DeviceID:     session.DeviceID,
+		IPAddress:    clientIP,  // Update with current IP
+		UserAgent:    userAgent, // Update with current user agent
+		ExpiresAt:    session.ExpiresAt,
+		CreatedAt:    now,
+		LastUsedAt:   now,
+		Revoked:      false,
+	}
+
+	// Create the new session
+	if err := s.repo.CreateSession(ctx, newSession); err != nil {
+		return nil, fmt.Errorf("failed to create new session: %w", err)
+	}
+
+	// Delete the old session
+	if err := s.repo.DeleteSession(ctx, oldSessionID); err != nil {
+		s.logger.Error("failed to delete old session", "error", err, "old_session_id", oldSessionID)
 	}
 
 	// Infrastructure concerns: Log security event
-	s.logSecurityEvent(ctx, user.ID, "token_refreshed", "Access token refreshed", clientIP, userAgent, "info")
+	s.logSecurityEvent(ctx, user.ID, "token_refreshed", fmt.Sprintf("Access token refreshed, old session %s replaced with %s", oldSessionID, newSessionID), clientIP, userAgent, "info")
 
 	return tokenPair, nil
 }
@@ -286,7 +317,7 @@ func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshT
 		ExpiresAt:    now.Add(30 * 24 * time.Hour), // 30 days
 		CreatedAt:    now,
 		LastUsedAt:   now,
-		Revoked: 	  false,
+		Revoked:      false,
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
@@ -401,8 +432,8 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 
 	// Check IP change (optional security measure)
 	if session.IPAddress != clientIP {
-		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed", 
-			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP), 
+		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed",
+			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP),
 			clientIP, session.UserAgent, "warning")
 	}
 
@@ -591,7 +622,7 @@ func (s *service) generateTokenPairFromClaims(ctx context.Context, claims *domai
 		// Use configurable default instead of hardcoded value
 		// TODO: Consider making this configurable per user/organization/session type
 		expiresIn = s.defaultTokenExpiry
-		s.logger.Warn("using default token expiry due to missing claims timestamps", 
+		s.logger.Warn("using default token expiry due to missing claims timestamps",
 			"default_expiry_seconds", expiresIn,
 			"user_id", claims.UserID,
 		)
@@ -712,15 +743,15 @@ func (s *service) GetJWKS(ctx context.Context) ([]byte, error) {
 func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interface{}, error) {
 	// Return OIDC discovery document
 	config := map[string]interface{}{
-		"issuer":                 "https://api.hexabase-kaas.io",
-		"authorization_endpoint": "https://api.hexabase-kaas.io/auth/authorize",
-		"token_endpoint":         "https://api.hexabase-kaas.io/auth/token",
-		"userinfo_endpoint":      "https://api.hexabase-kaas.io/auth/userinfo",
-		"jwks_uri":               "https://api.hexabase-kaas.io/.well-known/jwks.json",
-		"response_types_supported": []string{"code"},
-		"subject_types_supported":  []string{"public"},
+		"issuer":                                "https://api.hexabase-kaas.io",
+		"authorization_endpoint":                "https://api.hexabase-kaas.io/auth/authorize",
+		"token_endpoint":                        "https://api.hexabase-kaas.io/auth/token",
+		"userinfo_endpoint":                     "https://api.hexabase-kaas.io/auth/userinfo",
+		"jwks_uri":                              "https://api.hexabase-kaas.io/.well-known/jwks.json",
+		"response_types_supported":              []string{"code"},
+		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"scopes_supported": []string{"openid", "profile", "email"},
+		"scopes_supported":                      []string{"openid", "profile", "email"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic"},
 		"claims_supported": []string{
 			"sub", "email", "name", "picture", "provider", "org_ids",
@@ -766,8 +797,6 @@ func (s *service) verifyPKCE(authState *domain.AuthState, codeVerifier string) e
 func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	return s.repo.StoreAuthState(ctx, state)
 }
-
-
 
 // Helper functions
 
