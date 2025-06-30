@@ -277,18 +277,6 @@ func (h *Handler) GetSecurityLogs(c *gin.Context) {
 	})
 }
 
-// OIDCDiscovery returns OIDC discovery document
-func (h *Handler) OIDCDiscovery(c *gin.Context) {
-	config, err := h.service.GetOIDCConfiguration(c.Request.Context())
-	if err != nil {
-		h.logger.Error("failed to get OIDC configuration", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get configuration"})
-		return
-	}
-
-	c.JSON(http.StatusOK, config)
-}
-
 // JWKS returns JSON Web Key Set for token verification
 func (h *Handler) JWKS(c *gin.Context) {
 	jwks, err := h.service.GetJWKS(c.Request.Context())

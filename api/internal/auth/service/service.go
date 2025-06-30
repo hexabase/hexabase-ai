@@ -286,7 +286,7 @@ func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshT
 		ExpiresAt:    now.Add(30 * 24 * time.Hour), // 30 days
 		CreatedAt:    now,
 		LastUsedAt:   now,
-		Revoked: 	  false,
+		Revoked:      false,
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
@@ -401,8 +401,8 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 
 	// Check IP change (optional security measure)
 	if session.IPAddress != clientIP {
-		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed", 
-			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP), 
+		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed",
+			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP),
 			clientIP, session.UserAgent, "warning")
 	}
 
@@ -591,7 +591,7 @@ func (s *service) generateTokenPairFromClaims(ctx context.Context, claims *domai
 		// Use configurable default instead of hardcoded value
 		// TODO: Consider making this configurable per user/organization/session type
 		expiresIn = s.defaultTokenExpiry
-		s.logger.Warn("using default token expiry due to missing claims timestamps", 
+		s.logger.Warn("using default token expiry due to missing claims timestamps",
 			"default_expiry_seconds", expiresIn,
 			"user_id", claims.UserID,
 		)
@@ -709,27 +709,6 @@ func (s *service) GetJWKS(ctx context.Context) ([]byte, error) {
 	return s.keyRepo.GetJWKS()
 }
 
-func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interface{}, error) {
-	// Return OIDC discovery document
-	config := map[string]interface{}{
-		"issuer":                 "https://api.hexabase-kaas.io",
-		"authorization_endpoint": "https://api.hexabase-kaas.io/auth/authorize",
-		"token_endpoint":         "https://api.hexabase-kaas.io/auth/token",
-		"userinfo_endpoint":      "https://api.hexabase-kaas.io/auth/userinfo",
-		"jwks_uri":               "https://api.hexabase-kaas.io/.well-known/jwks.json",
-		"response_types_supported": []string{"code"},
-		"subject_types_supported":  []string{"public"},
-		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"scopes_supported": []string{"openid", "profile", "email"},
-		"token_endpoint_auth_methods_supported": []string{"client_secret_basic"},
-		"claims_supported": []string{
-			"sub", "email", "name", "picture", "provider", "org_ids",
-		},
-	}
-
-	return config, nil
-}
-
 func (s *service) verifyAuthState(authState *domain.AuthState, clientIP string) error {
 	// Check expiry
 	if authState.ExpiresAt.Before(time.Now()) {
@@ -766,8 +745,6 @@ func (s *service) verifyPKCE(authState *domain.AuthState, codeVerifier string) e
 func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	return s.repo.StoreAuthState(ctx, state)
 }
-
-
 
 // Helper functions
 
