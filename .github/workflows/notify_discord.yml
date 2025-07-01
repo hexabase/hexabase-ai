@@ -23,47 +23,45 @@ jobs:
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
-          # イベント種別を判定
+          # Determine event type
           if [ "$GITHUB_EVENT_NAME" == "issue_comment" ]; then
-            ESCAPED_BODY=$(echo "$COMMENT_BODY" | jq -Rs .)  # JSONエスケープ
-            COLOR=16777215  # ⚪ 白 (コメント)
-            STATUS="💬 New Comment by $COMMENT_AUTHOR"
-            COLOR=16777215  # ⚪ 白 (コメント)
+            ESCAPED_BODY=$(echo "$COMMENT_BODY" | jq -Rs .)  # JSON escape
+            COLOR=16777215  # ⚪ White (comment)
             STATUS="💬 New Comment by $COMMENT_AUTHOR"
           else
-            ESCAPED_BODY=$(echo "$ISSUE_BODY" | jq -Rs .)  # Issue 本文を JSON エスケープ
+            ESCAPED_BODY=$(echo "$ISSUE_BODY" | jq -Rs .)  # JSON escape Issue body
             COMMENT_AUTHOR=""
 
             case "$ACTION_TYPE" in
               "opened")
-                COLOR=16711680  # 🔴 赤 (新規 Issue)
+                COLOR=16711680  # 🔴 Red (new Issue)
                 STATUS="🆕 New Issue Created"
                 ;;
               "closed")
-                COLOR=65280  # 🟢 緑 (クローズ)
+                COLOR=65280  # 🟢 Green (close)
                 STATUS="✅ Issue Closed"
                 ;;
               "reopened")
-                COLOR=16711935  # 💖 ピンク (再オープン)
+                COLOR=16711935  # 💖 Pink (reopen)
                 STATUS="🔄 Issue Reopened"
                 ;;
               "edited")
-                COLOR=8421504  # ⚫ グレー (編集)
+                COLOR=8421504  # ⚫ Gray (edit)
                 STATUS="✏️ Issue Edited"
                 ;;
               "assigned")
                 ASSIGNEE="${{ github.event.assignee.login }}"
-                COLOR=16776960  # 🟡 黄色 (担当者アサイン)
+                COLOR=16776960  # 🟡 Yellow (assignee assign)
                 STATUS="👤 Assigned to $ASSIGNEE"
                 ;;
               *)
                 echo "No notification needed for action: $ACTION_TYPE"
-                exit 0  # 🚀 不要なアクションの場合は通知しない
+                exit 0  # 🚀 Don't notify for unnecessary actions
                 ;;
             esac
           fi
 
-          # JSONデータを payload.json に保存 (安全な方法)
+          # Save JSON data to payload.json (safe method)
           printf '{
             "username": "GitHub Issue Bot",
             "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
@@ -99,12 +97,12 @@ jobs:
           "$REPO_NAME" "$ISSUE_AUTHOR" "$STATUS" "$ACTION_TYPE" \
           "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > payload.json
 
-          # 確実に JSON をログに表示
+          # Display JSON in log for verification
           echo "==== Generated payload.json ===="
           cat payload.json
           echo "================================"
 
-          # Discord に送信
+          # Send to Discord
           curl -H "Content-Type: application/json" \
                -X POST \
                -d @payload.json \
