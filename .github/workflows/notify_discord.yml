@@ -19,12 +19,15 @@ jobs:
           ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           ACTION_TYPE: ${{ github.event.action }}
           REPO_NAME: ${{ github.repository }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           # イベント種別を判定
-          if [ "${{ github.event_name }}" == "issue_comment" ]; then
-            COMMENT_BODY="${{ github.event.comment.body }}"
-            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+          if [ "$GITHUB_EVENT_NAME" == "issue_comment" ]; then
             ESCAPED_BODY=$(echo "$COMMENT_BODY" | jq -Rs .)  # JSONエスケープ
+            COLOR=16777215  # ⚪ 白 (コメント)
+            STATUS="💬 New Comment by $COMMENT_AUTHOR"
             COLOR=16777215  # ⚪ 白 (コメント)
             STATUS="💬 New Comment by $COMMENT_AUTHOR"
           else
