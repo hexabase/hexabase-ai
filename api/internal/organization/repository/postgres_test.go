@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -945,6 +946,81 @@ func TestPostgresRepository_ModelMismatchIssues(t *testing.T) {
 	// needs to be updated to handle the mapping between DB and domain models.
 }
 
+// Test UpdateOrganization with RowsAffected check
+// Test UpdateOrganization with RowsAffected check
+// Note: These tests use SQLite which has limited RETURNING clause support compared to PostgreSQL.
+// In production PostgreSQL, clause.Returning{} will populate the original struct with all updated fields.
+func TestPostgresRepository_UpdateOrganization_RowsAffected(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns ErrOrganizationNotFound when organization does not exist", func(t *testing.T) {
+		// Use in-memory SQLite for this test
+		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		require.NoError(t, err)
+
+		// Auto-migrate the schema
+		err = db.AutoMigrate(&dbOrganization{})
+		require.NoError(t, err)
+
+		repo := NewPostgresRepository(db)
+
+		org := &domain.Organization{
+			ID:          "non-existent-org",
+			DisplayName: "Updated Name",
+			UpdatedAt:   time.Now(),
+		}
+
+		err = repo.UpdateOrganization(ctx, org)
+
+		// This should return ErrOrganizationNotFound
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrOrganizationNotFound)
+	})
+
+	t.Run("successfully updates when organization exists", func(t *testing.T) {
+		// Use in-memory SQLite for this test
+		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		require.NoError(t, err)
+
+		// Auto-migrate the schema
+		err = db.AutoMigrate(&dbOrganization{})
+		require.NoError(t, err)
+
+		repo := NewPostgresRepository(db)
+
+		// First create an organization
+		existingOrg := &domain.Organization{
+			ID:          "existing-org",
+			Name:        "Test Org",
+			DisplayName: "Original Name",
+			Status:      "active",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		err = repo.CreateOrganization(ctx, existingOrg)
+		require.NoError(t, err)
+
+		// Now update it
+		updateOrg := &domain.Organization{
+			ID:          "existing-org",
+			DisplayName: "Updated Name",
+			UpdatedAt:   time.Now(),
+		}
+
+		err = repo.UpdateOrganization(ctx, updateOrg)
+
+		assert.NoError(t, err)
+
+		// Note: In SQLite, RETURNING clause support is limited, so we may not get all original fields
+		// In production PostgreSQL, updatedOrg would contain all fields including Name and Status
+		// For now, we verify the update worked by checking a separate query
+		retrieved, err := repo.GetOrganization(ctx, "existing-org")
+		require.NoError(t, err)
+		assert.Equal(t, "Updated Name", retrieved.DisplayName)
+		assert.Equal(t, "Updated Name", retrieved.DisplayName)
+	})
+}
+
 // Test ListMembers and ListOrganizations with pagination
 func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 	ctx := context.Background()
@@ -1050,10 +1126,10 @@ func TestPostgresRepository_PaginationAndFiltering(t *testing.T) {
 
 		mock.ExpectBegin()
 		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO \"organizations\" (\"id\",\"name\",\"display_name\",\"description\",\"website\",\"email\",\"status\",\"owner_id\",\"stripe_customer_id\",\"stripe_subscription_id\",\"created_at\",\"updated_at\",\"deleted_at\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)")).
-		WithArgs(
-			org.ID, org.Name, org.DisplayName, org.Description, org.Website, org.Email, org.Status, org.OwnerID, nil, nil, org.CreatedAt, org.UpdatedAt, org.DeletedAt,
-		).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+			WithArgs(
+				org.ID, org.Name, org.DisplayName, org.Description, org.Website, org.Email, org.Status, org.OwnerID, nil, nil, org.CreatedAt, org.UpdatedAt, org.DeletedAt,
+			).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
 		err := repo.CreateOrganization(ctx, org)
