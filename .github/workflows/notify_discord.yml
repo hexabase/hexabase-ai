@@ -1,0 +1,108 @@
+name: Notify Discord on Issue Updates and Comments
+
+on:
+  issues:
+    types: [opened, closed, reopened, edited, assigned]
+  issue_comment:
+    types: [created]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ACTION_TYPE: ${{ github.event.action }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          # イベント種別を判定
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            COMMENT_BODY="${{ github.event.comment.body }}"
+            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+            ESCAPED_BODY=$(echo "$COMMENT_BODY" | jq -Rs .)  # JSONエスケープ
+            COLOR=16777215  # ⚪ 白 (コメント)
+            STATUS="💬 New Comment by $COMMENT_AUTHOR"
+          else
+            ESCAPED_BODY=$(echo "$ISSUE_BODY" | jq -Rs .)  # Issue 本文を JSON エスケープ
+            COMMENT_AUTHOR=""
+
+            case "$ACTION_TYPE" in
+              "opened")
+                COLOR=16711680  # 🔴 赤 (新規 Issue)
+                STATUS="🆕 New Issue Created"
+                ;;
+              "closed")
+                COLOR=65280  # 🟢 緑 (クローズ)
+                STATUS="✅ Issue Closed"
+                ;;
+              "reopened")
+                COLOR=16711935  # 💖 ピンク (再オープン)
+                STATUS="🔄 Issue Reopened"
+                ;;
+              "edited")
+                COLOR=8421504  # ⚫ グレー (編集)
+                STATUS="✏️ Issue Edited"
+                ;;
+              "assigned")
+                ASSIGNEE="${{ github.event.assignee.login }}"
+                COLOR=16776960  # 🟡 黄色 (担当者アサイン)
+                STATUS="👤 Assigned to $ASSIGNEE"
+                ;;
+              *)
+                echo "No notification needed for action: $ACTION_TYPE"
+                exit 0  # 🚀 不要なアクションの場合は通知しない
+                ;;
+            esac
+          fi
+
+          # JSONデータを payload.json に保存 (安全な方法)
+          printf '{
+            "username": "GitHub Issue Bot",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+                "title": "%s",
+                "url": "%s",
+                "description": %s,
+                "color": %d,
+                "fields": [
+                  {
+                    "name": "🔹 Repository",
+                    "value": "%s",
+                    "inline": true
+                  },
+                  {
+                    "name": "👤 Created by",
+                    "value": "%s",
+                    "inline": true
+                  },
+                  {
+                    "name": "📌 Status",
+                    "value": "%s",
+                    "inline": false
+                  }
+                ],
+                "footer": {
+                    "text": "GitHub Issue Update | %s"
+                },
+                "timestamp": "%s"
+            }]
+          }' \
+          "$ISSUE_TITLE" "$ISSUE_URL" "$ESCAPED_BODY" "$COLOR" \
+          "$REPO_NAME" "$ISSUE_AUTHOR" "$STATUS" "$ACTION_TYPE" \
+          "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > payload.json
+
+          # 確実に JSON をログに表示
+          echo "==== Generated payload.json ===="
+          cat payload.json
+          echo "================================"
+
+          # Discord に送信
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d @payload.json \
+               $DISCORD_WEBHOOK
