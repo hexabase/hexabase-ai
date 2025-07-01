@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -106,7 +107,10 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 	// Get auth state once and perform all validations
 	authState, err := s.repo.GetAuthState(ctx, req.State)
 	if err != nil {
-		return nil, fmt.Errorf("auth state not found: %w", err)
+		if errors.Is(err, domain.ErrAuthStateNotFound) {
+			return nil, fmt.Errorf("auth state not found or expired: %w", err)
+		}
+		return nil, fmt.Errorf("failed to get auth state: %w", err)
 	}
 
 	// Verify state
@@ -147,25 +151,32 @@ func (s *service) HandleCallback(ctx context.Context, req *domain.CallbackReques
 	// Find or create user
 	user, err := s.repo.GetUserByExternalID(ctx, userInfo.ID, authState.Provider)
 	if err != nil {
-		// Create new user
-		user = &domain.User{
-			ID:          uuid.New().String(),
-			ExternalID:  userInfo.ID,
-			Provider:    authState.Provider,
-			Email:       userInfo.Email,
-			DisplayName: userInfo.Name,
-			AvatarURL:   userInfo.Picture,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-			LastLoginAt: time.Now(),
-		}
+		// Check if it's a "user not found" error
+		if errors.Is(err, domain.ErrUserNotFound) {
+			// Create new user
+			now := time.Now()
+			user = &domain.User{
+				ID:          uuid.New().String(),
+				ExternalID:  userInfo.ID,
+				Provider:    authState.Provider,
+				Email:       userInfo.Email,
+				DisplayName: userInfo.Name,
+				AvatarURL:   userInfo.Picture,
+				CreatedAt:   now,
+				UpdatedAt:   now,
+				LastLoginAt: now,
+			}
 
-		if err := s.repo.CreateUser(ctx, user); err != nil {
-			return nil, fmt.Errorf("failed to create user: %w", err)
-		}
+			if err := s.repo.CreateUser(ctx, user); err != nil {
+				return nil, fmt.Errorf("failed to create user: %w", err)
+			}
 
-		// Log security event
-		s.logSecurityEvent(ctx, user.ID, "user_created", "New user created via OAuth", clientIP, userAgent, "info")
+			// Log security event
+			s.logSecurityEvent(ctx, user.ID, "user_created", "New user created via OAuth", clientIP, userAgent, "info")
+		} else {
+			// Other errors (database errors, etc.)
+			return nil, fmt.Errorf("failed to get user info: %w", err)
+		}
 	} else {
 		// Update last login
 		if err := s.repo.UpdateLastLogin(ctx, user.ID); err != nil {
