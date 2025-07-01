@@ -18,6 +18,7 @@ This directory contains the organized and consolidated Architecture Decision Rec
 | [ADR-010](010-package-by-feature.md)     | Migrate to a "Package by Feature" Structure | Proposed                   | 2025-06-18 |
 | [ADR-011](011-unify-database-migration.md)        | Unification of Database Migration                     | Proposed                   | 2025-06-20 |
 | [ADR-012](012-api-schema-driven-development.md)   | API Schema-Driven Development                         | Proposed                   | 2025-06-24 |
+| [ADR-013](013-single-organization-scoped-jwt-token.md) | Transition to Single-Organization Scoped JWT Token Authentication Flow | Proposed | 2025-07-01 |
 
 ## ADR Format
 
