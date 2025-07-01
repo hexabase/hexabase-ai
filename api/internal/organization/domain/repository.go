@@ -14,7 +14,7 @@ type Repository interface {
 	ListOrganizations(ctx context.Context, filter OrganizationFilter) ([]*Organization, int, error)
 	UpdateOrganization(ctx context.Context, org *Organization) error
 	DeleteOrganization(ctx context.Context, orgID string) error
-	
+
 	// Member operations
 	AddMember(ctx context.Context, member *OrganizationUser) error
 	GetMember(ctx context.Context, orgID, userID string) (*OrganizationUser, error)

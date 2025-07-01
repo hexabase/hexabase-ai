@@ -139,8 +139,8 @@ func TestService_VerifyToken_BusinessLogic(t *testing.T) {
 		mockRepo := &mockRepository{}
 		svc := &service{repo: mockRepo}
 		validToken := "valid-token-123"
-		validHash := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-		validSalt := "abcd567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+		validHash := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" // 64 chars
+		validSalt := "abcd567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" // 64 chars
 
 		// Mock repository to return verification result
 		mockRepo.On("VerifyToken", validToken, validHash, validSalt).Return(true)

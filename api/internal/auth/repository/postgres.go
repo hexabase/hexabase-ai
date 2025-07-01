@@ -105,6 +105,17 @@ func (r *postgresRepository) GetSession(ctx context.Context, sessionID string) (
 	return &session, nil
 }
 
+func (r *postgresRepository) GetSessionByRefreshTokenSelector(ctx context.Context, selector string) (*domain.Session, error) {
+	var session domain.Session
+	if err := r.db.WithContext(ctx).Where("refresh_token_selector = ?", selector).First(&session).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("session not found")
+		}
+		return nil, fmt.Errorf("failed to get session by selector: %w", err)
+	}
+	return &session, nil
+}
+
 func (r *postgresRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
 	var sessions []*domain.Session
 	if err := r.db.WithContext(ctx).Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&sessions).Error; err != nil {

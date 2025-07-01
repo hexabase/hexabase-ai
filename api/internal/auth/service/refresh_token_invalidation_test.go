@@ -94,12 +94,14 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 	assert.Equal(t, sessionID, initialClaims.SessionID)
 
 	// Step 3: Refresh tokens
+	tokenParts, err := svc.parseRefreshToken(initialTokenPair.RefreshToken)
+	assert.NoError(t, err)
 	refreshToken := initialTokenPair.RefreshToken
 
 	// Mock for refresh token flow
 	mockRepo.On("IsRefreshTokenBlacklisted", ctx, refreshToken).Return(false, nil).Once()
-	mockRepo.On("GetAllActiveSessions", ctx).Return([]*domain.Session{session}, nil).Once()
-	mockRepo.On("VerifyToken", refreshToken, hashedToken, salt).Return(true).Once()
+	mockRepo.On("GetSessionByRefreshTokenSelector", ctx, tokenParts.Selector).Return(session, nil).Once()
+	mockRepo.On("VerifyToken", tokenParts.Verifier, hashedToken, salt).Return(true).Once()
 	mockRepo.On("GetUser", ctx, user.ID).Return(user, nil).Once()
 
 	// Domain service returns claims with the original session ID

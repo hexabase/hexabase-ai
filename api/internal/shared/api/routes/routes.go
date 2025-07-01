@@ -95,7 +95,7 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 		orgs.POST("/", app.OrganizationHandler.CreateOrganization)
 		orgs.GET("/", app.OrganizationHandler.ListOrganizations)
 		orgs.GET("/:orgId", app.OrganizationHandler.GetOrganization)
-		orgs.PUT("/:orgId", app.OrganizationHandler.UpdateOrganization)
+		orgs.PATCH("/:orgId", app.OrganizationHandler.UpdateOrganization)
 		orgs.DELETE("/:orgId", app.OrganizationHandler.DeleteOrganization)
 
 		// Organization members
