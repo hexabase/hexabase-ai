@@ -28,7 +28,7 @@ linters:
     - errorlint # Errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
     - exhaustive # Check exhaustiveness of enum switch statements.
     # - exhaustruct # Checks if all structure fields are initialized.
-    - exptostd # Detects functions from golang.org/x/exp/ that can be replaced by std functi
+    - exptostd # Detects functions from golang.org/x/exp/ that can be replaced by std functions
     - fatcontext # Detects nested contexts in loops and function literals.
     - forbidigo # Forbids identifiers.
     - forcetypeassert # Finds forced type assertions.
@@ -145,20 +145,7 @@ linters:
       disable-default-exclusions: false
       # List of functions to exclude from checking, where each entry is a single function to exclude.
       # See https://github.com/kisielk/errcheck#excluding-functions for details.
-      exclude-functions:
-        - github.com/b-eee/amagi.Error
-        - github.com/b-eee/amagi.ErrorWithContext
-        - github.com/b-eee/amagi.Fatal
-        - github.com/b-eee/amagi.Info
-        - github.com/b-eee/amagi.InfoWithContext
-        - github.com/b-eee/amagi.Warn
-        - github.com/b-eee/amagi.WarnWithContext
-        - github.com/b-eee/amagi/helpers.GinHTTPError
-        - github.com/b-eee/amagi/helpers.GinHTTPErrWCode
-        - github.com/b-eee/amagi/services/jsonCache.CacheDelete
-        - github.com/b-eee/amagi/services/jsonCache.DelByPattern
-        - github.com/b-eee/amagi/services/jsonCache.CacheSet
-        - github.com/b-eee/amagi/services/jsonCache.CacheSetExWithContext
+      # exclude-functions:
     forbidigo:
       # Forbid the following identifiers (list of regexp).
       # Default: ["^(fmt\\.Print(|f|ln)|print|println)$"]
@@ -239,25 +226,7 @@ linters:
         use-field-name: true
         # The field names to ignore.
         # Default: []
-        ignored-fields:
-          - AID
-          - BID
-          - DID
-          - FID
-          - GID
-          - HID
-          - ID
-          - IID
-          - IIDs
-          - PID
-          - QID
-          - RID
-          - RPID
-          - SID
-          - TPID
-          - UID
-          - Use2Fa
-          - WID
+        # ignored-fields:
     varnamelen:
       # The minimum length of a variable's name that is considered "long".
       # Variable names that are at least this long will be ignored.
