@@ -1,7 +1,7 @@
 # ADR-011: Unification of Database Migration
 
 - **Date**: 2025-06-20
-- **Status**: Proposed
+- **Status**: Accepted
 - **Authors**: Platform Architecture Team
 
 ## 1. Background
