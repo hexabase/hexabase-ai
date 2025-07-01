@@ -171,5 +171,6 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 	mockKeyRepo.AssertExpectations(t)
 	mockTokenDomainService.AssertExpectations(t)
+	mockKeyRepo.AssertCalled(t, "GetPublicKey")
 }
 
