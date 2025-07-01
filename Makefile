@@ -120,7 +120,7 @@ lint:
 # Run API linter
 lint-api:
 	@echo "Running Go linter for API..."
-	@cd api && golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
+	@cd api && go install tool && go tool golangci-lint version && go tool golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
 
 # Format code
 fmt:

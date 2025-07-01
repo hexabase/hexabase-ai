@@ -126,9 +126,8 @@ If you prefer to set up the environment manually or need to understand what the 
 
 3. **golangci-lint** (Linting)
    ```bash
-   brew install golangci-lint
-   # OR
-   curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+   cd api
+   go install tool
    ```
 
 4. **Playwright** (E2E Testing)
@@ -316,10 +315,10 @@ npm run test:e2e               # Playwright E2E tests
 make lint-api
 
 # Or run directly for new changes only
-cd api && golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
+cd api && go tool golangci-lint run -c ./.golangci.yaml --new-from-merge-base origin/develop
 
 # Run linting for all files (not just new changes)
-cd api && golangci-lint run -c ./.golangci.yaml
+cd api && go tool golangci-lint run -c ./.golangci.yaml
 
 # Run all linters (both Go and UI)
 make lint

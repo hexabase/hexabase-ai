@@ -108,8 +108,9 @@ linters:
     - wastedassign # Finds wasted assignment statements.
     - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc.
     # - wrapcheck # Checks that errors returned from external packages are wrapped.
-    - wsl # Add or remove empty lines.
+    - wsl_v5 # Add or remove empty lines.
     # - zerologlint # Detects the wrong usage of zerolog that a user forgets to dispatch with Send or Msg.
+    - embeddedstructfieldcheck # Embedded types should be at the top of the field list of a struct, and there must be an empty line separating embedded fields from regular fields.
   settings:
     cyclop:
       # The maximal code complexity to report.
@@ -244,11 +245,14 @@ linters:
       # Default: []
       ignore-decls:  # varname type
         - c *gin.Context
-        - c *mongo.Collection
         - i int
         - s time.Time
         - t time.Time
         - w *httptest.ResponseRecorder
+    embeddedstructfieldcheck:
+      # Checks that sync.Mutex and sync.RWMutex are not used as embedded fields.
+      # Default: false
+      forbid-mutex: true
   exclusions:
     generated: lax
     paths:
