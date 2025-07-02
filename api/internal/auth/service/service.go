@@ -26,7 +26,17 @@ type InternalAIOpsClaims struct {
 	TokenType         string   `json:"token_type"`
 }
 
-const legacySessionID = "legacy-session"
+const (
+	legacySessionID           = "legacy-session"
+	refreshTokenSeparator     = "."
+	refreshTokenExpectedParts = 2
+)
+
+// RefreshTokenParts represents the parsed components of a refresh token
+type RefreshTokenParts struct {
+	Selector string
+	Verifier string
+}
 
 type service struct {
 	repo               domain.Repository
@@ -221,8 +231,11 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	}
 
 	// Check if session is expired
-	if session.ExpiresAt.Before(time.Now()) {
-		return nil, fmt.Errorf("session has expired")
+	now := time.Now()
+	s.logger.Info("[DEBUG] RefreshToken: session expiry check", "session.ExpiresAt", session.ExpiresAt, "now", now, "expired", session.IsExpired())
+	if session.IsExpired() {
+			s.logger.Info("[DEBUG] RefreshToken: session is expired, returning error")
+			return nil, fmt.Errorf("session has expired")
 	}
 
 	// Infrastructure concerns: Get user
@@ -249,12 +262,20 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 	}
 
 	// Infrastructure concerns: Hash and update session with new refresh token
-	hashedNewToken, newSalt, err := s.hashToken(tokenPair.RefreshToken)
+	// Parse new refresh token to extract selector and verifier
+	tokenParts, err := s.parseRefreshToken(tokenPair.RefreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse new refresh token: %w", err)
+	}
+
+	// Hash the new verifier
+	hashedNewToken, newSalt, err := s.hashToken(tokenParts.Verifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash new refresh token: %w", err)
 	}
 
 	session.RefreshToken = hashedNewToken
+	session.RefreshTokenSelector = tokenParts.Selector
 	session.Salt = newSalt
 	session.LastUsedAt = time.Now()
 	if err := s.repo.UpdateSession(ctx, session); err != nil {
@@ -268,25 +289,38 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 }
 
 func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshToken, deviceID, clientIP, userAgent string) (*domain.Session, error) {
-	// Hash the refresh token before storing (CRITICAL SECURITY FIX)
-	hashedToken, salt, err := s.hashToken(refreshToken)
+	// Parse refresh token to extract selector and verifier
+	tokenParts, err := s.parseRefreshToken(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create temporary session for validation
+	tempSession := &domain.Session{RefreshTokenSelector: tokenParts.Selector}
+	if err := tempSession.ValidateRefreshTokenSelector(); err != nil {
+		return nil, fmt.Errorf("invalid refresh token format: %w", err)
+	}
+
+	// Hash the verifier part before storing (CRITICAL SECURITY FIX)
+	hashedToken, salt, err := s.hashToken(tokenParts.Verifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
 	}
 
 	now := time.Now()
 	session := &domain.Session{
-		ID:           sessionID,
-		UserID:       userID,
-		RefreshToken: hashedToken, // Store hashed token
-		Salt:         salt,        // Store salt
-		DeviceID:     deviceID,
-		IPAddress:    clientIP,
-		UserAgent:    userAgent,
-		ExpiresAt:    now.Add(30 * 24 * time.Hour), // 30 days
-		CreatedAt:    now,
-		LastUsedAt:   now,
-		Revoked: 	  false,
+		ID:                   sessionID, // Use the provided sessionID instead of generating new one
+		UserID:               userID,
+		RefreshToken:         hashedToken, // Store hashed verifier
+		RefreshTokenSelector: tokenParts.Selector,    // Store selector for O(1) lookup
+		Salt:                 salt,        // Store salt
+		DeviceID:             deviceID,
+		IPAddress:            clientIP,
+		UserAgent:            userAgent,
+		ExpiresAt:            now.Add(30 * 24 * time.Hour), // 30 days
+		CreatedAt:            now,
+		LastUsedAt:           now,
+		Revoked:              false,
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
@@ -401,8 +435,8 @@ func (s *service) ValidateSession(ctx context.Context, sessionID, clientIP strin
 
 	// Check IP change (optional security measure)
 	if session.IPAddress != clientIP {
-		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed", 
-			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP), 
+		s.logSecurityEvent(ctx, session.UserID, "session_ip_changed",
+			fmt.Sprintf("Session IP changed from %s to %s", session.IPAddress, clientIP),
 			clientIP, session.UserAgent, "warning")
 	}
 
@@ -591,7 +625,7 @@ func (s *service) generateTokenPairFromClaims(ctx context.Context, claims *domai
 		// Use configurable default instead of hardcoded value
 		// TODO: Consider making this configurable per user/organization/session type
 		expiresIn = s.defaultTokenExpiry
-		s.logger.Warn("using default token expiry due to missing claims timestamps", 
+		s.logger.Warn("using default token expiry due to missing claims timestamps",
 			"default_expiry_seconds", expiresIn,
 			"user_id", claims.UserID,
 		)
@@ -605,13 +639,24 @@ func (s *service) generateTokenPairFromClaims(ctx context.Context, claims *domai
 	}, nil
 }
 
-// generateRefreshToken generates a new refresh token
+// generateRefreshToken generates a new refresh token in selector.verifier format
 func (s *service) generateRefreshToken() (string, error) {
-	refreshTokenBytes := make([]byte, 32)
-	if _, err := rand.Read(refreshTokenBytes); err != nil {
-		return "", fmt.Errorf("failed to generate refresh token: %w", err)
+	// Generate selector (16 bytes = 22 chars base64)
+	selectorBytes := make([]byte, 16)
+	if _, err := rand.Read(selectorBytes); err != nil {
+		return "", fmt.Errorf("failed to generate selector: %w", err)
 	}
-	return base64.URLEncoding.EncodeToString(refreshTokenBytes), nil
+	selector := base64.URLEncoding.EncodeToString(selectorBytes)
+
+	// Generate verifier (32 bytes = 43 chars base64)
+	verifierBytes := make([]byte, 32)
+	if _, err := rand.Read(verifierBytes); err != nil {
+		return "", fmt.Errorf("failed to generate verifier: %w", err)
+	}
+	verifier := base64.URLEncoding.EncodeToString(verifierBytes)
+
+	// Return in selector.verifier format for O(1) lookup
+	return s.buildRefreshToken(selector, verifier), nil
 }
 
 func (s *service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
@@ -633,7 +678,9 @@ func (s *service) InvalidateSession(ctx context.Context, sessionID string) error
 	// Get session to determine TTL
 	session, err := s.repo.GetSession(ctx, sessionID)
 	if err != nil {
-		return fmt.Errorf("session not found: %w", err)
+		// If session doesn't exist, it's already effectively invalidated
+		s.logger.Warn("session not found during invalidation", "session_id", sessionID, "error", err)
+		return nil // Don't return error for missing sessions during logout
 	}
 
 	// Block session in Redis with TTL matching session expiry
@@ -712,15 +759,15 @@ func (s *service) GetJWKS(ctx context.Context) ([]byte, error) {
 func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interface{}, error) {
 	// Return OIDC discovery document
 	config := map[string]interface{}{
-		"issuer":                 "https://api.hexabase-kaas.io",
-		"authorization_endpoint": "https://api.hexabase-kaas.io/auth/authorize",
-		"token_endpoint":         "https://api.hexabase-kaas.io/auth/token",
-		"userinfo_endpoint":      "https://api.hexabase-kaas.io/auth/userinfo",
-		"jwks_uri":               "https://api.hexabase-kaas.io/.well-known/jwks.json",
-		"response_types_supported": []string{"code"},
-		"subject_types_supported":  []string{"public"},
+		"issuer":                                "https://api.hexabase-kaas.io",
+		"authorization_endpoint":                "https://api.hexabase-kaas.io/auth/authorize",
+		"token_endpoint":                        "https://api.hexabase-kaas.io/auth/token",
+		"userinfo_endpoint":                     "https://api.hexabase-kaas.io/auth/userinfo",
+		"jwks_uri":                              "https://api.hexabase-kaas.io/.well-known/jwks.json",
+		"response_types_supported":              []string{"code"},
+		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"scopes_supported": []string{"openid", "profile", "email"},
+		"scopes_supported":                      []string{"openid", "profile", "email"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic"},
 		"claims_supported": []string{
 			"sub", "email", "name", "picture", "provider", "org_ids",
@@ -766,8 +813,6 @@ func (s *service) verifyPKCE(authState *domain.AuthState, codeVerifier string) e
 func (s *service) StoreAuthState(ctx context.Context, state *domain.AuthState) error {
 	return s.repo.StoreAuthState(ctx, state)
 }
-
-
 
 // Helper functions
 
@@ -898,20 +943,61 @@ func (s *service) verifyToken(plainToken, hashedToken, salt string) bool {
 	return s.repo.VerifyToken(plainToken, hashedToken, salt)
 }
 
-// getSessionByRefreshToken implements internal session lookup coordination
+// getSessionByRefreshToken implements optimized session lookup using selector/verifier pattern
 func (s *service) getSessionByRefreshToken(ctx context.Context, refreshToken string) (*domain.Session, error) {
-	// Get all active sessions from repository (pure data operation)
-	sessions, err := s.repo.GetAllActiveSessions(ctx)
+	s.logger.Info("getSessionByRefreshToken called", "token_length", len(refreshToken))
+
+	// Parse refresh token in selector.verifier format for O(1) lookup
+	tokenParts, err := s.parseRefreshToken(refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active sessions: %w", err)
+		s.logger.Warn("failed to parse refresh token", "error", err, "token_length", len(refreshToken))
+		return nil, err
 	}
 
-	// Check each session using service business logic + crypto operations
-	for _, session := range sessions {
-		if session.Salt != "" && s.verifyToken(refreshToken, session.RefreshToken, session.Salt) {
-			return session, nil
-		}
+	s.logger.Debug("parsed refresh token", "selector", tokenParts.Selector, "verifier_length", len(tokenParts.Verifier))
+
+	// Create temporary session for validation
+	tempSession := &domain.Session{RefreshTokenSelector: tokenParts.Selector}
+	if err := tempSession.ValidateRefreshTokenSelector(); err != nil {
+		s.logger.Warn("refresh token selector validation failed", "error", err, "selector", tokenParts.Selector)
+		return nil, fmt.Errorf("invalid refresh token format: %w", err)
 	}
 
+	// O(1) database lookup using selector
+	session, err := s.repo.GetSessionByRefreshTokenSelector(ctx, tokenParts.Selector)
+	if err != nil {
+		s.logger.Warn("session lookup failed", "error", err, "selector", tokenParts.Selector)
+		return nil, fmt.Errorf("session not found")
+	}
+
+	s.logger.Debug("found session", "session_id", session.ID, "has_salt", session.Salt != "")
+
+	// Verify the verifier part using crypto hash comparison
+	if session.Salt != "" && s.verifyToken(tokenParts.Verifier, session.RefreshToken, session.Salt) {
+		s.logger.Debug("token verification successful")
+		return session, nil
+	}
+
+	s.logger.Warn("token verification failed", "has_salt", session.Salt != "", "verifier_length", len(tokenParts.Verifier))
 	return nil, fmt.Errorf("session not found")
+}
+
+// Helper functions for refresh token processing
+
+// parseRefreshToken parses a refresh token into selector and verifier components
+func (s *service) parseRefreshToken(refreshToken string) (*RefreshTokenParts, error) {
+	parts := strings.Split(refreshToken, refreshTokenSeparator)
+	if len(parts) != refreshTokenExpectedParts || parts[0] == "" || parts[1] == "" {
+		return nil, fmt.Errorf("invalid refresh token format: expected selector%sverifier", refreshTokenSeparator)
+	}
+
+	return &RefreshTokenParts{
+		Selector: parts[0],
+		Verifier: parts[1],
+	}, nil
+}
+
+// buildRefreshToken combines selector and verifier into a refresh token
+func (s *service) buildRefreshToken(selector, verifier string) string {
+	return selector + refreshTokenSeparator + verifier
 }

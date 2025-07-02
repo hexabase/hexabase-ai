@@ -89,19 +89,31 @@ type WorkspaceClaims struct {
 	Groups      []string `json:"groups"`
 }
 
-// Session represents an authenticated session with business logic
+// Session represents an authenticated session and implements the Selector/Validator model
+// for refresh tokens to enhance security and performance.
+//
+// The Selector/Validator model splits a refresh token into two parts:
+// 1. Selector: A public, unique identifier used for O(1) database lookups to find a session.
+//    It is stored in plain text in the database.
+// 2. Verifier: A high-entropy secret part that is hashed before being stored.
+//    The client sends both parts, and the server verifies the verifier hash against the stored hash.
+//
+// This approach prevents timing attacks by ensuring the database lookup time is constant
+// regardless of whether the token is valid, and it allows for efficient session retrieval
+// without compromising the security of the refresh token itself.
 type Session struct {
-	ID           string    `json:"id"`
-	UserID       string    `json:"user_id"`
-	RefreshToken string    `json:"refresh_token"`
-	Salt         string    `json:"salt"` // Salt for refresh token hashing
-	DeviceID     string    `json:"device_id,omitempty"`
-	IPAddress    string    `json:"ip_address"`
-	UserAgent    string    `json:"user_agent"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
-	LastUsedAt   time.Time `json:"last_used_at"`
-	Revoked      bool      `json:"revoked"`
+	ID                   string    `json:"id"`
+	UserID               string    `json:"user_id"`
+	RefreshToken         string    `json:"refresh_token"`         // Hashed verifier part of the refresh token
+	RefreshTokenSelector string    `json:"refresh_token_selector"` // Selector part for O(1) session lookup
+	Salt                 string    `json:"salt"`                   // Salt for refresh token hashing
+	DeviceID             string    `json:"device_id,omitempty"`
+	IPAddress            string    `json:"ip_address"`
+	UserAgent            string    `json:"user_agent"`
+	ExpiresAt            time.Time `json:"expires_at"`
+	CreatedAt            time.Time `json:"created_at"`
+	LastUsedAt           time.Time `json:"last_used_at"`
+	Revoked              bool      `json:"revoked"`
 }
 
 // IsExpired checks if session has expired
@@ -122,6 +134,20 @@ func (s *Session) Revoke() {
 // UpdateLastUsed updates the last used timestamp
 func (s *Session) UpdateLastUsed() {
 	s.LastUsedAt = time.Now()
+}
+
+// ValidateRefreshTokenSelector validates the refresh token selector format
+func (s *Session) ValidateRefreshTokenSelector() error {
+	if s.RefreshTokenSelector == "" {
+		return errors.New("refresh token selector is required")
+	}
+	if len(s.RefreshTokenSelector) < 8 {
+		return errors.New("refresh token selector must be at least 8 characters long")
+	}
+	if len(s.RefreshTokenSelector) > 64 {
+		return errors.New("refresh token selector must not exceed 64 characters")
+	}
+	return nil
 }
 
 // AuthState represents OAuth state data stored temporarily during the auth flow.
