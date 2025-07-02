@@ -431,7 +431,7 @@ func TestService_HandleCallback(t *testing.T) {
 		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil)
 
 		// User doesn't exist yet
-		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
+		mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, domain.ErrUserNotFound)
 		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 		mockRepo.On("CreateSecurityEvent", ctx, mock.AnythingOfType("*domain.SecurityEvent")).Return(nil).Times(2)
 
@@ -463,6 +463,53 @@ func TestService_HandleCallback(t *testing.T) {
 		mockOAuthRepo.AssertExpectations(t)
 	})
 
+	t.Run("database error when getting user by external ID", func(t *testing.T) {
+		req := &domain.CallbackRequest{
+			Code:  "auth-code-456",
+			State: "valid-state-456",
+		}
+		clientIP := "192.168.1.1"
+		userAgent := "Mozilla/5.0"
+
+		authState := &domain.AuthState{
+			State:     "valid-state-456",
+			Provider:  "google",
+			ExpiresAt: time.Now().Add(10 * time.Minute),
+		}
+
+		oauthToken := &domain.OAuthToken{
+			AccessToken:  "access-token-456",
+			RefreshToken: "refresh-token-456",
+		}
+
+		userInfo := &domain.UserInfo{
+			ID:       "google-456",
+			Email:    "existing@example.com",
+			Name:     "Existing User",
+			Provider: "google",
+		}
+
+		// Mock the flow
+		mockRepo.On("GetAuthState", ctx, "valid-state-456").Return(authState, nil).Once()
+		mockOAuthRepo.On("ExchangeCode", ctx, "google", "auth-code-456").Return(oauthToken, nil)
+		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil)
+
+		// Database error occurs when getting user (not a "user not found" error)
+		mockRepo.On("GetUserByExternalID", ctx, "google-456", "google").Return(nil, errors.New("database connection error"))
+
+		// Should not create security event or create user since it's a database error
+		// mockRepo.On("CreateSecurityEvent", ...) is NOT called
+		// mockRepo.On("CreateUser", ...) is NOT called
+
+		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "failed to get user info")
+
+		mockRepo.AssertExpectations(t)
+		mockOAuthRepo.AssertExpectations(t)
+	})
+
 	t.Run("invalid state", func(t *testing.T) {
 		req := &domain.CallbackRequest{
 			Code:  "auth-code-789",
@@ -471,7 +518,7 @@ func TestService_HandleCallback(t *testing.T) {
 		clientIP := "192.168.1.1"
 		userAgent := "Mozilla/5.0"
 
-		mockRepo.On("GetAuthState", ctx, "invalid-state").Return(nil, errors.New("not found")).Once()
+		mockRepo.On("GetAuthState", ctx, "invalid-state").Return(nil, domain.ErrAuthStateNotFound).Once()
 
 		response, err := svc.HandleCallback(ctx, req, clientIP, userAgent)
 		assert.Error(t, err)
@@ -503,7 +550,7 @@ func TestService_HandleCallback(t *testing.T) {
 		mockRepo.On("GetAuthState", ctx, req.State).Return(authState, nil).Once()
 		mockOAuthRepo.On("ExchangeCode", ctx, "google", req.Code).Return(oauthToken, nil).Once()
 		mockOAuthRepo.On("GetUserInfo", ctx, "google", oauthToken).Return(userInfo, nil).Once()
-		mockRepo.On("GetUserByExternalID", ctx, userInfo.ID, "google").Return(nil, errors.New("not found")).Once()
+		mockRepo.On("GetUserByExternalID", ctx, userInfo.ID, "google").Return(nil, domain.ErrUserNotFound).Once()
 		mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil).Once()
 		mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{}, nil).Once()
 		mockRepo.On("HashToken", mock.AnythingOfType("string")).Return("hashed-token", "salt", nil).Once()
@@ -754,7 +801,7 @@ func TestService_RevokeSession(t *testing.T) {
 		userID := "user-456"
 		sessionID := "non-existent"
 
-		mockRepo.On("GetSession", ctx, sessionID).Return(nil, errors.New("not found"))
+		mockRepo.On("GetSession", ctx, sessionID).Return(nil, domain.ErrSessionNotFound)
 
 		err := svc.RevokeSession(ctx, userID, sessionID)
 		assert.Error(t, err)
@@ -903,7 +950,7 @@ func TestService_OAuthFlowWithSessionID(t *testing.T) {
 		Name:     "Test User",
 		Provider: "google",
 	}, nil)
-	mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, errors.New("not found"))
+	mockRepo.On("GetUserByExternalID", ctx, "google-123", "google").Return(nil, domain.ErrUserNotFound)
 	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*domain.User")).Return(nil)
 	mockRepo.On("GetUserOrganizations", ctx, mock.AnythingOfType("string")).Return([]string{"org-1"}, nil)
 	mockRepo.On("CreateSession", ctx, mock.AnythingOfType("*domain.Session")).Return(nil)
