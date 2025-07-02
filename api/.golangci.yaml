@@ -215,6 +215,44 @@ linters:
             - [] # DenyList
             - - upper-case-const: false # Extra parameter
                 skip-package-name-checks: true # Extra parameter
+    tagalign:
+      # Align and sort can be used together or separately.
+      #
+      # Whether enable align. If true, the struct tags will be aligned.
+      # E.g.:
+      # type FooBar struct {
+      #     Bar    string `json:"bar" validate:"required"`
+      #     FooFoo int8   `json:"foo_foo" validate:"required"`
+      # }
+      # will be formatted to:
+      # type FooBar struct {
+      #     Bar    string `json:"bar"     validate:"required"`
+      #     FooFoo int8   `json:"foo_foo" validate:"required"`
+      # }
+      # Default: true.
+      align: false
+      # Whether enable tags sort.
+      # If true, the tags will be sorted by name in ascending order.
+      # E.g.: `xml:"bar" json:"bar" validate:"required"` -> `json:"bar" validate:"required" xml:"bar"`.
+      # Default: true
+      sort: false
+      # Specify the order of tags, the other tags will be sorted by name.
+      # This option will be ignored if `sort` is false.
+      # Default: []
+      # order:
+      #   - json
+      #   - yaml
+      #   - yml
+      #   - toml
+      #   - mapstructure
+      #   - binding
+      #   - validate
+      # Whether enable strict style.
+      # In this style, the tags will be sorted and aligned in the dictionary order,
+      # and the tags with the same name will be aligned together.
+      # Note: This option will be ignored if 'align' or 'sort' is false.
+      # Default: false
+      strict: false
     tagliatelle:
       case:
         # Defines the association between tag name and case.
@@ -265,7 +303,7 @@ issues:
 formatters:
   enable:
     # Comment out what you do not use.
-    - gci # Checks if code and import statements are formatted, with additional rules.
+    # - gci # Checks if code and import statements are formatted, with additional rules.
     # - gofmt # Checks if the code is formatted according to 'gofmt' command.
     - gofumpt # Checks if code and import statements are formatted, with additional rules.
     - goimports # Checks if the code and import statements are formatted according to the 'goimports' command.
