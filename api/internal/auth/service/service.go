@@ -789,27 +789,6 @@ func (s *service) GetJWKS(ctx context.Context) ([]byte, error) {
 	return s.keyRepo.GetJWKS()
 }
 
-func (s *service) GetOIDCConfiguration(ctx context.Context) (map[string]interface{}, error) {
-	// Return OIDC discovery document
-	config := map[string]interface{}{
-		"issuer":                                "https://api.hexabase-kaas.io",
-		"authorization_endpoint":                "https://api.hexabase-kaas.io/auth/authorize",
-		"token_endpoint":                        "https://api.hexabase-kaas.io/auth/token",
-		"userinfo_endpoint":                     "https://api.hexabase-kaas.io/auth/userinfo",
-		"jwks_uri":                              "https://api.hexabase-kaas.io/.well-known/jwks.json",
-		"response_types_supported":              []string{"code"},
-		"subject_types_supported":               []string{"public"},
-		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"scopes_supported":                      []string{"openid", "profile", "email"},
-		"token_endpoint_auth_methods_supported": []string{"client_secret_basic"},
-		"claims_supported": []string{
-			"sub", "email", "name", "picture", "provider", "org_ids",
-		},
-	}
-
-	return config, nil
-}
-
 func (s *service) verifyAuthState(authState *domain.AuthState, clientIP string) error {
 	// Check expiry
 	if authState.ExpiresAt.Before(time.Now()) {
