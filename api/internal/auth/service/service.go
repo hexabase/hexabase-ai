@@ -244,11 +244,20 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	// Business logic: Apply domain rules through domain service
+	// Store old session ID before creating new one
+	oldSessionID := session.ID
+
+	// Generate new session ID to invalidate old access tokens
+	newSessionID := uuid.New().String()
+
+	// Business logic: Create new claims without modifying the original session
 	newClaims, err := s.tokenDomainService.RefreshToken(ctx, session, user)
 	if err != nil {
 		return nil, fmt.Errorf("refresh validation failed: %w", err)
 	}
+
+	// Update claims with new session ID after domain logic validation
+	newClaims.SessionID = newSessionID
 
 	// Infrastructure concerns: Generate token pair using new claims
 	tokenPair, err := s.generateTokenPairFromClaims(ctx, newClaims)
@@ -261,7 +270,13 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		s.logger.Error("failed to blacklist old refresh token", "error", err)
 	}
 
-	// Infrastructure concerns: Hash and update session with new refresh token
+	// Block the old session ID to invalidate all access tokens associated with it
+	// This is a critical security operation - must not proceed if blocking fails
+	if err := s.repo.BlockSession(ctx, oldSessionID, session.ExpiresAt); err != nil {
+		return nil, fmt.Errorf("failed to block old session: %w", err)
+	}
+
+	// Infrastructure concerns: Hash new refresh token
 	// Parse new refresh token to extract selector and verifier
 	tokenParts, err := s.parseRefreshToken(tokenPair.RefreshToken)
 	if err != nil {
@@ -274,16 +289,34 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("failed to hash new refresh token: %w", err)
 	}
 
-	session.RefreshToken = hashedNewToken
-	session.RefreshTokenSelector = tokenParts.Selector
-	session.Salt = newSalt
-	session.LastUsedAt = time.Now()
-	if err := s.repo.UpdateSession(ctx, session); err != nil {
-		return nil, fmt.Errorf("failed to update session: %w", err)
+	// Create new session with the new session ID
+	newSession := &domain.Session{
+		ID:           newSessionID,
+		UserID:       session.UserID,
+		RefreshToken: hashedNewToken,
+		RefreshTokenSelector: tokenParts.Selector,
+		Salt:         newSalt,
+		DeviceID:     session.DeviceID,
+		IPAddress:    clientIP,  // Update with current IP
+		UserAgent:    userAgent, // Update with current user agent
+		ExpiresAt:    session.ExpiresAt,
+		CreatedAt:    now,
+		LastUsedAt:   now,
+		Revoked:      false,
+	}
+
+	// Create the new session
+	if err := s.repo.CreateSession(ctx, newSession); err != nil {
+		return nil, fmt.Errorf("failed to create new session: %w", err)
+	}
+
+	// Delete the old session
+	if err := s.repo.DeleteSession(ctx, oldSessionID); err != nil {
+		s.logger.Error("failed to delete old session", "error", err, "old_session_id", oldSessionID)
 	}
 
 	// Infrastructure concerns: Log security event
-	s.logSecurityEvent(ctx, user.ID, "token_refreshed", "Access token refreshed", clientIP, userAgent, "info")
+	s.logSecurityEvent(ctx, user.ID, "token_refreshed", fmt.Sprintf("Access token refreshed, old session %s replaced with %s", oldSessionID, newSessionID), clientIP, userAgent, "info")
 
 	return tokenPair, nil
 }
