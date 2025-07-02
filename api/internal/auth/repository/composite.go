@@ -59,6 +59,10 @@ func (r *CompositeRepository) GetSession(ctx context.Context, sessionID string) 
 	return r.dbRepo.GetSession(ctx, sessionID)
 }
 
+func (r *CompositeRepository) GetSessionByRefreshTokenSelector(ctx context.Context, selector string) (*domain.Session, error) {
+	return r.dbRepo.GetSessionByRefreshTokenSelector(ctx, selector)
+}
+
 func (r *CompositeRepository) GetAllActiveSessions(ctx context.Context) ([]*domain.Session, error) {
 	return r.dbRepo.GetAllActiveSessions(ctx)
 }

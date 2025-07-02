@@ -1,7 +1,7 @@
 # ADR-012: API Schema-Driven Development
 
 - Date: 2025-06-24
-- Status: Proposed
+- Status: Accepted
 - Authors: Platform Architecture Team
 
 ## 1. Background
@@ -21,7 +21,7 @@ As the product evolves, we plan to develop client-side applications (CLI, Fronte
 
 ## 2. Status
 
-Proposed
+Accepted
 
 ## 3. Other options considered
 

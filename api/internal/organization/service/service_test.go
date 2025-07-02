@@ -584,11 +584,11 @@ func TestUpdateOrganization(t *testing.T) {
 		service := NewService(mockRepo, mockAuthRepo, mockBillingRepo, logger)
 
 		orgID := "org-123"
-		existingOrg := &domain.Organization{
+		updatedOrg := &domain.Organization{
 			ID:          orgID,
 			Name:        "test-org",
-			DisplayName: "Old Display Name",
-			Description: "Old description",
+			DisplayName: "New Display Name",
+			Description: "New description",
 		}
 
 		req := &domain.UpdateOrganizationRequest{
@@ -599,22 +599,25 @@ func TestUpdateOrganization(t *testing.T) {
 			},
 		}
 
-		// Mock expectations
-		mockRepo.On("GetOrganization", ctx, orgID).Return(existingOrg, nil)
+		// Mock expectations - no GetOrganization call, direct UpdateOrganization
 		mockRepo.On("UpdateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
-			return org.DisplayName == "New Display Name" &&
+			return org.ID == orgID &&
+				org.DisplayName == "New Display Name" &&
 				org.Description == "New description" &&
 				org.Settings["theme"] == "dark"
 		})).Return(nil)
 
+		// Mock GetOrganization for the final return value
+		mockRepo.On("GetOrganization", ctx, orgID).Return(updatedOrg, nil)
+
 		// Execute
-		updatedOrg, err := service.UpdateOrganization(ctx, orgID, req)
+		result, err := service.UpdateOrganization(ctx, orgID, req)
 
 		// Assert
 		assert.NoError(t, err)
-		assert.NotNil(t, updatedOrg)
-		assert.Equal(t, "New Display Name", updatedOrg.DisplayName)
-		assert.Equal(t, "New description", updatedOrg.Description)
+		assert.NotNil(t, result)
+		assert.Equal(t, "New Display Name", result.DisplayName)
+		assert.Equal(t, "New description", result.Description)
 
 		mockRepo.AssertExpectations(t)
 	})
@@ -632,8 +635,10 @@ func TestUpdateOrganization(t *testing.T) {
 			DisplayName: "New Name",
 		}
 
-		// Mock expectations
-		mockRepo.On("GetOrganization", ctx, orgID).Return(nil, errors.New("not found"))
+		// Mock expectations - UpdateOrganization should return ErrOrganizationNotFound
+		mockRepo.On("UpdateOrganization", ctx, mock.MatchedBy(func(org *domain.Organization) bool {
+			return org.ID == orgID && org.DisplayName == "New Name"
+		})).Return(domain.ErrOrganizationNotFound)
 
 		// Execute
 		updatedOrg, err := service.UpdateOrganization(ctx, orgID, req)
@@ -641,7 +646,10 @@ func TestUpdateOrganization(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, updatedOrg)
-		assert.Contains(t, err.Error(), "failed to get organization")
+		assert.Contains(t, err.Error(), "organization not found")
+		assert.Contains(t, err.Error(), orgID)
+		// Verify that the original error is wrapped
+		assert.ErrorIs(t, err, domain.ErrOrganizationNotFound)
 
 		mockRepo.AssertExpectations(t)
 	})
