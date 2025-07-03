@@ -59,7 +59,7 @@ linters:
     - ineffassign # Detects when assignments to existing variables are not used.
     - interfacebloat # A linter that checks the number of methods inside an interface.
     # - intrange # Intrange is a linter to find places where for loops could make use of an integer range.
-    - ireturn # Accept Interfaces, Return Concrete Types.
+    # - ireturn # Accept Interfaces, Return Concrete Types.
     - lll # Reports long lines.
     # - loggercheck # Checks key value pairs for common logger libraries (kitlog,klog,logr,slog,zap).
     - maintidx # Maintidx measures the maintainability index of each function.
