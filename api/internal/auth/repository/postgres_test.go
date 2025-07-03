@@ -411,9 +411,9 @@ func TestPostgresRepository_StoreAuthState(t *testing.T) {
 			CreatedAt:     time.Now(),
 		}
 
-		// Expect the INSERT query with the new code_challenge column
+		// Expect the INSERT query with the new code_challenge and is_sign_up columns
 		mock.ExpectBegin()
-		mock.ExpectExec(`INSERT INTO "auth_states" \("state","provider","redirect_url","code_challenge","client_ip","user_agent","expires_at","created_at"\)`).
+		mock.ExpectExec(`INSERT INTO "auth_states" \("state","provider","redirect_url","code_challenge","client_ip","user_agent","is_sign_up","expires_at","created_at"\)`).
 			WithArgs(
 				authState.State,
 				authState.Provider,
@@ -421,6 +421,7 @@ func TestPostgresRepository_StoreAuthState(t *testing.T) {
 				authState.CodeChallenge,
 				authState.ClientIP,
 				authState.UserAgent,
+				authState.IsSignUp,
 				sqlmock.AnyArg(), // expires_at
 				sqlmock.AnyArg(), // created_at
 			).
@@ -453,6 +454,7 @@ func TestPostgresRepository_StoreAuthState(t *testing.T) {
 				authState.CodeChallenge,
 				authState.ClientIP,
 				authState.UserAgent,
+				authState.IsSignUp,
 				sqlmock.AnyArg(),
 				sqlmock.AnyArg(),
 			).
@@ -514,7 +516,7 @@ func TestPostgresRepository_GetAuthState(t *testing.T) {
 		authState, err := repo.GetAuthState(ctx, stateValue)
 		assert.Error(t, err)
 		assert.Nil(t, authState)
-		assert.Contains(t, err.Error(), "not found or expired")
+		assert.Contains(t, err.Error(), "auth state not found")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -575,6 +577,7 @@ func TestPostgresRepository_AuthStateColumnCompatibility(t *testing.T) {
 				authState.CodeChallenge,
 				sqlmock.AnyArg(),
 				sqlmock.AnyArg(),
+				sqlmock.AnyArg(), // is_sign_up
 				sqlmock.AnyArg(),
 				sqlmock.AnyArg(),
 			).
