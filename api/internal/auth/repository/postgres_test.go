@@ -514,7 +514,7 @@ func TestPostgresRepository_GetAuthState(t *testing.T) {
 		authState, err := repo.GetAuthState(ctx, stateValue)
 		assert.Error(t, err)
 		assert.Nil(t, authState)
-		assert.Contains(t, err.Error(), "not found or expired")
+		assert.Contains(t, err.Error(), "auth state not found")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
