@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -62,16 +63,15 @@ func wrapOgenHandler(ogenServer *ogen.Server) gin.HandlerFunc {
 }
 
 // SetupRoutes configures all API routes
-func SetupRoutes(router *gin.Engine, app *wire.App) {
+//nolint:funlen,maintidx // TODO: Refactor this function to reduce complexity
+func SetupRoutes(router *gin.Engine, app *wire.App) error {
 	// API version 1
 	v1 := router.Group("/api/v1")
 
 	// Create ogen server for OpenAPI-based endpoints
 	ogenServer, err := ogen.NewServer(app.OgenAuthHandler)
 	if err != nil {
-		// Log error but continue with other routes
-		// In production, this should be handled more gracefully
-		panic("failed to create ogen server: " + err.Error())
+		return fmt.Errorf("failed to create ogen server: %w", err)
 	}
 
 	// Authentication routes
@@ -482,4 +482,6 @@ func SetupRoutes(router *gin.Engine, app *wire.App) {
 			"path":  c.Request.URL.Path,
 		})
 	})
+
+	return nil
 }
