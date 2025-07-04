@@ -16,11 +16,6 @@ SignUpRequest:
       type: string
       description: "Hash algorithm used to generate the code challenge. Currently only 'S256' is supported."
       example: "S256"
-    redirect_url:
-      type: string
-      format: uri
-      description: "Not used."
-      example: "https://myapp.com/auth/callback"
 
 SignUpResponse:
   type: object

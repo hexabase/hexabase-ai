@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -32,10 +34,12 @@ func (h *OgenAuthHandler) StartAuthSignUp(
 ) (ogen.StartAuthSignUpRes, error) {
 	codeChallenge := ""
 	codeChallengeMethod := ""
+
 	if req.Set {
 		if cc, ok := req.Value.CodeChallenge.Get(); ok {
 			codeChallenge = cc
 		}
+
 		if cm, ok := req.Value.CodeChallengeMethod.Get(); ok {
 			codeChallengeMethod = cm
 		}
@@ -79,13 +83,27 @@ func (h *OgenAuthHandler) StartAuthSignUp(
 
 // NewError implements ogen.Handler
 func (h *OgenAuthHandler) NewError(ctx context.Context, err error) *ogen.SignUpErrorResponseStatusCode {
-	// Default to bad request
-	statusCode := http.StatusBadRequest
-	message := "invalid request"
+	// Default to internal server error
+	statusCode := http.StatusInternalServerError
+	message := "authentication service error"
 
-	// You can add more specific error handling here
-	if err != nil {
-		message = err.Error()
+	// Map specific errors to appropriate status codes and messages
+	switch {
+	case errors.Is(err, domain.ErrUnsupportedProvider):
+		statusCode = http.StatusBadRequest
+		message = "unsupported authentication provider"
+	case errors.Is(err, domain.ErrInvalidRequest):
+		statusCode = http.StatusBadRequest
+		message = "invalid request parameters"
+	case err == nil:
+		// This should never happen in normal ogen flow as NewError is only called
+		// when err != nil. If we reach here, it indicates a programming error.
+		h.logger.Warn("NewError called with nil error - this indicates a bug")
+	default:
+		// For any other error, log the details but don't expose them
+		h.logger.Error("authentication error",
+			"error", err,
+			"type", fmt.Sprintf("%T", err))
 	}
 
 	return &ogen.SignUpErrorResponseStatusCode{

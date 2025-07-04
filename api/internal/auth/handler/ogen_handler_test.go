@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"testing"
@@ -18,6 +19,8 @@ const (
 	testGoogleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth?client_id=123"
 	testGithubAuthURL = "https://github.com/login/oauth/authorize?client_id=456"
 )
+
+var errTestInternal = errors.New("some internal error")
 
 // Mock service
 type mockAuthService struct {
@@ -352,7 +355,7 @@ func TestOgenAuthHandler_StartAuthSignUp(t *testing.T) {
 				errResp, ok := result.(*ogen.SignUpErrorResponseStatusCode)
 				require.True(t, ok)
 				assert.Equal(t, http.StatusBadRequest, errResp.StatusCode)
-				assert.Equal(t, "unsupported provider", errResp.Response.Error.Value)
+				assert.Equal(t, "unsupported authentication provider", errResp.Response.Error.Value)
 			},
 		},
 	}
@@ -391,25 +394,50 @@ func TestOgenAuthHandler_NewError(t *testing.T) {
 	authHandler := handler.NewOgenAuthHandler(nil, slog.Default())
 	ctx := t.Context()
 
-	t.Run("with error message", func(t *testing.T) {
-		t.Parallel()
+	// Table-driven test following t_wada's recommendations
+	tests := []struct {
+		name           string
+		err            error
+		wantStatusCode int
+		wantMessage    string
+	}{
+		{
+			name:           "unsupported provider error",
+			err:            domain.ErrUnsupportedProvider,
+			wantStatusCode: http.StatusBadRequest,
+			wantMessage:    "unsupported authentication provider",
+		},
+		{
+			name:           "invalid request error",
+			err:            domain.ErrInvalidRequest,
+			wantStatusCode: http.StatusBadRequest,
+			wantMessage:    "invalid request parameters",
+		},
+		{
+			name:           "generic error should return internal server error",
+			err:            errTestInternal,
+			wantStatusCode: http.StatusInternalServerError,
+			wantMessage:    "authentication service error",
+		},
+		{
+			name:           "nil error should return internal server error",
+			err:            nil,
+			wantStatusCode: http.StatusInternalServerError,
+			wantMessage:    "authentication service error",
+		},
+	}
 
-		err := domain.ErrInvalidRequest
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		result := authHandler.NewError(ctx, err)
+			// Act
+			result := authHandler.NewError(ctx, tt.err)
 
-		assert.NotNil(t, result)
-		assert.Equal(t, http.StatusBadRequest, result.StatusCode)
-		assert.Equal(t, "invalid request", result.Response.Error.Value)
-	})
-
-	t.Run("with nil error", func(t *testing.T) {
-		t.Parallel()
-
-		result := authHandler.NewError(ctx, nil)
-
-		assert.NotNil(t, result)
-		assert.Equal(t, http.StatusBadRequest, result.StatusCode)
-		assert.Equal(t, "invalid request", result.Response.Error.Value)
-	})
+			// Assert
+			assert.NotNil(t, result)
+			assert.Equal(t, tt.wantStatusCode, result.StatusCode)
+			assert.Equal(t, tt.wantMessage, result.Response.Error.Value)
+		})
+	}
 }

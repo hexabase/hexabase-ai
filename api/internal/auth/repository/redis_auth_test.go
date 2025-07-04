@@ -81,6 +81,7 @@ func TestRedisAuthRepository_AuthStateIsSignUpTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	var rawState map[string]interface{}
+
 	err = json.Unmarshal([]byte(rawData), &rawState)
 	require.NoError(t, err)
 

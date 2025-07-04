@@ -204,19 +204,12 @@ func (s *SignUpRequest) encodeFields(e *jx.Encoder) {
 			s.CodeChallengeMethod.Encode(e)
 		}
 	}
-	{
-		if s.RedirectURL.Set {
-			e.FieldStart("redirect_url")
-			s.RedirectURL.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfSignUpRequest = [4]string{
+var jsonFieldsNameOfSignUpRequest = [3]string{
 	0: "provider",
 	1: "code_challenge",
 	2: "code_challenge_method",
-	3: "redirect_url",
 }
 
 // Decode decodes SignUpRequest from json.
@@ -257,16 +250,6 @@ func (s *SignUpRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"code_challenge_method\"")
-			}
-		case "redirect_url":
-			if err := func() error {
-				s.RedirectURL.Reset()
-				if err := s.RedirectURL.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"redirect_url\"")
 			}
 		default:
 			return d.Skip()

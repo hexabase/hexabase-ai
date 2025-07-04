@@ -202,8 +202,6 @@ type SignUpRequest struct {
 	CodeChallenge OptString `json:"code_challenge"`
 	// Hash algorithm used to generate the code challenge. Currently only 'S256' is supported.
 	CodeChallengeMethod OptString `json:"code_challenge_method"`
-	// Not used.
-	RedirectURL OptURI `json:"redirect_url"`
 }
 
 // GetProvider returns the value of Provider.
@@ -221,11 +219,6 @@ func (s *SignUpRequest) GetCodeChallengeMethod() OptString {
 	return s.CodeChallengeMethod
 }
 
-// GetRedirectURL returns the value of RedirectURL.
-func (s *SignUpRequest) GetRedirectURL() OptURI {
-	return s.RedirectURL
-}
-
 // SetProvider sets the value of Provider.
 func (s *SignUpRequest) SetProvider(val SignUpRequestProvider) {
 	s.Provider = val
@@ -239,11 +232,6 @@ func (s *SignUpRequest) SetCodeChallenge(val OptString) {
 // SetCodeChallengeMethod sets the value of CodeChallengeMethod.
 func (s *SignUpRequest) SetCodeChallengeMethod(val OptString) {
 	s.CodeChallengeMethod = val
-}
-
-// SetRedirectURL sets the value of RedirectURL.
-func (s *SignUpRequest) SetRedirectURL(val OptURI) {
-	s.RedirectURL = val
 }
 
 // OAuth provider to use for authentication.

@@ -56,6 +56,7 @@ func wrapOgenHandler(ogenServer *ogen.Server) gin.HandlerFunc {
 		if c.Request.Header.Get("Content-Type") == "" && c.Request.Method == http.MethodPost {
 			c.Request.Header.Set("Content-Type", "application/json")
 		}
+
 		ogenServer.ServeHTTP(c.Writer, c.Request)
 	}
 }
