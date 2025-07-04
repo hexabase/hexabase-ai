@@ -28,6 +28,7 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 	mockRepo := new(mockRepository)
 	mockKeyRepo := new(mockKeyRepository)
 	mockTokenDomainService := new(mockTokenDomainService)
+	mockSessionManager := new(mockSessionManager)
 
 	// Create test RSA key pair
 	testPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
@@ -40,6 +41,7 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 		keyRepo:            mockKeyRepo,
 		tokenManager:       tokenManager,
 		tokenDomainService: mockTokenDomainService,
+		sessionManager:     mockSessionManager,
 		logger:             slog.Default(),
 		defaultTokenExpiry: 900, // 15 minutes
 	}
@@ -127,6 +129,10 @@ func TestRefreshTokenInvalidatesOldAccessToken(t *testing.T) {
 		"9876543210987654321098765432109876543210987654321098765432109876",
 		"efghefghefghefghefghefghefghefghefghefghefghefghefghefghefghefgh",
 		nil).Once()
+
+	// Mock SessionManager calls
+	mockSessionManager.On("DeleteSession", ctx, user.ID, sessionID).Return(nil).Once()
+	mockSessionManager.On("CreateSession", ctx, user.ID, mock.AnythingOfType("string")).Return(nil).Once()
 
 	// Block the old session ID
 	mockRepo.On("BlockSession", ctx, sessionID, mock.AnythingOfType("time.Time")).Return(nil).Once()

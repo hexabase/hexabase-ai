@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -84,6 +85,16 @@ func (h *Handler) Callback(c *gin.Context) {
 
 	authResp, err := h.service.HandleCallback(c.Request.Context(), req, clientIP, userAgent)
 	if err != nil {
+		// Check if it's a session limit error
+		if errors.Is(err, domain.ErrTooManySessions) {
+			h.logger.Warn("concurrent session limit exceeded",
+				"provider", provider,
+				"client_ip", clientIP)
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "concurrent sessions exceeded"})
+
+			return
+		}
+
 		h.logger.Error("OAuth callback failed",
 			"error", err,
 			"provider", provider)

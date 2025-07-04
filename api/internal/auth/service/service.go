@@ -45,6 +45,7 @@ type service struct {
 	keyRepo            domain.KeyRepository
 	tokenManager       *internalAuth.TokenManager
 	tokenDomainService domain.TokenDomainService
+	sessionManager     domain.SessionManager
 	logger             *slog.Logger
 	defaultTokenExpiry int // Default token expiry in seconds when claims don't have expiry info
 }
@@ -56,6 +57,7 @@ func NewService(
 	keyRepo domain.KeyRepository,
 	tokenManager *internalAuth.TokenManager,
 	tokenDomainService domain.TokenDomainService,
+	sessionManager domain.SessionManager,
 	logger *slog.Logger,
 	defaultTokenExpiry int,
 ) domain.Service {
@@ -65,6 +67,7 @@ func NewService(
 		keyRepo:            keyRepo,
 		tokenManager:       tokenManager,
 		tokenDomainService: tokenDomainService,
+		sessionManager:     sessionManager,
 		logger:             logger,
 		defaultTokenExpiry: defaultTokenExpiry,
 	}
@@ -330,6 +333,12 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		return nil, fmt.Errorf("failed to block old session: %w", err)
 	}
 
+	// Remove old session from SessionManager
+	// This is less critical - if it fails, the session will still be blocked and will expire from Redis
+	if err := s.sessionManager.DeleteSession(ctx, session.UserID, oldSessionID); err != nil {
+		s.logger.Error("failed to remove old session from SessionManager", "error", err)
+	}
+
 	// Infrastructure concerns: Hash new refresh token
 	// Parse new refresh token to extract selector and verifier
 	tokenParts, err := s.parseRefreshToken(tokenPair.RefreshToken)
@@ -359,8 +368,17 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken, clientIP, user
 		Revoked:      false,
 	}
 
+	// Add new session to SessionManager
+	if err := s.sessionManager.CreateSession(ctx, session.UserID, newSessionID); err != nil {
+		return nil, fmt.Errorf("failed to add new session to SessionManager: %w", err)
+	}
+
 	// Create the new session
 	if err := s.repo.CreateSession(ctx, newSession); err != nil {
+		// Rollback SessionManager changes if database creation fails
+		if rollbackErr := s.sessionManager.DeleteSession(ctx, session.UserID, newSessionID); rollbackErr != nil {
+			s.logger.Error("failed to rollback new session from SessionManager", "error", rollbackErr)
+		}
 		return nil, fmt.Errorf("failed to create new session: %w", err)
 	}
 
@@ -394,6 +412,16 @@ func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshT
 		return nil, fmt.Errorf("failed to hash refresh token: %w", err)
 	}
 
+	// Check concurrent session limit using SessionManager
+	if err := s.sessionManager.CreateSession(ctx, userID, sessionID); err != nil {
+		// Propagate ErrTooManySessions without wrapping
+		if errors.Is(err, domain.ErrTooManySessions) {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("failed to enforce session limit: %w", err)
+	}
+
 	now := time.Now()
 	session := &domain.Session{
 		ID:                   sessionID, // Use the provided sessionID instead of generating new one
@@ -411,6 +439,10 @@ func (s *service) CreateSession(ctx context.Context, sessionID, userID, refreshT
 	}
 
 	if err := s.repo.CreateSession(ctx, session); err != nil {
+		// Rollback session from SessionManager if database creation fails
+		if rollbackErr := s.sessionManager.DeleteSession(ctx, userID, sessionID); rollbackErr != nil {
+			s.logger.Error("failed to rollback session from SessionManager", "error", rollbackErr)
+		}
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
@@ -471,6 +503,11 @@ func (s *service) RevokeSession(ctx context.Context, userID, sessionID string) e
 		s.logger.Error("failed to blacklist refresh token", "error", err)
 	}
 
+	// Remove session from SessionManager
+	if err := s.sessionManager.DeleteSession(ctx, userID, sessionID); err != nil {
+		s.logger.Error("failed to remove session from SessionManager", "error", err)
+	}
+
 	// Delete session
 	if err := s.repo.DeleteSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
@@ -494,6 +531,11 @@ func (s *service) RevokeAllSessions(ctx context.Context, userID string, exceptSe
 		if session.ID != exceptSessionID {
 			if err := s.repo.BlacklistRefreshToken(ctx, session.RefreshToken, session.ExpiresAt); err != nil {
 				s.logger.Error("failed to blacklist refresh token", "error", err)
+			}
+
+			// Remove session from SessionManager
+			if err := s.sessionManager.DeleteSession(ctx, userID, session.ID); err != nil {
+				s.logger.Error("failed to remove session from SessionManager", "error", err)
 			}
 		}
 	}

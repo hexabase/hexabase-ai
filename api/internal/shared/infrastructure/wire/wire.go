@@ -122,9 +122,11 @@ var AuthSet = wire.NewSet(
 	authRepo.NewCompositeRepository,
 	authRepo.NewOAuthRepository,
 	authRepo.NewKeyRepository,
+	authRepo.NewSessionLimiterRepository,
 	ProvideTokenManager,
 	ProvideTokenDomainService,
 	ProvideDefaultTokenExpiry,
+	authSvc.NewSessionManager,
 	authSvc.NewService,
 	authHandler.NewHandler,
 	authHandler.NewOgenAuthHandler,
@@ -539,6 +541,7 @@ func ProvideTokenDomainService() authDomain.TokenDomainService {
 func ProvideDefaultTokenExpiry() int {
 	return 3600 // 1 hour
 }
+
 
 // ProvideRedisClient provides a Redis client instance
 func ProvideRedisClient(cfg *config.Config, logger *slog.Logger) (*redis.Client, error) {
